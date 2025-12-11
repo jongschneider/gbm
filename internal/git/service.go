@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +15,88 @@ func NewService() *Service {
 		log.Fatal("git command not found in PATH - please install git")
 	}
 	return &Service{}
+}
+
+// FindGitRoot finds the root directory of the git repository.
+// This works correctly whether you're in a worktree, the main repo, or a subdirectory.
+//
+// Our repository structure (created by Init/Clone):
+//
+//	repo/
+//	  .git/           # bare repository
+//	  worktrees/
+//	    main/         # worktree
+//	    feature/      # worktree
+//
+// How this function handles different scenarios:
+//
+// Scenario 1: Running from INSIDE a worktree (repo/worktrees/main/)
+//   - git rev-parse --git-dir returns: /path/to/repo/.git/worktrees/main
+//   - Contains /.git/worktrees/ → YES
+//   - Returns early, NEVER checks --is-bare-repository
+//
+// Scenario 2: Running from repo root (repo/)
+//   - git rev-parse --git-dir returns: .git or /path/to/repo/.git
+//   - Contains /.git/worktrees/ → NO
+//   - Proceeds to --is-bare-repository check
+//   - Returns true (because .git is bare)
+//   - Uses bare repository logic
+//
+// Scenario 3: Running from worktrees directory (repo/worktrees/)
+//   - Git searches upward and finds repo/.git
+//   - git rev-parse --git-dir returns: ../.git or /path/to/repo/.git
+//   - Contains /.git/worktrees/ → NO (path points to .git, not .git/worktrees/something)
+//   - Proceeds to --is-bare-repository check
+//   - Returns true
+//   - Uses bare repository logic
+//
+// The --show-toplevel fallback is for regular (non-bare) repositories, which our
+// Init/Clone commands never create, but is included for edge cases.
+func (s *Service) FindGitRoot(startPath string) (string, error) {
+	// Get the git directory path
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = startPath
+	gitDirOutput, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	gitDir := strings.TrimSpace(string(gitDirOutput))
+
+	// If we're in a worktree, the git-dir will contain "/.git/worktrees/"
+	// Example: /path/to/repo/.git/worktrees/main
+	// We need to extract /path/to/repo
+	if strings.Contains(gitDir, "/.git/worktrees/") {
+		parts := strings.Split(gitDir, "/.git/worktrees/")
+		if len(parts) >= 2 {
+			return parts[0], nil
+		}
+	}
+
+	// Check if this is a bare repository
+	cmd = exec.Command("git", "rev-parse", "--is-bare-repository")
+	cmd.Dir = startPath
+	output, err := cmd.Output()
+	if err == nil && strings.TrimSpace(string(output)) == "true" {
+		// For bare repositories, the git directory is the repository root
+		if filepath.IsAbs(gitDir) {
+			// gitDir is something like /path/to/repo/.git
+			// We want /path/to/repo
+			return filepath.Dir(gitDir), nil
+		}
+		// gitDir is relative (e.g., ".git"), so repository root is startPath
+		return startPath, nil
+	}
+
+	// For regular repositories, use --show-toplevel
+	cmd = exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = startPath
+	output, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to find repository root: %w", err)
+	}
+
+	return strings.TrimSpace(string(output)), nil
 }
 
 // runCommand executes a command or prints it if in dry-run mode

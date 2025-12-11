@@ -3,9 +3,7 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"gbm/internal/git"
 
@@ -48,13 +46,18 @@ func NewService() *Service {
 
 // loadConfig attempts to load configuration from .gbm/config.yaml
 func (s *Service) loadConfig() error {
-	// Get repository root
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
+	// Get current working directory
+	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("not in a git repository")
+		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	s.RepoRoot = strings.TrimSpace(string(output))
+
+	// Find repository root (works from worktrees too!)
+	repoRoot, err := s.Git.FindGitRoot(cwd)
+	if err != nil {
+		return err // Not in a git repository
+	}
+	s.RepoRoot = repoRoot
 
 	// Try to read config file
 	configPath := filepath.Join(s.RepoRoot, ".gbm", "config.yaml")
