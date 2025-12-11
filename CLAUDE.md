@@ -132,3 +132,5 @@ The `runCommand()` method in `internal/git/service.go` handles dry-run:
 - Formats commands for display using `formatCommand()`
 - Prints `[DRY RUN] <command>` instead of executing
 - All commands support `--dry-run` flag to preview operations
+- Use FindGitRoot() instead of `git rev-parse --show-toplevel` for bare repo + worktree setups. It correctly finds the repo root even
+  when run from inside a worktree by detecting /.git/worktrees/ in the git-dir path.

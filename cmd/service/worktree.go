@@ -16,6 +16,8 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 	}
 
 	cmd.AddCommand(newWorktreeAddCommand(svc))
+	cmd.AddCommand(newWorktreeListCommand(svc))
+	cmd.AddCommand(newWorktreeRemoveCommand(svc))
 
 	return cmd
 }
@@ -69,6 +71,73 @@ Examples:
 
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to 'main')")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
+
+	return cmd
+}
+
+func newWorktreeListCommand(svc *Service) *cobra.Command {
+	var dryRun bool
+
+	cmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls", "l"},
+		Short:   "List all worktrees",
+		Long: `List all worktrees in the repository.
+
+Examples:
+  # List all worktrees
+  gbm worktree list`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			output, err := svc.Git.ListWorktrees(dryRun)
+			if err != nil {
+				return err
+			}
+
+			fmt.Print(output)
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
+
+	return cmd
+}
+
+func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
+	var (
+		force  bool
+		dryRun bool
+	)
+
+	cmd := &cobra.Command{
+		Use:     "remove <name>",
+		Aliases: []string{"rm", "r"},
+		Short:   "Remove a worktree from the worktrees directory",
+		Long: `Remove a worktree from the worktrees directory.
+
+Examples:
+  # Remove a worktree
+  gbm worktree remove feature-x
+
+  # Force remove a worktree (even if it has uncommitted changes)
+  gbm worktree remove feature-x --force`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			worktreeName := args[0]
+
+			// Get worktrees directory from service (reads from config)
+			worktreesDir, err := svc.GetWorktreesPath()
+			if err != nil {
+				return fmt.Errorf("failed to get worktrees directory: %w", err)
+			}
+
+			return svc.Git.RemoveWorktree(worktreesDir, worktreeName, force, dryRun)
+		},
+	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force removal even if worktree has uncommitted changes")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
 
 	return cmd
