@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gbm/internal/utils"
 )
 
 // Clone clones a remote git repository with worktree structure:
@@ -25,12 +27,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	}
 
 	// Create root directory if it doesn't exist
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", absPath)
-	} else {
-		if err := os.MkdirAll(absPath, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", absPath, err)
-		}
+	if err := utils.MkdirAll(absPath, dryRun); err != nil {
+		return err
 	}
 
 	// Create .git directory path
@@ -66,12 +64,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 
 	// Create worktrees directory structure
 	worktreesDir := filepath.Join(absPath, "worktrees")
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", worktreesDir)
-	} else {
-		if err := os.MkdirAll(worktreesDir, 0755); err != nil {
-			return fmt.Errorf("failed to create worktrees directory: %w", err)
-		}
+	if err := utils.MkdirAll(worktreesDir, dryRun); err != nil {
+		return err
 	}
 
 	// Create main worktree path
@@ -85,12 +79,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 
 	// Create .gbm directory and config.yaml
 	gbmDir := filepath.Join(absPath, ".gbm")
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", gbmDir)
-	} else {
-		if err := os.MkdirAll(gbmDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .gbm directory: %w", err)
-		}
+	if err := utils.MkdirAll(gbmDir, dryRun); err != nil {
+		return err
 	}
 
 	configPath := filepath.Join(gbmDir, "config.yaml")

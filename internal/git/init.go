@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"gbm/internal/utils"
 )
 
 // Init creates a new git repository with worktree structure:
@@ -29,22 +31,14 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	}
 
 	// Create root directory if it doesn't exist
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", absPath)
-	} else {
-		if err := os.MkdirAll(absPath, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", absPath, err)
-		}
+	if err := utils.MkdirAll(absPath, dryRun); err != nil {
+		return err
 	}
 
 	// Create .git directory for bare repository
 	gitDir := filepath.Join(absPath, ".git")
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", gitDir)
-	} else {
-		if err := os.MkdirAll(gitDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .git directory: %w", err)
-		}
+	if err := utils.MkdirAll(gitDir, dryRun); err != nil {
+		return err
 	}
 
 	// Initialize bare repository
@@ -61,12 +55,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 
 	// Create worktrees directory structure
 	worktreesDir := filepath.Join(absPath, "worktrees")
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", worktreesDir)
-	} else {
-		if err := os.MkdirAll(worktreesDir, 0755); err != nil {
-			return fmt.Errorf("failed to create worktrees directory: %w", err)
-		}
+	if err := utils.MkdirAll(worktreesDir, dryRun); err != nil {
+		return err
 	}
 
 	// Create main worktree path
@@ -86,12 +76,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 
 	// Create .gbm directory and config.yaml
 	gbmDir := filepath.Join(absPath, ".gbm")
-	if dryRun {
-		fmt.Printf("[DRY RUN] mkdir -p %s\n", gbmDir)
-	} else {
-		if err := os.MkdirAll(gbmDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .gbm directory: %w", err)
-		}
+	if err := utils.MkdirAll(gbmDir, dryRun); err != nil {
+		return err
 	}
 
 	configPath := filepath.Join(gbmDir, "config.yaml")

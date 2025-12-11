@@ -2,7 +2,8 @@ package service
 
 import (
 	"fmt"
-	"os"
+
+	"gbm/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -57,12 +58,8 @@ Examples:
 			}
 
 			// Create worktrees directory if it doesn't exist
-			if dryRun {
-				fmt.Printf("[DRY RUN] mkdir -p %s\n", worktreesDir)
-			} else {
-				if err := os.MkdirAll(worktreesDir, 0755); err != nil {
-					return fmt.Errorf("failed to create worktrees directory: %w", err)
-				}
+			if err := utils.MkdirAll(worktreesDir, dryRun); err != nil {
+				return err
 			}
 
 			return svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
