@@ -99,6 +99,37 @@ func (s *Service) FindGitRoot(startPath string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// GetCurrentWorktree returns the name of the current worktree if we're in one.
+// Returns an error if not in a worktree or if git commands fail.
+//
+// Example: If in /path/to/repo/worktrees/feature-x, returns "feature-x".
+func (s *Service) GetCurrentWorktree() (string, error) {
+	// Get the git directory path
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	gitDirOutput, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	gitDir := strings.TrimSpace(string(gitDirOutput))
+
+	// If we're in a worktree, the git-dir will contain "/.git/worktrees/"
+	// Example: /path/to/repo/.git/worktrees/feature-x
+	const worktreesSegment = "/.git/worktrees/"
+	if !strings.Contains(gitDir, worktreesSegment) {
+		return "", fmt.Errorf("not in a worktree")
+	}
+
+	parts := strings.Split(gitDir, worktreesSegment)
+	if len(parts) < 2 || parts[1] == "" {
+		return "", fmt.Errorf("not in a worktree")
+	}
+
+	// Extract the worktree name (last component after /.git/worktrees/)
+	worktreeName := parts[1]
+	return worktreeName, nil
+}
+
 // runCommand executes a command or prints it if in dry-run mode
 func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
 	cmdStr := formatCommand(cmd)

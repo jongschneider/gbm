@@ -117,15 +117,29 @@ func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
 		Short:   "Remove a worktree from the worktrees directory",
 		Long: `Remove a worktree from the worktrees directory.
 
+Use "." to remove the current worktree.
+
 Examples:
-  # Remove a worktree
+  # Remove a worktree by name
   gbm worktree remove feature-x
+
+  # Remove the current worktree
+  gbm worktree remove .
 
   # Force remove a worktree (even if it has uncommitted changes)
   gbm worktree remove feature-x --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worktreeName := args[0]
+
+			// If "." is provided, get the current worktree name
+			if worktreeName == "." {
+				currentWorktree, err := svc.Git.GetCurrentWorktree()
+				if err != nil {
+					return fmt.Errorf("failed to get current worktree: %w", err)
+				}
+				worktreeName = currentWorktree
+			}
 
 			// Get worktrees directory from service (reads from config)
 			worktreesDir, err := svc.GetWorktreesPath()
