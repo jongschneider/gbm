@@ -32,6 +32,7 @@ notifications when configurations drift out of sync.`,
 
 	// Add all subcommands
 	rootCmd.AddCommand(newInitCommand(gitSvc))
+	rootCmd.AddCommand(newCloneCommand(gitSvc))
 
 	return rootCmd
 }
@@ -44,7 +45,7 @@ func Execute() error {
 // CloseLogFile closes the log file if it was opened
 func CloseLogFile() {
 	if logFile != nil {
-		logFile.Close()
+		_ = logFile.Close()
 	}
 }
 
