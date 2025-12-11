@@ -1,12 +1,10 @@
 package service
 
 import (
-	"gbm/internal/git"
-
 	"github.com/spf13/cobra"
 )
 
-func newInitCommand(gitSvc *git.Service) *cobra.Command {
+func newInitCommand(svc *Service) *cobra.Command {
 	var (
 		name              string
 		defaultBranchName string
@@ -28,7 +26,7 @@ If name is not provided, initializes in the current directory.`,
 				name = args[0]
 			}
 
-			return gitSvc.Init(name, defaultBranchName, dryRun)
+			return svc.Git.Init(name, defaultBranchName, dryRun)
 		},
 	}
 

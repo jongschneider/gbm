@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"gbm/cmd/gbm/service"
+	"gbm/cmd/service"
 )
 
 func main() {

@@ -100,7 +100,7 @@ build:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Building gbm binary..."
-    go build -o gbm ./cmd/gbm || exit 1
+    go build -o gbm ./cmd || exit 1
     echo "✓ Build successful: ./gbm"
 
 # Compile all packages to ensure they build
@@ -115,7 +115,7 @@ compile:
 run *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    go build -o gbm ./cmd/gbm || exit 1
+    go build -o gbm ./cmd || exit 1
     ./gbm {{ARGS}}
 
 # Clean build artifacts

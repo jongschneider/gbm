@@ -4,16 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`gbm` (Git Branch Manager) is a CLI tool for managing git branches. The project is in early development stages.
+`gbm` (Git Branch Manager) is a CLI tool for managing git worktrees based on a bare repository structure. It creates and manages git repositories with:
+- A bare `.git` repository at the root
+- Worktrees organized under `worktrees/` directory
+- Configuration in `.gbm/config.yaml`
+
+The tool uses Cobra for CLI and shell-executes `git` commands via `os/exec`.
 
 ## Project Structure
 
 ```
-cmd/gbm/        # Main application entry point
-internal/git/   # Git service layer (interface to git operations)
+cmd/
+  main.go              # Application entry point
+  service/             # Cobra command definitions
+    root.go            # Root command and CLI setup
+    init.go            # 'init' command - create new repos
+    clone.go           # 'clone' command - clone with worktree structure
+    worktree.go        # 'worktree' command group for managing worktrees
+internal/
+  git/                 # Git operations via exec wrapper
+    service.go         # Service struct with runCommand helper
+    init.go            # Repository initialization logic
+    clone.go           # Repository cloning logic
+    worktree.go        # Worktree management logic
+  jira/                # JIRA integration (future)
+    service.go
 ```
 
-The main.go imports a `cmd` package that doesn't exist yet. This package will contain the CLI command definitions and execution logic (likely using cobra or a similar CLI framework).
+## Architecture
+
+### Command Flow
+1. `cmd/main.go` calls `service.Execute()`
+2. `cmd/service/root.go` defines the root Cobra command and registers subcommands
+3. Each subcommand delegates to `internal/git.Service` methods
+4. `internal/git.Service` wraps git commands using `os/exec`
+
+### Git Service Layer
+The `internal/git.Service` executes git commands via shell:
+- `runCommand()` helper handles dry-run mode and command formatting
+- All git operations use `exec.Command("git", ...)` with appropriate flags
+- Supports `--git-dir` for bare repo operations and `-C` for worktree operations
+
+### Key Technologies
+- **Cobra**: CLI framework (already integrated)
+- **os/exec**: Shell execution wrapper for git commands
+- **Bare repositories**: All repos use `git init --bare` with worktrees
 
 ## Development Commands
 
@@ -76,24 +111,24 @@ The justfile targets use smart change detection that checks:
 
 This allows for faster iteration by only validating what you've changed.
 
-## Architecture Notes
+## Implementation Patterns
 
-### Missing cmd Package
-The main.go references `gbm/cmd` package which doesn't exist yet. This package should contain:
-- CLI command definitions (root command, subcommands)
-- Command execution logic
-- Logging setup (CloseLogFile() and PrintError() functions)
-- Execute() function to run the CLI
+### Adding New Commands
+1. Create command constructor in `cmd/service/` (e.g., `newFooCommand()`)
+2. Register it in `cmd/service/root.go` via `rootCmd.AddCommand()`
+3. Implement git logic in `internal/git/` (e.g., `Service.Foo()` method)
+4. Use `Service.runCommand()` helper for all git exec calls to get dry-run support
 
-### Git Service Layer
-The `internal/git` package provides a service abstraction for git operations. Currently just a skeleton struct - will need methods for branch operations like:
-- Listing branches
-- Creating/deleting branches
-- Switching branches
-- Branch status/information
+### Adding Git Operations
+All git operations should:
+- Use `exec.Command("git", ...)` for git execution
+- Call `s.runCommand(cmd, dryRun)` to execute with dry-run support
+- Return formatted errors with command output: `fmt.Errorf("failed to X: %w\nOutput: %s", err, output)`
+- Use `--git-dir` flag when operating on bare repos
+- Use `-C <path>` flag when operating within worktrees
 
-### Expected Dependencies
-Based on the structure, likely dependencies will include:
-- CLI framework (cobra/urfave/cli)
-- Git library (go-git or exec wrapper)
-- Logging library
+### Dry-Run Mode
+The `runCommand()` method in `internal/git/service.go` handles dry-run:
+- Formats commands for display using `formatCommand()`
+- Prints `[DRY RUN] <command>` instead of executing
+- All commands support `--dry-run` flag to preview operations

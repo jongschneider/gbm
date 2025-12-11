@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"gbm/internal/git"
-
 	"github.com/spf13/cobra"
 )
 
@@ -27,12 +25,13 @@ notifications when configurations drift out of sync.`,
 		},
 	}
 
-	// Create git service for commands that need it
-	gitSvc := git.NewService()
+	// Create service with git and config
+	svc := NewService()
 
 	// Add all subcommands
-	rootCmd.AddCommand(newInitCommand(gitSvc))
-	rootCmd.AddCommand(newCloneCommand(gitSvc))
+	rootCmd.AddCommand(newInitCommand(svc))
+	rootCmd.AddCommand(newCloneCommand(svc))
+	rootCmd.AddCommand(newWorktreeCommand(svc))
 
 	return rootCmd
 }
