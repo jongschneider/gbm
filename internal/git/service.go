@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gbm/internal/utils"
 )
 
 type Service struct{}
@@ -132,7 +134,7 @@ func (s *Service) GetCurrentWorktree() (string, error) {
 
 // runCommand executes a command or prints it if in dry-run mode
 func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
-	cmdStr := formatCommand(cmd)
+	cmdStr := utils.FormatCommand(cmd)
 
 	if dryRun {
 		fmt.Printf("[DRY RUN] %s\n", cmdStr)
@@ -140,24 +142,4 @@ func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
 	}
 
 	return cmd.CombinedOutput()
-}
-
-// formatCommand formats a command for display
-func formatCommand(cmd *exec.Cmd) string {
-	parts := []string{cmd.Path}
-	parts = append(parts, cmd.Args[1:]...)
-
-	// Add working directory if set
-	if cmd.Dir != "" {
-		return fmt.Sprintf("(cd %s && %s)", cmd.Dir, strings.Join(parts, " "))
-	}
-
-	// Add git-dir if set in env
-	for _, env := range cmd.Env {
-		if after, ok := strings.CutPrefix(env, "GIT_DIR="); ok {
-			return fmt.Sprintf("GIT_DIR=%s %s", after, strings.Join(parts, " "))
-		}
-	}
-
-	return strings.Join(parts, " ")
 }

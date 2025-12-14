@@ -6,19 +6,27 @@ import (
 	"path/filepath"
 
 	"gbm/internal/git"
+	"gbm/internal/jira"
 
 	"gopkg.in/yaml.v3"
 )
 
-// Config represents the .gbm/config.yaml structure
-type Config struct {
-	DefaultBranch string `yaml:"default_branch"`
-	WorktreesDir  string `yaml:"worktrees_dir"`
+// JiraConfig represents JIRA-specific configuration
+type JiraConfig struct {
+	Me string `yaml:"me,omitempty"` // Cached JIRA username
 }
 
-// Service wraps the git service and provides configuration
+// Config represents the .gbm/config.yaml structure
+type Config struct {
+	DefaultBranch string     `yaml:"default_branch"`
+	WorktreesDir  string     `yaml:"worktrees_dir"`
+	Jira          JiraConfig `yaml:"jira,omitempty"`
+}
+
+// Service wraps the git and jira services and provides configuration
 type Service struct {
 	Git         *git.Service
+	Jira        *jira.Service
 	WorktreeDir string
 	RepoRoot    string
 	config      *Config
@@ -29,8 +37,13 @@ type Service struct {
 func NewService() *Service {
 	gitSvc := git.NewService()
 
+	// Check if debug mode is enabled
+	debug := os.Getenv("GBM_DEBUG") != ""
+	jiraSvc := jira.NewService(debug)
+
 	svc := &Service{
 		Git:         gitSvc,
+		Jira:        jiraSvc,
 		WorktreeDir: "worktrees", // default
 	}
 
@@ -88,4 +101,36 @@ func (s *Service) GetWorktreesPath() (string, error) {
 		return "", fmt.Errorf("not in a git repository")
 	}
 	return filepath.Join(s.RepoRoot, s.WorktreeDir), nil
+}
+
+// GetConfig returns the current configuration
+// Returns a default config if not loaded
+func (s *Service) GetConfig() *Config {
+	if s.config == nil {
+		return &Config{
+			DefaultBranch: "main",
+			WorktreesDir:  "worktrees",
+			Jira:          JiraConfig{},
+		}
+	}
+	return s.config
+}
+
+// SaveConfig writes the current configuration to .gbm/config.yaml
+func (s *Service) SaveConfig() error {
+	if s.RepoRoot == "" {
+		return fmt.Errorf("not in a git repository")
+	}
+
+	configPath := filepath.Join(s.RepoRoot, ".gbm", "config.yaml")
+	data, err := yaml.Marshal(s.config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write config: %w", err)
+	}
+
+	return nil
 }

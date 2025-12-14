@@ -1,7 +1,10 @@
 package service
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"gbm/internal/utils"
 
@@ -62,7 +65,33 @@ Examples:
 				return err
 			}
 
-			return svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
+			// Try to add the worktree
+			err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
+			if err == nil {
+				return nil
+			}
+
+			// If it's not a "branch doesn't exist" error, or user already specified -b, return the error
+			if !strings.Contains(err.Error(), "does not exist") || createBranch {
+				return err
+			}
+
+			// Prompt user if they want to create a new branch
+			fmt.Printf("Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
+
+			reader := bufio.NewReader(os.Stdin)
+			response, err := reader.ReadString('\n')
+			if err != nil {
+				return fmt.Errorf("failed to read user input: %w", err)
+			}
+
+			response = strings.TrimSpace(strings.ToLower(response))
+			if response != "y" && response != "yes" {
+				return fmt.Errorf("branch creation cancelled")
+			}
+
+			// Retry with createBranch = true
+			return svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, dryRun)
 		},
 	}
 
