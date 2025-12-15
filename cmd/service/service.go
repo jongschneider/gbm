@@ -23,6 +23,11 @@ type Config struct {
 	Jira          JiraConfig `yaml:"jira,omitempty"`
 }
 
+// State represents the .gbm/state.yaml structure for cached data
+type State struct {
+	Jira jira.IssuesCache `yaml:"jira"`
+}
+
 // Service wraps the git and jira services and provides configuration
 type Service struct {
 	Git         *git.Service
@@ -30,6 +35,36 @@ type Service struct {
 	WorktreeDir string
 	RepoRoot    string
 	config      *Config
+	state       *State
+}
+
+// cacheStore implements jira.CacheStore using the CLI's state file
+type cacheStore struct {
+	svc *Service
+}
+
+// Load returns the cached issues and user from state
+func (c *cacheStore) Load() (*jira.IssuesCache, string, error) {
+	state := c.svc.GetState()
+	config := c.svc.GetConfig()
+	return &state.Jira, config.Jira.Me, nil
+}
+
+// Save persists the cache and user to state
+func (c *cacheStore) Save(cache *jira.IssuesCache, user string) error {
+	if cache != nil {
+		state := c.svc.GetState()
+		state.Jira = *cache
+		_ = c.svc.SaveState() // Ignore errors - caching is optional
+	}
+
+	if user != "" {
+		config := c.svc.GetConfig()
+		config.Jira.Me = user
+		_ = c.svc.SaveConfig() // Ignore errors - caching is optional
+	}
+
+	return nil
 }
 
 // NewService creates a new service instance with loaded configuration.
@@ -39,11 +74,10 @@ func NewService() *Service {
 
 	// Check if debug mode is enabled
 	debug := os.Getenv("GBM_DEBUG") != ""
-	jiraSvc := jira.NewService(debug)
 
+	// Create a temporary service to load config and state
 	svc := &Service{
 		Git:         gitSvc,
-		Jira:        jiraSvc,
 		WorktreeDir: "worktrees", // default
 	}
 
@@ -51,8 +85,19 @@ func NewService() *Service {
 	if err := svc.loadConfig(); err != nil {
 		// Not in a repo or config doesn't exist - use defaults
 		// This is fine for commands like `init` and `clone`
+		// Create jira service with no cache store
+		svc.Jira = jira.NewService(debug, nil)
 		return svc
 	}
+
+	// Load state to get cached jira data
+	_ = svc.loadState() // Ignore errors - state might not exist yet
+
+	// Create cache store that wraps this service
+	store := &cacheStore{svc: svc}
+
+	// Create jira service with cache store
+	svc.Jira = jira.NewService(debug, store)
 
 	return svc
 }
@@ -133,4 +178,57 @@ func (s *Service) SaveConfig() error {
 	}
 
 	return nil
+}
+
+// loadState attempts to load state from .gbm/state.yaml
+func (s *Service) loadState() error {
+	if s.RepoRoot == "" {
+		return fmt.Errorf("not in a git repository")
+	}
+
+	statePath := filepath.Join(s.RepoRoot, ".gbm", "state.yaml")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		// State file doesn't exist yet - that's okay
+		s.state = &State{}
+		return nil
+	}
+
+	var state State
+	if err := yaml.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("failed to parse state: %w", err)
+	}
+
+	s.state = &state
+	return nil
+}
+
+// SaveState writes the current state to .gbm/state.yaml
+func (s *Service) SaveState() error {
+	if s.RepoRoot == "" {
+		return fmt.Errorf("not in a git repository")
+	}
+
+	statePath := filepath.Join(s.RepoRoot, ".gbm", "state.yaml")
+	data, err := yaml.Marshal(s.state)
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	if err := os.WriteFile(statePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write state: %w", err)
+	}
+
+	return nil
+}
+
+// GetState returns the current state (loads it if not already loaded)
+func (s *Service) GetState() *State {
+	if s.state == nil {
+		_ = s.loadState() // Ignore errors, return empty state
+		if s.state == nil {
+			s.state = &State{}
+		}
+	}
+	return s.state
 }

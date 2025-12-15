@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"gbm/internal/jira"
 	"gbm/internal/utils"
 
 	"github.com/spf13/cobra"
@@ -98,6 +99,39 @@ Examples:
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to 'main')")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
+
+	// Add JIRA key completions for the first positional argument
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			// Complete JIRA keys with summaries for context
+			jiraIssues, err := svc.Jira.GetJiraIssues(false)
+			if err != nil {
+				// If JIRA CLI is not available, fall back to no completions
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			var completions []string
+			for _, issue := range jiraIssues {
+				// Format: "KEY\tSummary" - clean completion of just the key with summary context
+				completion := fmt.Sprintf("%s\t%s", issue.Key, issue.Summary)
+				completions = append(completions, completion)
+			}
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		} else if len(args) == 1 {
+			// Complete branch name based on the JIRA key
+			worktreeName := args[0]
+			if jira.IsJiraKey(worktreeName) {
+				branchName, err := svc.Jira.GenerateBranchFromJira(worktreeName, false)
+				if err != nil {
+					// Fallback to default branch name generation
+					branchName = fmt.Sprintf("feature/%s", strings.ToLower(worktreeName))
+				}
+				return []string{branchName}, cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }

@@ -19,7 +19,7 @@ func (j *JiraIssue) BranchName() string {
 	summary = strings.Trim(summary, "_")
 
 	issueType := strings.ToLower(j.Type)
-	if issueType == "story" || issueType == "improvement" {
+	if issueType == "story" || issueType == "improvement" || issueType == "task" {
 		issueType = "feature"
 	}
 
@@ -49,7 +49,24 @@ func (j *JiraTicketDetails) BranchName() string {
 
 // GenerateBranchFromJira fetches a JIRA issue and generates a branch name
 // This is a convenience method that combines GetJiraIssue + BranchName
+// First tries to use cached issues list, falls back to fetching individual issue
 func (s *Service) GenerateBranchFromJira(key string, dryRun bool) (string, error) {
+	// Load cache from store
+	var cache *IssuesCache
+	if s.store != nil {
+		cache, _, _ = s.store.Load() // Ignore errors
+	}
+
+	// Try to find in cached issues first (much faster)
+	if cache != nil {
+		for _, issue := range cache.Issues {
+			if issue.Key == key {
+				return issue.BranchName(), nil
+			}
+		}
+	}
+
+	// Fallback: fetch individual issue details
 	issue, err := s.GetJiraIssue(key, dryRun)
 	if err != nil {
 		return "", err

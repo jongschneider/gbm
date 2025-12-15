@@ -40,6 +40,11 @@ type jiraRawResponse struct {
 		Summary string  `json:"summary"`
 		Created string  `json:"created"`
 		DueDate *string `json:"duedate"`
+		IssueType struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Subtask  bool   `json:"subtask"`
+		} `json:"issueType"`
 		Status  struct {
 			Name string `json:"name"`
 		} `json:"status"`

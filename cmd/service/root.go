@@ -13,9 +13,9 @@ var (
 
 func newRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "gbm",
+		Use:   "gbm2",
 		Short: "Git Branch Manager - Manage Git worktrees based on .gbm/config.yaml",
-		Long: `Git Branch Manager (gbm) is a CLI tool that manages Git repository branches
+		Long: `Git Branch Manager (gbm2) is a CLI tool that manages Git repository branches
 and worktrees based on configuration defined in .gbm/config.yaml.
 
 The tool synchronizes local worktrees with branch definitions and provides

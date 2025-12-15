@@ -8,25 +8,81 @@ import (
 	"time"
 )
 
+const (
+	// issuesCacheTTL is how long we cache JIRA issues (5 minutes)
+	issuesCacheTTL = 5 * time.Minute
+)
+
+// IssuesCache represents cached JIRA issues with timestamp
+type IssuesCache struct {
+	Issues    []JiraIssue `json:"issues"`
+	Timestamp time.Time   `json:"timestamp"`
+}
+
 // GetJiraIssues fetches all JIRA issues for the current user using --raw JSON output
 // Returns slice of typed JiraIssue structs
-func (s *Service) GetJiraIssues(cachedUser string, dryRun bool) ([]JiraIssue, error) {
+// Results are cached for 5 minutes to improve performance
+func (s *Service) GetJiraIssues(dryRun bool) ([]JiraIssue, error) {
+	// Load cache and user from store
+	var cache *IssuesCache
+	var cachedUser string
+	if s.store != nil {
+		cache, cachedUser, _ = s.store.Load() // Ignore errors
+	}
+
+	// Try to use cache first if valid
+	if cache != nil && len(cache.Issues) > 0 && time.Since(cache.Timestamp) < issuesCacheTTL {
+		return cache.Issues, nil
+	}
+
 	// Get JIRA user (cached or fetch)
 	user, _, err := s.GetJiraUser(cachedUser, dryRun)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch issues for the user using jira CLI
-	// Note: jira issue list doesn't have a --raw flag, so we get plain text
-	// We'll need to use jira issue view --raw for individual issues
-	cmd := exec.Command("jira", "issue", "list", "-a"+user, "--plain")
+	// Fetch issues for the user using jira CLI with --raw for JSON output
+	cmd := exec.Command("jira", "issue", "list", "-a"+user, "--raw")
 	output, err := s.runCommand(cmd, dryRun)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JIRA issues: %w\nOutput: %s", err, string(output))
 	}
 
-	return parseJiraList(string(output)), nil
+	// Parse JSON response
+	var rawIssues []jiraRawResponse
+	if err := json.Unmarshal(output, &rawIssues); err != nil {
+		return nil, fmt.Errorf("failed to parse JIRA issues JSON: %w", err)
+	}
+
+	// Convert to JiraIssue slice
+	issues := make([]JiraIssue, 0, len(rawIssues))
+	for _, raw := range rawIssues {
+		issue := JiraIssue{
+			Key:     raw.Key,
+			Summary: raw.Fields.Summary,
+			Status:  raw.Fields.Status.Name,
+		}
+
+		// Get issue type name
+		if raw.Fields.IssueType.Name != "" {
+			issue.Type = raw.Fields.IssueType.Name
+		}
+
+		issues = append(issues, issue)
+	}
+
+	// Create fresh cache with new data
+	freshCache := &IssuesCache{
+		Issues:    issues,
+		Timestamp: time.Now(),
+	}
+
+	// Persist the cache through the store
+	if s.store != nil {
+		_ = s.store.Save(freshCache, user) // Ignore errors - caching is optional
+	}
+
+	return issues, nil
 }
 
 // GetJiraIssue fetches detailed information for a specific JIRA issue using --raw JSON output
@@ -134,56 +190,3 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 	return ticket, nil
 }
 
-// parseJiraList parses the output of 'jira issue list --plain' command
-// This is a helper function that will be called by GetJiraIssues
-func parseJiraList(output string) []JiraIssue {
-	var issues []JiraIssue
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines[1:] { // Skip header
-		if line = strings.TrimSpace(line); line != "" {
-			fields := strings.Split(line, "\t")
-			if len(fields) >= 3 {
-				// Find the JIRA key in this line
-				var issueKey, issueType, summary, status string
-				keyIndex := -1
-
-				for i, field := range fields {
-					trimmedField := strings.TrimSpace(field)
-					if IsJiraKey(trimmedField) {
-						issueKey = trimmedField
-						keyIndex = i
-						break
-					}
-				}
-
-				if issueKey != "" {
-					// Type is usually the first field
-					issueType = strings.TrimSpace(fields[0])
-
-					// Summary is usually the field after the key
-					if keyIndex+1 < len(fields) {
-						summary = strings.TrimSpace(fields[keyIndex+1])
-					}
-
-					// Status is the last non-empty field
-					for i := len(fields) - 1; i >= 0; i-- {
-						if trimmed := strings.TrimSpace(fields[i]); trimmed != "" {
-							status = trimmed
-							break
-						}
-					}
-
-					issue := JiraIssue{
-						Type:    issueType,
-						Key:     issueKey,
-						Summary: summary,
-						Status:  status,
-					}
-					issues = append(issues, issue)
-				}
-			}
-		}
-	}
-	return issues
-}

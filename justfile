@@ -103,6 +103,24 @@ build:
     go build -o gbm ./cmd || exit 1
     echo "✓ Build successful: ./gbm"
 
+# Install the CLI globally as gbm2
+install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building and installing gbm2..."
+    go build -o gbm2 ./cmd || exit 1
+    sudo mv gbm2 /usr/local/bin/gbm2
+    echo "✓ Installation successful: /usr/local/bin/gbm2"
+    echo "✓ You can now run 'gbm2' from anywhere"
+
+# Uninstall gbm2 from system
+uninstall:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Uninstalling gbm2..."
+    sudo rm -f /usr/local/bin/gbm2
+    echo "✓ Uninstall complete"
+
 # Compile all packages to ensure they build
 compile:
     #!/usr/bin/env bash
