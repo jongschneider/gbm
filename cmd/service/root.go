@@ -33,6 +33,9 @@ notifications when configurations drift out of sync.`,
 	rootCmd.AddCommand(newCloneCommand(svc))
 	rootCmd.AddCommand(newWorktreeCommand(svc))
 
+	// Add completion command for shell completions
+	rootCmd.CompletionOptions.HiddenDefaultCmd = false
+
 	return rootCmd
 }
 

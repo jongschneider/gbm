@@ -32,3 +32,5 @@ gbm
 coverage.txt
 coverage.html
 *.coverprofile
+
+tmp/

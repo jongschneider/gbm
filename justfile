@@ -113,6 +113,16 @@ install:
     echo "✓ Installation successful: /usr/local/bin/gbm2"
     echo "✓ You can now run 'gbm2' from anywhere"
 
+# Copy zsh completion setup commands to clipboard
+completions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Generating zsh completion setup commands..."
+    # Create the commands to paste in a new shell and copy to clipboard
+    printf "# Source gbm2 completions (paste this in your shell)\nsource <(gbm2 completion zsh)\n\n# Or to make it permanent, add this to your ~/.zshrc:\n# source <(gbm2 completion zsh)\n" | pbcopy
+    echo "✓ Completion setup commands copied to clipboard"
+    echo "✓ Paste into a new shell session to enable completions for 'gbm2'"
+
 # Uninstall gbm2 from system
 uninstall:
     #!/usr/bin/env bash

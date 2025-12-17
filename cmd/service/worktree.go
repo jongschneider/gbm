@@ -67,13 +67,18 @@ Examples:
 			}
 
 			// Try to add the worktree
-			err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
+			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
 			if err == nil {
+				if !dryRun {
+					fmt.Printf("Created worktree '%s' at %s for branch '%s'\n", wt.Name, wt.Path, wt.Branch)
+				}
 				return nil
 			}
 
 			// If it's not a "branch doesn't exist" error, or user already specified -b, return the error
-			if !strings.Contains(err.Error(), "does not exist") || createBranch {
+			errMsg := err.Error()
+			isBranchNotExist := strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "invalid reference")
+			if !isBranchNotExist || createBranch {
 				return err
 			}
 
@@ -92,7 +97,14 @@ Examples:
 			}
 
 			// Retry with createBranch = true
-			return svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, dryRun)
+			wt, err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, dryRun)
+			if err != nil {
+				return err
+			}
+			if !dryRun {
+				fmt.Printf("Created worktree '%s' at %s for branch '%s'\n", wt.Name, wt.Path, wt.Branch)
+			}
+			return nil
 		},
 	}
 
@@ -150,12 +162,21 @@ Examples:
   gbm worktree list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			output, err := svc.Git.ListWorktrees(dryRun)
+			worktrees, err := svc.Git.ListWorktrees(dryRun)
 			if err != nil {
 				return err
 			}
 
-			fmt.Print(output)
+			// Format and print worktrees
+			for _, wt := range worktrees {
+				status := ""
+				if wt.IsBare {
+					status = "(bare)"
+				} else if wt.Branch != "" {
+					status = fmt.Sprintf("[%s]", wt.Branch)
+				}
+				fmt.Printf("%s  %s %s\n", wt.Path, wt.Commit, status)
+			}
 			return nil
 		},
 	}
@@ -198,21 +219,80 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("failed to get current worktree: %w", err)
 				}
-				worktreeName = currentWorktree
+				worktreeName = currentWorktree.Name
 			}
 
-			// Get worktrees directory from service (reads from config)
-			worktreesDir, err := svc.GetWorktreesPath()
+			// Remove the worktree (this validates it exists and returns its info)
+			removedWorktree, err := svc.Git.RemoveWorktree(worktreeName, force, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to get worktrees directory: %w", err)
+				return err
 			}
 
-			return svc.Git.RemoveWorktree(worktreesDir, worktreeName, force, dryRun)
+			// If we're in dry-run mode or there's no branch, return early
+			if dryRun || removedWorktree.Branch == "" {
+				return nil
+			}
+
+			branchName := removedWorktree.Branch
+
+			// Prompt to delete the branch
+			fmt.Printf("Delete branch '%s' associated with this worktree? (y/N): ", branchName)
+
+			reader := bufio.NewReader(os.Stdin)
+			response, err := reader.ReadString('\n')
+			if err != nil {
+				return fmt.Errorf("failed to read user input: %w", err)
+			}
+
+			response = strings.TrimSpace(strings.ToLower(response))
+			if response != "y" && response != "yes" {
+				fmt.Printf("Branch '%s' was not deleted.\n", branchName)
+				return nil
+			}
+
+			// Delete the branch
+			if err := svc.Git.DeleteBranch(branchName, force, dryRun); err != nil {
+				return fmt.Errorf("failed to delete branch: %w", err)
+			}
+			fmt.Printf("Branch '%s' deleted successfully.\n", branchName)
+
+			return nil
 		},
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force removal even if worktree has uncommitted changes")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
+
+	// Add shell completions for worktree names
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			// List all worktrees
+			worktrees, err := svc.Git.ListWorktrees(false)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			// Start with "." as a special option for current worktree
+			completions := []string{"."}
+
+			// Add all non-bare worktrees
+			for _, wt := range worktrees {
+				// Exclude the bare repo
+				if wt.IsBare {
+					continue
+				}
+				// Add completion with branch context
+				completion := wt.Name
+				if wt.Branch != "" {
+					completion = fmt.Sprintf("%s\t%s", wt.Name, wt.Branch)
+				}
+				completions = append(completions, completion)
+			}
+
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
