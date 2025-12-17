@@ -25,7 +25,9 @@ type Config struct {
 
 // State represents the .gbm/state.yaml structure for cached data
 type State struct {
-	Jira jira.IssuesCache `yaml:"jira"`
+	Jira             jira.IssuesCache `yaml:"jira"`
+	CurrentWorktree  string           `yaml:"current_worktree,omitempty"`  // Last worktree we switched to
+	PreviousWorktree string           `yaml:"previous_worktree,omitempty"` // Worktree before current
 }
 
 // Service wraps the git and jira services and provides configuration

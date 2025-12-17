@@ -319,15 +319,35 @@ you need to use shell integration:
   # Then you can use
   gbm worktree switch feature-x
 
+Use "-" to switch to the previous worktree (like "cd -"):
+  gbm worktree switch -
+
 Examples:
   # Print the path to a worktree
   gbm worktree switch --print-path feature-x
 
   # With shell integration enabled, switch to a worktree
-  gbm worktree switch feature-x`,
+  gbm worktree switch feature-x
+
+  # Switch to the previous worktree
+  gbm worktree switch -`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worktreeName := args[0]
+
+			// Get current worktree to track for history
+			var currentWorktree *git.Worktree
+			currentWorktree, _ = svc.Git.GetCurrentWorktree() // Ignore error if not in a worktree
+
+			// Handle "-" to switch to previous worktree
+			if worktreeName == "-" {
+				state := svc.GetState()
+				if state.PreviousWorktree == "" {
+					return fmt.Errorf("no previous worktree to switch to")
+				}
+				worktreeName = state.PreviousWorktree
+				fmt.Printf("Switching to previous worktree: %s\n", worktreeName)
+			}
 
 			// List all worktrees to find the target
 			worktrees, err := svc.Git.ListWorktrees(false)
@@ -353,6 +373,15 @@ Examples:
 				fmt.Print(targetWorktree.Path)
 				return nil
 			}
+
+			// Update state to track worktree history
+			state := svc.GetState()
+			if currentWorktree != nil && currentWorktree.Name != targetWorktree.Name {
+				// Save current worktree as previous before switching
+				state.PreviousWorktree = currentWorktree.Name
+			}
+			state.CurrentWorktree = targetWorktree.Name
+			_ = svc.SaveState() // Ignore errors - state tracking is optional
 
 			// Check if shell integration is enabled
 			if os.Getenv("GBM_SHELL_INTEGRATION") != "" {
@@ -382,6 +411,13 @@ Examples:
 			}
 
 			var completions []string
+
+			// Add "-" option if there's a previous worktree
+			state := svc.GetState()
+			if state.PreviousWorktree != "" {
+				completions = append(completions, fmt.Sprintf("-\t%s (previous)", state.PreviousWorktree))
+			}
+
 			// Add all non-bare worktrees
 			for _, wt := range worktrees {
 				// Exclude the bare repo
