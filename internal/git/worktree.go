@@ -110,9 +110,19 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 		return nil, fmt.Errorf("worktree created but failed to get info: %w", err)
 	}
 
+	// Resolve canonical path for comparison (handles symlinks like /tmp -> /private/tmp)
+	canonicalPath, err := filepath.EvalSymlinks(worktreePath)
+	if err != nil {
+		canonicalPath = worktreePath // Fallback if EvalSymlinks fails
+	}
+
 	// Find the worktree we just created
 	for _, wt := range worktrees {
-		if wt.Path == worktreePath {
+		wtCanonicalPath, err := filepath.EvalSymlinks(wt.Path)
+		if err != nil {
+			wtCanonicalPath = wt.Path
+		}
+		if wtCanonicalPath == canonicalPath {
 			return &wt, nil
 		}
 	}

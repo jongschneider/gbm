@@ -87,7 +87,17 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	configContent := fmt.Sprintf(`# Git Branch Manager Configuration
 default_branch: %s
 worktrees_dir: worktrees
-`, defaultBranch)
+
+# File copying rules - automatically copy files from source worktrees to new worktrees
+# Useful for configuration files, .env files, etc.
+# file_copy:
+#   rules:
+#     - source_worktree: %s
+#       files:
+#         - .env
+#         - config/
+#         - .vscode/settings.json
+`, defaultBranch, defaultBranch)
 
 	if dryRun {
 		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)

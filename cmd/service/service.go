@@ -16,11 +16,23 @@ type JiraConfig struct {
 	Me string `yaml:"me,omitempty"` // Cached JIRA username
 }
 
+// FileCopyRule defines files to copy from a source worktree
+type FileCopyRule struct {
+	SourceWorktree string   `yaml:"source_worktree"`
+	Files          []string `yaml:"files"`
+}
+
+// FileCopyConfig holds file copying rules for new worktrees
+type FileCopyConfig struct {
+	Rules []FileCopyRule `yaml:"rules,omitempty"`
+}
+
 // Config represents the .gbm/config.yaml structure
 type Config struct {
-	DefaultBranch string     `yaml:"default_branch"`
-	WorktreesDir  string     `yaml:"worktrees_dir"`
-	Jira          JiraConfig `yaml:"jira,omitempty"`
+	DefaultBranch string         `yaml:"default_branch"`
+	WorktreesDir  string         `yaml:"worktrees_dir"`
+	Jira          JiraConfig     `yaml:"jira,omitempty"`
+	FileCopy      FileCopyConfig `yaml:"file_copy,omitempty"`
 }
 
 // State represents the .gbm/state.yaml structure for cached data
@@ -233,4 +245,121 @@ func (s *Service) GetState() *State {
 		}
 	}
 	return s.state
+}
+
+// CopyFilesToWorktree copies files from source worktrees to the target worktree
+// based on the file copy rules in the config
+func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
+	config := s.GetConfig()
+	if len(config.FileCopy.Rules) == 0 {
+		return nil // No rules configured
+	}
+
+	if s.RepoRoot == "" {
+		return fmt.Errorf("not in a git repository")
+	}
+
+	targetWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, targetWorktreeName)
+
+	for _, rule := range config.FileCopy.Rules {
+		sourceWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, rule.SourceWorktree)
+
+		// Check if source worktree exists
+		if _, err := os.Stat(sourceWorktreePath); os.IsNotExist(err) {
+			fmt.Printf("Warning: source worktree '%s' does not exist, skipping file copy rule\n", rule.SourceWorktree)
+			continue
+		}
+
+		for _, filePattern := range rule.Files {
+			if err := s.copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern); err != nil {
+				fmt.Printf("Warning: failed to copy '%s' from '%s': %v\n", filePattern, rule.SourceWorktree, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// copyFileOrDirectory copies a file or directory from source to target
+func (s *Service) copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern string) error {
+	sourcePath := filepath.Join(sourceWorktreePath, filePattern)
+	targetPath := filepath.Join(targetWorktreePath, filePattern)
+
+	sourceInfo, err := os.Stat(sourcePath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("source file/directory '%s' does not exist", sourcePath)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to stat source path: %w", err)
+	}
+
+	if sourceInfo.IsDir() {
+		return s.copyDirectory(sourcePath, targetPath)
+	}
+	return s.copyFile(sourcePath, targetPath)
+}
+
+// copyFile copies a single file from source to target
+func (s *Service) copyFile(sourcePath, targetPath string) error {
+	// Create target directory if it doesn't exist
+	targetDir := filepath.Dir(targetPath)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create target directory: %w", err)
+	}
+
+	// Check if target file already exists
+	if _, err := os.Stat(targetPath); err == nil {
+		fmt.Printf("File '%s' already exists in target worktree, skipping\n", filepath.Base(targetPath))
+		return nil
+	}
+
+	// Get source file info for permissions
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to get source file info: %w", err)
+	}
+
+	// Read source content
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to read source file: %w", err)
+	}
+
+	// Write to target with same permissions
+	if err := os.WriteFile(targetPath, content, sourceInfo.Mode()); err != nil {
+		return fmt.Errorf("failed to write target file: %w", err)
+	}
+
+	return nil
+}
+
+// copyDirectory recursively copies a directory from source to target
+func (s *Service) copyDirectory(sourcePath, targetPath string) error {
+	// Create target directory
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		return fmt.Errorf("failed to create target directory: %w", err)
+	}
+
+	// Read source directory
+	entries, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		sourceEntryPath := filepath.Join(sourcePath, entry.Name())
+		targetEntryPath := filepath.Join(targetPath, entry.Name())
+
+		if entry.IsDir() {
+			if err := s.copyDirectory(sourceEntryPath, targetEntryPath); err != nil {
+				return err
+			}
+		} else {
+			if err := s.copyFile(sourceEntryPath, targetEntryPath); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

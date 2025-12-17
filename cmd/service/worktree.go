@@ -108,6 +108,17 @@ Examples:
 			}
 			return nil
 		},
+		PostRunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun {
+				return nil
+			}
+			worktreeName := args[0]
+			// Copy files from source worktrees based on config rules
+			if err := svc.CopyFilesToWorktree(worktreeName); err != nil {
+				fmt.Printf("Warning: failed to copy files to worktree: %v\n", err)
+			}
+			return nil
+		},
 	}
 
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
