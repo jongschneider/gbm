@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"gbm/internal/git"
 	"gbm/internal/jira"
 	"gbm/internal/utils"
 
@@ -23,6 +24,7 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 	cmd.AddCommand(newWorktreeAddCommand(svc))
 	cmd.AddCommand(newWorktreeListCommand(svc))
 	cmd.AddCommand(newWorktreeRemoveCommand(svc))
+	cmd.AddCommand(newWorktreeSwitchCommand(svc))
 
 	return cmd
 }
@@ -275,6 +277,111 @@ Examples:
 			// Start with "." as a special option for current worktree
 			completions := []string{"."}
 
+			// Add all non-bare worktrees
+			for _, wt := range worktrees {
+				// Exclude the bare repo
+				if wt.IsBare {
+					continue
+				}
+				// Add completion with branch context
+				completion := wt.Name
+				if wt.Branch != "" {
+					completion = fmt.Sprintf("%s\t%s", wt.Name, wt.Branch)
+				}
+				completions = append(completions, completion)
+			}
+
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func newWorktreeSwitchCommand(svc *Service) *cobra.Command {
+	var (
+		printPath bool
+	)
+
+	cmd := &cobra.Command{
+		Use:     "switch <name>",
+		Aliases: []string{"sw", "s"},
+		Short:   "Switch to a worktree directory",
+		Long: `Switch to a worktree directory.
+
+This command outputs the path to the worktree. To actually change your shell's directory,
+you need to use shell integration:
+
+  # Setup (add to ~/.zshrc or ~/.bashrc)
+  eval "$(gbm shell-integration)"
+
+  # Then you can use
+  gbm worktree switch feature-x
+
+Examples:
+  # Print the path to a worktree
+  gbm worktree switch --print-path feature-x
+
+  # With shell integration enabled, switch to a worktree
+  gbm worktree switch feature-x`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			worktreeName := args[0]
+
+			// List all worktrees to find the target
+			worktrees, err := svc.Git.ListWorktrees(false)
+			if err != nil {
+				return fmt.Errorf("failed to list worktrees: %w", err)
+			}
+
+			// Find the worktree by name
+			var targetWorktree *git.Worktree
+			for i, wt := range worktrees {
+				if wt.Name == worktreeName {
+					targetWorktree = &worktrees[i]
+					break
+				}
+			}
+
+			if targetWorktree == nil {
+				return fmt.Errorf("worktree '%s' not found", worktreeName)
+			}
+
+			// If --print-path is set, just print the path
+			if printPath {
+				fmt.Print(targetWorktree.Path)
+				return nil
+			}
+
+			// Check if shell integration is enabled
+			if os.Getenv("GBM_SHELL_INTEGRATION") != "" {
+				// Output cd command for shell wrapper to execute
+				fmt.Printf("cd %s\n", targetWorktree.Path)
+				return nil
+			}
+
+			// No shell integration, output instructions
+			fmt.Printf("To switch to worktree '%s':\n", worktreeName)
+			fmt.Printf("  cd %s\n\n", targetWorktree.Path)
+			fmt.Printf("To enable automatic directory switching, set up shell integration:\n")
+			fmt.Printf("  eval \"$(gbm shell-integration)\"\n")
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&printPath, "print-path", false, "Print only the path to the worktree")
+
+	// Add shell completions for worktree names
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			// List all worktrees
+			worktrees, err := svc.Git.ListWorktrees(false)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			var completions []string
 			// Add all non-bare worktrees
 			for _, wt := range worktrees {
 				// Exclude the bare repo
