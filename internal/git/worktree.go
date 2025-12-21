@@ -168,6 +168,35 @@ func (s *Service) GetWorktreeBranch(worktreePath string) (string, error) {
 	return branchName, nil
 }
 
+// Fetch fetches from the remote repository
+func (s *Service) Fetch(dryRun bool) error {
+	args := []string{"fetch", "--all"}
+
+	cmd := exec.Command("git", args...)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to fetch: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// BranchExists checks if a branch exists locally
+func (s *Service) BranchExists(branchName string) (bool, error) {
+	if branchName == "" {
+		return false, fmt.Errorf("branch name cannot be empty")
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--verify", branchName)
+	err := cmd.Run()
+	if err != nil {
+		// Branch doesn't exist
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // DeleteBranch deletes a git branch
 func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error {
 	if branchName == "" {
@@ -183,6 +212,49 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 	output, err := s.runCommand(cmd, dryRun)
 	if err != nil {
 		return fmt.Errorf("failed to delete branch: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// MoveWorktree moves a git worktree to a new location
+func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
+	if oldName == "" {
+		return fmt.Errorf("old worktree name cannot be empty")
+	}
+	if newName == "" {
+		return fmt.Errorf("new worktree name cannot be empty")
+	}
+
+	// List all worktrees to find the source
+	worktrees, err := s.ListWorktrees(false)
+	if err != nil {
+		return fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	var oldWorktree *Worktree
+	for _, wt := range worktrees {
+		if wt.Name == oldName {
+			oldWorktree = &wt
+			break
+		}
+	}
+
+	if oldWorktree == nil {
+		return fmt.Errorf("worktree '%s' not found", oldName)
+	}
+
+	// Calculate new path (same parent directory, different name)
+	oldPath := oldWorktree.Path
+	parentDir := filepath.Dir(oldPath)
+	newPath := filepath.Join(parentDir, newName)
+
+	args := []string{"worktree", "move", oldPath, newPath}
+
+	cmd := exec.Command("git", args...)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to move worktree: %w\nOutput: %s", err, string(output))
 	}
 
 	return nil

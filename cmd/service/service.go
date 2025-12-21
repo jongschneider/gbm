@@ -27,12 +27,20 @@ type FileCopyConfig struct {
 	Rules []FileCopyRule `yaml:"rules,omitempty"`
 }
 
+// WorktreeConfig defines a persistent worktree configuration
+type WorktreeConfig struct {
+	Branch      string `yaml:"branch"`
+	MergeInto   string `yaml:"merge_into,omitempty"`
+	Description string `yaml:"description,omitempty"`
+}
+
 // Config represents the .gbm/config.yaml structure
 type Config struct {
-	DefaultBranch string         `yaml:"default_branch"`
-	WorktreesDir  string         `yaml:"worktrees_dir"`
-	Jira          JiraConfig     `yaml:"jira,omitempty"`
-	FileCopy      FileCopyConfig `yaml:"file_copy,omitempty"`
+	DefaultBranch string                    `yaml:"default_branch"`
+	WorktreesDir  string                    `yaml:"worktrees_dir"`
+	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
+	Jira          JiraConfig                `yaml:"jira,omitempty"`
+	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
 }
 
 // State represents the .gbm/state.yaml structure for cached data
