@@ -300,3 +300,36 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 
 	return targetWorktree, nil
 }
+
+// ListBranches returns all local and remote branches
+func (s *Service) ListBranches(dryRun bool) ([]string, error) {
+	cmd := exec.Command("git", "branch", "-a", "--format=%(refname:short)")
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches: %w\nOutput: %s", err, output)
+	}
+
+	if dryRun {
+		return []string{"main", "develop", "origin/feature/example"}, nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Filter out empty lines
+	branches := []string{}
+	for _, line := range lines {
+		if line != "" {
+			branches = append(branches, line)
+		}
+	}
+	return branches, nil
+}
+
+// MergeBranch initiates a merge in the specified worktree
+func (s *Service) MergeBranch(worktreePath, sourceBranch string, dryRun bool) error {
+	cmd := exec.Command("git", "-C", worktreePath, "merge", "--no-commit", sourceBranch)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to merge branch: %w\nOutput: %s", err, output)
+	}
+	return nil
+}

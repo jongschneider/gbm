@@ -37,23 +37,41 @@ func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "add <name> <branch>",
+		Use:     "add [name] [branch]",
 		Aliases: []string{"a"},
 		Short:   "Add a new worktree in the worktrees directory",
 		Long: `Add a new worktree in the worktrees directory for the given branch.
 The worktree will be created at <repo-root>/worktrees/<name>.
 
+When called with no arguments, launches an interactive TUI workflow.
+When called with arguments, uses the traditional CLI mode.
+
 Examples:
-  # Create worktree for existing branch
+  # Interactive TUI mode
+  gbm worktree add
+
+  # CLI mode: Create worktree for existing branch
   gbm worktree add feature-x feature-x
 
-  # Create worktree with new branch from current HEAD
+  # CLI mode: Create worktree with new branch from current HEAD
   gbm worktree add feature-y feature-y -b
 
-  # Create worktree with new branch from specific base
+  # CLI mode: Create worktree with new branch from specific base
   gbm worktree add feature-z feature-z -b --base main`,
-		Args: cobra.ExactArgs(2),
+		Args: func(cmd *cobra.Command, args []string) error {
+			// Accept 0 args (TUI mode) or 2 args (CLI mode)
+			if len(args) == 0 || len(args) == 2 {
+				return nil
+			}
+			return fmt.Errorf("accepts 0 or 2 arg(s), received %d", len(args))
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// If no args provided, launch TUI mode
+			if len(args) == 0 {
+				return runWorktreeAddTUI(cmd, svc)
+			}
+
+			// CLI mode (existing behavior)
 			worktreeName := args[0]
 			branchName := args[1]
 
@@ -109,6 +127,10 @@ Examples:
 			return nil
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
+			// Skip PostRunE in TUI mode (no args) - TUI already handles file copying
+			if len(args) == 0 {
+				return nil
+			}
 			if dryRun {
 				return nil
 			}
