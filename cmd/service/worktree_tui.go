@@ -15,6 +15,49 @@ import (
 // ErrGoBack is a special error that signals to go back to the previous screen
 var ErrGoBack = fmt.Errorf("go back to previous screen")
 
+// generateMergeCommitMessage creates a commit message for a merge
+// If both branches are tracked in config, uses worktree names and descriptions
+// Otherwise uses branch names
+func generateMergeCommitMessage(svc *Service, sourceBranch, targetBranch string) string {
+	config := svc.GetConfig()
+
+	// Find config entries for source and target branches
+	var sourceWorktreeName, sourceDescription string
+	var targetWorktreeName, targetDescription string
+	var sourceTracked, targetTracked bool
+
+	for wtName, wtConfig := range config.Worktrees {
+		if wtConfig.Branch == sourceBranch {
+			sourceWorktreeName = wtName
+			sourceDescription = wtConfig.Description
+			sourceTracked = true
+		}
+		if wtConfig.Branch == targetBranch {
+			targetWorktreeName = wtName
+			targetDescription = wtConfig.Description
+			targetTracked = true
+		}
+	}
+
+	// If both are tracked, use worktree names and descriptions
+	if sourceTracked && targetTracked {
+		fromPart := sourceWorktreeName
+		if sourceDescription != "" {
+			fromPart = fmt.Sprintf("%s - %s", sourceWorktreeName, sourceDescription)
+		}
+
+		toPart := targetWorktreeName
+		if targetDescription != "" {
+			toPart = fmt.Sprintf("%s - %s", targetWorktreeName, targetDescription)
+		}
+
+		return fmt.Sprintf("merge: FROM [%s], TO [%s]", fromPart, toPart)
+	}
+
+	// Otherwise use branch names
+	return fmt.Sprintf("merge: FROM [%s], TO [%s]", sourceBranch, targetBranch)
+}
+
 // runWorktreeAddTUI launches the interactive TUI workflow for creating worktrees
 func runWorktreeAddTUI(cmd *cobra.Command, svc *Service) error {
 	// Loop to allow going back from worktree type-specific flows to type selection
@@ -170,6 +213,31 @@ func validateWorktreeName(name string) error {
 	return nil
 }
 
+// createWorktreeNameValidator creates a validator that checks both format and existence
+func createWorktreeNameValidator(svc *Service) func(string) error {
+	return func(name string) error {
+		// First check basic validation
+		if err := validateWorktreeName(name); err != nil {
+			return err
+		}
+
+		// Check if worktree already exists
+		worktrees, err := svc.Git.ListWorktrees(false)
+		if err != nil {
+			// Don't fail validation on list error, just skip existence check
+			return nil
+		}
+
+		for _, wt := range worktrees {
+			if wt.Name == name {
+				return fmt.Errorf("worktree '%s' already exists", name)
+			}
+		}
+
+		return nil
+	}
+}
+
 // validateBranchName ensures branch name is valid
 func validateBranchName(name string) error {
 	if name == "" {
@@ -180,6 +248,29 @@ func validateBranchName(name string) error {
 		return fmt.Errorf("invalid branch name format")
 	}
 	return nil
+}
+
+// createBranchNameValidator creates a validator that checks both format and existence
+func createBranchNameValidator(svc *Service) func(string) error {
+	return func(name string) error {
+		// First check basic validation
+		if err := validateBranchName(name); err != nil {
+			return err
+		}
+
+		// Check if branch already exists
+		exists, err := svc.Git.BranchExists(name)
+		if err != nil {
+			// Don't fail validation on check error, just skip existence check
+			return nil
+		}
+
+		if exists {
+			return fmt.Errorf("branch '%s' already exists", name)
+		}
+
+		return nil
+	}
 }
 
 // filterWorktreesByPrefix filters worktrees by name prefix
@@ -545,15 +636,23 @@ func createHotfixWorktree(svc *Service) error {
 
 	// Extract worktree name
 	filterModel := step1Wizard.Steps[0].customModel.(FilterableSelectModel)
-	worktreeName := filterModel.GetSelected()
+	selectedName := filterModel.GetSelected()
 
 	// Step 2: Determine if this is a JIRA key and get the corresponding issue
 	var selectedIssue *jira.JiraIssue
 	for i, issue := range issues {
-		if issue.Key == worktreeName {
+		if issue.Key == selectedName {
 			selectedIssue = &issues[i]
 			break
 		}
+	}
+
+	// Add HOTFIX_ prefix to avoid naming collisions
+	worktreeName := "HOTFIX_" + selectedName
+
+	// Validate that the prefixed worktree name doesn't already exist
+	if err := createWorktreeNameValidator(svc)(worktreeName); err != nil {
+		return fmt.Errorf("worktree validation failed: %w", err)
 	}
 
 	// Set branch name default based on selection
@@ -579,7 +678,7 @@ func createHotfixWorktree(svc *Service) error {
 			huh.NewInput().
 				Title("Branch name").
 				Value(&branchName).
-				Validate(validateBranchName).
+				Validate(createBranchNameValidator(svc)).
 				Description("Edit if needed"),
 		),
 	)
@@ -671,9 +770,9 @@ func createMergebackWorktree(svc *Service) error {
 		return ErrGoBack
 	}
 
-	// WIZARD 3: Steps 3-4 (Worktree name + Confirmation)
-	// Auto-suggest: "mergeback-<source>-to-<target>"
-	worktreeName = fmt.Sprintf("mergeback-%s-to-%s",
+	// WIZARD 3: Worktree name
+	// Auto-suggest: "MERGE_<source>-to-<target>"
+	worktreeName = fmt.Sprintf("MERGE_%s-to-%s",
 		sanitizeBranchName(sourceBranch),
 		sanitizeBranchName(targetBranch))
 
@@ -682,30 +781,69 @@ func createMergebackWorktree(svc *Service) error {
 			huh.NewInput().
 				Title("Worktree name").
 				Value(&worktreeName).
-				Validate(validateWorktreeName).
+				Validate(createWorktreeNameValidator(svc)).
 				Description("Edit if needed"),
 		),
 	)
 
+	wizard3 := NewWizard([]WizardStep{{form: worktreeNameForm}})
+	completed, cancelled, err = wizard3.Run()
+	if err != nil {
+		return err
+	}
+	if cancelled {
+		return fmt.Errorf("cancelled")
+	}
+	if !completed {
+		// User pressed ESC - go back to type selection
+		return ErrGoBack
+	}
+
+	// WIZARD 4: Branch name
+	var branchName string
+	// Auto-suggest branch name with format: merge/<source>-to-<target>
+	branchName = fmt.Sprintf("merge/%s-to-%s",
+		sanitizeBranchName(sourceBranch),
+		sanitizeBranchName(targetBranch))
+
+	branchNameForm := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Branch name").
+				Value(&branchName).
+				Validate(createBranchNameValidator(svc)).
+				Description("Edit if needed"),
+		),
+	)
+
+	wizard4 := NewWizard([]WizardStep{{form: branchNameForm}})
+	completed, cancelled, err = wizard4.Run()
+	if err != nil {
+		return err
+	}
+	if cancelled {
+		return fmt.Errorf("cancelled")
+	}
+	if !completed {
+		// User pressed ESC - go back to type selection
+		return ErrGoBack
+	}
+
+	// WIZARD 5: Final confirmation
 	confirmForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Create mergeback worktree?").
 				Description(fmt.Sprintf(
-					"Source: %s → Target: %s\nWorktree: %s",
-					sourceBranch, targetBranch, worktreeName,
+					"Source: %s → Target: %s\nWorktree: %s\nBranch: %s",
+					sourceBranch, targetBranch, worktreeName, branchName,
 				)).
 				Value(&confirm),
 		),
 	)
 
-	// Consolidated wizard for worktree name + confirmation
-	wizard34 := NewWizard([]WizardStep{
-		{form: worktreeNameForm},
-		{form: confirmForm},
-	})
-
-	completed, cancelled, err = wizard34.Run()
+	wizard5 := NewWizard([]WizardStep{{form: confirmForm}})
+	completed, cancelled, err = wizard5.Run()
 	if err != nil {
 		return err
 	}
@@ -721,33 +859,37 @@ func createMergebackWorktree(svc *Service) error {
 		return fmt.Errorf("mergeback cancelled")
 	}
 
-	// Create worktree based on target branch
+	// Create worktree with new branch based on target branch
 	worktreesDir, err := svc.GetWorktreesPath()
 	if err != nil {
 		return fmt.Errorf("failed to get worktrees directory: %w", err)
 	}
 
-	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, targetBranch, false, "", false)
+	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, targetBranch, false)
 	if err != nil {
 		return fmt.Errorf("failed to add worktree: %w", err)
 	}
 
-	// Initiate merge
+	// Initiate merge with commit message
 	fmt.Printf("\n✓ Worktree created successfully!\n")
 	fmt.Printf("  Name:   %s\n", wt.Name)
 	fmt.Printf("  Path:   %s\n", wt.Path)
 	fmt.Printf("  Branch: %s\n", wt.Branch)
 	fmt.Printf("\nInitiating merge from %s...\n", sourceBranch)
 
-	err = svc.Git.MergeBranch(wt.Path, sourceBranch, false)
+	// Generate commit message based on config
+	commitMessage := generateMergeCommitMessage(svc, sourceBranch, targetBranch)
+
+	err = svc.Git.MergeBranchWithCommit(wt.Path, sourceBranch, commitMessage, false)
 	if err != nil {
 		fmt.Printf("\n⚠ Worktree created, but merge failed: %v\n", err)
 		fmt.Printf("You can manually run the merge in the worktree:\n")
 		fmt.Printf("  cd %s\n", wt.Path)
 		fmt.Printf("  git merge %s\n", sourceBranch)
 	} else {
-		fmt.Printf("✓ Merge initiated successfully!\n")
-		fmt.Printf("Review the changes and commit in the worktree:\n")
+		fmt.Printf("✓ Merge completed successfully!\n")
+		fmt.Printf("  Commit message: %s\n", commitMessage)
+		fmt.Printf("\nWorktree ready at:\n")
 		fmt.Printf("  cd %s\n", wt.Path)
 	}
 
@@ -842,8 +984,8 @@ func createTargetBranchSelect(svc *Service, sourceBranch string, targetBranch *s
 }
 
 func selectMergebackWorktreeName(sourceBranch, targetBranch string, worktreeName *string) error {
-	// Auto-suggest: "mergeback-<source>-to-<target>"
-	suggested := fmt.Sprintf("mergeback-%s-to-%s",
+	// Auto-suggest: "MERGE_<source>-to-<target>"
+	suggested := fmt.Sprintf("MERGE_%s-to-%s",
 		sanitizeBranchName(sourceBranch),
 		sanitizeBranchName(targetBranch))
 

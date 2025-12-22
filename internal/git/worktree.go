@@ -333,3 +333,13 @@ func (s *Service) MergeBranch(worktreePath, sourceBranch string, dryRun bool) er
 	}
 	return nil
 }
+
+// MergeBranchWithCommit merges a branch and creates a commit with the specified message
+func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessage string, dryRun bool) error {
+	cmd := exec.Command("git", "-C", worktreePath, "merge", "-m", commitMessage, sourceBranch)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to merge branch: %w\nOutput: %s", err, output)
+	}
+	return nil
+}
