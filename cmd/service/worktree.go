@@ -202,17 +202,42 @@ Examples:
 				return err
 			}
 
-			// Format and print worktrees
-			for _, wt := range worktrees {
-				status := ""
-				if wt.IsBare {
-					status = "(bare)"
-				} else if wt.Branch != "" {
-					status = fmt.Sprintf("[%s]", wt.Branch)
-				}
-				fmt.Printf("%s  %s %s\n", wt.Path, wt.Commit, status)
+			if len(worktrees) == 0 {
+				fmt.Println("No worktrees found.")
+				return nil
 			}
-			return nil
+
+			// Get config to identify tracked worktrees
+			config := svc.GetConfig()
+
+			// Create a map of tracked branches for quick lookup
+			trackedBranches := make(map[string]bool)
+			for _, wtConfig := range config.Worktrees {
+				trackedBranches[wtConfig.Branch] = true
+			}
+
+			// Categorize worktrees: tracked, ad hoc (exclude bare)
+			var trackedWorktrees []git.Worktree
+			var adHocWorktrees []git.Worktree
+
+			for _, wt := range worktrees {
+				if wt.IsBare {
+					// Skip bare repository
+					continue
+				} else if trackedBranches[wt.Branch] {
+					trackedWorktrees = append(trackedWorktrees, wt)
+				} else {
+					adHocWorktrees = append(adHocWorktrees, wt)
+				}
+			}
+
+			// Combine in priority order: tracked, ad hoc
+			sortedWorktrees := make([]git.Worktree, 0, len(trackedWorktrees)+len(adHocWorktrees))
+			sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
+			sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
+
+			// Display using bubbletea table
+			return runWorktreeTable(sortedWorktrees, trackedBranches, svc)
 		},
 	}
 

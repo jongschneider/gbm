@@ -22,9 +22,10 @@ type Worktree struct {
 func parseWorktrees(output string) []Worktree {
 	var worktrees []Worktree
 
-	// Regex to parse: /path/to/worktree  abcd1234 [branch-name]
-	// Or for bare repo: /path/to/repo  abcd1234 (bare)
-	re := regexp.MustCompile(`^(\S+)\s+([a-f0-9]+)\s+(?:\[(.*?)\]|\((.*?)\))`)
+	// Regex to parse:
+	//   /path/to/worktree  abcd1234 [branch-name]
+	//   /path/to/repo (bare)  <- Note: bare repos may not have commit hash
+	re := regexp.MustCompile(`^(\S+)\s+(?:([a-f0-9]+)\s+)?(?:\[(.*?)\]|\((.*?)\))`)
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
@@ -33,12 +34,15 @@ func parseWorktrees(output string) []Worktree {
 		}
 
 		matches := re.FindStringSubmatch(line)
-		if len(matches) < 3 {
+		if len(matches) < 2 {
 			continue
 		}
 
 		path := matches[1]
-		commit := matches[2]
+		commit := ""
+		if len(matches) > 2 && matches[2] != "" {
+			commit = matches[2]
+		}
 		branch := ""
 		isBare := false
 
