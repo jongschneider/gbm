@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -19,6 +20,33 @@ type FilterableItem struct {
 func (i FilterableItem) FilterValue() string { return i.Label }
 func (i FilterableItem) Title() string       { return i.Label }
 func (i FilterableItem) Description() string { return "" }
+
+// simpleItemDelegate is a minimal, compact delegate for list items
+type simpleItemDelegate struct{}
+
+func (d simpleItemDelegate) Height() int                               { return 1 }
+func (d simpleItemDelegate) Spacing() int                              { return 0 }
+func (d simpleItemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
+func (d simpleItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	i, ok := item.(FilterableItem)
+	if !ok {
+		return
+	}
+
+	str := i.Label
+
+	// Style for selected item
+	if index == m.Index() {
+		str = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("170")).
+			Bold(true).
+			Render("▸ " + str)
+	} else {
+		str = "  " + str
+	}
+
+	fmt.Fprint(w, str)
+}
 
 // FilterableSelectModel is a Bubble Tea model for a filterable select
 type FilterableSelectModel struct {
@@ -48,9 +76,8 @@ func NewFilterableSelect(title, description string, items []FilterableItem) Filt
 		listItems[i] = item
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.ShowDescription = false
-	delegate.SetHeight(1)
+	// Use simple, compact delegate
+	delegate := simpleItemDelegate{}
 
 	l := list.New(listItems, delegate, 80, 10)
 	l.Title = ""
@@ -168,7 +195,7 @@ func (m FilterableSelectModel) View() string {
 
 	// Description
 	if m.description != "" {
-		descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+		descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		s.WriteString(descStyle.Render(m.description))
 		s.WriteString("\n")
 	}
@@ -177,26 +204,27 @@ func (m FilterableSelectModel) View() string {
 
 	// Text input
 	s.WriteString(m.textInput.View())
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 
 	// List or "No matches" message
 	if len(m.filteredList) == 0 {
-		noMatchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8")).Italic(true)
+		noMatchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 		inputValue := strings.TrimSpace(m.textInput.Value())
 		if inputValue != "" {
-			s.WriteString(noMatchStyle.Render(fmt.Sprintf("No matches found. Press Enter to use: %q", inputValue)))
+			s.WriteString("\n" + noMatchStyle.Render(fmt.Sprintf("No matches. Press Enter to use: %q", inputValue)))
 		} else {
-			s.WriteString(noMatchStyle.Render("Start typing to filter tickets or enter a custom value"))
+			s.WriteString("\n" + noMatchStyle.Render("Start typing to filter..."))
 		}
 	} else {
+		s.WriteString("\n")
 		s.WriteString(m.list.View())
 	}
 
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 
-	// Help text
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	s.WriteString(helpStyle.Render("↑/↓: navigate • enter: select • esc: cancel"))
+	// Help text - more compact
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	s.WriteString(helpStyle.Render("↑/↓ navigate • enter select • esc cancel"))
 
 	return s.String()
 }

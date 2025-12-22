@@ -344,6 +344,21 @@ func createFeatureWorktree(svc *Service, prefix string) error {
 		filterModel := step1Wizard.Steps[0].customModel.(FilterableSelectModel)
 		worktreeName = filterModel.GetSelected()
 
+		// Validate worktree name
+		if err := createWorktreeNameValidator(svc)(worktreeName); err != nil {
+			// Show error and loop back to worktree name selection
+			errorForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewNote().
+						Title("Validation Error").
+						Description(err.Error()),
+				),
+			)
+			errorWizard := NewWizard([]WizardStep{{form: errorForm}})
+			_, _, _ = errorWizard.Run()
+			continue
+		}
+
 		// Determine if this is a JIRA key and set branch name default
 		var selectedIssue *jira.JiraIssue
 		for i, issue := range issues {
@@ -369,7 +384,7 @@ func createFeatureWorktree(svc *Service, prefix string) error {
 					huh.NewInput().
 						Title("Branch name").
 						Value(&branchName).
-						Validate(validateBranchName).
+						Validate(createBranchNameValidator(svc)).
 						Description("Edit if needed"),
 				),
 			)
