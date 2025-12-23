@@ -285,6 +285,31 @@ Examples:
 				worktreeName = currentWorktree.Name
 			}
 
+			// Check if we're trying to remove the current worktree
+			// If so, we need to change directory first to avoid issues with subsequent git commands
+			currentWorktree, err := svc.Git.GetCurrentWorktree()
+			isCurrentWorktree := (err == nil && currentWorktree.Name == worktreeName)
+
+			if isCurrentWorktree && !dryRun {
+				// Get current working directory
+				cwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("failed to get current directory: %w", err)
+				}
+
+				// Get the repo root to switch to
+				repoRoot, err := svc.Git.FindGitRoot(cwd)
+				if err != nil {
+					return fmt.Errorf("failed to find repository root: %w", err)
+				}
+
+				// Change to the repo root before removing the current worktree
+				if err := os.Chdir(repoRoot); err != nil {
+					return fmt.Errorf("failed to change directory to repo root: %w", err)
+				}
+				fmt.Printf("Switching to repository root before removing current worktree...\n")
+			}
+
 			// Remove the worktree (this validates it exists and returns its info)
 			removedWorktree, err := svc.Git.RemoveWorktree(worktreeName, force, dryRun)
 			if err != nil {
