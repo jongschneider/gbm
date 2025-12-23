@@ -3,6 +3,9 @@ package service
 import (
 	"fmt"
 	"gbm/internal/git"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,16 +19,18 @@ var (
 )
 
 type worktreeTableModel struct {
-	table           table.Model
-	worktrees       []git.Worktree
-	trackedBranches map[string]bool
-	svc             *Service
+	table            table.Model
+	worktrees        []git.Worktree
+	trackedBranches  map[string]bool
+	svc              *Service
+	currentWorktree  *git.Worktree // Track current worktree for state updates
 	confirmingDelete bool
 	deleteTarget     string
 	message          string
+	switchOutput     string // Output from switch command to print after exit
 }
 
-func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, svc *Service) worktreeTableModel {
+func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) worktreeTableModel {
 	columns := []table.Column{
 		{Title: "Name", Width: 30},
 		{Title: "Branch", Width: 60},
@@ -75,6 +80,7 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		table:           t,
 		worktrees:       worktrees,
 		trackedBranches: trackedBranches,
+		currentWorktree: currentWorktree,
 		svc:             svc,
 	}
 }
@@ -131,7 +137,7 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				deletedTarget := m.deleteTarget
 
 				// Rebuild the table with updated worktrees
-				m = newWorktreeTable(sortedWorktrees, m.trackedBranches, m.svc)
+				m = newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
 				m.message = fmt.Sprintf("Deleted worktree '%s'", deletedTarget)
 				return m, nil
 
@@ -154,6 +160,32 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				m.deleteTarget = m.worktrees[cursor].Name
 				m.confirmingDelete = true
+			}
+			return m, nil
+		case " ", "enter":
+			// Switch to selected worktree by invoking gbm2 wt switch
+			cursor := m.table.Cursor()
+			if cursor >= 0 && cursor < len(m.worktrees) {
+				targetWorktree := m.worktrees[cursor]
+
+				// Execute gbm2 wt switch <name>
+				cmd := exec.Command("gbm2", "wt", "switch", targetWorktree.Name)
+				// Inherit environment variables (including GBM_SHELL_INTEGRATION)
+				envVars := []string{"GBM_SHELL_INTEGRATION=1"}
+				// Pass current worktree name via env var so subprocess knows where we're switching from
+				if m.currentWorktree != nil {
+					envVars = append(envVars, fmt.Sprintf("GBM_CURRENT_WORKTREE=%s", m.currentWorktree.Name))
+				}
+				cmd.Env = append(cmd.Environ(), envVars...)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					m.message = fmt.Sprintf("Error switching: %v", err)
+					return m, nil
+				}
+
+				// Store the output to print after the program exits
+				m.switchOutput = string(output)
+				return m, tea.Quit
 			}
 			return m, nil
 		}
@@ -179,7 +211,7 @@ func (m worktreeTableModel) View() string {
 	} else {
 		// Show help text
 		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-		help := "\n↑/↓: navigate • d: delete • q/esc: quit\n"
+		help := "\n↑/↓: navigate • space/enter: switch • d: delete • q/esc: quit\n"
 
 		// Show message if any
 		if m.message != "" {
@@ -193,11 +225,26 @@ func (m worktreeTableModel) View() string {
 	return output
 }
 
-func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, svc *Service) error {
-	m := newWorktreeTable(worktrees, trackedBranches, svc)
-	p := tea.NewProgram(m)
-	if _, err := p.Run(); err != nil {
+func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) error {
+	m := newWorktreeTable(worktrees, trackedBranches, currentWorktree, svc)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
 		return fmt.Errorf("error running table: %w", err)
 	}
+
+	// Write switch output to a temp file for shell integration to read
+	if model, ok := finalModel.(worktreeTableModel); ok {
+		if model.switchOutput != "" {
+			// Write cd command to a temp file that shell integration can read
+			// Use PPID (parent process ID, i.e., the shell's PID) for the filename
+			ppid := os.Getppid()
+			tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf(".gbm-switch-%d", ppid))
+			_ = os.WriteFile(tmpFile, []byte(model.switchOutput), 0600)
+			// Also print it for non-shell-integration users
+			fmt.Print(model.switchOutput)
+		}
+	}
+
 	return nil
 }

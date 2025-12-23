@@ -236,8 +236,11 @@ Examples:
 			sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
 			sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
 
+			// Get current worktree for state tracking
+			currentWorktree, _ := svc.Git.GetCurrentWorktree()
+
 			// Display using bubbletea table
-			return runWorktreeTable(sortedWorktrees, trackedBranches, svc)
+			return runWorktreeTable(sortedWorktrees, trackedBranches, currentWorktree, svc)
 		},
 	}
 
@@ -395,7 +398,22 @@ Examples:
 
 			// Get current worktree to track for history
 			var currentWorktree *git.Worktree
-			currentWorktree, _ = svc.Git.GetCurrentWorktree() // Ignore error if not in a worktree
+
+			// First check if parent process passed the current worktree via env var
+			// This is used when switching from the TUI table
+			if envCurrentWt := os.Getenv("GBM_CURRENT_WORKTREE"); envCurrentWt != "" {
+				// Look up the worktree by name to get full info
+				wts, _ := svc.Git.ListWorktrees(false)
+				for i, wt := range wts {
+					if wt.Name == envCurrentWt {
+						currentWorktree = &wts[i]
+						break
+					}
+				}
+			} else {
+				// Otherwise, detect from working directory
+				currentWorktree, _ = svc.Git.GetCurrentWorktree() // Ignore error if not in a worktree
+			}
 
 			// Handle "-" to switch to previous worktree
 			if worktreeName == "-" {
