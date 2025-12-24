@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/looplab/fsm"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ var (
 )
 
 // runWorktreeAddTUI launches the interactive TUI workflow for creating worktrees
-func runWorktreeAddTUI(cmd *cobra.Command, svc *Service) error {
+func runWorktreeAddTUI(cmd *cobra.Command, svc *Service, visualizeFSM bool, graphType string) error {
 	// Create and run the unified FSM
 	// The FSM handles:
 	// - Type selection
@@ -42,6 +43,26 @@ func runWorktreeAddTUI(cmd *cobra.Command, svc *Service) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Minute)
 	defer cancel()
 
-	fsm := NewWorktreeAddFSM(svc)
-	return fsm.Run(ctx)
+	fsmInstance := NewWorktreeAddFSM(svc)
+
+	// Print FSM visualization if requested
+	if visualizeFSM {
+		var mermaidType fsm.MermaidDiagramType
+		switch graphType {
+		case string(fsm.FlowChart), "flowchart", "flow":
+			mermaidType = fsm.FlowChart
+		case string(fsm.StateDiagram), "statediagram", "state":
+			mermaidType = fsm.StateDiagram
+		default:
+			mermaidType = fsm.StateDiagram
+		}
+
+		if err := fsmInstance.VisualizeFSM(mermaidType); err != nil {
+			return err
+		}
+		// Exit after printing visualization, don't run the TUI
+		return nil
+	}
+
+	return fsmInstance.Run(ctx)
 }

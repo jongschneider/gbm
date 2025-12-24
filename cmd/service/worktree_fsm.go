@@ -141,6 +141,16 @@ func NewWorktreeAddFSM(svc *Service) *WorktreeAddFSM {
 	return w
 }
 
+// VisualizeFSM prints the FSM diagram in the specified Mermaid format
+func (w *WorktreeAddFSM) VisualizeFSM(graphType fsm.MermaidDiagramType) error {
+	diagram, err := fsm.VisualizeForMermaidWithGraphType(w.fsm, graphType)
+	if err != nil {
+		return fmt.Errorf("failed to visualize FSM: %w", err)
+	}
+	fmt.Println(diagram)
+	return nil
+}
+
 // Run executes the unified FSM workflow loop with timeout and cancellation support
 // The context can be used to cancel the workflow or set a timeout
 func (w *WorktreeAddFSM) Run(ctx context.Context) error {

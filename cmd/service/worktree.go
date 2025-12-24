@@ -31,9 +31,11 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 
 func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	var (
-		createBranch bool
-		baseBranch   string
-		dryRun       bool
+		createBranch  bool
+		baseBranch    string
+		dryRun        bool
+		visualizeFSM  bool
+		fsmGraphType  string
 	)
 
 	cmd := &cobra.Command{
@@ -68,7 +70,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// If no args provided, launch TUI mode
 			if len(args) == 0 {
-				return runWorktreeAddTUI(cmd, svc)
+				return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
 			}
 
 			// CLI mode (existing behavior)
@@ -146,6 +148,8 @@ Examples:
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to 'main')")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
+	cmd.Flags().BoolVar(&visualizeFSM, "visualize-fsm", false, "Print FSM diagram before running TUI (TUI mode only)")
+	cmd.Flags().StringVar(&fsmGraphType, "fsm-graph-type", "statediagram", "FSM graph type: 'statediagram' or 'flowchart' (default: statediagram)")
 
 	// Add JIRA key completions for the first positional argument
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
