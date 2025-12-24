@@ -24,9 +24,8 @@ type WizardStep struct {
 
 // WizardModel manages a multi-step wizard with back navigation
 type WizardModel struct {
-	Steps       []WizardStep           // Public so we can access step models after wizard completes
+	steps       []WizardStep
 	currentStep int
-	values      map[string]interface{} // Store values across steps
 	cancelled   bool
 	completed   bool
 	width       int
@@ -36,17 +35,16 @@ type WizardModel struct {
 // NewWizard creates a new wizard with the given steps
 func NewWizard(steps []WizardStep) WizardModel {
 	return WizardModel{
-		Steps:       steps,
+		steps:       steps,
 		currentStep: 0,
-		values:      make(map[string]interface{}),
 		width:       80,
 		height:      24,
 	}
 }
 
 func (m WizardModel) Init() tea.Cmd {
-	if len(m.Steps) > 0 {
-		step := m.Steps[m.currentStep]
+	if len(m.steps) > 0 {
+		step := m.steps[m.currentStep]
 		if step.isCustom {
 			return step.customModel.Init()
 		}
@@ -56,11 +54,11 @@ func (m WizardModel) Init() tea.Cmd {
 }
 
 func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.currentStep >= len(m.Steps) {
+	if m.currentStep >= len(m.steps) {
 		return m, nil
 	}
 
-	step := &m.Steps[m.currentStep]
+	step := &m.steps[m.currentStep]
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -69,7 +67,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// ESC goes back to previous step
 			if m.currentStep > 0 {
 				m.currentStep--
-				prevStep := m.Steps[m.currentStep]
+				prevStep := m.steps[m.currentStep]
 				if prevStep.isCustom {
 					return m, prevStep.customModel.Init()
 				}
@@ -107,11 +105,11 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if sm.IsComplete() {
 				// Move to next step
 				m.currentStep++
-				if m.currentStep >= len(m.Steps) {
+				if m.currentStep >= len(m.steps) {
 					m.completed = true
 					return m, tea.Quit
 				}
-				nextStep := m.Steps[m.currentStep]
+				nextStep := m.steps[m.currentStep]
 				if nextStep.isCustom {
 					return m, nextStep.customModel.Init()
 				}
@@ -129,11 +127,11 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if f.State == huh.StateCompleted {
 				// Move to next step
 				m.currentStep++
-				if m.currentStep >= len(m.Steps) {
+				if m.currentStep >= len(m.steps) {
 					m.completed = true
 					return m, tea.Quit
 				}
-				nextStep := m.Steps[m.currentStep]
+				nextStep := m.steps[m.currentStep]
 				if nextStep.isCustom {
 					return m, nextStep.customModel.Init()
 				}
@@ -146,8 +144,8 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m WizardModel) View() string {
-	if m.currentStep < len(m.Steps) {
-		step := m.Steps[m.currentStep]
+	if m.currentStep < len(m.steps) {
+		step := m.steps[m.currentStep]
 
 		var view string
 		if step.isCustom {
@@ -192,15 +190,13 @@ func (m WizardModel) Run() (*WizardModel, error) {
 		return &model, nil
 	}
 
-	return nil, fmt.Errorf("unexpected model type")
+	return nil, fmt.Errorf("unexpected model type: %T", finalModel)
 }
 
-// GetValue retrieves a stored value by key
-func (m WizardModel) GetValue(key string) interface{} {
-	return m.values[key]
-}
-
-// SetValue stores a value by key
-func (m *WizardModel) SetValue(key string, value interface{}) {
-	m.values[key] = value
+// GetStep returns the step at the given index
+func (m *WizardModel) GetStep(index int) (WizardStep, error) {
+	if index < 0 || index >= len(m.steps) {
+		return WizardStep{}, fmt.Errorf("step index %d out of range (0-%d)", index, len(m.steps)-1)
+	}
+	return m.steps[index], nil
 }

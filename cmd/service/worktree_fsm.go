@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 	"github.com/looplab/fsm"
@@ -140,24 +141,43 @@ func NewWorktreeAddFSM(svc *Service) *WorktreeAddFSM {
 	return w
 }
 
-// Run executes the unified FSM workflow loop
-func (w *WorktreeAddFSM) Run() error {
-	ctx := context.Background()
-
+// Run executes the unified FSM workflow loop with timeout and cancellation support
+// The context can be used to cancel the workflow or set a timeout
+func (w *WorktreeAddFSM) Run(ctx context.Context) error {
 	for {
+		// Check if context is done (timeout or cancellation)
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return fmt.Errorf("workflow timeout: %w", ctx.Err())
+			}
+			return fmt.Errorf("workflow cancelled: %w", ctx.Err())
+		default:
+			// Continue with workflow
+		}
+
 		current := w.fsm.Current()
 
 		// Check terminal states
 		switch current {
 		case StateSuccess:
+			// Clear history to prevent unbounded growth
+			w.state.StateHistory = nil
+			w.state.EventHistory = nil
 			// For now, don't loop - just return success
 			// TODO: Optionally prompt user if they want to create another worktree
 			return nil
 
 		case StateCancelled:
+			// Clear history to prevent unbounded growth
+			w.state.StateHistory = nil
+			w.state.EventHistory = nil
 			return ErrCancelled
 
 		case StateError:
+			// Clear history to prevent unbounded growth
+			w.state.StateHistory = nil
+			w.state.EventHistory = nil
 			return w.state.LastError
 		}
 
@@ -284,48 +304,55 @@ func (w *WorktreeAddFSM) runSelectType() (string, error) {
 // === Feature Workflow Handlers ===
 
 func (w *WorktreeAddFSM) runFeatureWorktreeName() (string, error) {
-	items := fetchJiraItems(w.state.Service)
+	for {
+		items := fetchJiraItems(w.state.Service)
 
-	wizard := NewWizard([]WizardStep{
-		{customModel: NewFilterableSelect(
-			"Worktree name",
-			"Select JIRA ticket or enter custom name",
-			items,
-		), isCustom: true},
-	})
+		wizard := NewWizard([]WizardStep{
+			{customModel: NewFilterableSelect(
+				"Worktree name",
+				"Select JIRA ticket or enter custom name",
+				items,
+			), isCustom: true},
+		})
 
-	finalWizard, err := wizard.Run()
-	if err != nil {
-		if errors.Is(err, ErrCancelled) {
-			return EventCancel, nil
+		finalWizard, err := wizard.Run()
+		if err != nil {
+			if errors.Is(err, ErrCancelled) {
+				return EventCancel, nil
+			}
+			if errors.Is(err, ErrGoBack) {
+				return EventGoBack, nil
+			}
+			return "", err
 		}
-		if errors.Is(err, ErrGoBack) {
-			return EventGoBack, nil
+
+		// Extract and validate
+		step, err := finalWizard.GetStep(0)
+		if err != nil {
+			return "", fmt.Errorf("failed to get step: %w", err)
 		}
-		return "", err
+		model := step.customModel.(FilterableSelectModel)
+		w.state.WorktreeName = model.GetSelected()
+
+		// Validate
+		if err := createWorktreeNameValidator(w.state.Service)(w.state.WorktreeName); err != nil {
+			// Show error and retry in the same state
+			errorForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewNote().
+						Title("Validation Error").
+						Description(err.Error()),
+				),
+			)
+			errorWizard := NewWizard([]WizardStep{{form: errorForm}})
+			_, _ = errorWizard.Run() // Ignore error - just showing message
+			// Loop continues - retry input
+			continue
+		}
+
+		// Validation succeeded
+		return EventComplete, nil
 	}
-
-	// Extract and validate
-	model := finalWizard.Steps[0].customModel.(FilterableSelectModel)
-	w.state.WorktreeName = model.GetSelected()
-
-	// Validate
-	if err := createWorktreeNameValidator(w.state.Service)(w.state.WorktreeName); err != nil {
-		// Show error and retry in the same state
-		errorForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewNote().
-					Title("Validation Error").
-					Description(err.Error()),
-			),
-		)
-		errorWizard := NewWizard([]WizardStep{{form: errorForm}})
-		_, _ = errorWizard.Run() // Ignore error - just showing message
-		// Stay in same state - user will retry
-		return w.runFeatureWorktreeName()
-	}
-
-	return EventComplete, nil
 }
 
 func (w *WorktreeAddFSM) runFeatureBranchName() (string, error) {
@@ -401,7 +428,12 @@ func (w *WorktreeAddFSM) runFeatureBaseBranch() (string, error) {
 		return "", err
 	}
 
-	model := finalWizard.Steps[0].customModel.(FilterableSelectModel)
+	step, err := finalWizard.GetStep(0)
+	if err != nil {
+		w.state.LastError = fmt.Errorf("failed to get step: %w", err)
+		return EventError, nil
+	}
+	model := step.customModel.(FilterableSelectModel)
 	w.state.BaseBranch = model.GetSelected()
 	return EventComplete, nil
 }
@@ -470,10 +502,15 @@ func (w *WorktreeAddFSM) runFeatureExecuteCreate() (string, error) {
 
 // generateFeatureDefaultBranchName creates a default branch name for feature workflow
 func (w *WorktreeAddFSM) generateFeatureDefaultBranchName() string {
-	// Determine prefix based on selected type
-	prefix := w.selectedType
-	if prefix == "" {
-		prefix = "feature"
+	// Determine branch prefix based on selected workflow type
+	var branchPrefix string
+	switch w.selectedType {
+	case WorkflowTypeBug:
+		branchPrefix = BugBranchPrefix
+	case WorkflowTypeFeature:
+		branchPrefix = FeatureBranchPrefix
+	default:
+		branchPrefix = FeatureBranchPrefix
 	}
 
 	// Check if worktree name is a JIRA key
@@ -482,59 +519,67 @@ func (w *WorktreeAddFSM) generateFeatureDefaultBranchName() string {
 		for _, issue := range issues {
 			if issue.Key == w.state.WorktreeName {
 				sanitized := sanitizeSummaryForBranch(issue.Summary)
-				return fmt.Sprintf("%s/%s-%s", prefix, issue.Key, sanitized)
+				return fmt.Sprintf("%s%s-%s", branchPrefix, issue.Key, sanitized)
 			}
 		}
 	}
-	return prefix + "/"
+	return branchPrefix
 }
 
 // === Hotfix Workflow Handlers ===
 
 func (w *WorktreeAddFSM) runHotfixWorktreeName() (string, error) {
-	items := fetchJiraItems(w.state.Service)
+	for {
+		items := fetchJiraItems(w.state.Service)
 
-	wizard := NewWizard([]WizardStep{
-		{customModel: NewFilterableSelect(
-			"Worktree name",
-			"Select JIRA ticket or enter custom name",
-			items,
-		), isCustom: true},
-	})
+		wizard := NewWizard([]WizardStep{
+			{customModel: NewFilterableSelect(
+				"Worktree name",
+				"Select JIRA ticket or enter custom name",
+				items,
+			), isCustom: true},
+		})
 
-	finalWizard, err := wizard.Run()
+		finalWizard, err := wizard.Run()
+		if err != nil {
+			if errors.Is(err, ErrCancelled) {
+				return EventCancel, nil
+			}
+			if errors.Is(err, ErrGoBack) {
+				return EventGoBack, nil
+			}
+			return "", err
+		}
+
+		step, err := finalWizard.GetStep(0)
 	if err != nil {
-		if errors.Is(err, ErrCancelled) {
-			return EventCancel, nil
-		}
-		if errors.Is(err, ErrGoBack) {
-			return EventGoBack, nil
-		}
-		return "", err
+		return "", fmt.Errorf("failed to get step: %w", err)
 	}
+	model := step.customModel.(FilterableSelectModel)
+		selectedName := model.GetSelected()
 
-	model := finalWizard.Steps[0].customModel.(FilterableSelectModel)
-	selectedName := model.GetSelected()
+		// Add HOTFIX_ prefix
+		w.state.WorktreeName = HotfixPrefix + selectedName
 
-	// Add HOTFIX_ prefix
-	w.state.WorktreeName = "HOTFIX_" + selectedName
+		// Validate
+		if err := createWorktreeNameValidator(w.state.Service)(w.state.WorktreeName); err != nil {
+			// Show error and retry
+			errorForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewNote().
+						Title("Validation Error").
+						Description(err.Error()),
+				),
+			)
+			errorWizard := NewWizard([]WizardStep{{form: errorForm}})
+			_, _ = errorWizard.Run() // Ignore error - just showing message
+			// Loop continues - retry input
+			continue
+		}
 
-	// Validate
-	if err := createWorktreeNameValidator(w.state.Service)(w.state.WorktreeName); err != nil {
-		// Show error and retry
-		errorForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewNote().
-					Title("Validation Error").
-					Description(err.Error()),
-			),
-		)
-		errorWizard := NewWizard([]WizardStep{{form: errorForm}})
-		_, _ = errorWizard.Run() // Ignore error - just showing message
-		return w.runHotfixWorktreeName()
+		// Validation succeeded
+		return EventComplete, nil
 	}
-
-	return EventComplete, nil
 }
 
 func (w *WorktreeAddFSM) runHotfixBaseBranch() (string, error) {
@@ -563,7 +608,11 @@ func (w *WorktreeAddFSM) runHotfixBaseBranch() (string, error) {
 		return "", err
 	}
 
-	model := finalWizard.Steps[0].customModel.(FilterableSelectModel)
+	step, err := finalWizard.GetStep(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to get step: %w", err)
+	}
+	model := step.customModel.(FilterableSelectModel)
 	w.state.BaseBranch = model.GetSelected()
 	return EventComplete, nil
 }
@@ -629,10 +678,7 @@ func (w *WorktreeAddFSM) runHotfixExecuteCreate() (string, error) {
 // generateHotfixDefaultBranchName creates a default branch name for hotfix workflow
 func (w *WorktreeAddFSM) generateHotfixDefaultBranchName() string {
 	// Extract the base name (remove HOTFIX_ prefix)
-	baseName := w.state.WorktreeName
-	if len(baseName) > 7 && baseName[:7] == "HOTFIX_" {
-		baseName = baseName[7:]
-	}
+	baseName := strings.TrimPrefix(w.state.WorktreeName, HotfixPrefix)
 
 	// Check if it's a JIRA key
 	issues, err := w.state.Service.Jira.GetJiraIssues(false)
@@ -640,11 +686,11 @@ func (w *WorktreeAddFSM) generateHotfixDefaultBranchName() string {
 		for _, issue := range issues {
 			if issue.Key == baseName {
 				sanitized := sanitizeSummaryForBranch(issue.Summary)
-				return fmt.Sprintf("hotfix/%s-%s", issue.Key, sanitized)
+				return fmt.Sprintf("%s%s-%s", HotfixBranchPrefix, issue.Key, sanitized)
 			}
 		}
 	}
-	return "hotfix/"
+	return HotfixBranchPrefix
 }
 
 // === Mergeback Workflow Handlers ===
@@ -730,7 +776,8 @@ func (w *WorktreeAddFSM) runMergebackTargetBranch() (string, error) {
 func (w *WorktreeAddFSM) runMergebackWorktreeName() (string, error) {
 	// Auto-generate: MERGE_<source>-to-<target>
 	w.state.WorktreeName = fmt.Sprintf(
-		"MERGE_%s-to-%s",
+		"%s%s-to-%s",
+		MergebackPrefix,
 		sanitizeBranchName(w.state.SourceBranch),
 		sanitizeBranchName(w.state.TargetBranch),
 	)
@@ -764,7 +811,8 @@ func (w *WorktreeAddFSM) runMergebackWorktreeName() (string, error) {
 func (w *WorktreeAddFSM) runMergebackBranchName() (string, error) {
 	// Auto-generate: merge/<source>-to-<target>
 	w.state.BranchName = fmt.Sprintf(
-		"merge/%s-to-%s",
+		"%s%s-to-%s",
+		MergebackBranchPrefix,
 		sanitizeBranchName(w.state.SourceBranch),
 		sanitizeBranchName(w.state.TargetBranch),
 	)

@@ -165,7 +165,7 @@ func (s *Service) loadConfig() error {
 // GetWorktreesPath returns the absolute path to the worktrees directory
 func (s *Service) GetWorktreesPath() (string, error) {
 	if s.RepoRoot == "" {
-		return "", fmt.Errorf("not in a git repository")
+		return "", ErrNotInGitRepository
 	}
 	return filepath.Join(s.RepoRoot, s.WorktreeDir), nil
 }
@@ -186,7 +186,7 @@ func (s *Service) GetConfig() *Config {
 // SaveConfig writes the current configuration to .gbm/config.yaml
 func (s *Service) SaveConfig() error {
 	if s.RepoRoot == "" {
-		return fmt.Errorf("not in a git repository")
+		return ErrNotInGitRepository
 	}
 
 	configPath := filepath.Join(s.RepoRoot, ".gbm", "config.yaml")
@@ -205,7 +205,7 @@ func (s *Service) SaveConfig() error {
 // loadState attempts to load state from .gbm/state.yaml
 func (s *Service) loadState() error {
 	if s.RepoRoot == "" {
-		return fmt.Errorf("not in a git repository")
+		return ErrNotInGitRepository
 	}
 
 	statePath := filepath.Join(s.RepoRoot, ".gbm", "state.yaml")
@@ -228,7 +228,7 @@ func (s *Service) loadState() error {
 // SaveState writes the current state to .gbm/state.yaml
 func (s *Service) SaveState() error {
 	if s.RepoRoot == "" {
-		return fmt.Errorf("not in a git repository")
+		return ErrNotInGitRepository
 	}
 
 	statePath := filepath.Join(s.RepoRoot, ".gbm", "state.yaml")
@@ -264,7 +264,7 @@ func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 	}
 
 	if s.RepoRoot == "" {
-		return fmt.Errorf("not in a git repository")
+		return ErrNotInGitRepository
 	}
 
 	targetWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, targetWorktreeName)

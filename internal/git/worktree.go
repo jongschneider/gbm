@@ -70,13 +70,13 @@ func parseWorktrees(output string) []Worktree {
 // AddWorktree creates a new git worktree in the specified directory
 func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, createBranch bool, baseBranch string, dryRun bool) (*Worktree, error) {
 	if worktreesDir == "" {
-		return nil, fmt.Errorf("worktrees directory cannot be empty")
+		return nil, ErrWorktreesDirectoryEmpty
 	}
 	if worktreeName == "" {
-		return nil, fmt.Errorf("worktree name cannot be empty")
+		return nil, ErrWorktreeNameEmpty
 	}
 	if branchName == "" {
-		return nil, fmt.Errorf("branch name cannot be empty")
+		return nil, ErrBranchNameEmpty
 	}
 
 	// Construct the full worktree path
@@ -156,7 +156,7 @@ func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 // GetWorktreeBranch returns the branch associated with a worktree
 func (s *Service) GetWorktreeBranch(worktreePath string) (string, error) {
 	if worktreePath == "" {
-		return "", fmt.Errorf("worktree path cannot be empty")
+		return "", ErrWorktreePathEmpty
 	}
 
 	// Use git -C to run command in the worktree directory
@@ -188,7 +188,7 @@ func (s *Service) Fetch(dryRun bool) error {
 // BranchExists checks if a branch exists locally
 func (s *Service) BranchExists(branchName string) (bool, error) {
 	if branchName == "" {
-		return false, fmt.Errorf("branch name cannot be empty")
+		return false, ErrBranchNameEmpty
 	}
 
 	cmd := exec.Command("git", "rev-parse", "--verify", branchName)
@@ -204,7 +204,7 @@ func (s *Service) BranchExists(branchName string) (bool, error) {
 // DeleteBranch deletes a git branch
 func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error {
 	if branchName == "" {
-		return fmt.Errorf("branch name cannot be empty")
+		return ErrBranchNameEmpty
 	}
 
 	args := []string{"branch", "-d", branchName}
@@ -224,10 +224,10 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 // MoveWorktree moves a git worktree to a new location
 func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 	if oldName == "" {
-		return fmt.Errorf("old worktree name cannot be empty")
+		return ErrOldWorktreeNameEmpty
 	}
 	if newName == "" {
-		return fmt.Errorf("new worktree name cannot be empty")
+		return ErrNewWorktreeNameEmpty
 	}
 
 	// List all worktrees to find the source
@@ -267,7 +267,7 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 // RemoveWorktree removes a git worktree by name and returns the removed worktree info
 func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (*Worktree, error) {
 	if worktreeName == "" {
-		return nil, fmt.Errorf("worktree name cannot be empty")
+		return nil, ErrWorktreeNameEmpty
 	}
 
 	// List all worktrees to find the one to remove

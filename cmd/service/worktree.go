@@ -113,7 +113,7 @@ Examples:
 
 			response = strings.TrimSpace(strings.ToLower(response))
 			if response != "y" && response != "yes" {
-				return fmt.Errorf("branch creation cancelled")
+				return ErrBranchCreationCancelled
 			}
 
 			// Retry with createBranch = true
@@ -171,7 +171,7 @@ Examples:
 				branchName, err := svc.Jira.GenerateBranchFromJira(worktreeName, false)
 				if err != nil {
 					// Fallback to default branch name generation
-					branchName = fmt.Sprintf("feature/%s", strings.ToLower(worktreeName))
+					branchName = fmt.Sprintf("%s%s", FeatureBranchPrefix, strings.ToLower(worktreeName))
 				}
 				return []string{branchName}, cobra.ShellCompDirectiveNoFileComp
 			}
@@ -444,7 +444,7 @@ Examples:
 			if worktreeName == "-" {
 				state := svc.GetState()
 				if state.PreviousWorktree == "" {
-					return fmt.Errorf("no previous worktree to switch to")
+					return ErrNoPreviousWorktree
 				}
 				worktreeName = state.PreviousWorktree
 				fmt.Printf("Switching to previous worktree: %s\n", worktreeName)

@@ -8,10 +8,10 @@ import (
 // validateWorktreeName ensures name is valid directory name
 func validateWorktreeName(name string) error {
 	if name == "" {
-		return fmt.Errorf("worktree name cannot be empty")
+		return ErrWorktreeNameEmpty
 	}
 	if strings.ContainsAny(name, "/\\:*?\"<>|") {
-		return fmt.Errorf("invalid characters in worktree name")
+		return ErrInvalidCharacters
 	}
 	return nil
 }
@@ -44,11 +44,11 @@ func createWorktreeNameValidator(svc *Service) func(string) error {
 // validateBranchName ensures branch name is valid
 func validateBranchName(name string) error {
 	if name == "" {
-		return fmt.Errorf("branch name cannot be empty")
+		return ErrBranchNameEmpty
 	}
 	// Git branch name rules
 	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, ".") {
-		return fmt.Errorf("invalid branch name format")
+		return ErrInvalidBranchNameFormat
 	}
 	return nil
 }

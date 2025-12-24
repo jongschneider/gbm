@@ -155,7 +155,7 @@ func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 			}
 		}
 
-		return "", fmt.Errorf("could not determine default branch from remote")
+		return "", ErrCouldNotDetermineDefaultBranch
 	}
 
 	// Now try to get the symbolic ref

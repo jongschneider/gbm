@@ -237,14 +237,14 @@ func (m FilterableSelectModel) Run() (string, error) {
 		return "", err
 	}
 
-	if finalModel, ok := finalModel.(FilterableSelectModel); ok {
-		if finalModel.cancelled {
-			return "", fmt.Errorf("cancelled")
+	if model, ok := finalModel.(FilterableSelectModel); ok {
+		if model.cancelled {
+			return "", ErrCancelled
 		}
-		return finalModel.selected, nil
+		return model.selected, nil
 	}
 
-	return "", fmt.Errorf("unexpected model type")
+	return "", ErrUnexpectedModelType
 }
 
 // IsComplete implements StepModel interface

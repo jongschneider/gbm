@@ -168,8 +168,8 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				targetWorktree := m.worktrees[cursor]
 
-				// Execute gbm2 wt switch <name>
-				cmd := exec.Command("gbm2", "wt", "switch", targetWorktree.Name)
+				// Execute gbm wt switch <name>
+				cmd := exec.Command(os.Args[0], "wt", "switch", targetWorktree.Name)
 				// Inherit environment variables (including GBM_SHELL_INTEGRATION)
 				envVars := []string{"GBM_SHELL_INTEGRATION=1"}
 				// Pass current worktree name via env var so subprocess knows where we're switching from
@@ -240,7 +240,16 @@ func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 			// Use PPID (parent process ID, i.e., the shell's PID) for the filename
 			ppid := os.Getppid()
 			tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf(".gbm-switch-%d", ppid))
-			_ = os.WriteFile(tmpFile, []byte(model.switchOutput), 0600)
+
+			// Clean up any stale temp file from previous run
+			_ = os.Remove(tmpFile)
+
+			// Write the switch output
+			if err := os.WriteFile(tmpFile, []byte(model.switchOutput), 0600); err != nil {
+				return fmt.Errorf("failed to write switch file: %w", err)
+			}
+			// Note: The shell integration is responsible for cleaning up this file after reading
+
 			// Also print it for non-shell-integration users
 			fmt.Print(model.switchOutput)
 		}

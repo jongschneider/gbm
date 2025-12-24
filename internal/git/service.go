@@ -119,12 +119,12 @@ func (s *Service) GetCurrentWorktree() (*Worktree, error) {
 	// Example: /path/to/repo/.git/worktrees/feature-x
 	const worktreesSegment = "/.git/worktrees/"
 	if !strings.Contains(gitDir, worktreesSegment) {
-		return nil, fmt.Errorf("not in a worktree")
+		return nil, ErrNotInWorktree
 	}
 
 	parts := strings.Split(gitDir, worktreesSegment)
 	if len(parts) < 2 || parts[1] == "" {
-		return nil, fmt.Errorf("not in a worktree")
+		return nil, ErrNotInWorktree
 	}
 
 	// Extract the worktree name (last component after /.git/worktrees/)

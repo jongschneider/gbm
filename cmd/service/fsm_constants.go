@@ -69,3 +69,25 @@ const (
 const (
 	EventRetry = "retry" // Return to type selection after workflow completion
 )
+
+// Worktree Naming Constants
+const (
+	HotfixPrefix   = "HOTFIX_" // Prefix for hotfix worktree names
+	MergebackPrefix = "MERGE_"  // Prefix for mergeback worktree names
+)
+
+// Branch Naming Constants
+const (
+	FeatureBranchPrefix   = "feature/" // Prefix for feature branch names
+	BugBranchPrefix       = "bug/"     // Prefix for bug fix branch names
+	HotfixBranchPrefix    = "hotfix/"  // Prefix for hotfix branch names
+	MergebackBranchPrefix = "merge/"   // Prefix for mergeback branch names
+)
+
+// Workflow Type Constants
+const (
+	WorkflowTypeFeature   = "feature"   // Feature workflow type
+	WorkflowTypeBug       = "bug"       // Bug fix workflow type
+	WorkflowTypeHotfix    = "hotfix"    // Hotfix workflow type
+	WorkflowTypeMergeback = "mergeback" // Mergeback workflow type
+)
