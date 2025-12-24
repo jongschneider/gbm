@@ -14,8 +14,8 @@ import (
 
 var (
 	baseStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240"))
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240"))
 )
 
 type worktreeTableModel struct {
@@ -44,8 +44,14 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 			status = "tracked"
 		}
 
+		// Add * indicator if this is the current worktree
+		name := wt.Name
+		if currentWorktree != nil && wt.Name == currentWorktree.Name {
+			name = "* " + name
+		}
+
 		rows = append(rows, table.Row{
-			wt.Name,
+			name,
 			wt.Branch,
 			status,
 		})

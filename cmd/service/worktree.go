@@ -31,11 +31,11 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 
 func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	var (
-		createBranch  bool
-		baseBranch    string
-		dryRun        bool
-		visualizeFSM  bool
-		fsmGraphType  string
+		createBranch bool
+		baseBranch   string
+		dryRun       bool
+		visualizeFSM bool
+		fsmGraphType string
 	)
 
 	cmd := &cobra.Command{
@@ -211,6 +211,9 @@ Examples:
 				return nil
 			}
 
+			// Get current worktree first
+			currentWorktree, _ := svc.Git.GetCurrentWorktree()
+
 			// Get config to identify tracked worktrees
 			config := svc.GetConfig()
 
@@ -220,28 +223,33 @@ Examples:
 				trackedBranches[wtConfig.Branch] = true
 			}
 
-			// Categorize worktrees: tracked, ad hoc (exclude bare)
+			// Initialize sorted list and categorization lists
+			sortedWorktrees := make([]git.Worktree, 0, len(worktrees))
 			var trackedWorktrees []git.Worktree
 			var adHocWorktrees []git.Worktree
 
+			// Categorize worktrees: current first (if found), then tracked, then ad hoc (exclude bare)
 			for _, wt := range worktrees {
 				if wt.IsBare {
 					// Skip bare repository
 					continue
-				} else if trackedBranches[wt.Branch] {
-					trackedWorktrees = append(trackedWorktrees, wt)
-				} else {
-					adHocWorktrees = append(adHocWorktrees, wt)
 				}
+				if currentWorktree != nil && wt.Name == currentWorktree.Name {
+					// Add current worktree first and skip categorization
+					sortedWorktrees = append(sortedWorktrees, wt)
+					continue
+				}
+
+				if trackedBranches[wt.Branch] {
+					trackedWorktrees = append(trackedWorktrees, wt)
+					continue
+				}
+				adHocWorktrees = append(adHocWorktrees, wt)
 			}
 
-			// Combine in priority order: tracked, ad hoc
-			sortedWorktrees := make([]git.Worktree, 0, len(trackedWorktrees)+len(adHocWorktrees))
+			// Append categorized worktrees in priority order: tracked, ad hoc
 			sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
 			sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
-
-			// Get current worktree for state tracking
-			currentWorktree, _ := svc.Git.GetCurrentWorktree()
 
 			// Display using bubbletea table
 			return runWorktreeTable(sortedWorktrees, trackedBranches, currentWorktree, svc)
@@ -390,9 +398,7 @@ Examples:
 }
 
 func newWorktreeSwitchCommand(svc *Service) *cobra.Command {
-	var (
-		printPath bool
-	)
+	var printPath bool
 
 	cmd := &cobra.Command{
 		Use:     "switch <name>",
