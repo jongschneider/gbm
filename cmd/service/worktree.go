@@ -273,6 +273,9 @@ func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
 		Short:   "Remove a worktree from the worktrees directory",
 		Long: `Remove a worktree from the worktrees directory.
 
+The worktree directory is moved to Trash/Recycle Bin (with timestamp)
+before removal, providing a safety mechanism to recover files if needed.
+
 Use "." to remove the current worktree.
 
 Examples:

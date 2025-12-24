@@ -3,10 +3,14 @@ package git
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/Kei-K23/trashbox"
 )
 
 // Worktree represents a git worktree with its metadata
@@ -287,6 +291,33 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 
 	if targetWorktree == nil {
 		return nil, fmt.Errorf("worktree '%s' not found", worktreeName)
+	}
+
+	// Move to Trash before git worktree remove (safety mechanism)
+	timestamp := time.Now().Format("20060102-150405")
+	baseName := filepath.Base(targetWorktree.Path)
+	parentDir := filepath.Dir(targetWorktree.Path)
+	renamedPath := filepath.Join(parentDir, fmt.Sprintf("%s-%s", baseName, timestamp))
+
+	if dryRun {
+		fmt.Printf("[DRY RUN] mv %s %s\n", targetWorktree.Path, renamedPath)
+		fmt.Printf("[DRY RUN] trash %s\n", renamedPath)
+	} else {
+		// Rename directory to add timestamp
+		if err := os.Rename(targetWorktree.Path, renamedPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not rename worktree for Trash: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Proceeding with removal...\n")
+		} else {
+			// Move to Trash using trashbox
+			if err := trashbox.MoveToTrash(renamedPath); err != nil {
+				// Failed to trash - rename back and warn
+				os.Rename(renamedPath, targetWorktree.Path) // best effort to restore
+				fmt.Fprintf(os.Stderr, "Warning: Could not move worktree to Trash: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Proceeding with removal...\n")
+			} else {
+				fmt.Printf("Moved worktree to Trash: %s\n", fmt.Sprintf("%s-%s", baseName, timestamp))
+			}
+		}
 	}
 
 	// Use the full path from the worktree list

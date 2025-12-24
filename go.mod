@@ -3,6 +3,7 @@ module gbm
 go 1.25.4
 
 require (
+	github.com/Kei-K23/trashbox v0.1.5
 	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
 	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/huh v0.8.0
