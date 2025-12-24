@@ -168,22 +168,31 @@ func (m WizardModel) View() string {
 	return ""
 }
 
-// Run executes the wizard and returns (completed, cancelled, error)
-// completed = true if user finished all steps
-// cancelled = true if user pressed Ctrl+C
-// If both are false, user pressed ESC to go back
-func (m WizardModel) Run() (completed bool, cancelled bool, err error) {
+// Run executes the wizard and returns (finalModel, error)
+// Returns nil error if user completed all steps
+// Returns ErrCancelled if user pressed Ctrl+C
+// Returns ErrGoBack if user pressed ESC on first step to go back
+func (m WizardModel) Run() (*WizardModel, error) {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, runErr := p.Run()
 	if runErr != nil {
-		return false, false, runErr
+		return nil, runErr
 	}
 
 	if model, ok := finalModel.(WizardModel); ok {
-		return model.completed, model.cancelled, nil
+		// Check completion state
+		if model.cancelled {
+			return nil, ErrCancelled
+		}
+		if !model.completed {
+			// User pressed ESC on first step - go back
+			return nil, ErrGoBack
+		}
+		// Success - return the wizard with user selections
+		return &model, nil
 	}
 
-	return false, false, fmt.Errorf("unexpected model type")
+	return nil, fmt.Errorf("unexpected model type")
 }
 
 // GetValue retrieves a stored value by key
