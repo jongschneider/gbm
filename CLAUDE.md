@@ -4,31 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`gbm` (Git Branch Manager) is a CLI tool for managing git worktrees based on a bare repository structure. It creates and manages git repositories with:
-- A bare `.git` repository at the root
-- Worktrees organized under `worktrees/` directory
-- Configuration in `.gbm/config.yaml`
+`gbm` (Git Branch Manager) is a CLI tool for managing git worktrees based on a bare repository structure. It provides both command-line and interactive TUI interfaces for worktree management.
 
-The tool uses Cobra for CLI and shell-executes `git` commands via `os/exec`.
+Key features:
+- Bare `.git` repository at the root with worktrees under `worktrees/` directory
+- Interactive Bubble Tea TUI for browsing, creating, and managing worktrees
+- JIRA integration for creating worktrees from assigned issues
+- Configuration in `.gbm/config.yaml` (git remotes, JIRA credentials)
+- Shell integration helpers for directory navigation
+
+The tool uses Cobra for CLI, Bubble Tea for TUI, and shell-executes `git` commands via `os/exec`.
 
 ## Project Structure
 
 ```
 cmd/
-  main.go              # Application entry point
-  service/             # Cobra command definitions
-    root.go            # Root command and CLI setup
-    init.go            # 'init' command - create new repos
-    clone.go           # 'clone' command - clone with worktree structure
-    worktree.go        # 'worktree' command group for managing worktrees
+  main.go                      # Application entry point
+  service/                     # Cobra command definitions and TUI
+    root.go                    # Root command and CLI setup
+    service.go                 # Service struct with dependencies
+    init.go                    # 'init' command - create new repos
+    clone.go                   # 'clone' command - clone with worktree structure
+    sync.go                    # 'sync' command - sync worktrees
+    wizard.go                  # Interactive wizard for setup
+    worktree.go                # 'worktree' command group
+    worktree_tui.go            # Bubble Tea TUI for worktree management
+    worktree_fsm.go            # Finite state machine for TUI
+    worktree_table.go          # Table view for worktrees
+    worktree_helpers.go        # TUI helper functions
+    worktree_validators.go     # Input validation
+    filterable_select.go       # Custom filterable select component
+    fsm_constants.go           # FSM state constants
+    shell-integration.go       # Shell integration helpers
 internal/
-  git/                 # Git operations via exec wrapper
-    service.go         # Service struct with runCommand helper
-    init.go            # Repository initialization logic
-    clone.go           # Repository cloning logic
-    worktree.go        # Worktree management logic
-  jira/                # JIRA integration (future)
-    service.go
+  git/                         # Git operations via exec wrapper
+    service.go                 # Service struct with runCommand helper
+    init.go                    # Repository initialization logic
+    clone.go                   # Repository cloning logic
+    worktree.go                # Worktree management logic
+    errors.go                  # Git error types
+  jira/                        # JIRA integration
+    service.go                 # JIRA client service
+    issues.go                  # Issue fetching and filtering
+    branch.go                  # Branch name generation
+    display.go                 # Issue display formatting
+    format.go                  # Text formatting utilities
+    types.go                   # JIRA types and models
+    user.go                    # User management
+  utils/                       # Shared utilities
+    command.go                 # Command execution helpers
+    fs.go                      # Filesystem utilities
+deps/huh/                      # Vendored/modified UI components
 ```
 
 ## Architecture
@@ -36,8 +62,11 @@ internal/
 ### Command Flow
 1. `cmd/main.go` calls `service.Execute()`
 2. `cmd/service/root.go` defines the root Cobra command and registers subcommands
-3. Each subcommand delegates to `internal/git.Service` methods
-4. `internal/git.Service` wraps git commands using `os/exec`
+3. Each subcommand delegates to either:
+   - `internal/git.Service` methods for git operations
+   - `internal/jira.Service` methods for JIRA operations
+   - Bubble Tea TUI for interactive worktree management
+4. Services wrap external commands using `os/exec`
 
 ### Git Service Layer
 The `internal/git.Service` executes git commands via shell:
@@ -45,10 +74,28 @@ The `internal/git.Service` executes git commands via shell:
 - All git operations use `exec.Command("git", ...)` with appropriate flags
 - Supports `--git-dir` for bare repo operations and `-C` for worktree operations
 
+### TUI Layer (Bubble Tea)
+The interactive worktree manager uses Bubble Tea with FSM pattern:
+- `worktree_tui.go` defines the main Bubble Tea model and update/view cycle
+- `worktree_fsm.go` implements state machine for navigation and actions
+- `worktree_table.go` renders the worktree list with filtering
+- States include: viewing list, creating worktrees, removing, checking out, syncing
+- Integrates with JIRA service for issue-based worktree creation
+
+### JIRA Integration Layer
+The `internal/jira.Service` provides JIRA API integration:
+- Fetches issues assigned to the user or from JQL queries
+- Generates git-friendly branch names from JIRA issues
+- Displays formatted issue information in TUI
+- Uses JIRA credentials from `.gbm/config.yaml`
+
 ### Key Technologies
-- **Cobra**: CLI framework (already integrated)
+- **Cobra**: CLI framework for command-line interface
+- **Bubble Tea**: Terminal UI framework for interactive worktree management
 - **os/exec**: Shell execution wrapper for git commands
 - **Bare repositories**: All repos use `git init --bare` with worktrees
+- **JIRA API**: Integration for fetching and displaying JIRA issues
+- **FSM Pattern**: Finite state machine for TUI state management
 
 ## Development Commands
 
@@ -59,9 +106,16 @@ This project uses `just` as the task runner. Run `just` to see all available com
 **Quick Development**
 ```bash
 just                  # List all available commands
-just build            # Build the gbm binary
+just build            # Build the gbm binary (outputs to ./gbm)
 just run [ARGS]       # Build and run with optional arguments
 just clean            # Clean build artifacts
+```
+
+**Installation**
+```bash
+just install          # Build and install globally as gbm2 in /usr/local/bin
+just completions      # Copy zsh completion setup commands to clipboard
+just uninstall        # Remove gbm2 from /usr/local/bin
 ```
 
 **Validation Pipeline**
@@ -94,8 +148,8 @@ just show-changed     # Show what Go files and packages have changed
 
 Standard Go commands also work:
 ```bash
-go build -o gbm cmd/gbm/main.go  # Build directly
-go run cmd/gbm/main.go           # Run directly
+go build -o gbm ./cmd            # Build directly
+go run ./cmd                     # Run directly
 go test ./...                    # All tests
 go test ./internal/git           # Specific package
 go test -v -run TestName         # Specific test
@@ -116,7 +170,10 @@ This allows for faster iteration by only validating what you've changed.
 ### Adding New Commands
 1. Create command constructor in `cmd/service/` (e.g., `newFooCommand()`)
 2. Register it in `cmd/service/root.go` via `rootCmd.AddCommand()`
-3. Implement git logic in `internal/git/` (e.g., `Service.Foo()` method)
+3. Implement business logic in appropriate service:
+   - Git operations → `internal/git/Service`
+   - JIRA operations → `internal/jira/Service`
+   - Interactive flows → Bubble Tea TUI in `cmd/service/`
 4. Use `Service.runCommand()` helper for all git exec calls to get dry-run support
 
 ### Adding Git Operations
@@ -127,10 +184,29 @@ All git operations should:
 - Use `--git-dir` flag when operating on bare repos
 - Use `-C <path>` flag when operating within worktrees
 
+### Adding TUI Features
+When extending the Bubble Tea interface:
+- Add new states to the FSM in `worktree_fsm.go` using `fsm.NewFSM()`
+- Define state transitions and events in the FSM configuration
+- Implement corresponding UI in `worktree_tui.go` Update() and View() methods
+- Use helper functions in `worktree_helpers.go` for common operations
+- Follow the existing pattern of state-driven rendering in `worktree_table.go`
+- Validate user input using functions in `worktree_validators.go`
+
+### Working with JIRA Integration
+To add or modify JIRA features:
+- Configuration is loaded from `.gbm/config.yaml`
+- Use `jira.Service` methods for API interactions
+- Branch name generation follows `branch.go` patterns
+- Display formatting should use `display.go` and `format.go` utilities
+- Handle authentication errors gracefully with fallback to non-JIRA flow
+
 ### Dry-Run Mode
 The `runCommand()` method in `internal/git/service.go` handles dry-run:
 - Formats commands for display using `formatCommand()`
 - Prints `[DRY RUN] <command>` instead of executing
 - All commands support `--dry-run` flag to preview operations
-- Use FindGitRoot() instead of `git rev-parse --show-toplevel` for bare repo + worktree setups. It correctly finds the repo root even
-  when run from inside a worktree by detecting /.git/worktrees/ in the git-dir path.
+
+### Repository Navigation
+- Use `FindGitRoot()` instead of `git rev-parse --show-toplevel` for bare repo + worktree setups
+- It correctly finds the repo root even when run from inside a worktree by detecting `/.git/worktrees/` in the git-dir path
