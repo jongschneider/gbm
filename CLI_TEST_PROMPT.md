@@ -5,19 +5,60 @@ Execute a comprehensive test of all GBM (Git Branch Manager) CLI functionality i
 
 ## Setup Requirements
 
-1. **Create a new tmux session** named `gbm-test-$(date +%s)`
-2. **Create a temporary test directory** at `/tmp/gbm-test-$(date +%s)`
-3. **Build the GBM binary** from `/Users/jschneider/code/scratch/gbm`
-4. **Create a timestamped results file** at `/tmp/gbm-test-results-$(date +%Y%m%d-%H%M%S).md`
+1. **Prompt user for VHS recording**: Ask the user "Do you want to record this test session with VHS? (yes/no)"
+   - If user answers **"yes"**: Proceed with VHS recording setup and execution (steps 7-8 below)
+   - If user answers **"no"**: Skip all VHS-related setup and recording steps, but execute all tests normally
+2. **Create test results directory** at `/Users/jschneider/code/scratch/gbm/test-results/`
+3. **Set timestamp variable** for this test run: `TIMESTAMP=$(date +%Y%m%d-%H%M%S)`
+4. **Create a new tmux session** named `gbm-test-$TIMESTAMP`
+5. **Create a temporary test directory** at `/tmp/gbm-test-$TIMESTAMP`
+6. **Build the GBM binary** from `/Users/jschneider/code/scratch/gbm`
+7. **Create timestamped results file** at `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
+8. **[VHS ONLY]** Install VHS if not already installed: `brew install vhs` or `go install github.com/charmbracelet/vhs@latest`
+9. **[VHS ONLY]** Create VHS tape file for recording the test session
+
+## VHS Recording Setup (Optional - Only if User Answered "Yes")
+
+**NOTE**: This entire section is ONLY applicable if the user answered "yes" to VHS recording. If they answered "no", skip this section entirely.
+
+VHS (Video Hosting Service) allows recording terminal sessions as GIF or video files. Create a tape file to automate the recording:
+
+**Create VHS Tape File**: `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.tape`
+
+```tape
+# VHS tape file for GBM CLI testing
+Output /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif
+
+Set Shell bash
+Set FontSize 14
+Set Width 1400
+Set Height 900
+Set PlaybackSpeed 1.0
+Set TypingSpeed 10ms
+
+# Record GBM test session
+Type "# GBM CLI Test Suite - $(date)" Enter
+Sleep 1s
+
+# Add your test commands here with Type/Enter/Sleep commands
+# This will be generated based on the test suite below
+```
+
+**Recording Options**:
+- **Manual recording**: Use `vhs record` in the tmux session, then manually execute tests
+- **Automated recording**: Generate a complete `.tape` file with all test commands and run `vhs < tape-file.tape`
+- **Hybrid approach**: Record key test phases separately, then combine
 
 ## Test Execution Guidelines
 
 - Run all commands in the tmux session for visibility
+- **[VHS ONLY]** Record the session using VHS for visual playback and review (if user answered "yes")
 - Capture stdout and stderr for each command
 - Mark each test as ✅ SUCCESS or ❌ FAILURE
 - Include command output snippets in the results file
 - Test both success and failure scenarios
 - Use `--dry-run` flags where appropriate to verify command planning
+- **[VHS ONLY]** Save VHS recording to `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif` (if user answered "yes")
 
 ## Test Suite
 
@@ -413,12 +454,78 @@ Create a markdown file with the following structure:
 
 ## Execution Instructions
 
-1. Start tmux session: `tmux new-session -s "gbm-test-$(date +%s)"`
+### Setup Phase
+```bash
+# Set timestamp for this test run
+export TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# Create test results directory if it doesn't exist
+mkdir -p /Users/jschneider/code/scratch/gbm/test-results
+
+# Build GBM binary
+cd /Users/jschneider/code/scratch/gbm
+just build
+
+# Create temporary test directory
+mkdir -p /tmp/gbm-test-$TIMESTAMP
+
+# Copy GBM binary to test directory for easier access
+cp ./gbm /tmp/gbm-test-$TIMESTAMP/gbm
+```
+
+### Recording Options (Only if User Answered "Yes" to VHS)
+
+**NOTE**: The following recording options are ONLY for users who chose to use VHS. If the user answered "no", proceed directly to executing tests without any recording setup.
+
+#### Option 1: Manual Recording with VHS
+```bash
+# Start tmux session
+tmux new-session -s "gbm-test-$TIMESTAMP"
+
+# Inside tmux, start VHS recording
+vhs record --output /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif
+
+# Execute tests manually
+# Press Ctrl-D to stop recording when done
+```
+
+#### Option 2: Automated Recording with VHS Tape File
+```bash
+# Generate a complete .tape file with all test commands
+# Then run:
+vhs < /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.tape
+```
+
+#### Option 3: Screen Recording (Alternative)
+```bash
+# Use asciinema or ttyrec as alternatives
+asciinema rec /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.cast
+```
+
+### Execution Flow
+
+**If User Answered "Yes" to VHS:**
+1. Start tmux session: `tmux new-session -s "gbm-test-$TIMESTAMP"`
+2. Start VHS recording (choose method from Recording Options above)
+3. Navigate to test directory
+4. Execute each test sequentially
+5. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
+6. Stop VHS recording
+7. Verify recording saved: `ls -lh /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif`
+8. Leave tmux session running for review: `<Ctrl-b> d` to detach
+
+**If User Answered "No" to VHS:**
+1. Start tmux session: `tmux new-session -s "gbm-test-$TIMESTAMP"`
 2. Navigate to test directory
 3. Execute each test sequentially
-4. Record results in real-time
-5. Generate final summary
-6. Leave tmux session running for review: `<Ctrl-b> d` to detach
+4. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
+5. Leave tmux session running for review: `<Ctrl-b> d` to detach
+
+### Post-Execution
+- Review markdown results: `less /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
+- **[VHS ONLY]** View VHS recording: `open /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif`
+- **[VHS ONLY]** Archive or share both files together for complete test documentation
+- **[NO VHS]** Archive or share the markdown results file for test documentation
 
 ## Success Criteria
 
@@ -432,10 +539,15 @@ Create a markdown file with the following structure:
 
 ## Notes for the Agent
 
+- **FIRST**: Prompt the user with "Do you want to record this test session with VHS? (yes/no)" and wait for their response
+- If user answers "yes": Follow all VHS-related instructions throughout this document
+- If user answers "no": Skip ALL VHS-related setup and recording steps, but execute all tests normally
 - Use absolute paths for the GBM binary to avoid PATH issues
 - Capture both stdout and stderr for all commands
-- Take screenshots of TUI interfaces if possible
+- **Save all results to `/Users/jschneider/code/scratch/gbm/test-results/`** with timestamp
 - Document any unexpected behavior
 - Include git command outputs where relevant for verification
 - Test both long-form commands and aliases (wt, etc.)
 - Test 2.12: GBM automatically switches to repo root when removing current worktree to prevent "Unable to read current working directory" errors
+- **[VHS ONLY]** VHS recordings provide visual proof of TUI interfaces and interactive commands
+- **[VHS ONLY]** Both the markdown results and VHS recording should use the same timestamp for easy correlation
