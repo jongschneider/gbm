@@ -46,90 +46,12 @@ func NewWorktreeAddFSM(svc *Service) *WorktreeAddFSM {
 		state: &WorkflowState{Service: svc},
 	}
 
-	// Define ALL state transitions for all workflows in one FSM
+	// Build all workflow transitions
+	events := buildAllTransitions()
+
 	w.fsm = fsm.NewFSM(
 		StateSelectType, // Initial state
-		fsm.Events{
-			// Type selection transitions
-			{Name: EventSelectFeature, Src: []string{StateSelectType}, Dst: StateFeatureWorktreeName},
-			{Name: EventSelectBug, Src: []string{StateSelectType}, Dst: StateFeatureWorktreeName},
-			{Name: EventSelectHotfix, Src: []string{StateSelectType}, Dst: StateHotfixWorktreeName},
-			{Name: EventSelectMergeback, Src: []string{StateSelectType}, Dst: StateMergebackSourceBranch},
-			{Name: EventCancel, Src: []string{StateSelectType}, Dst: StateCancelled},
-
-			// Feature workflow transitions
-			{Name: EventComplete, Src: []string{StateFeatureWorktreeName}, Dst: StateFeatureBranchName},
-			{Name: EventGoBack, Src: []string{StateFeatureWorktreeName}, Dst: StateSelectType},
-			{Name: EventCancel, Src: []string{StateFeatureWorktreeName}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateFeatureBranchName}, Dst: StateFeatureCheckBranch},
-			{Name: EventGoBack, Src: []string{StateFeatureBranchName}, Dst: StateFeatureWorktreeName},
-			{Name: EventCancel, Src: []string{StateFeatureBranchName}, Dst: StateCancelled},
-
-			{Name: EventBranchExists, Src: []string{StateFeatureCheckBranch}, Dst: StateFeatureExecuteCreate},
-			{Name: EventBranchMissing, Src: []string{StateFeatureCheckBranch}, Dst: StateFeatureBaseBranch},
-			{Name: EventError, Src: []string{StateFeatureCheckBranch}, Dst: StateError},
-
-			{Name: EventComplete, Src: []string{StateFeatureBaseBranch}, Dst: StateFeatureConfirmCreate},
-			{Name: EventGoBack, Src: []string{StateFeatureBaseBranch}, Dst: StateFeatureBranchName},
-			{Name: EventCancel, Src: []string{StateFeatureBaseBranch}, Dst: StateCancelled},
-
-			{Name: EventConfirmYes, Src: []string{StateFeatureConfirmCreate}, Dst: StateFeatureExecuteCreate},
-			{Name: EventConfirmNo, Src: []string{StateFeatureConfirmCreate}, Dst: StateCancelled},
-			{Name: EventGoBack, Src: []string{StateFeatureConfirmCreate}, Dst: StateFeatureBaseBranch},
-			{Name: EventCancel, Src: []string{StateFeatureConfirmCreate}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateFeatureExecuteCreate}, Dst: StateSuccess},
-			{Name: EventError, Src: []string{StateFeatureExecuteCreate}, Dst: StateError},
-
-			// Hotfix workflow transitions
-			{Name: EventComplete, Src: []string{StateHotfixWorktreeName}, Dst: StateHotfixBaseBranch},
-			{Name: EventGoBack, Src: []string{StateHotfixWorktreeName}, Dst: StateSelectType},
-			{Name: EventCancel, Src: []string{StateHotfixWorktreeName}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateHotfixBaseBranch}, Dst: StateHotfixBranchName},
-			{Name: EventGoBack, Src: []string{StateHotfixBaseBranch}, Dst: StateHotfixWorktreeName},
-			{Name: EventCancel, Src: []string{StateHotfixBaseBranch}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateHotfixBranchName}, Dst: StateHotfixExecuteCreate},
-			{Name: EventGoBack, Src: []string{StateHotfixBranchName}, Dst: StateHotfixBaseBranch},
-			{Name: EventCancel, Src: []string{StateHotfixBranchName}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateHotfixExecuteCreate}, Dst: StateSuccess},
-			{Name: EventError, Src: []string{StateHotfixExecuteCreate}, Dst: StateError},
-
-			// Mergeback workflow transitions
-			{Name: EventComplete, Src: []string{StateMergebackSourceBranch}, Dst: StateMergebackTargetBranch},
-			{Name: EventGoBack, Src: []string{StateMergebackSourceBranch}, Dst: StateSelectType},
-			{Name: EventCancel, Src: []string{StateMergebackSourceBranch}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateMergebackTargetBranch}, Dst: StateMergebackWorktreeName},
-			{Name: EventGoBack, Src: []string{StateMergebackTargetBranch}, Dst: StateMergebackSourceBranch},
-			{Name: EventCancel, Src: []string{StateMergebackTargetBranch}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateMergebackWorktreeName}, Dst: StateMergebackBranchName},
-			{Name: EventGoBack, Src: []string{StateMergebackWorktreeName}, Dst: StateMergebackTargetBranch},
-			{Name: EventCancel, Src: []string{StateMergebackWorktreeName}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateMergebackBranchName}, Dst: StateMergebackConfirmMerge},
-			{Name: EventGoBack, Src: []string{StateMergebackBranchName}, Dst: StateMergebackWorktreeName},
-			{Name: EventCancel, Src: []string{StateMergebackBranchName}, Dst: StateCancelled},
-
-			{Name: EventConfirmYes, Src: []string{StateMergebackConfirmMerge}, Dst: StateMergebackExecuteCreate},
-			{Name: EventConfirmNo, Src: []string{StateMergebackConfirmMerge}, Dst: StateCancelled},
-			{Name: EventGoBack, Src: []string{StateMergebackConfirmMerge}, Dst: StateMergebackBranchName},
-			{Name: EventCancel, Src: []string{StateMergebackConfirmMerge}, Dst: StateCancelled},
-
-			{Name: EventComplete, Src: []string{StateMergebackExecuteCreate}, Dst: StateMergebackExecuteMerge},
-			{Name: EventError, Src: []string{StateMergebackExecuteCreate}, Dst: StateError},
-
-			{Name: EventComplete, Src: []string{StateMergebackExecuteMerge}, Dst: StateSuccess},
-			{Name: EventError, Src: []string{StateMergebackExecuteMerge}, Dst: StateError},
-
-			// Terminal state transitions (for looping)
-			{Name: EventRetry, Src: []string{StateSuccess}, Dst: StateSelectType},
-			{Name: EventRetry, Src: []string{StateCancelled}, Dst: StateSelectType},
-		},
+		events,
 		fsm.Callbacks{
 			"enter_state": func(ctx context.Context, e *fsm.Event) {
 				w.state.StateHistory = append(w.state.StateHistory, e.Dst)
@@ -139,6 +61,116 @@ func NewWorktreeAddFSM(svc *Service) *WorktreeAddFSM {
 	)
 
 	return w
+}
+
+// buildAllTransitions assembles all workflow transitions into a single event list
+func buildAllTransitions() fsm.Events {
+	events := buildTypeSelectionTransitions()
+	events = append(events, buildFeatureTransitions()...)
+	events = append(events, buildHotfixTransitions()...)
+	events = append(events, buildMergebackTransitions()...)
+	events = append(events, buildTerminalTransitions()...)
+	return events
+}
+
+// buildTypeSelectionTransitions returns transitions for the initial workflow type selection
+func buildTypeSelectionTransitions() fsm.Events {
+	return fsm.Events{
+		{Name: EventSelectFeature, Src: []string{StateSelectType}, Dst: StateFeatureWorktreeName},
+		{Name: EventSelectBug, Src: []string{StateSelectType}, Dst: StateFeatureWorktreeName},
+		{Name: EventSelectHotfix, Src: []string{StateSelectType}, Dst: StateHotfixWorktreeName},
+		{Name: EventSelectMergeback, Src: []string{StateSelectType}, Dst: StateMergebackSourceBranch},
+		{Name: EventCancel, Src: []string{StateSelectType}, Dst: StateCancelled},
+	}
+}
+
+// buildFeatureTransitions returns all state transitions for the feature workflow
+func buildFeatureTransitions() fsm.Events {
+	return fsm.Events{
+		{Name: EventComplete, Src: []string{StateFeatureWorktreeName}, Dst: StateFeatureBranchName},
+		{Name: EventGoBack, Src: []string{StateFeatureWorktreeName}, Dst: StateSelectType},
+		{Name: EventCancel, Src: []string{StateFeatureWorktreeName}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateFeatureBranchName}, Dst: StateFeatureCheckBranch},
+		{Name: EventGoBack, Src: []string{StateFeatureBranchName}, Dst: StateFeatureWorktreeName},
+		{Name: EventCancel, Src: []string{StateFeatureBranchName}, Dst: StateCancelled},
+
+		{Name: EventBranchExists, Src: []string{StateFeatureCheckBranch}, Dst: StateFeatureExecuteCreate},
+		{Name: EventBranchMissing, Src: []string{StateFeatureCheckBranch}, Dst: StateFeatureBaseBranch},
+		{Name: EventError, Src: []string{StateFeatureCheckBranch}, Dst: StateError},
+
+		{Name: EventComplete, Src: []string{StateFeatureBaseBranch}, Dst: StateFeatureConfirmCreate},
+		{Name: EventGoBack, Src: []string{StateFeatureBaseBranch}, Dst: StateFeatureBranchName},
+		{Name: EventCancel, Src: []string{StateFeatureBaseBranch}, Dst: StateCancelled},
+
+		{Name: EventConfirmYes, Src: []string{StateFeatureConfirmCreate}, Dst: StateFeatureExecuteCreate},
+		{Name: EventConfirmNo, Src: []string{StateFeatureConfirmCreate}, Dst: StateCancelled},
+		{Name: EventGoBack, Src: []string{StateFeatureConfirmCreate}, Dst: StateFeatureBaseBranch},
+		{Name: EventCancel, Src: []string{StateFeatureConfirmCreate}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateFeatureExecuteCreate}, Dst: StateSuccess},
+		{Name: EventError, Src: []string{StateFeatureExecuteCreate}, Dst: StateError},
+	}
+}
+
+// buildHotfixTransitions returns all state transitions for the hotfix workflow
+func buildHotfixTransitions() fsm.Events {
+	return fsm.Events{
+		{Name: EventComplete, Src: []string{StateHotfixWorktreeName}, Dst: StateHotfixBaseBranch},
+		{Name: EventGoBack, Src: []string{StateHotfixWorktreeName}, Dst: StateSelectType},
+		{Name: EventCancel, Src: []string{StateHotfixWorktreeName}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateHotfixBaseBranch}, Dst: StateHotfixBranchName},
+		{Name: EventGoBack, Src: []string{StateHotfixBaseBranch}, Dst: StateHotfixWorktreeName},
+		{Name: EventCancel, Src: []string{StateHotfixBaseBranch}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateHotfixBranchName}, Dst: StateHotfixExecuteCreate},
+		{Name: EventGoBack, Src: []string{StateHotfixBranchName}, Dst: StateHotfixBaseBranch},
+		{Name: EventCancel, Src: []string{StateHotfixBranchName}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateHotfixExecuteCreate}, Dst: StateSuccess},
+		{Name: EventError, Src: []string{StateHotfixExecuteCreate}, Dst: StateError},
+	}
+}
+
+// buildMergebackTransitions returns all state transitions for the mergeback workflow
+func buildMergebackTransitions() fsm.Events {
+	return fsm.Events{
+		{Name: EventComplete, Src: []string{StateMergebackSourceBranch}, Dst: StateMergebackTargetBranch},
+		{Name: EventGoBack, Src: []string{StateMergebackSourceBranch}, Dst: StateSelectType},
+		{Name: EventCancel, Src: []string{StateMergebackSourceBranch}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateMergebackTargetBranch}, Dst: StateMergebackWorktreeName},
+		{Name: EventGoBack, Src: []string{StateMergebackTargetBranch}, Dst: StateMergebackSourceBranch},
+		{Name: EventCancel, Src: []string{StateMergebackTargetBranch}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateMergebackWorktreeName}, Dst: StateMergebackBranchName},
+		{Name: EventGoBack, Src: []string{StateMergebackWorktreeName}, Dst: StateMergebackTargetBranch},
+		{Name: EventCancel, Src: []string{StateMergebackWorktreeName}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateMergebackBranchName}, Dst: StateMergebackConfirmMerge},
+		{Name: EventGoBack, Src: []string{StateMergebackBranchName}, Dst: StateMergebackWorktreeName},
+		{Name: EventCancel, Src: []string{StateMergebackBranchName}, Dst: StateCancelled},
+
+		{Name: EventConfirmYes, Src: []string{StateMergebackConfirmMerge}, Dst: StateMergebackExecuteCreate},
+		{Name: EventConfirmNo, Src: []string{StateMergebackConfirmMerge}, Dst: StateCancelled},
+		{Name: EventGoBack, Src: []string{StateMergebackConfirmMerge}, Dst: StateMergebackBranchName},
+		{Name: EventCancel, Src: []string{StateMergebackConfirmMerge}, Dst: StateCancelled},
+
+		{Name: EventComplete, Src: []string{StateMergebackExecuteCreate}, Dst: StateMergebackExecuteMerge},
+		{Name: EventError, Src: []string{StateMergebackExecuteCreate}, Dst: StateError},
+
+		{Name: EventComplete, Src: []string{StateMergebackExecuteMerge}, Dst: StateSuccess},
+		{Name: EventError, Src: []string{StateMergebackExecuteMerge}, Dst: StateError},
+	}
+}
+
+// buildTerminalTransitions returns transitions for terminal states (for workflow looping)
+func buildTerminalTransitions() fsm.Events {
+	return fsm.Events{
+		{Name: EventRetry, Src: []string{StateSuccess}, Dst: StateSelectType},
+		{Name: EventRetry, Src: []string{StateCancelled}, Dst: StateSelectType},
+	}
 }
 
 // VisualizeFSM prints the FSM diagram in the specified Mermaid format
