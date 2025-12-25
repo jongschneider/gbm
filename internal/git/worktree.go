@@ -205,6 +205,25 @@ func (s *Service) BranchExists(branchName string) (bool, error) {
 	return true, nil
 }
 
+// BranchExistsInPath checks if a branch exists in a specific worktree path
+func (s *Service) BranchExistsInPath(worktreePath, branchName string) (bool, error) {
+	if worktreePath == "" {
+		return false, ErrWorktreePathEmpty
+	}
+	if branchName == "" {
+		return false, ErrBranchNameEmpty
+	}
+
+	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--verify", branchName)
+	err := cmd.Run()
+	if err != nil {
+		// Branch doesn't exist
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // DeleteBranch deletes a git branch
 func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error {
 	if branchName == "" {
@@ -359,16 +378,6 @@ func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 	return branches, nil
 }
 
-// MergeBranch initiates a merge in the specified worktree
-func (s *Service) MergeBranch(worktreePath, sourceBranch string, dryRun bool) error {
-	cmd := exec.Command("git", "-C", worktreePath, "merge", "--no-commit", sourceBranch)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return fmt.Errorf("failed to merge branch: %w\nOutput: %s", err, output)
-	}
-	return nil
-}
-
 // MergeBranchWithCommit merges a branch and creates a commit with the specified message
 func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessage string, dryRun bool) error {
 	cmd := exec.Command("git", "-C", worktreePath, "merge", "-m", commitMessage, sourceBranch)
@@ -376,5 +385,160 @@ func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessag
 	if err != nil {
 		return fmt.Errorf("failed to merge branch: %w\nOutput: %s", err, output)
 	}
+	return nil
+}
+
+// GetUpstreamBranch gets the upstream tracking branch for a worktree
+// Returns empty string if no upstream is configured (not an error)
+func (s *Service) GetUpstreamBranch(worktreePath string) (string, error) {
+	if worktreePath == "" {
+		return "", ErrWorktreePathEmpty
+	}
+
+	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "@{upstream}")
+	output, err := cmd.Output()
+	if err != nil {
+		// No upstream configured - this is not an error, just return empty string
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// IsInWorktree checks if the current directory is inside a worktree
+// Returns: (isInWorktree bool, worktreeName string, error)
+func (s *Service) IsInWorktree(currentPath string) (bool, string, error) {
+	// Get all worktrees
+	worktrees, err := s.ListWorktrees(false)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	// Resolve symlinks for current path (handles /var -> /private/var on macOS)
+	resolvedCurrentPath, err := filepath.EvalSymlinks(currentPath)
+	if err != nil {
+		// If we can't resolve symlinks, use the original path
+		resolvedCurrentPath = currentPath
+	}
+	// Ensure path ends with separator for accurate prefix matching
+	resolvedCurrentPath = filepath.Clean(resolvedCurrentPath)
+
+	// Check if current path is within any worktree path
+	for _, wt := range worktrees {
+		// Skip bare repository
+		if wt.IsBare {
+			continue
+		}
+
+		// Resolve symlinks for worktree path
+		resolvedWtPath, err := filepath.EvalSymlinks(wt.Path)
+		if err != nil {
+			resolvedWtPath = wt.Path
+		}
+		resolvedWtPath = filepath.Clean(resolvedWtPath)
+
+		// Check if current path is the worktree path or a subdirectory
+		if resolvedCurrentPath == resolvedWtPath || strings.HasPrefix(resolvedCurrentPath, resolvedWtPath+string(filepath.Separator)) {
+			return true, wt.Name, nil
+		}
+	}
+
+	return false, "", nil
+}
+
+// PullWorktree pulls changes from remote for a specific worktree
+func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
+	if worktreePath == "" {
+		return ErrWorktreePathEmpty
+	}
+
+	// Check if worktree path exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		return fmt.Errorf("worktree path does not exist: %s", worktreePath)
+	}
+
+	// Get the current branch
+	currentBranch, err := s.GetWorktreeBranch(worktreePath)
+	if err != nil {
+		return err
+	}
+
+	// Check if upstream is set
+	upstream, err := s.GetUpstreamBranch(worktreePath)
+	if err != nil {
+		return fmt.Errorf("failed to check upstream branch: %w", err)
+	}
+
+	args := []string{"-C", worktreePath, "pull"}
+
+	if upstream == "" {
+		// No upstream set, try to pull with explicit remote and branch
+		remoteBranch := fmt.Sprintf("origin/%s", currentBranch)
+
+		// Check if remote branch exists
+		remoteBranchExists, err := s.BranchExistsInPath(worktreePath, remoteBranch)
+		if err != nil {
+			return fmt.Errorf("failed to check if remote branch exists: %w", err)
+		}
+
+		if remoteBranchExists {
+			// Remote branch exists, set upstream and pull
+			setUpstreamCmd := exec.Command("git", "-C", worktreePath, "branch", "--set-upstream-to", remoteBranch)
+			if _, err := s.runCommand(setUpstreamCmd, dryRun); err != nil {
+				return fmt.Errorf("failed to set upstream: %w", err)
+			}
+		} else {
+			// Remote branch doesn't exist, try to pull with explicit remote and branch
+			args = append(args, "origin", currentBranch)
+		}
+	}
+
+	cmd := exec.Command("git", args...)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to pull worktree: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// PushWorktree pushes changes to remote for a specific worktree
+func (s *Service) PushWorktree(worktreePath string, dryRun bool) error {
+	if worktreePath == "" {
+		return ErrWorktreePathEmpty
+	}
+
+	// Check if worktree path exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		return fmt.Errorf("worktree path does not exist: %s", worktreePath)
+	}
+
+	// Get the current branch
+	currentBranch, err := s.GetWorktreeBranch(worktreePath)
+	if err != nil {
+		return err
+	}
+
+	// Check if upstream is set
+	upstream, err := s.GetUpstreamBranch(worktreePath)
+	if err != nil {
+		return fmt.Errorf("failed to check upstream branch: %w", err)
+	}
+
+	var args []string
+	if upstream == "" {
+		// No upstream set, push with -u flag to set it
+		args = []string{"-C", worktreePath, "push", "-u", "origin", currentBranch}
+	} else {
+		// Upstream already set, just push
+		args = []string{"-C", worktreePath, "push"}
+	}
+
+	cmd := exec.Command("git", args...)
+	output, err := s.runCommand(cmd, dryRun)
+	if err != nil {
+		return fmt.Errorf("failed to push worktree: %w\nOutput: %s", err, string(output))
+	}
+
 	return nil
 }

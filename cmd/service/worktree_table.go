@@ -168,6 +168,38 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmingDelete = true
 			}
 			return m, nil
+		case "l":
+			// Pull selected worktree
+			cursor := m.table.Cursor()
+			if cursor >= 0 && cursor < len(m.worktrees) {
+				targetWorktree := m.worktrees[cursor]
+				m.message = fmt.Sprintf("Pulling worktree '%s'...", targetWorktree.Name)
+
+				// Pull the worktree
+				err := m.svc.Git.PullWorktree(targetWorktree.Path, false)
+				if err != nil {
+					m.message = fmt.Sprintf("Error pulling '%s': %v", targetWorktree.Name, err)
+				} else {
+					m.message = fmt.Sprintf("Successfully pulled '%s'", targetWorktree.Name)
+				}
+			}
+			return m, nil
+		case "p":
+			// Push selected worktree
+			cursor := m.table.Cursor()
+			if cursor >= 0 && cursor < len(m.worktrees) {
+				targetWorktree := m.worktrees[cursor]
+				m.message = fmt.Sprintf("Pushing worktree '%s'...", targetWorktree.Name)
+
+				// Push the worktree
+				err := m.svc.Git.PushWorktree(targetWorktree.Path, false)
+				if err != nil {
+					m.message = fmt.Sprintf("Error pushing '%s': %v", targetWorktree.Name, err)
+				} else {
+					m.message = fmt.Sprintf("Successfully pushed '%s'", targetWorktree.Name)
+				}
+			}
+			return m, nil
 		case " ", "enter":
 			// Switch to selected worktree by invoking gbm2 wt switch
 			cursor := m.table.Cursor()
@@ -217,7 +249,7 @@ func (m worktreeTableModel) View() string {
 	} else {
 		// Show help text
 		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-		help := "\n↑/↓: navigate • space/enter: switch • d: delete • q/esc: quit\n"
+		help := "\n↑/↓: navigate • space/enter: switch • l: pull • p: push • d: delete • q/esc: quit\n"
 
 		// Show message if any
 		if m.message != "" {

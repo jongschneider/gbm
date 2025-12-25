@@ -369,29 +369,16 @@ Examples:
 	// Add shell completions for worktree names
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			// List all worktrees
-			worktrees, err := svc.Git.ListWorktrees(false)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-
 			// Start with "." as a special option for current worktree
 			completions := []string{"."}
 
-			// Add all non-bare worktrees
-			for _, wt := range worktrees {
-				// Exclude the bare repo
-				if wt.IsBare {
-					continue
-				}
-				// Add completion with branch context
-				completion := wt.Name
-				if wt.Branch != "" {
-					completion = fmt.Sprintf("%s\t%s", wt.Name, wt.Branch)
-				}
-				completions = append(completions, completion)
+			// Add all worktrees
+			worktreeCompletions, err := generateWorktreeCompletions(svc)
+			if err != nil {
+				return completions, cobra.ShellCompDirectiveNoFileComp
 			}
 
+			completions = append(completions, worktreeCompletions...)
 			return completions, cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -518,12 +505,6 @@ Examples:
 	// Add shell completions for worktree names
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			// List all worktrees
-			worktrees, err := svc.Git.ListWorktrees(false)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-
 			var completions []string
 
 			// Add "-" option if there's a previous worktree
@@ -532,20 +513,13 @@ Examples:
 				completions = append(completions, fmt.Sprintf("-\t%s (previous)", state.PreviousWorktree))
 			}
 
-			// Add all non-bare worktrees
-			for _, wt := range worktrees {
-				// Exclude the bare repo
-				if wt.IsBare {
-					continue
-				}
-				// Add completion with branch context
-				completion := wt.Name
-				if wt.Branch != "" {
-					completion = fmt.Sprintf("%s\t%s", wt.Name, wt.Branch)
-				}
-				completions = append(completions, completion)
+			// Add all worktrees
+			worktreeCompletions, err := generateWorktreeCompletions(svc)
+			if err != nil {
+				return completions, cobra.ShellCompDirectiveNoFileComp
 			}
 
+			completions = append(completions, worktreeCompletions...)
 			return completions, cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp

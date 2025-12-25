@@ -8,14 +8,15 @@ Execute a comprehensive test of all GBM (Git Branch Manager) CLI functionality i
 1. **Prompt user for VHS recording**: Ask the user "Do you want to record this test session with VHS? (yes/no)"
    - If user answers **"yes"**: Proceed with VHS recording setup and execution (steps 7-8 below)
    - If user answers **"no"**: Skip all VHS-related setup and recording steps, but execute all tests normally
-2. **Create test results directory** at `/Users/jschneider/code/scratch/gbm/test-results/`
-3. **Set timestamp variable** for this test run: `TIMESTAMP=$(date +%Y%m%d-%H%M%S)`
-4. **Create a new tmux session** named `gbm-test-$TIMESTAMP`
-5. **Create a temporary test directory** at `/tmp/gbm-test-$TIMESTAMP`
-6. **Build the GBM binary** from `/Users/jschneider/code/scratch/gbm`
-7. **Create timestamped results file** at `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
-8. **[VHS ONLY]** Install VHS if not already installed: `brew install vhs` or `go install github.com/charmbracelet/vhs@latest`
-9. **[VHS ONLY]** Create VHS tape file for recording the test session
+2. **Set timestamp variable** for this test run: `TIMESTAMP=$(date +%Y%m%d-%H%M%S)`
+3. **Create timestamped test results directory** at `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/`
+4. **[VHS ONLY]** Create VHS recordings subdirectory at `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/`
+5. **Create a new tmux session** named `gbm-test-$TIMESTAMP`
+6. **Create a temporary test directory** at `/tmp/gbm-test-$TIMESTAMP`
+7. **Build the GBM binary** from `/Users/jschneider/code/scratch/gbm`
+8. **Create timestamped results file** at `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/gbm-test-results-$TIMESTAMP.md`
+9. **[VHS ONLY]** Install VHS if not already installed: `brew install vhs` or `go install github.com/charmbracelet/vhs@latest`
+10. **[VHS ONLY]** Create VHS tape files for recording individual operations
 
 ## VHS Recording Setup (Optional - Only if User Answered "Yes")
 
@@ -23,26 +24,52 @@ Execute a comprehensive test of all GBM (Git Branch Manager) CLI functionality i
 
 VHS (Video Hosting Service) allows recording terminal sessions as GIF or video files. Create a tape file to automate the recording:
 
-**Create VHS Tape File**: `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.tape`
+**CRITICAL VHS REQUIREMENT**:
+- **ALWAYS use ABSOLUTE PATHS** for the GBM binary in VHS tape files: `/Users/jschneider/code/scratch/gbm/gbm`
+- **NEVER use relative paths** like `../../gbm` or `./gbm` - they will fail when VHS executes the tape
+- VHS tape files can be executed from any directory, so relative paths break
+- All test commands in this document already use absolute paths - use them as-is in tape files
 
+**VHS Directory Structure**:
+- All VHS tape files go in: `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/`
+- VHS must be run FROM this directory: `cd /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings && vhs *.tape`
+- Output GIFs use relative paths (e.g., `Output init-repository.gif`) and will be created in the vhs-recordings directory
+
+**Create Individual VHS Tape Files** in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/`:
+
+Example tape file (`01-init-repository.tape`):
 ```tape
-# VHS tape file for GBM CLI testing
-Output /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif
+# VHS Recording: Initialize Repository
+Output init-repository.gif
 
 Set Shell bash
-Set FontSize 14
+Set FontSize 12
 Set Width 1400
-Set Height 900
+Set Height 600
 Set PlaybackSpeed 1.0
 Set TypingSpeed 10ms
 
-# Record GBM test session
-Type "# GBM CLI Test Suite - $(date)" Enter
+# Setup
+Type "# GBM Test: Initialize Repository" Enter
+Sleep 500ms
+Type "TIMESTAMP=$(date +%Y%m%d-%H%M%S)" Enter
+Type "cd /tmp && mkdir gbm-vhs-init-$TIMESTAMP && cd gbm-vhs-init-$TIMESTAMP" Enter
 Sleep 1s
 
-# Add your test commands here with Type/Enter/Sleep commands
-# This will be generated based on the test suite below
+# Test init command - ALWAYS USE ABSOLUTE PATH
+Type "/Users/jschneider/code/scratch/gbm/gbm init demo-repo --branch main" Enter
+Sleep 3s
+
+Type "# Verify repository structure" Enter
+Sleep 500ms
+Type "ls -la demo-repo/" Enter
+Sleep 2s
+
+Type "# Success!" Enter
+Sleep 500ms
 ```
+
+Create individual tape files for each major operation (init, worktree add, pull, push, etc.)
 
 **Recording Options**:
 - **Manual recording**: Use `vhs record` in the tmux session, then manually execute tests
@@ -102,7 +129,7 @@ cd /tmp/gbm-test-*
 ```bash
 cd /tmp/gbm-test-*
 mkdir current-dir-test && cd current-dir-test
-../../gbm init --branch develop
+/Users/jschneider/code/scratch/gbm/gbm init --branch develop
 ```
 **Expected**: Initializes in current directory
 **Log**: Resulting directory structure
@@ -112,7 +139,7 @@ mkdir current-dir-test && cd current-dir-test
 #### Test 2.1: Add Worktree - New Branch (CLI Mode)
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree add feature-1 feature-1 -b
+/Users/jschneider/code/scratch/gbm/gbm worktree add feature-1 feature-1 -b
 ```
 **Expected**: Creates worktree at `worktrees/feature-1` with new branch `feature-1`
 **Log**: Command output, verify worktree exists
@@ -120,7 +147,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.2: Add Worktree - New Branch with Base (CLI Mode)
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree add feature-2 feature-2 -b --base main
+/Users/jschneider/code/scratch/gbm/gbm worktree add feature-2 feature-2 -b --base main
 ```
 **Expected**: Creates worktree from `main` branch
 **Log**: Command output, verify branch base
@@ -128,7 +155,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.3: Add Worktree - Existing Branch (CLI Mode)
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree add main-copy main
+/Users/jschneider/code/scratch/gbm/gbm worktree add main-copy main
 ```
 **Expected**: Creates worktree for existing `main` branch
 **Log**: Command output
@@ -136,7 +163,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.4: Add Worktree - Branch Doesn't Exist (should prompt)
 ```bash
 cd /tmp/gbm-test-*/test-repo
-echo "n" | ../../gbm worktree add nonexistent nonexistent
+echo "n" | /Users/jschneider/code/scratch/gbm/gbm worktree add nonexistent nonexistent
 ```
 **Expected**: Prompts to create branch, user declines
 **Log**: Prompt output and cancellation message
@@ -144,7 +171,7 @@ echo "n" | ../../gbm worktree add nonexistent nonexistent
 #### Test 2.5: Add Worktree - Dry Run
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree add feature-dry feature-dry -b --dry-run
+/Users/jschneider/code/scratch/gbm/gbm worktree add feature-dry feature-dry -b --dry-run
 ```
 **Expected**: Shows what would be created without executing
 **Log**: Dry-run output
@@ -152,7 +179,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.6: List Worktrees
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree list
+/Users/jschneider/code/scratch/gbm/gbm worktree list
 ```
 **Expected**: Shows interactive TUI table with all worktrees
 **Note**: This launches a TUI - you may need to send 'q' to quit
@@ -161,7 +188,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.7: List Worktrees - Alias
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm wt ls
+/Users/jschneider/code/scratch/gbm/gbm wt ls
 ```
 **Expected**: Same as `worktree list` (wt is alias)
 **Log**: Verify alias works
@@ -169,7 +196,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.8: Switch Worktree - Print Path
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree switch feature-1 --print-path
+/Users/jschneider/code/scratch/gbm/gbm worktree switch feature-1 --print-path
 ```
 **Expected**: Prints absolute path to feature-1 worktree
 **Log**: Path output
@@ -177,7 +204,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.9: Switch Worktree - Without Shell Integration
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree switch feature-2
+/Users/jschneider/code/scratch/gbm/gbm worktree switch feature-2
 ```
 **Expected**: Shows instructions for cd command and shell integration
 **Log**: Instruction output
@@ -185,7 +212,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 2.10: Remove Worktree
 ```bash
 cd /tmp/gbm-test-*/test-repo
-echo "n" | ../../gbm worktree remove feature-1
+echo "n" | /Users/jschneider/code/scratch/gbm/gbm worktree remove feature-1
 ```
 **Expected**: Removes worktree, prompts about branch deletion (decline)
 **Log**: Removal output, branch still exists
@@ -197,7 +224,7 @@ cd /tmp/gbm-test-*/test-repo
 cd worktrees/feature-2
 echo "test" > uncommitted.txt
 cd ../..
-echo "y" | ../../gbm worktree remove feature-2 --force
+echo "y" | /Users/jschneider/code/scratch/gbm/gbm worktree remove feature-2 --force
 ```
 **Expected**: Force removes worktree with uncommitted changes, deletes branch
 **Log**: Force removal output
@@ -205,7 +232,7 @@ echo "y" | ../../gbm worktree remove feature-2 --force
 #### Test 2.12: Remove Current Worktree (using ".")
 ```bash
 cd /tmp/gbm-test-*/test-repo/worktrees/main-copy
-echo "y" | ../../../gbm worktree remove .
+echo "y" | /Users/jschneider/code/scratch/gbm/gbm worktree remove .
 ```
 **Expected**:
 - Shows message "Switching to repository root before removing current worktree..."
@@ -270,7 +297,7 @@ EOF
 #### Test 4.3: Sync - Show Missing Worktrees
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm sync --dry-run
+/Users/jschneider/code/scratch/gbm/gbm sync --dry-run
 ```
 **Expected**: Shows feature-3 as missing (needs to be created)
 **Log**: Sync dry-run output
@@ -278,7 +305,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 4.4: Sync - Create Missing Worktrees
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm sync --force
+/Users/jschneider/code/scratch/gbm/gbm sync --force
 ```
 **Expected**: Creates feature-3 worktree and branch
 **Log**: Sync output, verify worktree created
@@ -287,9 +314,9 @@ cd /tmp/gbm-test-*/test-repo
 ```bash
 cd /tmp/gbm-test-*/test-repo
 # Create an ad hoc worktree not in config
-../../gbm worktree add adhoc-test adhoc-test -b
+/Users/jschneider/code/scratch/gbm/gbm worktree add adhoc-test adhoc-test -b
 # Run sync
-../../gbm sync --dry-run
+/Users/jschneider/code/scratch/gbm/gbm sync --dry-run
 ```
 **Expected**: Shows adhoc-test as orphaned (not in config)
 **Log**: Sync status showing orphaned worktree
@@ -299,7 +326,7 @@ cd /tmp/gbm-test-*/test-repo
 cd /tmp/gbm-test-*/test-repo
 # Manually edit config to change branch for existing worktree
 # Then run sync
-../../gbm sync --dry-run
+/Users/jschneider/code/scratch/gbm/gbm sync --dry-run
 ```
 **Expected**: Detects branch mismatches
 **Log**: Mismatch detection output
@@ -308,10 +335,10 @@ cd /tmp/gbm-test-*/test-repo
 ```bash
 cd /tmp/gbm-test-*/test-repo
 # Create worktree with one name
-../../gbm worktree add old-name feature-rename -b
+/Users/jschneider/code/scratch/gbm/gbm worktree add old-name feature-rename -b
 # Edit config to rename it
 # Run sync to detect rename opportunity
-../../gbm sync --dry-run
+/Users/jschneider/code/scratch/gbm/gbm sync --dry-run
 ```
 **Expected**: Suggests rename from old-name to new name
 **Log**: Rename detection output
@@ -321,7 +348,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 5.1: Generate Shell Integration
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm shell-integration
+/Users/jschneider/code/scratch/gbm/gbm shell-integration
 ```
 **Expected**: Outputs shell script for integration
 **Log**: Shell integration script
@@ -329,7 +356,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 5.2: Verify Shell Integration Format
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm shell-integration | head -n 5
+/Users/jschneider/code/scratch/gbm/gbm shell-integration | head -n 5
 ```
 **Expected**: Shows shell function definition
 **Log**: First 5 lines of integration script
@@ -339,7 +366,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 6.1: Add Worktree - Duplicate Name
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree add main main
+/Users/jschneider/code/scratch/gbm/gbm worktree add main main
 ```
 **Expected**: Error - worktree already exists
 **Log**: Error message
@@ -347,7 +374,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 6.2: Remove Non-Existent Worktree
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree remove nonexistent-worktree
+/Users/jschneider/code/scratch/gbm/gbm worktree remove nonexistent-worktree
 ```
 **Expected**: Error - worktree not found
 **Log**: Error message
@@ -355,7 +382,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 6.3: Switch to Non-Existent Worktree
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree switch nonexistent
+/Users/jschneider/code/scratch/gbm/gbm worktree switch nonexistent
 ```
 **Expected**: Error - worktree not found
 **Log**: Error message
@@ -363,7 +390,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 6.4: Init in Existing Git Repository
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm init already-exists
+/Users/jschneider/code/scratch/gbm/gbm init already-exists
 ```
 **Expected**: Error or warning about existing git repo
 **Log**: Error/warning message
@@ -371,7 +398,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 6.5: Command Outside Git Repository
 ```bash
 cd /tmp
-./gbm-test-*/gbm worktree list
+/Users/jschneider/code/scratch/gbm/gbm worktree list
 ```
 **Expected**: Error - not in a git repository
 **Log**: Error message
@@ -379,9 +406,9 @@ cd /tmp
 #### Test 6.6: Switch Using "-" (Previous Worktree)
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree switch feature-3 --print-path
-../../gbm worktree switch main --print-path
-../../gbm worktree switch - --print-path
+/Users/jschneider/code/scratch/gbm/gbm worktree switch feature-3 --print-path
+/Users/jschneider/code/scratch/gbm/gbm worktree switch main --print-path
+/Users/jschneider/code/scratch/gbm/gbm worktree switch - --print-path
 ```
 **Expected**: Returns to feature-3
 **Log**: All three switch outputs
@@ -391,7 +418,7 @@ cd /tmp/gbm-test-*/test-repo
 #### Test 7.1: Count All Worktrees
 ```bash
 cd /tmp/gbm-test-*/test-repo
-../../gbm worktree list --dry-run 2>&1 | grep -c "worktree" || git worktree list | wc -l
+/Users/jschneider/code/scratch/gbm/gbm worktree list --dry-run 2>&1 | grep -c "worktree" || git worktree list | wc -l
 ```
 **Expected**: Shows total worktree count
 **Log**: Total count
@@ -459,8 +486,11 @@ Create a markdown file with the following structure:
 # Set timestamp for this test run
 export TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-# Create test results directory if it doesn't exist
-mkdir -p /Users/jschneider/code/scratch/gbm/test-results
+# Create timestamped test results directory
+mkdir -p /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP
+
+# [VHS ONLY] Create VHS recordings subdirectory
+mkdir -p /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings
 
 # Build GBM binary
 cd /Users/jschneider/code/scratch/gbm
@@ -468,9 +498,6 @@ just build
 
 # Create temporary test directory
 mkdir -p /tmp/gbm-test-$TIMESTAMP
-
-# Copy GBM binary to test directory for easier access
-cp ./gbm /tmp/gbm-test-$TIMESTAMP/gbm
 ```
 
 ### Recording Options (Only if User Answered "Yes" to VHS)
@@ -489,11 +516,14 @@ vhs record --output /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TI
 # Press Ctrl-D to stop recording when done
 ```
 
-#### Option 2: Automated Recording with VHS Tape File
+#### Option 2: Automated Recording with VHS Tape Files
 ```bash
-# Generate a complete .tape file with all test commands
-# Then run:
-vhs < /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.tape
+# Create individual tape files for each operation in vhs-recordings/
+# Then run from the vhs-recordings directory:
+cd /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings
+vhs 01-init-repository.tape
+vhs 02-worktree-add.tape
+# ... etc for each operation
 ```
 
 #### Option 3: Screen Recording (Alternative)
@@ -506,26 +536,51 @@ asciinema rec /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAM
 
 **If User Answered "Yes" to VHS:**
 1. Start tmux session: `tmux new-session -s "gbm-test-$TIMESTAMP"`
-2. Start VHS recording (choose method from Recording Options above)
-3. Navigate to test directory
-4. Execute each test sequentially
-5. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
-6. Stop VHS recording
-7. Verify recording saved: `ls -lh /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif`
+2. Navigate to test directory
+3. Execute each test sequentially
+4. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/gbm-test-results-$TIMESTAMP.md`
+5. Create individual VHS tape files in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/`
+6. Generate VHS recordings: `cd vhs-recordings && vhs *.tape`
+7. Verify recordings saved: `ls -lh /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/*.gif`
 8. Leave tmux session running for review: `<Ctrl-b> d` to detach
 
 **If User Answered "No" to VHS:**
 1. Start tmux session: `tmux new-session -s "gbm-test-$TIMESTAMP"`
 2. Navigate to test directory
 3. Execute each test sequentially
-4. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
+4. Record results in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/gbm-test-results-$TIMESTAMP.md`
 5. Leave tmux session running for review: `<Ctrl-b> d` to detach
 
 ### Post-Execution
-- Review markdown results: `less /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP.md`
-- **[VHS ONLY]** View VHS recording: `open /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAMP.gif`
-- **[VHS ONLY]** Archive or share both files together for complete test documentation
-- **[NO VHS]** Archive or share the markdown results file for test documentation
+- Review markdown results: `less /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/gbm-test-results-$TIMESTAMP.md`
+- **[VHS ONLY]** View individual VHS recordings: `open /Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/vhs-recordings/*.gif`
+- **[VHS ONLY]** Archive the entire test run directory: `tar -czf gbm-test-results-$TIMESTAMP.tar.gz gbm-test-results-$TIMESTAMP/`
+- **[NO VHS]** Archive the test run directory: `tar -czf gbm-test-results-$TIMESTAMP.tar.gz gbm-test-results-$TIMESTAMP/`
+
+### Directory Structure After Test Run
+
+**With VHS:**
+```
+test-results/
+└── gbm-test-results-20251225-093816/
+    ├── gbm-test-results-20251225-093816.md        # Original test report
+    ├── gbm-test-results-with-recordings.md         # Enhanced report with GIF references
+    └── vhs-recordings/
+        ├── README.md                               # VHS recordings documentation
+        ├── 01-init-repository.tape                 # VHS tape files
+        ├── 02-worktree-add.tape
+        ├── ... (more tape files)
+        ├── init-repository.gif                     # Generated recordings
+        ├── worktree-add.gif
+        └── ... (more GIF files)
+```
+
+**Without VHS:**
+```
+test-results/
+└── gbm-test-results-20251225-093816/
+    └── gbm-test-results-20251225-093816.md        # Test report
+```
 
 ## Success Criteria
 
@@ -542,12 +597,15 @@ asciinema rec /Users/jschneider/code/scratch/gbm/test-results/gbm-test-$TIMESTAM
 - **FIRST**: Prompt the user with "Do you want to record this test session with VHS? (yes/no)" and wait for their response
 - If user answers "yes": Follow all VHS-related instructions throughout this document
 - If user answers "no": Skip ALL VHS-related setup and recording steps, but execute all tests normally
-- Use absolute paths for the GBM binary to avoid PATH issues
+- **Directory Structure**: All test artifacts go in `/Users/jschneider/code/scratch/gbm/test-results/gbm-test-results-$TIMESTAMP/`
+- **VHS Structure**: VHS tape files and recordings go in `gbm-test-results-$TIMESTAMP/vhs-recordings/`
+- **CRITICAL**: Use absolute paths for the GBM binary in all commands: `/Users/jschneider/code/scratch/gbm/gbm`
+- **CRITICAL**: Never use relative paths like `../../gbm` or `./gbm` - they will fail in VHS recordings
 - Capture both stdout and stderr for all commands
-- **Save all results to `/Users/jschneider/code/scratch/gbm/test-results/`** with timestamp
 - Document any unexpected behavior
 - Include git command outputs where relevant for verification
 - Test both long-form commands and aliases (wt, etc.)
 - Test 2.12: GBM automatically switches to repo root when removing current worktree to prevent "Unable to read current working directory" errors
+- **[VHS ONLY]** Create individual tape files for each major operation (init, worktree add, pull, push, etc.)
 - **[VHS ONLY]** VHS recordings provide visual proof of TUI interfaces and interactive commands
-- **[VHS ONLY]** Both the markdown results and VHS recording should use the same timestamp for easy correlation
+- **[VHS ONLY]** All test artifacts (markdown reports, VHS tapes, GIF recordings) use the same timestamp for easy correlation
