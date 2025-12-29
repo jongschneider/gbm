@@ -25,6 +25,8 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 	cmd.AddCommand(newWorktreeListCommand(svc))
 	cmd.AddCommand(newWorktreeRemoveCommand(svc))
 	cmd.AddCommand(newWorktreeSwitchCommand(svc))
+	cmd.AddCommand(newWorktreePushCommand(svc))
+	cmd.AddCommand(newWorktreePullCommand(svc))
 
 	return cmd
 }
@@ -382,6 +384,99 @@ Examples:
 			return completions, cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func newWorktreePushCommand(svc *Service) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "push [worktree-name]",
+		Short: "Push worktree changes to remote",
+		Long: `Push changes from a worktree to the remote repository.
+
+Usage:
+  gbm wt push                    # Push current worktree (if in a worktree)
+  gbm wt push <worktree-name>    # Push specific worktree
+
+The command will automatically set upstream (-u) if not already set.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return handlePushCurrent(svc)
+			}
+
+			// Handle "." as current worktree
+			if args[0] == "." {
+				return handlePushCurrent(svc)
+			}
+
+			return handlePushNamed(svc, args[0])
+		},
+	}
+
+	// Add completion for worktree names
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		completions, err := generateWorktreeCompletions(svc)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return completions, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func newWorktreePullCommand(svc *Service) *cobra.Command {
+	var pullAll bool
+
+	cmd := &cobra.Command{
+		Use:   "pull [worktree-name]",
+		Short: "Pull worktree changes from remote",
+		Long: `Pull changes from the remote repository to a worktree.
+
+Usage:
+  gbm wt pull                    # Pull current worktree (if in a worktree)
+  gbm wt pull <worktree-name>    # Pull specific worktree
+  gbm wt pull --all              # Pull all worktrees`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if pullAll {
+				return handlePullAll(svc)
+			}
+
+			if len(args) == 0 {
+				return handlePullCurrent(svc)
+			}
+
+			// Handle "." as current worktree
+			if args[0] == "." {
+				return handlePullCurrent(svc)
+			}
+
+			return handlePullNamed(svc, args[0])
+		},
+	}
+
+	cmd.Flags().BoolVar(&pullAll, "all", false, "Pull all worktrees")
+
+	// Add completion for worktree names
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		completions, err := generateWorktreeCompletions(svc)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return completions, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	return cmd
