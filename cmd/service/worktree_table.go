@@ -57,10 +57,11 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		})
 	}
 
-	// Calculate appropriate height (show all rows, or 15 max)
-	height := len(rows)
-	if height > 15 {
-		height = 15
+	// Calculate appropriate height (show all rows, or 25 max)
+	// Add 1 to account for header row
+	height := len(rows) + 1
+	if height > 26 {
+		height = 26
 	}
 
 	t := table.New(
