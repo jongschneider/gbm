@@ -22,7 +22,6 @@ type worktreeTableModel struct {
 	table            table.Model
 	worktrees        []git.Worktree
 	trackedBranches  map[string]bool
-	gitStatuses      map[string]string // Maps worktree name to git status symbol
 	svc              *Service
 	currentWorktree  *git.Worktree // Track current worktree for state updates
 	confirmingDelete bool
@@ -35,28 +34,14 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 	columns := []table.Column{
 		{Title: "Name", Width: 30},
 		{Title: "Branch", Width: 60},
-		{Title: "Kind", Width: 10},
-		{Title: "Git Status", Width: 12},
-	}
-
-	// Fetch git statuses for all worktrees (non-bare only)
-	gitStatuses := make(map[string]string)
-	for _, wt := range worktrees {
-		if wt.IsBare {
-			continue
-		}
-
-		status, err := svc.Git.GetBranchStatus(wt.Path)
-		if err == nil {
-			gitStatuses[wt.Name] = statusToSymbol(status)
-		}
+		{Title: "Status", Width: 10},
 	}
 
 	rows := []table.Row{}
 	for _, wt := range worktrees {
-		kind := "ad hoc"
+		status := "ad hoc"
 		if trackedBranches[wt.Branch] {
-			kind = "tracked"
+			status = "tracked"
 		}
 
 		// Add * indicator if this is the current worktree
@@ -65,17 +50,10 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 			name = "* " + name
 		}
 
-		// Get git status for this worktree
-		gitStatus := gitStatuses[wt.Name]
-		if gitStatus == "" {
-			gitStatus = "-"
-		}
-
 		rows = append(rows, table.Row{
 			name,
 			wt.Branch,
-			kind,
-			gitStatus,
+			status,
 		})
 	}
 
@@ -109,7 +87,6 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		table:           t,
 		worktrees:       worktrees,
 		trackedBranches: trackedBranches,
-		gitStatuses:     gitStatuses,
 		currentWorktree: currentWorktree,
 		svc:             svc,
 	}
@@ -135,11 +112,39 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
+				// Refresh worktrees list
+				worktrees, err := m.svc.Git.ListWorktrees(false)
+				if err != nil {
+					m.message = fmt.Sprintf("Error refreshing: %v", err)
+					m.confirmingDelete = false
+					return m, nil
+				}
+
+				// Categorize worktrees: tracked, ad hoc (exclude bare)
+				var trackedWorktrees []git.Worktree
+				var adHocWorktrees []git.Worktree
+
+				for _, wt := range worktrees {
+					if wt.IsBare {
+						// Skip bare repository
+						continue
+					} else if m.trackedBranches[wt.Branch] {
+						trackedWorktrees = append(trackedWorktrees, wt)
+					} else {
+						adHocWorktrees = append(adHocWorktrees, wt)
+					}
+				}
+
+				// Combine in priority order: tracked, ad hoc
+				sortedWorktrees := make([]git.Worktree, 0, len(trackedWorktrees)+len(adHocWorktrees))
+				sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
+				sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
+
 				// Save the deleted target before rebuilding
 				deletedTarget := m.deleteTarget
 
 				// Rebuild the table with updated worktrees
-				m = *m.rebuildTable()
+				m = newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
 				m.message = fmt.Sprintf("Deleted worktree '%s'", deletedTarget)
 				return m, nil
 
@@ -177,8 +182,6 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("Error pulling '%s': %v", targetWorktree.Name, err)
 				} else {
 					m.message = fmt.Sprintf("Successfully pulled '%s'", targetWorktree.Name)
-					// Rebuild table to refresh git status
-					m = *m.rebuildTable()
 				}
 			}
 			return m, nil
@@ -195,8 +198,6 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("Error pushing '%s': %v", targetWorktree.Name, err)
 				} else {
 					m.message = fmt.Sprintf("Successfully pushed '%s'", targetWorktree.Name)
-					// Rebuild table to refresh git status
-					m = *m.rebuildTable()
 				}
 			}
 			return m, nil
@@ -261,59 +262,6 @@ func (m worktreeTableModel) View() string {
 	}
 
 	return output
-}
-
-// rebuildTable refreshes the worktree list and rebuilds the entire table UI
-func (m *worktreeTableModel) rebuildTable() *worktreeTableModel {
-	// Refresh worktrees list
-	worktrees, err := m.svc.Git.ListWorktrees(false)
-	if err != nil {
-		// If refresh fails, keep existing worktrees but show error
-		m.message = fmt.Sprintf("Error refreshing worktrees: %v", err)
-		return m
-	}
-
-	// Categorize worktrees: tracked, ad hoc (exclude bare)
-	var trackedWorktrees []git.Worktree
-	var adHocWorktrees []git.Worktree
-
-	for _, wt := range worktrees {
-		if wt.IsBare {
-			continue
-		} else if m.trackedBranches[wt.Branch] {
-			trackedWorktrees = append(trackedWorktrees, wt)
-		} else {
-			adHocWorktrees = append(adHocWorktrees, wt)
-		}
-	}
-
-	// Combine in priority order: tracked, ad hoc
-	sortedWorktrees := make([]git.Worktree, 0, len(trackedWorktrees)+len(adHocWorktrees))
-	sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
-	sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
-
-	// Rebuild table with fresh data
-	newModel := newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
-	// Preserve the message from the caller
-	newModel.message = m.message
-	return &newModel
-}
-
-// statusToSymbol converts a BranchTrackingStatus to a display symbol
-func statusToSymbol(status *git.BranchTrackingStatus) string {
-	if status == nil || !status.Tracked {
-		return "-" // No upstream
-	}
-
-	if status.AheadCount > 0 && status.BehindCount > 0 {
-		return "⇄" // Diverged
-	} else if status.AheadCount > 0 {
-		return "⇢" // Ahead
-	} else if status.BehindCount > 0 {
-		return "⇠" // Behind
-	}
-
-	return "=" // Up-to-date
 }
 
 func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) error {
