@@ -64,5 +64,6 @@ func runWorktreeAddTUI(cmd *cobra.Command, svc *Service, visualizeFSM bool, grap
 		return nil
 	}
 
-	return fsmInstance.Run(ctx)
+	// Use the new FSMModel-based TUI that avoids screen flicker
+	return RunWorktreeAddTUI(ctx, fsmInstance)
 }

@@ -17,9 +17,8 @@ type StepModel interface {
 
 // WizardStep represents a single step in the wizard
 type WizardStep struct {
-	form        *huh.Form         // For huh forms
-	customModel StepModel         // For custom Bubble Tea models
-	isCustom    bool              // Track which type this is
+	form        *huh.Form // For huh forms
+	customModel StepModel // For custom Bubble Tea models
 }
 
 // WizardModel manages a multi-step wizard with back navigation
@@ -30,6 +29,7 @@ type WizardModel struct {
 	completed   bool
 	width       int
 	height      int
+	userData    map[string]interface{} // For passing data between FSM and wizard
 }
 
 // NewWizard creates a new wizard with the given steps
@@ -44,11 +44,7 @@ func NewWizard(steps []WizardStep) WizardModel {
 
 func (m WizardModel) Init() tea.Cmd {
 	if len(m.steps) > 0 {
-		step := m.steps[m.currentStep]
-		if step.isCustom {
-			return step.customModel.Init()
-		}
-		return step.form.Init()
+		return m.steps[m.currentStep].initStep()
 	}
 	return nil
 }
@@ -67,11 +63,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// ESC goes back to previous step
 			if m.currentStep > 0 {
 				m.currentStep--
-				prevStep := m.steps[m.currentStep]
-				if prevStep.isCustom {
-					return m, prevStep.customModel.Init()
-				}
-				return m, prevStep.form.Init()
+				return m, m.steps[m.currentStep].initStep()
 			}
 			// On first step, ESC quits without setting cancelled
 			// This signals "go back to previous screen" (not "cancel entirely")
@@ -90,7 +82,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update current step (either huh form or custom model)
 	var cmd tea.Cmd
-	if step.isCustom {
+	if step.customModel != nil {
 		// Update custom model
 		model, c := step.customModel.Update(msg)
 		if sm, ok := model.(StepModel); ok {
@@ -109,14 +101,10 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.completed = true
 					return m, tea.Quit
 				}
-				nextStep := m.steps[m.currentStep]
-				if nextStep.isCustom {
-					return m, nextStep.customModel.Init()
-				}
-				return m, nextStep.form.Init()
+				return m, m.steps[m.currentStep].initStep()
 			}
 		}
-	} else {
+	} else if step.form != nil {
 		// Update huh form
 		form, c := step.form.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
@@ -131,11 +119,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.completed = true
 					return m, tea.Quit
 				}
-				nextStep := m.steps[m.currentStep]
-				if nextStep.isCustom {
-					return m, nextStep.customModel.Init()
-				}
-				return m, nextStep.form.Init()
+				return m, m.steps[m.currentStep].initStep()
 			}
 		}
 	}
@@ -148,9 +132,9 @@ func (m WizardModel) View() string {
 		step := m.steps[m.currentStep]
 
 		var view string
-		if step.isCustom {
+		if step.customModel != nil {
 			view = step.customModel.View()
-		} else {
+		} else if step.form != nil {
 			view = step.form.View()
 		}
 
@@ -199,4 +183,15 @@ func (m *WizardModel) GetStep(index int) (WizardStep, error) {
 		return WizardStep{}, fmt.Errorf("step index %d out of range (0-%d)", index, len(m.steps)-1)
 	}
 	return m.steps[index], nil
+}
+
+// initStep initializes the step by calling Init() on the appropriate type
+func (s *WizardStep) initStep() tea.Cmd {
+	if s.customModel != nil {
+		return s.customModel.Init()
+	}
+	if s.form != nil {
+		return s.form.Init()
+	}
+	return nil
 }

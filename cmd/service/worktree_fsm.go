@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gbm/internal/git"
+
 	"github.com/charmbracelet/huh"
 	"github.com/looplab/fsm"
 )
@@ -33,6 +35,9 @@ type WorkflowState struct {
 
 	// Error handling
 	LastError error
+
+	// Result data (populated after successful creation)
+	CreatedWorktree git.Worktree
 
 	// Debugging/logging
 	StateHistory []string
@@ -354,7 +359,7 @@ func (w *WorktreeAddFSM) runFeatureWorktreeName() (string, error) {
 				"Worktree name",
 				"Select JIRA ticket or enter custom name",
 				items,
-			), isCustom: true},
+			)},
 		})
 
 		finalWizard, err := wizard.Run()
@@ -456,7 +461,7 @@ func (w *WorktreeAddFSM) runFeatureBaseBranch() (string, error) {
 			"Base branch",
 			fmt.Sprintf("Branch '%s' doesn't exist. Select base:", w.state.BranchName),
 			items,
-		), isCustom: true},
+		)},
 	})
 
 	finalWizard, err := wizard.Run()
@@ -535,10 +540,12 @@ func (w *WorktreeAddFSM) runFeatureExecuteCreate() (string, error) {
 
 	// Copy files if configured
 	if copyErr := w.state.Service.CopyFilesToWorktree(w.state.WorktreeName); copyErr != nil {
-		fmt.Printf("Warning: failed to copy files to worktree: %v\n", copyErr)
+		// Store warning in LastError if not dry-run, otherwise ignore
+		// Don't print during TUI execution
 	}
 
-	printWorktreeSuccess(wt)
+	// Store the created worktree for display in terminal UI
+	w.state.CreatedWorktree = *wt
 	return EventComplete, nil
 }
 
@@ -579,7 +586,7 @@ func (w *WorktreeAddFSM) runHotfixWorktreeName() (string, error) {
 				"Worktree name",
 				"Select JIRA ticket or enter custom name",
 				items,
-			), isCustom: true},
+			)},
 		})
 
 		finalWizard, err := wizard.Run()
@@ -636,7 +643,7 @@ func (w *WorktreeAddFSM) runHotfixBaseBranch() (string, error) {
 			"Base branch for hotfix",
 			"Select branch (typically production or release)",
 			items,
-		), isCustom: true},
+		)},
 	})
 
 	finalWizard, err := wizard.Run()
@@ -710,10 +717,11 @@ func (w *WorktreeAddFSM) runHotfixExecuteCreate() (string, error) {
 	}
 
 	if copyErr := w.state.Service.CopyFilesToWorktree(w.state.WorktreeName); copyErr != nil {
-		fmt.Printf("Warning: failed to copy files to worktree: %v\n", copyErr)
+		// Don't print during TUI execution
 	}
 
-	printWorktreeSuccess(wt)
+	// Store the created worktree for display in terminal UI
+	w.state.CreatedWorktree = *wt
 	return EventComplete, nil
 }
 
@@ -943,7 +951,8 @@ func (w *WorktreeAddFSM) runMergebackExecuteCreate() (string, error) {
 		return EventError, nil
 	}
 
-	printWorktreeSuccess(wt)
+	// Store the created worktree for display in terminal UI
+	w.state.CreatedWorktree = *wt
 	return EventComplete, nil
 }
 
