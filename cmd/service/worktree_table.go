@@ -2,21 +2,21 @@ package service
 
 import (
 	"fmt"
-	"gbm/internal/git"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
+
+	"gbm/internal/git"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	baseStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240"))
-)
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
 
 type worktreeTableModel struct {
 	table            table.Model
@@ -28,20 +28,69 @@ type worktreeTableModel struct {
 	deleteTarget     string
 	message          string
 	switchOutput     string // Output from switch command to print after exit
+	branchStatuses   map[string]*git.BranchStatus
 }
 
 func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) worktreeTableModel {
 	columns := []table.Column{
 		{Title: "Name", Width: 30},
-		{Title: "Branch", Width: 60},
-		{Title: "Status", Width: 10},
+		{Title: "Branch", Width: 50},
+		{Title: "Kind", Width: 10},
+		{Title: "Git Status", Width: 15},
 	}
+
+	// Fetch all worktrees once at repo level for efficiency
+	repoRoot, _ := svc.Git.FindGitRoot(".")
+	if repoRoot != "" {
+		cmd := exec.Command("git", "-C", repoRoot, "fetch", "--all", "--quiet")
+		_ = cmd.Run() // Ignore errors, continue with stale info if fetch fails
+	}
+
+	// Fetch branch statuses for all worktrees concurrently
+	branchStatuses := make(map[string]*git.BranchStatus)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, wt := range worktrees {
+		if wt.IsBare {
+			continue
+		}
+
+		wg.Add(1)
+		go func(worktree git.Worktree) {
+			defer wg.Done()
+			status, err := svc.Git.GetBranchStatus(worktree.Path)
+			if err == nil && status != nil {
+				mu.Lock()
+				branchStatuses[worktree.Name] = status
+				mu.Unlock()
+			}
+		}(wt)
+
+	}
+	wg.Wait()
 
 	rows := []table.Row{}
 	for _, wt := range worktrees {
-		status := "ad hoc"
+		kind := "ad hoc"
 		if trackedBranches[wt.Branch] {
-			status = "tracked"
+			kind = "tracked"
+		}
+
+		// Get git status symbol
+		gitStatus := "—"
+		if status, ok := branchStatuses[wt.Name]; ok && status != nil {
+			if status.NoRemote {
+				gitStatus = "?"
+			} else if status.UpToDate {
+				gitStatus = "✓"
+			} else if status.Ahead > 0 && status.Behind > 0 {
+				gitStatus = fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
+			} else if status.Ahead > 0 {
+				gitStatus = fmt.Sprintf("↑ %d", status.Ahead)
+			} else if status.Behind > 0 {
+				gitStatus = fmt.Sprintf("↓ %d", status.Behind)
+			}
 		}
 
 		// Add * indicator if this is the current worktree
@@ -53,7 +102,8 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		rows = append(rows, table.Row{
 			name,
 			wt.Branch,
-			status,
+			kind,
+			gitStatus,
 		})
 	}
 
@@ -89,6 +139,7 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		trackedBranches: trackedBranches,
 		currentWorktree: currentWorktree,
 		svc:             svc,
+		branchStatuses:  branchStatuses,
 	}
 }
 
@@ -143,7 +194,7 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Save the deleted target before rebuilding
 				deletedTarget := m.deleteTarget
 
-				// Rebuild the table with updated worktrees
+				// Rebuild the table with updated worktrees (will fetch branch statuses again)
 				m = newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
 				m.message = fmt.Sprintf("Deleted worktree '%s'", deletedTarget)
 				return m, nil
@@ -284,7 +335,7 @@ func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 			_ = os.Remove(tmpFile)
 
 			// Write the switch output
-			if err := os.WriteFile(tmpFile, []byte(model.switchOutput), 0600); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(model.switchOutput), 0o600); err != nil {
 				return fmt.Errorf("failed to write switch file: %w", err)
 			}
 			// Note: The shell integration is responsible for cleaning up this file after reading

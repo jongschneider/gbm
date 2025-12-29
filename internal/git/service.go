@@ -146,6 +146,63 @@ func (s *Service) GetCurrentWorktree() (*Worktree, error) {
 	return nil, fmt.Errorf("current worktree '%s' not found in worktree list", worktreeName)
 }
 
+// BranchStatus represents the sync status of a branch with its remote
+type BranchStatus struct {
+	Ahead    int
+	Behind   int
+	UpToDate bool
+	NoRemote bool
+}
+
+// GetBranchStatus returns the sync status of a worktree's branch
+// comparing it to its remote tracking branch. Does NOT fetch - assumes
+// local tracking branch is recent. Use FetchAllWorktrees first if you need
+// fresh remote info.
+func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
+	status := &BranchStatus{}
+
+	// Get current branch name
+	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchOutput, err := cmd.Output()
+	if err != nil {
+		return status, fmt.Errorf("failed to get branch: %w", err)
+	}
+	branch := strings.TrimSpace(string(branchOutput))
+
+	// Check if branch has a remote tracking branch
+	cmd = exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", fmt.Sprintf("%s@{u}", branch))
+	remoteOutput, err := cmd.Output()
+	if err != nil {
+		status.NoRemote = true
+		status.UpToDate = true // No remote = nothing to sync
+		return status, nil
+	}
+
+	remoteBranch := strings.TrimSpace(string(remoteOutput))
+	if remoteBranch == "" || strings.Contains(remoteBranch, "fatal") {
+		status.NoRemote = true
+		status.UpToDate = true
+		return status, nil
+	}
+
+	// Count commits ahead and behind
+	cmd = exec.Command("git", "-C", worktreePath, "rev-list", "--left-right", "--count", fmt.Sprintf("%s...HEAD", remoteBranch))
+	output, err := cmd.Output()
+	if err != nil {
+		return status, fmt.Errorf("failed to count commits: %w", err)
+	}
+
+	counts := strings.Fields(strings.TrimSpace(string(output)))
+	if len(counts) == 2 {
+		fmt.Sscanf(counts[0], "%d", &status.Behind)
+		fmt.Sscanf(counts[1], "%d", &status.Ahead)
+	}
+
+	status.UpToDate = status.Ahead == 0 && status.Behind == 0
+
+	return status, nil
+}
+
 // runCommand executes a command or prints it if in dry-run mode
 func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
 	cmdStr := utils.FormatCommand(cmd)
