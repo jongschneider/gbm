@@ -185,6 +185,7 @@ func (w *WorktreeAddFSM) VisualizeFSM(graphType fsm.MermaidDiagramType) error {
 
 // Run executes the unified FSM workflow loop with timeout and cancellation support
 // The context can be used to cancel the workflow or set a timeout
+// This implementation keeps the original synchronous FSM loop
 func (w *WorktreeAddFSM) Run(ctx context.Context) error {
 	for {
 		// Check if context is done (timeout or cancellation)

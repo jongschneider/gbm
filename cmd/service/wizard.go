@@ -15,6 +15,10 @@ type StepModel interface {
 	IsCancelled() bool
 }
 
+// wizardDepth tracks how many wizards are currently active
+// Used to prevent nested alt screen calls which cause flicker
+var wizardDepth = 0
+
 // WizardStep represents a single step in the wizard
 type WizardStep struct {
 	form        *huh.Form         // For huh forms
@@ -170,8 +174,23 @@ func (m WizardModel) View() string {
 // Returns nil error if user completed all steps
 // Returns ErrCancelled if user pressed Ctrl+C
 // Returns ErrGoBack if user pressed ESC on first step to go back
+// 
+// This method manages alt screen intelligently:
+// - The first/outermost wizard call uses alt screen
+// - Subsequent nested wizard calls do NOT use alt screen
+// This prevents screen flicker when transitioning between multiple wizards
 func (m WizardModel) Run() (*WizardModel, error) {
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	// Track depth to prevent nested alt screen calls
+	wizardDepth++
+	defer func() { wizardDepth-- }()
+
+	var opts []tea.ProgramOption
+	// Only use alt screen for the first/outermost wizard
+	if wizardDepth == 1 {
+		opts = append(opts, tea.WithAltScreen())
+	}
+
+	p := tea.NewProgram(m, opts...)
 	finalModel, runErr := p.Run()
 	if runErr != nil {
 		return nil, runErr
