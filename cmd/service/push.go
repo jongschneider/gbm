@@ -60,8 +60,6 @@ The command will automatically set upstream (-u) if not already set.`,
 }
 
 func handlePushAll(svc *Service) error {
-	fmt.Println("Pushing all worktrees...")
-
 	worktrees, err := svc.Git.ListWorktrees(false)
 	if err != nil {
 		return fmt.Errorf("failed to get worktrees: %w", err)
@@ -74,13 +72,13 @@ func handlePushAll(svc *Service) error {
 			continue
 		}
 
-		fmt.Printf("Pushing worktree '%s'...\n", wt.Name)
+		fmt.Printf("💡 Pushing worktree '%s'...\n", wt.Name)
 		if err := svc.Git.PushWorktree(wt.Path, false); err != nil {
 			fmt.Printf("Failed to push worktree '%s': %v\n", wt.Name, err)
 			hasErrors = true
 			continue
 		}
-		fmt.Printf("Successfully pushed worktree '%s'\n", wt.Name)
+		fmt.Println() // Add blank line after git output for readability
 	}
 
 	if hasErrors {
@@ -107,7 +105,7 @@ func handlePushCurrent(svc *Service) error {
 		return fmt.Errorf("not currently in a worktree. Use 'gbm push <worktree-name>' to push a specific worktree")
 	}
 
-	fmt.Printf("Pushing current worktree '%s'...\n", worktreeName)
+	fmt.Printf("💡 Pushing current worktree '%s'...\n", worktreeName)
 
 	// Get the worktree path
 	worktrees, err := svc.Git.ListWorktrees(false)
@@ -138,7 +136,7 @@ func handlePushNamed(svc *Service, worktreeName string) error {
 				return fmt.Errorf("cannot push bare repository")
 			}
 
-			fmt.Printf("Pushing worktree '%s'...\n", worktreeName)
+			fmt.Printf("💡 Pushing worktree '%s'...\n", worktreeName)
 			return svc.Git.PushWorktree(wt.Path, false)
 		}
 	}

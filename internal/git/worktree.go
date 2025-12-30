@@ -540,5 +540,10 @@ func (s *Service) PushWorktree(worktreePath string, dryRun bool) error {
 		return fmt.Errorf("failed to push worktree: %w\nOutput: %s", err, string(output))
 	}
 
+	// Print all output at once (includes PR links from git remote)
+	if len(output) > 0 {
+		fmt.Print(string(output))
+	}
+
 	return nil
 }
