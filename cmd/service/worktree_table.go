@@ -300,6 +300,13 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cursor := m.table.Cursor()
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				targetWorktree := m.worktrees[cursor]
+
+				// Check if this is a tracked worktree
+				if m.trackedBranches[targetWorktree.Branch] {
+					m.message = fmt.Sprintf("Cannot push tracked worktree '%s' - tracked worktrees should not be pushed", targetWorktree.Name)
+					return m, nil
+				}
+
 				targetName := targetWorktree.Name
 				m.message = fmt.Sprintf("Pushing worktree '%s'...", targetName)
 
@@ -361,9 +368,24 @@ func (m worktreeTableModel) View() string {
 		confirmMsg := fmt.Sprintf("\n\nDelete worktree '%s'? (y/n): ", m.deleteTarget)
 		output += confirmStyle.Render(confirmMsg)
 	} else {
-		// Show help text
+		// Show help text (conditionally show push option)
 		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-		help := "\n↑/↓: navigate • space/enter: switch • l: pull • p: push • d: delete • q/esc: quit\n"
+
+		// Check if currently selected worktree is tracked
+		cursor := m.table.Cursor()
+		showPush := true
+		if cursor >= 0 && cursor < len(m.worktrees) {
+			selectedWorktree := m.worktrees[cursor]
+			if m.trackedBranches[selectedWorktree.Branch] {
+				showPush = false
+			}
+		}
+
+		help := "\n↑/↓: navigate • space/enter: switch • l: pull"
+		if showPush {
+			help += " • p: push"
+		}
+		help += " • d: delete • q/esc: quit\n"
 
 		// Show message if any
 		if m.message != "" {

@@ -1,8 +1,5 @@
-1. gbm2 add (TUI)
-    * use same sorting logic for base branch as wt list TUI
-
-2. gbm2 wt list (TUI)
-    * if a worktree is tracked, remove the option to push (illegal activity)
+2. ✅ gbm2 wt list (TUI)
+    * ✅ if a worktree is tracked, remove the option to push (illegal activity)
 
 3. ✅ gbm2 wt push
     * ✅ print out the git operation output with the link to make the PR
@@ -28,7 +25,7 @@ branch 'hotfix/INGSVC-6476-ms-copilot-fix-test_to_FIGHTCLUB' set up to track 'or
 4. gbm2 wt add (TUI and non-TUI)
     * create a jira ticket md file with all of the jira ticket information (summary, etc)
     * we should check what info we are getting from the jira cli to determine the format of this doc
-    
+
 5. gbm2 wt add (TUI and non-TUI)
     * add base branch to ouput
     <current-output>
