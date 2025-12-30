@@ -85,6 +85,23 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 default_branch: %s
 worktrees_dir: worktrees
 
+# JIRA Integration (optional)
+# Configure filters for issue fetching
+# jira:
+#   filters:
+#     # Filter by multiple statuses
+#     status:
+#       - "In Dev."
+#       - "Open"
+#       - "To Do"
+#     # Filter by priority, type, labels
+#     priority: "High"
+#     type: "Bug"
+#     labels:
+#       - "backend"
+#     # Additional filters: component, reporter, order_by, custom_args
+#     # Run 'jira issue list --help' for all available options
+
 # File copying rules - automatically copy files from source worktrees to new worktrees
 # Useful for configuration files, .env files, etc.
 # file_copy:
@@ -99,7 +116,7 @@ worktrees_dir: worktrees
 	if dryRun {
 		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
 	} else {
-		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 			return fmt.Errorf("failed to create config.yaml: %w", err)
 		}
 	}

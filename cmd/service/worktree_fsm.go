@@ -563,7 +563,8 @@ func (w *WorktreeAddFSM) generateFeatureDefaultBranchName() string {
 	}
 
 	// Check if worktree name is a JIRA key
-	issues, err := w.state.Service.Jira.GetJiraIssues(false)
+	filters := w.state.Service.GetJiraFilters()
+	issues, err := w.state.Service.Jira.GetJiraIssues(filters, false)
 	if err == nil {
 		for _, issue := range issues {
 			if issue.Key == w.state.WorktreeName {
@@ -601,10 +602,10 @@ func (w *WorktreeAddFSM) runHotfixWorktreeName() (string, error) {
 		}
 
 		step, err := finalWizard.GetStep(0)
-	if err != nil {
-		return "", fmt.Errorf("failed to get step: %w", err)
-	}
-	model := step.customModel.(FilterableSelectModel)
+		if err != nil {
+			return "", fmt.Errorf("failed to get step: %w", err)
+		}
+		model := step.customModel.(FilterableSelectModel)
 		selectedName := model.GetSelected()
 
 		// Add HOTFIX_ prefix
@@ -731,7 +732,8 @@ func (w *WorktreeAddFSM) generateHotfixDefaultBranchName() string {
 	baseName := strings.TrimPrefix(w.state.WorktreeName, HotfixPrefix)
 
 	// Check if it's a JIRA key
-	issues, err := w.state.Service.Jira.GetJiraIssues(false)
+	filters := w.state.Service.GetJiraFilters()
+	issues, err := w.state.Service.Jira.GetJiraIssues(filters, false)
 	if err == nil {
 		for _, issue := range issues {
 			if issue.Key == baseName {

@@ -165,7 +165,8 @@ func generateMergeCommitMessage(svc *Service, sourceBranch, targetBranch string)
 
 // fetchJiraItems retrieves JIRA issues and converts them to FilterableItem format
 func fetchJiraItems(svc *Service) []FilterableItem {
-	issues, err := svc.Jira.GetJiraIssues(false)
+	filters := svc.GetJiraFilters()
+	issues, err := svc.Jira.GetJiraIssues(filters, false)
 	if err != nil || len(issues) == 0 {
 		return []FilterableItem{}
 	}

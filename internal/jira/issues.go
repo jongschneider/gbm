@@ -19,10 +19,71 @@ type IssuesCache struct {
 	Timestamp time.Time   `json:"timestamp"`
 }
 
-// GetJiraIssues fetches all JIRA issues for the current user using --raw JSON output
+// buildIssueListArgs constructs jira issue list command arguments from filters
+func buildIssueListArgs(filters JiraFilters, username string) []string {
+	args := []string{"issue", "list"}
+
+	// Assignee filter (defaults to current user)
+	assignee := filters.Assignee
+	if assignee == "" || assignee == "me" {
+		args = append(args, "-a"+username)
+	} else if assignee != "none" {
+		args = append(args, "-a"+assignee)
+	}
+
+	// Status filters (can have multiple)
+	for _, status := range filters.Status {
+		args = append(args, "-s"+status)
+	}
+
+	// Priority filter
+	if filters.Priority != "" {
+		args = append(args, "-y"+filters.Priority)
+	}
+
+	// Type filter
+	if filters.Type != "" {
+		args = append(args, "-t"+filters.Type)
+	}
+
+	// Label filters (can have multiple)
+	for _, label := range filters.Labels {
+		args = append(args, "-l"+label)
+	}
+
+	// Component filter
+	if filters.Component != "" {
+		args = append(args, "-C"+filters.Component)
+	}
+
+	// Reporter filter
+	if filters.Reporter != "" {
+		args = append(args, "-r"+filters.Reporter)
+	}
+
+	// Order by
+	if filters.OrderBy != "" {
+		args = append(args, "--order-by", filters.OrderBy)
+	}
+
+	// Reverse order
+	if filters.Reverse {
+		args = append(args, "--reverse")
+	}
+
+	// Custom arguments
+	args = append(args, filters.CustomArgs...)
+
+	// Always request raw JSON output
+	args = append(args, "--raw")
+
+	return args
+}
+
+// GetJiraIssues fetches JIRA issues using configured filters
 // Returns slice of typed JiraIssue structs
 // Results are cached for 5 minutes to improve performance
-func (s *Service) GetJiraIssues(dryRun bool) ([]JiraIssue, error) {
+func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, error) {
 	// Load cache and user from store
 	var cache *IssuesCache
 	var cachedUser string
@@ -41,8 +102,11 @@ func (s *Service) GetJiraIssues(dryRun bool) ([]JiraIssue, error) {
 		return nil, err
 	}
 
-	// Fetch issues for the user using jira CLI with --raw for JSON output
-	cmd := exec.Command("jira", "issue", "list", "-a"+user, "--raw")
+	// Build command arguments from filters
+	args := buildIssueListArgs(filters, user)
+
+	// Execute command
+	cmd := exec.Command("jira", args...)
 	output, err := s.runCommand(cmd, dryRun)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JIRA issues: %w\nOutput: %s", err, string(output))
@@ -189,4 +253,3 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 
 	return ticket, nil
 }
-

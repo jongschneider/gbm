@@ -32,20 +32,34 @@ type Comment struct {
 	Timestamp time.Time
 }
 
+// JiraFilters defines filters for jira issue list command
+type JiraFilters struct {
+	Status     []string `yaml:"status,omitempty"`      // -s flags: filter by status
+	Priority   string   `yaml:"priority,omitempty"`    // -y flag: filter by priority
+	Type       string   `yaml:"type,omitempty"`        // -t flag: filter by type
+	Labels     []string `yaml:"labels,omitempty"`      // -l flags: filter by labels
+	Component  string   `yaml:"component,omitempty"`   // -C flag: filter by component
+	Reporter   string   `yaml:"reporter,omitempty"`    // -r flag: filter by reporter
+	Assignee   string   `yaml:"assignee,omitempty"`    // -a flag: assignee (default: "me")
+	OrderBy    string   `yaml:"order_by,omitempty"`    // --order-by flag
+	Reverse    bool     `yaml:"reverse,omitempty"`     // --reverse flag
+	CustomArgs []string `yaml:"custom_args,omitempty"` // Additional custom args
+}
+
 // jiraRawResponse represents the raw JSON response from JIRA CLI
 type jiraRawResponse struct {
 	Key    string `json:"key"`
 	Self   string `json:"self"`
 	Fields struct {
-		Summary string  `json:"summary"`
-		Created string  `json:"created"`
-		DueDate *string `json:"duedate"`
+		Summary   string  `json:"summary"`
+		Created   string  `json:"created"`
+		DueDate   *string `json:"duedate"`
 		IssueType struct {
-			ID       string `json:"id"`
-			Name     string `json:"name"`
-			Subtask  bool   `json:"subtask"`
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Subtask bool   `json:"subtask"`
 		} `json:"issueType"`
-		Status  struct {
+		Status struct {
 			Name string `json:"name"`
 		} `json:"status"`
 		Priority struct {

@@ -13,7 +13,8 @@ import (
 
 // JiraConfig represents JIRA-specific configuration
 type JiraConfig struct {
-	Me string `yaml:"me,omitempty"` // Cached JIRA username
+	Me      string           `yaml:"me,omitempty"`      // Cached JIRA username
+	Filters jira.JiraFilters `yaml:"filters,omitempty"` // Issue list filters
 }
 
 // FileCopyRule defines files to copy from a source worktree
@@ -181,6 +182,19 @@ func (s *Service) GetConfig() *Config {
 		}
 	}
 	return s.config
+}
+
+// GetJiraFilters returns the configured JIRA filters with sensible defaults
+func (s *Service) GetJiraFilters() jira.JiraFilters {
+	config := s.GetConfig()
+	filters := config.Jira.Filters
+
+	// Apply default assignee if not specified
+	if filters.Assignee == "" {
+		filters.Assignee = "me"
+	}
+
+	return filters
 }
 
 // SaveConfig writes the current configuration to .gbm/config.yaml

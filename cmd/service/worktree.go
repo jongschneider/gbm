@@ -157,7 +157,8 @@ Examples:
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			// Complete JIRA keys with summaries for context
-			jiraIssues, err := svc.Jira.GetJiraIssues(false)
+			filters := svc.GetJiraFilters()
+			jiraIssues, err := svc.Jira.GetJiraIssues(filters, false)
 			if err != nil {
 				// If JIRA CLI is not available, fall back to no completions
 				return nil, cobra.ShellCompDirectiveNoFileComp
