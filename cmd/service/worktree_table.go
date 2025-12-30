@@ -109,10 +109,7 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 
 	// Calculate appropriate height (show all rows, or 25 max)
 	// Add 1 to account for header row
-	height := len(rows) + 1
-	if height > 26 {
-		height = 26
-	}
+	height := min(len(rows)+1, 26)
 
 	t := table.New(
 		table.WithColumns(columns),
@@ -147,6 +144,92 @@ func (m worktreeTableModel) Init() tea.Cmd {
 	return nil
 }
 
+// refreshTable re-fetches worktrees and rebuilds the table with fresh data
+func (m worktreeTableModel) refreshTable() worktreeTableModel {
+	// Refresh worktrees list
+	worktrees, err := m.svc.Git.ListWorktrees(false)
+	if err != nil {
+		m.message = fmt.Sprintf("Error refreshing: %v", err)
+		return m
+	}
+
+	// Categorize worktrees: current first (if found), then tracked, then ad hoc (exclude bare)
+	var sortedWorktrees []git.Worktree
+	var trackedWorktrees []git.Worktree
+	var adHocWorktrees []git.Worktree
+
+	for _, wt := range worktrees {
+		if wt.IsBare {
+			// Skip bare repository
+			continue
+		}
+		if m.currentWorktree != nil && wt.Name == m.currentWorktree.Name {
+			// Add current worktree first and skip categorization
+			sortedWorktrees = append(sortedWorktrees, wt)
+			continue
+		}
+
+		if m.trackedBranches[wt.Branch] {
+			trackedWorktrees = append(trackedWorktrees, wt)
+			continue
+		}
+		adHocWorktrees = append(adHocWorktrees, wt)
+	}
+
+	// Append categorized worktrees in priority order: tracked, ad hoc
+	sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
+	sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
+
+	// Rebuild the table with updated worktrees (will fetch branch statuses again)
+	return newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
+}
+
+// refreshWorktreeStatus updates the git status for a specific worktree (by index)
+// This is more performant than refreshTable() when only one worktree changed
+func (m worktreeTableModel) refreshWorktreeStatus(index int) worktreeTableModel {
+	if index < 0 || index >= len(m.worktrees) {
+		return m
+	}
+
+	wt := m.worktrees[index]
+
+	// Fetch only this worktree's remote tracking branch
+	cmd := exec.Command("git", "-C", wt.Path, "fetch", "origin", wt.Branch, "--quiet")
+	_ = cmd.Run() // Ignore errors, continue with stale info if fetch fails
+
+	// Get updated branch status for just this worktree
+	status, err := m.svc.Git.GetBranchStatus(wt.Path)
+	if err == nil && status != nil {
+		m.branchStatuses[wt.Name] = status
+	}
+
+	// Regenerate the git status string
+	gitStatus := "—"
+	if status != nil {
+		if status.NoRemote {
+			gitStatus = "?"
+		} else if status.UpToDate {
+			gitStatus = "✓"
+		} else if status.Ahead > 0 && status.Behind > 0 {
+			gitStatus = fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
+		} else if status.Ahead > 0 {
+			gitStatus = fmt.Sprintf("↑ %d", status.Ahead)
+		} else if status.Behind > 0 {
+			gitStatus = fmt.Sprintf("↓ %d", status.Behind)
+		}
+	}
+
+	// Update just this row in the table
+	rows := m.table.Rows()
+	if index < len(rows) {
+		// Keep name, branch, kind columns the same, update only git status
+		rows[index][3] = gitStatus
+		m.table.SetRows(rows)
+	}
+
+	return m
+}
+
 func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -163,40 +246,13 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				// Refresh worktrees list
-				worktrees, err := m.svc.Git.ListWorktrees(false)
-				if err != nil {
-					m.message = fmt.Sprintf("Error refreshing: %v", err)
-					m.confirmingDelete = false
-					return m, nil
-				}
-
-				// Categorize worktrees: tracked, ad hoc (exclude bare)
-				var trackedWorktrees []git.Worktree
-				var adHocWorktrees []git.Worktree
-
-				for _, wt := range worktrees {
-					if wt.IsBare {
-						// Skip bare repository
-						continue
-					} else if m.trackedBranches[wt.Branch] {
-						trackedWorktrees = append(trackedWorktrees, wt)
-					} else {
-						adHocWorktrees = append(adHocWorktrees, wt)
-					}
-				}
-
-				// Combine in priority order: tracked, ad hoc
-				sortedWorktrees := make([]git.Worktree, 0, len(trackedWorktrees)+len(adHocWorktrees))
-				sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
-				sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
-
 				// Save the deleted target before rebuilding
 				deletedTarget := m.deleteTarget
 
-				// Rebuild the table with updated worktrees (will fetch branch statuses again)
-				m = newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
+				// Refresh the table with updated data
+				m = m.refreshTable()
 				m.message = fmt.Sprintf("Deleted worktree '%s'", deletedTarget)
+				m.confirmingDelete = false
 				return m, nil
 
 			case "n", "N", "esc":
@@ -225,14 +281,17 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cursor := m.table.Cursor()
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				targetWorktree := m.worktrees[cursor]
-				m.message = fmt.Sprintf("Pulling worktree '%s'...", targetWorktree.Name)
+				targetName := targetWorktree.Name
+				m.message = fmt.Sprintf("Pulling worktree '%s'...", targetName)
 
 				// Pull the worktree
 				err := m.svc.Git.PullWorktree(targetWorktree.Path, false)
 				if err != nil {
-					m.message = fmt.Sprintf("Error pulling '%s': %v", targetWorktree.Name, err)
+					m.message = fmt.Sprintf("Error pulling '%s': %v", targetName, err)
 				} else {
-					m.message = fmt.Sprintf("Successfully pulled '%s'", targetWorktree.Name)
+					// Refresh only this worktree's status for performance
+					m = m.refreshWorktreeStatus(cursor)
+					m.message = fmt.Sprintf("Successfully pulled '%s'", targetName)
 				}
 			}
 			return m, nil
@@ -241,14 +300,17 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cursor := m.table.Cursor()
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				targetWorktree := m.worktrees[cursor]
-				m.message = fmt.Sprintf("Pushing worktree '%s'...", targetWorktree.Name)
+				targetName := targetWorktree.Name
+				m.message = fmt.Sprintf("Pushing worktree '%s'...", targetName)
 
 				// Push the worktree
 				err := m.svc.Git.PushWorktree(targetWorktree.Path, false)
 				if err != nil {
-					m.message = fmt.Sprintf("Error pushing '%s': %v", targetWorktree.Name, err)
+					m.message = fmt.Sprintf("Error pushing '%s': %v", targetName, err)
 				} else {
-					m.message = fmt.Sprintf("Successfully pushed '%s'", targetWorktree.Name)
+					// Refresh only this worktree's status for performance
+					m = m.refreshWorktreeStatus(cursor)
+					m.message = fmt.Sprintf("Successfully pushed '%s'", targetName)
 				}
 			}
 			return m, nil
