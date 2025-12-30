@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"gbm/internal/git"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -145,14 +147,12 @@ func (m *FSMModel) handleTerminalState() bool {
 	case StateSuccess:
 		title := "Success"
 		message := "Worktree created successfully!"
-		
+
 		// If we have worktree info, include it
 		if m.fsm.state.CreatedWorktree.Name != "" {
-			wt := &m.fsm.state.CreatedWorktree
-			message = fmt.Sprintf("✓ Worktree created successfully!\n\n  Name:   %s\n  Path:   %s\n  Branch: %s\n  Commit: %s",
-				wt.Name, wt.Path, wt.Branch, wt.Commit)
+			message = formatWorktreeSuccessMessage(&m.fsm.state.CreatedWorktree)
 		}
-		
+
 		m.currentUI = &TerminalUI{title: title, message: message}
 		return true
 	case StateCancelled:
@@ -385,6 +385,16 @@ type AsyncExecutionResult struct {
 	err   error
 }
 
+// formatWorktreeSuccessMessage returns a formatted success message for worktree creation
+func formatWorktreeSuccessMessage(wt *git.Worktree) string {
+	baseInfo := ""
+	if wt.BaseBranch != "" {
+		baseInfo = fmt.Sprintf("\n  Base:   %s", wt.BaseBranch)
+	}
+	return fmt.Sprintf("✓ Worktree created successfully!\n\n  Name:   %s\n  Path:   %s\n  Branch: %s%s\n  Commit: %s",
+		wt.Name, wt.Path, wt.Branch, baseInfo, wt.Commit)
+}
+
 // RunWorktreeAddTUI runs the worktree add workflow with a single Bubble Tea program
 func RunWorktreeAddTUI(ctx context.Context, fsm *WorktreeAddFSM) error {
 	model := NewFSMModel(ctx, fsm)
@@ -398,12 +408,7 @@ func RunWorktreeAddTUI(ctx context.Context, fsm *WorktreeAddFSM) error {
 	if m, ok := finalModel.(*FSMModel); ok {
 		// Print success message if workflow completed successfully
 		if fsm.fsm.Current() == StateSuccess && fsm.state.CreatedWorktree.Name != "" {
-			wt := &fsm.state.CreatedWorktree
-			fmt.Printf("\n✓ Worktree created successfully!\n")
-			fmt.Printf("  Name:   %s\n", wt.Name)
-			fmt.Printf("  Path:   %s\n", wt.Path)
-			fmt.Printf("  Branch: %s\n", wt.Branch)
-			fmt.Printf("  Commit: %s\n\n", wt.Commit)
+			fmt.Printf("\n%s\n\n", formatWorktreeSuccessMessage(&fsm.state.CreatedWorktree))
 		}
 		return m.GetLastError()
 	}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"gbm/internal/git"
 )
 
 // createSortedBranchItems creates sorted and labeled branch items for selection
@@ -163,15 +161,6 @@ func generateMergeCommitMessage(svc *Service, sourceBranch, targetBranch string)
 
 	// Otherwise use branch names
 	return fmt.Sprintf("merge: FROM [%s], TO [%s]", sourceBranch, targetBranch)
-}
-
-// printWorktreeSuccess displays a success message after worktree creation
-func printWorktreeSuccess(wt *git.Worktree) {
-	fmt.Printf("\n✓ Worktree created successfully!\n")
-	fmt.Printf("  Name:   %s\n", wt.Name)
-	fmt.Printf("  Path:   %s\n", wt.Path)
-	fmt.Printf("  Branch: %s\n", wt.Branch)
-	fmt.Printf("  Commit: %s\n", wt.Commit)
 }
 
 // fetchJiraItems retrieves JIRA issues and converts them to FilterableItem format

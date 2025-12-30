@@ -26,8 +26,8 @@ branch 'hotfix/INGSVC-6476-ms-copilot-fix-test_to_FIGHTCLUB' set up to track 'or
     * create a jira ticket md file with all of the jira ticket information (summary, etc)
     * we should check what info we are getting from the jira cli to determine the format of this doc
 
-5. gbm2 wt add (TUI and non-TUI)
-    * add base branch to ouput
+5. ✅ gbm2 wt add (TUI and non-TUI)
+    * ✅ add base branch to ouput
     <current-output>
 ```sh
   gbm2 wt add

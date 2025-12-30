@@ -15,11 +15,12 @@ import (
 
 // Worktree represents a git worktree with its metadata
 type Worktree struct {
-	Name   string // Worktree name (e.g., "feature-x")
-	Path   string // Absolute path to the worktree
-	Branch string // Branch name (e.g., "feature/ABC-123")
-	Commit string // Commit hash (short form)
-	IsBare bool   // True if this is the bare repository worktree
+	Name       string // Worktree name (e.g., "feature-x")
+	Path       string // Absolute path to the worktree
+	Branch     string // Branch name (e.g., "feature/ABC-123")
+	Commit     string // Commit hash (short form)
+	IsBare     bool   // True if this is the bare repository worktree
+	BaseBranch string // Base branch used to create this worktree (e.g., "main")
 }
 
 // parseWorktrees parses the output of 'git worktree list' into Worktree structs
@@ -104,11 +105,12 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 	// If dry-run, return a mock Worktree
 	if dryRun {
 		return &Worktree{
-			Name:   worktreeName,
-			Path:   worktreePath,
-			Branch: branchName,
-			Commit: "",
-			IsBare: false,
+			Name:       worktreeName,
+			Path:       worktreePath,
+			Branch:     branchName,
+			Commit:     "",
+			IsBare:     false,
+			BaseBranch: baseBranch,
 		}, nil
 	}
 
@@ -131,6 +133,8 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 			wtCanonicalPath = wt.Path
 		}
 		if wtCanonicalPath == canonicalPath {
+			// Set the base branch since git worktree list doesn't include it
+			wt.BaseBranch = baseBranch
 			return &wt, nil
 		}
 	}
