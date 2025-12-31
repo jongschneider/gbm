@@ -88,6 +88,40 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 default_branch: %s
 worktrees_dir: worktrees
 
+# JIRA Integration (optional)
+jira:
+  # Attachment download settings
+  attachments:
+    enabled: true                    # Enable attachment downloads
+    max_size_mb: 50                  # Skip files larger than this (MB)
+    directory: ".jira/attachments"   # Directory relative to worktree root
+    download_timeout_seconds: 30     # HTTP download timeout
+    retry_attempts: 3                # Number of retry attempts for failed downloads
+    retry_backoff_ms: 1000          # Initial retry backoff in milliseconds
+
+  # Markdown generation settings
+  markdown:
+    include_comments: true           # Include all comments in markdown
+    include_attachments: true        # Include attachments section
+    use_relative_links: true         # Use relative paths for attachment links
+    filename_pattern: "{key}.md"     # Output filename pattern
+
+  # Issue list filters (optional)
+  # Configure filters for issue fetching when browsing in TUI
+  # filters:
+  #   # Filter by multiple statuses
+  #   status:
+  #     - "In Dev."
+  #     - "Open"
+  #     - "To Do"
+  #   # Filter by priority, type, labels
+  #   priority: "High"
+  #   type: "Bug"
+  #   labels:
+  #     - "backend"
+  #   # Additional filters: component, reporter, order_by, custom_args
+  #   # Run 'jira issue list --help' for all available options
+
 # File copying rules - automatically copy files from source worktrees to new worktrees
 # Useful for configuration files, .env files, etc.
 # file_copy:

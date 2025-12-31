@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gbm/internal/git"
 	"gbm/internal/jira"
@@ -13,8 +14,28 @@ import (
 
 // JiraConfig represents JIRA-specific configuration
 type JiraConfig struct {
-	Me      string           `yaml:"me,omitempty"`      // Cached JIRA username
-	Filters jira.JiraFilters `yaml:"filters,omitempty"` // Issue list filters
+	Me          string           `yaml:"me,omitempty"`          // Cached JIRA username
+	Filters     jira.JiraFilters `yaml:"filters,omitempty"`     // Issue list filters
+	Attachments AttachmentConfig `yaml:"attachments,omitempty"` // Attachment download settings
+	Markdown    MarkdownConfig   `yaml:"markdown,omitempty"`    // Markdown generation settings
+}
+
+// AttachmentConfig holds configuration for JIRA attachment downloads
+type AttachmentConfig struct {
+	Enabled            bool   `yaml:"enabled"`                  // Enable attachment downloads
+	MaxSizeMB          int64  `yaml:"max_size_mb"`              // Maximum file size in MB
+	Directory          string `yaml:"directory"`                // Directory relative to worktree root
+	DownloadTimeoutSec int    `yaml:"download_timeout_seconds"` // HTTP timeout in seconds
+	RetryAttempts      int    `yaml:"retry_attempts"`           // Number of retry attempts
+	RetryBackoffMs     int    `yaml:"retry_backoff_ms"`         // Initial retry backoff in milliseconds
+}
+
+// MarkdownConfig holds configuration for JIRA markdown generation
+type MarkdownConfig struct {
+	IncludeComments    bool   `yaml:"include_comments"`    // Include comments in markdown
+	IncludeAttachments bool   `yaml:"include_attachments"` // Include attachments section
+	UseRelativeLinks   bool   `yaml:"use_relative_links"`  // Use relative paths for attachments
+	FilenamePattern    string `yaml:"filename_pattern"`    // Output filename pattern
 }
 
 // FileCopyRule defines files to copy from a source worktree
@@ -195,6 +216,54 @@ func (s *Service) GetJiraFilters() jira.JiraFilters {
 	}
 
 	return filters
+}
+
+// GetJiraAttachmentConfig returns the attachment configuration with defaults
+func (s *Service) GetJiraAttachmentConfig() jira.AttachmentConfig {
+	config := s.GetConfig()
+	svcConfig := config.Jira.Attachments
+
+	// Create jira.AttachmentConfig with defaults
+	jiraConfig := jira.DefaultAttachmentConfig()
+
+	// Override with user configuration if provided
+	if svcConfig.MaxSizeMB > 0 {
+		jiraConfig.MaxSizeMB = svcConfig.MaxSizeMB
+	}
+	if svcConfig.DownloadTimeoutSec > 0 {
+		jiraConfig.Timeout = time.Duration(svcConfig.DownloadTimeoutSec) * time.Second
+	}
+	if svcConfig.RetryAttempts > 0 {
+		jiraConfig.RetryAttempts = svcConfig.RetryAttempts
+	}
+	if svcConfig.RetryBackoffMs > 0 {
+		jiraConfig.RetryBackoffMs = svcConfig.RetryBackoffMs
+	}
+
+	return jiraConfig
+}
+
+// GetJiraMarkdownConfig returns the markdown configuration with defaults
+func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments bool) {
+	config := s.GetConfig()
+	mdConfig := config.Jira.Markdown
+
+	// Default to true if not explicitly configured
+	includeComments = mdConfig.IncludeComments
+	includeAttachments = mdConfig.IncludeAttachments
+
+	// If no config provided, default to true
+	if mdConfig == (MarkdownConfig{}) {
+		includeComments = true
+		includeAttachments = true
+	}
+
+	// If attachments are disabled in config, don't include them
+	if !config.Jira.Attachments.Enabled && config.Jira.Attachments != (AttachmentConfig{}) {
+		includeAttachments = false
+	}
+
+	return includeComments, includeAttachments
 }
 
 // SaveConfig writes the current configuration to .gbm/config.yaml
@@ -412,30 +481,48 @@ func (s *Service) CreateJiraMarkdownFile(worktreeName string) error {
 		return nil
 	}
 
-	// Fetch JIRA issue details
-	ticket, err := s.Jira.GetJiraIssue(worktreeName, false)
+	// Load configuration
+	attachmentConfig := s.GetJiraAttachmentConfig()
+	includeComments, includeAttachments := s.GetJiraMarkdownConfig()
+
+	// Use the enhanced markdown generation with configuration
+	opts := jira.DefaultIssueMarkdownOptions(worktreePath)
+	opts.AttachmentConfig = attachmentConfig
+	opts.DownloadAttachments = includeAttachments
+	opts.IncludeComments = includeComments
+	opts.Filename = fmt.Sprintf(".jira/%s.md", worktreeName) // Place in .jira directory
+
+	// Generate markdown with attachments
+	result, err := s.Jira.GenerateIssueMarkdownFile(
+		worktreeName,
+		opts,
+		false, // not dry-run
+	)
 	if err != nil {
-		fmt.Printf("Warning: failed to fetch JIRA issue %s: %v\n", worktreeName, err)
+		fmt.Printf("Warning: failed to generate JIRA markdown for %s: %v\n", worktreeName, err)
 		return nil
 	}
 
-	// Generate markdown content
-	markdownContent := generateJiraMarkdown(ticket)
+	// Print success message with details
+	fmt.Printf("✓ Created JIRA markdown: %s\n", result.MarkdownPath)
 
-	// Create .jira directory
-	jiraDir := filepath.Join(worktreePath, ".jira")
-	if err := os.MkdirAll(jiraDir, 0755); err != nil {
-		fmt.Printf("Warning: failed to create .jira directory: %v\n", err)
-		return nil
+	// Report attachment results if any
+	if len(result.AttachmentResults) > 0 {
+		fmt.Printf("  📎 Attachments: %d downloaded, %d skipped, %d failed\n",
+			result.AttachmentsDownloaded,
+			result.AttachmentsSkipped,
+			result.AttachmentsFailed,
+		)
+
+		// Show details for skipped and failed attachments
+		for _, ar := range result.AttachmentResults {
+			if ar.Skipped {
+				fmt.Printf("  ⚠️  %s - skipped (%s)\n", ar.Attachment.Filename, ar.SkipReason)
+			} else if ar.Error != nil {
+				fmt.Printf("  ✗ %s - failed: %v\n", ar.Attachment.Filename, ar.Error)
+			}
+		}
 	}
 
-	// Write markdown file
-	markdownPath := filepath.Join(jiraDir, worktreeName+".md")
-	if err := os.WriteFile(markdownPath, []byte(markdownContent), 0644); err != nil {
-		fmt.Printf("Warning: failed to write JIRA markdown file: %v\n", err)
-		return nil
-	}
-
-	fmt.Printf("Created JIRA markdown at %s\n", markdownPath)
 	return nil
 }

@@ -220,34 +220,84 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		ticket.Epic = jiraResponse.Fields.Parent.Key
 	}
 
-	// Add latest comment
-	if len(jiraResponse.Fields.Comment.Comments) > 0 {
-		latest := jiraResponse.Fields.Comment.Comments[0]
+	// Parse labels
+	ticket.Labels = jiraResponse.Fields.Labels
 
-		// Extract comment text from nested structure
+	// Parse attachments
+	ticket.Attachments = make([]Attachment, 0, len(jiraResponse.Fields.Attachment))
+	for _, rawAttachment := range jiraResponse.Fields.Attachment {
+		attachment := Attachment{
+			ID:       rawAttachment.ID,
+			Filename: rawAttachment.Filename,
+			Author: User{
+				DisplayName: rawAttachment.Author.DisplayName,
+				Email:       rawAttachment.Author.EmailAddress,
+				AccountID:   rawAttachment.Author.AccountID,
+				AvatarURL:   rawAttachment.Author.AvatarURLs.Px48,
+			},
+			Created:  rawAttachment.Created,
+			Size:     rawAttachment.Size,
+			MimeType: rawAttachment.MimeType,
+			Content:  rawAttachment.Content,
+		}
+		ticket.Attachments = append(ticket.Attachments, attachment)
+	}
+
+	// Parse all comments (not just latest)
+	ticket.Comments = make([]Comment, 0, len(jiraResponse.Fields.Comment.Comments))
+	for _, rawComment := range jiraResponse.Fields.Comment.Comments {
+		comment := Comment{
+			ID: rawComment.ID,
+			Author: User{
+				DisplayName: rawComment.Author.DisplayName,
+				Email:       rawComment.Author.EmailAddress,
+				AccountID:   rawComment.Author.AccountID,
+				AvatarURL:   rawComment.Author.AvatarURLs.Px48,
+			},
+			Body:    rawComment.Body,
+			Created: rawComment.Created,
+			Updated: rawComment.Updated,
+		}
+
+		// Parse timestamp for backward compatibility
+		if rawComment.Created != "" {
+			if timestamp, err := time.Parse(time.RFC3339, rawComment.Created); err == nil {
+				comment.Timestamp = timestamp
+			}
+		}
+
+		// Extract plain text content for backward compatibility
 		var commentText strings.Builder
-		for _, content := range latest.Body.Content {
+		for _, content := range rawComment.Body.Content {
 			for _, textContent := range content.Content {
 				if textContent.Text != "" {
 					commentText.WriteString(textContent.Text)
 				}
 			}
 		}
+		comment.Content = commentText.String()
 
-		if commentText.Len() > 0 {
-			comment := &Comment{
-				Author:  latest.Author.DisplayName,
-				Content: commentText.String(),
-			}
+		// Extract media IDs from comment body
+		parser := NewADFParser()
+		_, mediaIDs, _ := parser.ParseToMarkdown(rawComment.Body)
+		comment.Attachments = mediaIDs
 
-			// Parse comment timestamp
-			if latest.Created != "" {
-				if timestamp, err := time.Parse(time.RFC3339, latest.Created); err == nil {
-					comment.Timestamp = timestamp
-				}
-			}
+		ticket.Comments = append(ticket.Comments, comment)
+	}
 
-			ticket.LatestComment = comment
+	// Set latest comment for backward compatibility
+	if len(ticket.Comments) > 0 {
+		// Create a pointer copy of the last comment
+		latest := ticket.Comments[len(ticket.Comments)-1]
+		ticket.LatestComment = &Comment{
+			ID:          latest.ID,
+			Author:      latest.Author,
+			Content:     latest.Content,
+			Timestamp:   latest.Timestamp,
+			Body:        latest.Body,
+			Created:     latest.Created,
+			Updated:     latest.Updated,
+			Attachments: latest.Attachments,
 		}
 	}
 

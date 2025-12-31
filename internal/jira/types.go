@@ -24,13 +24,56 @@ type JiraTicketDetails struct {
 	Epic          string
 	URL           string
 	LatestComment *Comment
+	Attachments   []Attachment // All ticket-level attachments
+	Comments      []Comment    // All comments with full ADF structure
+	Labels        []string     // Issue labels
+}
+
+// User represents a JIRA user
+type User struct {
+	DisplayName string
+	Email       string
+	AccountID   string
+	AvatarURL   string
 }
 
 // Comment represents a JIRA comment
 type Comment struct {
-	Author    string
-	Content   string
-	Timestamp time.Time
+	ID          string
+	Author      User
+	Body        ADFDocument // Full ADF structure
+	Content     string      // Deprecated: use Body for new code, kept for compatibility
+	Created     string
+	Updated     string
+	Timestamp   time.Time // Deprecated: use Created for new code, kept for compatibility
+	Attachments []string  // Media IDs referenced in comment body
+}
+
+// Attachment represents a JIRA file attachment
+type Attachment struct {
+	ID       string
+	Filename string
+	Author   User
+	Created  string
+	Size     int64
+	MimeType string
+	Content  string // Download URL
+}
+
+// ADFDocument represents a full Atlassian Document Format document
+type ADFDocument struct {
+	Type    string    `json:"type"`
+	Version int       `json:"version"`
+	Content []ADFNode `json:"content"`
+}
+
+// ADFNode represents a node in the Atlassian Document Format tree
+type ADFNode struct {
+	Type    string                   `json:"type"`
+	Text    string                   `json:"text,omitempty"`
+	Content []ADFNode                `json:"content,omitempty"`
+	Attrs   map[string]interface{}   `json:"attrs,omitempty"`
+	Marks   []map[string]interface{} `json:"marks,omitempty"` // For bold, italic, code, etc.
 }
 
 // JiraFilters defines filters for jira issue list command
@@ -72,9 +115,10 @@ type jiraRawResponse struct {
 	Key    string `json:"key"`
 	Self   string `json:"self"`
 	Fields struct {
-		Summary   string  `json:"summary"`
-		Created   string  `json:"created"`
-		DueDate   *string `json:"duedate"`
+		Summary   string   `json:"summary"`
+		Created   string   `json:"created"`
+		DueDate   *string  `json:"duedate"`
+		Labels    []string `json:"labels"`
 		IssueType struct {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
@@ -89,28 +133,53 @@ type jiraRawResponse struct {
 		Reporter struct {
 			DisplayName  string `json:"displayName"`
 			EmailAddress string `json:"emailAddress"`
+			AccountID    string `json:"accountId"`
+			AvatarURLs   struct {
+				Px48 string `json:"48x48"`
+			} `json:"avatarUrls"`
 		} `json:"reporter"`
 		Assignee *struct {
 			DisplayName  string `json:"displayName"`
 			EmailAddress string `json:"emailAddress"`
+			AccountID    string `json:"accountId"`
+			AvatarURLs   struct {
+				Px48 string `json:"48x48"`
+			} `json:"avatarUrls"`
 		} `json:"assignee"`
 		Parent *struct {
 			Key string `json:"key"`
 		} `json:"parent"`
 		Description *Description `json:"description"`
-		Comment     struct {
+		Attachment  []struct {
+			ID       string `json:"id"`
+			Filename string `json:"filename"`
+			Author   struct {
+				DisplayName  string `json:"displayName"`
+				EmailAddress string `json:"emailAddress"`
+				AccountID    string `json:"accountId"`
+				AvatarURLs   struct {
+					Px48 string `json:"48x48"`
+				} `json:"avatarUrls"`
+			} `json:"author"`
+			Created  string `json:"created"`
+			Size     int64  `json:"size"`
+			MimeType string `json:"mimeType"`
+			Content  string `json:"content"`
+		} `json:"attachment"`
+		Comment struct {
 			Comments []struct {
+				ID     string `json:"id"`
 				Author struct {
-					DisplayName string `json:"displayName"`
+					DisplayName  string `json:"displayName"`
+					EmailAddress string `json:"emailAddress"`
+					AccountID    string `json:"accountId"`
+					AvatarURLs   struct {
+						Px48 string `json:"48x48"`
+					} `json:"avatarUrls"`
 				} `json:"author"`
-				Body struct {
-					Content []struct {
-						Content []struct {
-							Text string `json:"text"`
-						} `json:"content"`
-					} `json:"content"`
-				} `json:"body"`
-				Created string `json:"created"`
+				Body    ADFDocument `json:"body"`
+				Created string      `json:"created"`
+				Updated string      `json:"updated"`
 			} `json:"comments"`
 		} `json:"comment"`
 	} `json:"fields"`
