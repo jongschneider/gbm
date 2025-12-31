@@ -306,6 +306,46 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		ticket.Description = parseDescription(jiraResponse.Fields.Description)
 	}
 
+	// Parse issue links
+	ticket.IssueLinks = make([]IssueLink, 0, len(jiraResponse.Fields.IssueLinks))
+	for _, rawLink := range jiraResponse.Fields.IssueLinks {
+		link := IssueLink{
+			ID: rawLink.ID,
+			Type: IssueLinkType{
+				ID:      rawLink.Type.ID,
+				Name:    rawLink.Type.Name,
+				Inward:  rawLink.Type.Inward,
+				Outward: rawLink.Type.Outward,
+			},
+		}
+
+		// Parse inward issue (issue this ticket links to)
+		if rawLink.InwardIssue != nil {
+			link.InwardIssue = &LinkedIssue{
+				ID:        rawLink.InwardIssue.ID,
+				Key:       rawLink.InwardIssue.Key,
+				Summary:   rawLink.InwardIssue.Fields.Summary,
+				Status:    rawLink.InwardIssue.Fields.Status.Name,
+				Priority:  rawLink.InwardIssue.Fields.Priority.Name,
+				IssueType: rawLink.InwardIssue.Fields.IssueType.Name,
+			}
+		}
+
+		// Parse outward issue (issue that links to this ticket)
+		if rawLink.OutwardIssue != nil {
+			link.OutwardIssue = &LinkedIssue{
+				ID:        rawLink.OutwardIssue.ID,
+				Key:       rawLink.OutwardIssue.Key,
+				Summary:   rawLink.OutwardIssue.Fields.Summary,
+				Status:    rawLink.OutwardIssue.Fields.Status.Name,
+				Priority:  rawLink.OutwardIssue.Fields.Priority.Name,
+				IssueType: rawLink.OutwardIssue.Fields.IssueType.Name,
+			}
+		}
+
+		ticket.IssueLinks = append(ticket.IssueLinks, link)
+	}
+
 	return ticket, nil
 }
 

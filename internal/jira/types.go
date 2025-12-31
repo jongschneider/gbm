@@ -27,6 +27,7 @@ type JiraTicketDetails struct {
 	Attachments   []Attachment // All ticket-level attachments
 	Comments      []Comment    // All comments with full ADF structure
 	Labels        []string     // Issue labels
+	IssueLinks    []IssueLink  // Linked issues (blocked by, blocks, relates to, etc.)
 }
 
 // User represents a JIRA user
@@ -58,6 +59,32 @@ type Attachment struct {
 	Size     int64
 	MimeType string
 	Content  string // Download URL
+}
+
+// IssueLinkType represents the type of relationship between linked issues
+type IssueLinkType struct {
+	ID      string
+	Name    string
+	Inward  string // Description when viewing from this issue (e.g., "is blocked by")
+	Outward string // Description when viewing from linked issue (e.g., "blocks")
+}
+
+// LinkedIssue represents a basic linked issue with key information
+type LinkedIssue struct {
+	ID      string
+	Key     string
+	Summary string
+	Status  string
+	Priority string
+	IssueType string
+}
+
+// IssueLink represents a link between two JIRA issues
+type IssueLink struct {
+	ID            string
+	Type          IssueLinkType
+	InwardIssue   *LinkedIssue // Issue that this issue links to (inward relationship)
+	OutwardIssue  *LinkedIssue // Issue that links to this issue (outward relationship)
 }
 
 // ADFDocument represents a full Atlassian Document Format document
@@ -182,5 +209,46 @@ type jiraRawResponse struct {
 				Updated string      `json:"updated"`
 			} `json:"comments"`
 		} `json:"comment"`
+		IssueLinks []struct {
+			ID   string `json:"id"`
+			Type struct {
+				ID      string `json:"id"`
+				Name    string `json:"name"`
+				Inward  string `json:"inward"`
+				Outward string `json:"outward"`
+			} `json:"type"`
+			InwardIssue *struct {
+				ID     string `json:"id"`
+				Key    string `json:"key"`
+				Fields struct {
+					Summary string `json:"summary"`
+					Status  struct {
+						Name string `json:"name"`
+					} `json:"status"`
+					Priority struct {
+						Name string `json:"name"`
+					} `json:"priority"`
+					IssueType struct {
+						Name string `json:"name"`
+					} `json:"issuetype"`
+				} `json:"fields"`
+			} `json:"inwardIssue,omitempty"`
+			OutwardIssue *struct {
+				ID     string `json:"id"`
+				Key    string `json:"key"`
+				Fields struct {
+					Summary string `json:"summary"`
+					Status  struct {
+						Name string `json:"name"`
+					} `json:"status"`
+					Priority struct {
+						Name string `json:"name"`
+					} `json:"priority"`
+					IssueType struct {
+						Name string `json:"name"`
+					} `json:"issuetype"`
+				} `json:"fields"`
+			} `json:"outwardIssue,omitempty"`
+		} `json:"issuelinks"`
 	} `json:"fields"`
 }

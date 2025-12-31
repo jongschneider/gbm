@@ -1,0 +1,807 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations,customfield_10303.requestTypePractice",
+  "id": "62361",
+  "self": "https://thetalake.atlassian.net/rest/api/3/issue/62361",
+  "key": "INGSVC-6375",
+  "fields": {
+    "parent": {
+      "id": "62959",
+      "key": "EPIC-3089",
+      "self": "https://thetalake.atlassian.net/rest/api/3/issue/62959",
+      "fields": {
+        "summary": "[Wells Fargo] Microsoft Teams Messaging : Add Support for Conversation Rename",
+        "status": {
+          "self": "https://thetalake.atlassian.net/rest/api/3/status/10131",
+          "description": "Engineering reviewed, project accepted into the engineering queue.  No commit.",
+          "iconUrl": "https://thetalake.atlassian.net/images/icons/statuses/generic.png",
+          "name": "ENG Accepted",
+          "id": "10131",
+          "statusCategory": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/statuscategory/2",
+            "id": 2,
+            "key": "new",
+            "colorName": "blue-gray",
+            "name": "To Do"
+          }
+        },
+        "priority": {
+          "self": "https://thetalake.atlassian.net/rest/api/3/priority/3",
+          "iconUrl": "https://thetalake.atlassian.net/images/icons/priorities/medium_new.svg",
+          "name": "Medium",
+          "id": "3"
+        },
+        "issuetype": {
+          "self": "https://thetalake.atlassian.net/rest/api/3/issuetype/10000",
+          "id": "10000",
+          "description": "A big user story that needs to be broken down. Created by JIRA Software - do not edit or delete.",
+          "iconUrl": "https://thetalake.atlassian.net/images/icons/issuetypes/epic.svg",
+          "name": "Epic",
+          "subtask": false,
+          "hierarchyLevel": 1
+        }
+      }
+    },
+    "statusCategory": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/statuscategory/2",
+      "id": 2,
+      "key": "new",
+      "colorName": "blue-gray",
+      "name": "To Do"
+    },
+    "resolution": null,
+    "customfield_10510": null,
+    "customfield_11959": null,
+    "customfield_10506": null,
+    "customfield_10748": null,
+    "customfield_10507": null,
+    "customfield_10508": null,
+    "lastViewed": "2025-12-31T08:32:46.252-0800",
+    "labels": [
+      "jira_escalated"
+    ],
+    "aggregatetimeoriginalestimate": null,
+    "customfield_11827": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/11358",
+      "value": "None ☒",
+      "id": "11358"
+    },
+    "issuelinks": [
+      {
+        "id": "47742",
+        "self": "https://thetalake.atlassian.net/rest/api/3/issueLink/47742",
+        "type": {
+          "id": "10313",
+          "name": "Discovery - Connected",
+          "inward": "is connected to",
+          "outward": "connects to",
+          "self": "https://thetalake.atlassian.net/rest/api/3/issueLinkType/10313"
+        },
+        "inwardIssue": {
+          "id": "62959",
+          "key": "EPIC-3089",
+          "self": "https://thetalake.atlassian.net/rest/api/3/issue/62959",
+          "fields": {
+            "summary": "[Wells Fargo] Microsoft Teams Messaging : Add Support for Conversation Rename",
+            "status": {
+              "self": "https://thetalake.atlassian.net/rest/api/3/status/10131",
+              "description": "Engineering reviewed, project accepted into the engineering queue.  No commit.",
+              "iconUrl": "https://thetalake.atlassian.net/images/icons/statuses/generic.png",
+              "name": "ENG Accepted",
+              "id": "10131",
+              "statusCategory": {
+                "self": "https://thetalake.atlassian.net/rest/api/3/statuscategory/2",
+                "id": 2,
+                "key": "new",
+                "colorName": "blue-gray",
+                "name": "To Do"
+              }
+            },
+            "priority": {
+              "self": "https://thetalake.atlassian.net/rest/api/3/priority/3",
+              "iconUrl": "https://thetalake.atlassian.net/images/icons/priorities/medium_new.svg",
+              "name": "Medium",
+              "id": "3"
+            },
+            "issuetype": {
+              "self": "https://thetalake.atlassian.net/rest/api/3/issuetype/10000",
+              "id": "10000",
+              "description": "A big user story that needs to be broken down. Created by JIRA Software - do not edit or delete.",
+              "iconUrl": "https://thetalake.atlassian.net/images/icons/issuetypes/epic.svg",
+              "name": "Epic",
+              "subtask": false,
+              "hierarchyLevel": 1
+            }
+          }
+        }
+      }
+    ],
+    "assignee": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=62ed7f4e3cc20c06c8afba85",
+      "accountId": "62ed7f4e3cc20c06c8afba85",
+      "emailAddress": "jonathan.schneider@thetalake.com",
+      "avatarUrls": {
+        "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/62ed7f4e3cc20c06c8afba85/23b9480d-7fd4-4118-917a-969d9764d8a0/48",
+        "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/62ed7f4e3cc20c06c8afba85/23b9480d-7fd4-4118-917a-969d9764d8a0/24",
+        "16x16": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/62ed7f4e3cc20c06c8afba85/23b9480d-7fd4-4118-917a-969d9764d8a0/16",
+        "32x32": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/62ed7f4e3cc20c06c8afba85/23b9480d-7fd4-4118-917a-969d9764d8a0/32"
+      },
+      "displayName": "Jonathan Schneider",
+      "active": true,
+      "timeZone": "America/Los_Angeles",
+      "accountType": "atlassian"
+    },
+    "components": [],
+    "customfield_12110": null,
+    "customfield_12112": null,
+    "customfield_12111": null,
+    "customfield_12107": null,
+    "customfield_10841": null,
+    "customfield_10842": null,
+    "customfield_12109": null,
+    "customfield_12108": null,
+    "subtasks": [],
+    "reporter": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=712020%3A23dbe25f-bca3-4e1b-a301-4a44e4698398",
+      "accountId": "712020:23dbe25f-bca3-4e1b-a301-4a44e4698398",
+      "emailAddress": "alex.perales@thetalake.com",
+      "avatarUrls": {
+        "48x48": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+        "24x24": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+        "16x16": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+        "32x32": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png"
+      },
+      "displayName": "Alex Perales",
+      "active": true,
+      "timeZone": "America/Los_Angeles",
+      "accountType": "atlassian"
+    },
+    "customfield_10840": null,
+    "customfield_11926": "0|i066lb:",
+    "customfield_10837": null,
+    "customfield_10838": null,
+    "progress": {
+      "progress": 0,
+      "total": 0
+    },
+    "customfield_10839": null,
+    "votes": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/issue/INGSVC-6375/votes",
+      "votes": 0,
+      "hasVoted": false
+    },
+    "worklog": {
+      "startAt": 0,
+      "maxResults": 20,
+      "total": 0,
+      "worklogs": []
+    },
+    "issuetype": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/issuetype/10101",
+      "id": "10101",
+      "description": "A task that needs to be done.",
+      "iconUrl": "https://thetalake.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium",
+      "name": "Task",
+      "subtask": false,
+      "avatarId": 10318,
+      "hierarchyLevel": 0
+    },
+    "project": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/project/10000",
+      "id": "10000",
+      "key": "INGSVC",
+      "name": "Ingestion Service",
+      "projectTypeKey": "software",
+      "simplified": false,
+      "avatarUrls": {
+        "48x48": "https://thetalake.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10203",
+        "24x24": "https://thetalake.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10203?size=small",
+        "16x16": "https://thetalake.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10203?size=xsmall",
+        "32x32": "https://thetalake.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10203?size=medium"
+      }
+    },
+    "customfield_10396": null,
+    "customfield_11365": null,
+    "resolutiondate": null,
+    "watches": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/issue/INGSVC-6375/watchers",
+      "watchCount": 4,
+      "isWatching": false
+    },
+    "customfield_11470": null,
+    "customfield_11472": null,
+    "customfield_11471": null,
+    "customfield_11473": null,
+    "customfield_11596": null,
+    "customfield_11469": null,
+    "customfield_11468": null,
+    "customfield_10936": "On-hold",
+    "updated": "2025-12-31T08:34:21.467-0800",
+    "customfield_11580": null,
+    "customfield_10370": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10253",
+      "value": "✅ Yes, include enhancement description",
+      "id": "10253"
+    },
+    "timeoriginalestimate": null,
+    "customfield_11582": null,
+    "customfield_10371": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10256",
+      "value": "✅  Yes, include description in staff enablement",
+      "id": "10256"
+    },
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Wells Fargo "
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Prod9-cid-2"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Customer reports that channel name edits are not being recorded."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Brian also requests thorough testing of all quick edits to avoid \"more rounds of communicaton\""
+            }
+          ]
+        }
+      ]
+    },
+    "customfield_10372": null,
+    "customfield_11581": null,
+    "customfield_10373": null,
+    "customfield_11584": null,
+    "customfield_11583": null,
+    "customfield_10374": null,
+    "customfield_11586": null,
+    "customfield_11465": null,
+    "customfield_10375": null,
+    "customfield_11464": null,
+    "customfield_11585": null,
+    "customfield_11467": null,
+    "timetracking": {},
+    "customfield_11466": null,
+    "customfield_11579": null,
+    "customfield_10369": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10252",
+      "value": "✅ Yes, include",
+      "id": "10252"
+    },
+    "customfield_11578": null,
+    "customfield_10006": "EPIC-3089",
+    "summary": "Wells Fargo [Prod9-cid-2] Conversation name edits are not being recorded.",
+    "customfield_11571": null,
+    "customfield_10360": null,
+    "customfield_11570": null,
+    "customfield_11573": null,
+    "customfield_10000": "{}",
+    "customfield_11572": null,
+    "customfield_11575": null,
+    "customfield_10364": null,
+    "customfield_10001": null,
+    "customfield_11695": null,
+    "customfield_10365": null,
+    "customfield_10002": [],
+    "customfield_11574": null,
+    "customfield_11577": null,
+    "customfield_10366": null,
+    "customfield_11576": null,
+    "customfield_10367": null,
+    "customfield_11568": null,
+    "customfield_10115": null,
+    "customfield_10357": null,
+    "customfield_11567": null,
+    "customfield_10358": null,
+    "environment": null,
+    "customfield_10359": null,
+    "customfield_11569": null,
+    "duedate": null,
+    "comment": {
+      "comments": [
+        {
+          "self": "https://thetalake.atlassian.net/rest/api/3/issue/62361/comment/98444",
+          "id": "98444",
+          "author": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=712020%3A23dbe25f-bca3-4e1b-a301-4a44e4698398",
+            "accountId": "712020:23dbe25f-bca3-4e1b-a301-4a44e4698398",
+            "emailAddress": "alex.perales@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "24x24": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "16x16": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "32x32": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png"
+            },
+            "displayName": "Alex Perales",
+            "active": true,
+            "timeZone": "America/Los_Angeles",
+            "accountType": "atlassian"
+          },
+          "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "mediaGroup",
+                "content": [
+                  {
+                    "type": "media",
+                    "attrs": {
+                      "type": "file",
+                      "id": "79fe121d-35ab-4a2d-8db9-8ef78d40612f",
+                      "collection": ""
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "paragraph"
+              }
+            ]
+          },
+          "updateAuthor": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=712020%3A23dbe25f-bca3-4e1b-a301-4a44e4698398",
+            "accountId": "712020:23dbe25f-bca3-4e1b-a301-4a44e4698398",
+            "emailAddress": "alex.perales@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "24x24": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "16x16": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+              "32x32": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png"
+            },
+            "displayName": "Alex Perales",
+            "active": true,
+            "timeZone": "America/Los_Angeles",
+            "accountType": "atlassian"
+          },
+          "created": "2025-12-02T12:43:02.792-0800",
+          "updated": "2025-12-02T12:43:02.792-0800",
+          "jsdPublic": true
+        },
+        {
+          "self": "https://thetalake.atlassian.net/rest/api/3/issue/62361/comment/99040",
+          "id": "99040",
+          "author": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=6080b9dcb8927500729602d7",
+            "accountId": "6080b9dcb8927500729602d7",
+            "emailAddress": "kannan@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "24x24": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "16x16": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "32x32": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png"
+            },
+            "displayName": "Kannan Appachi",
+            "active": true,
+            "timeZone": "America/Los_Angeles",
+            "accountType": "atlassian"
+          },
+          "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "712020:23dbe25f-bca3-4e1b-a301-4a44e4698398",
+                      "text": "@Alex Perales",
+                      "accessLevel": "",
+                      "localId": "f0ca2360-55e7-4634-80b9-51d0fdfd5879"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " "
+                  },
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "712020:6929de7a-987c-4d54-a590-2f776d83fe09",
+                      "text": "@John Austin",
+                      "accessLevel": "",
+                      "localId": "e85cd70f-9dbf-4aef-8194-5da58b48aeae"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " - This is a bug on our side. We are not capturing the conversation rename"
+                  }
+                ]
+              }
+            ]
+          },
+          "updateAuthor": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=6080b9dcb8927500729602d7",
+            "accountId": "6080b9dcb8927500729602d7",
+            "emailAddress": "kannan@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "24x24": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "16x16": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png",
+              "32x32": "https://secure.gravatar.com/avatar/2712d8f73af4dfe62dbcf561a1a5a7c7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FKA-3.png"
+            },
+            "displayName": "Kannan Appachi",
+            "active": true,
+            "timeZone": "America/Los_Angeles",
+            "accountType": "atlassian"
+          },
+          "created": "2025-12-06T07:08:19.281-0800",
+          "updated": "2025-12-06T07:08:19.281-0800",
+          "jsdPublic": true
+        },
+        {
+          "self": "https://thetalake.atlassian.net/rest/api/3/issue/62361/comment/99256",
+          "id": "99256",
+          "author": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=6010e4fa3b1af0006990a9b1",
+            "accountId": "6010e4fa3b1af0006990a9b1",
+            "emailAddress": "jeff@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "24x24": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "16x16": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "32x32": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png"
+            },
+            "displayName": "Jeff Overton",
+            "active": true,
+            "timeZone": "America/Chicago",
+            "accountType": "atlassian"
+          },
+          "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "so I created a conversation with subject of \"A\" then changed it to \"B\", \"D\" and finally \"D\".  What I see is"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "order": 1
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "getAllMessages has message with Subject of D"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "getAllRetainedMessages has message with Subject of C"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Theta Lake did not report the conversation rename and the record name, which is based on the conversation name, did not change either. I’ve opened "
+                  },
+                  {
+                    "type": "inlineCard",
+                    "attrs": {
+                      "url": "https://thetalake.atlassian.net/browse/EPIC-3089"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " for this and put it on the list for H release (Early April 2026) . "
+                  }
+                ]
+              }
+            ]
+          },
+          "updateAuthor": {
+            "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=6010e4fa3b1af0006990a9b1",
+            "accountId": "6010e4fa3b1af0006990a9b1",
+            "emailAddress": "jeff@thetalake.com",
+            "avatarUrls": {
+              "48x48": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "24x24": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "16x16": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png",
+              "32x32": "https://secure.gravatar.com/avatar/73d47f3fad801d4c0241d7c701c08850?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FJO-4.png"
+            },
+            "displayName": "Jeff Overton",
+            "active": true,
+            "timeZone": "America/Chicago",
+            "accountType": "atlassian"
+          },
+          "created": "2025-12-08T08:38:05.652-0800",
+          "updated": "2025-12-08T08:38:05.652-0800",
+          "jsdPublic": true
+        }
+      ],
+      "self": "https://thetalake.atlassian.net/rest/api/3/issue/62361/comment",
+      "maxResults": 3,
+      "total": 3,
+      "startAt": 0
+    },
+    "statuscategorychangedate": "2025-12-02T12:42:25.777-0800",
+    "customfield_10350": null,
+    "customfield_10352": null,
+    "fixVersions": [],
+    "customfield_10353": null,
+    "customfield_11564": null,
+    "customfield_10354": null,
+    "customfield_11563": null,
+    "customfield_11566": null,
+    "customfield_10355": null,
+    "customfield_10356": null,
+    "customfield_11565": null,
+    "customfield_10346": null,
+    "customfield_10104": "2|hzuydf:",
+    "customfield_10347": null,
+    "customfield_10348": null,
+    "customfield_10349": [
+      {
+        "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10215",
+        "value": "❌ No Documentation Requested",
+        "id": "10215"
+      }
+    ],
+    "customfield_10340": null,
+    "customfield_10341": null,
+    "customfield_10100": "2025-12-06T07:08:19.281-0800",
+    "customfield_10342": null,
+    "priority": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/priority/3",
+      "iconUrl": "https://thetalake.atlassian.net/images/icons/priorities/medium_new.svg",
+      "name": "Medium",
+      "id": "3"
+    },
+    "customfield_11794": null,
+    "customfield_10101": null,
+    "customfield_10343": [],
+    "customfield_10102": null,
+    "customfield_10344": null,
+    "customfield_10103": [
+      {
+        "id": 1616,
+        "name": "Goldfinger - Sprint 66",
+        "state": "active",
+        "boardId": 10,
+        "goal": "",
+        "startDate": "2025-12-15T10:48:58.781Z",
+        "endDate": "2026-02-15T07:00:00.000Z"
+      }
+    ],
+    "customfield_10345": null,
+    "customfield_10335": null,
+    "customfield_10336": null,
+    "customfield_10337": null,
+    "customfield_10338": null,
+    "customfield_10339": null,
+    "timeestimate": null,
+    "versions": [],
+    "status": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/status/1",
+      "description": "",
+      "iconUrl": "https://thetalake.atlassian.net/images/icons/statuses/open.png",
+      "name": "Open",
+      "id": "1",
+      "statusCategory": {
+        "self": "https://thetalake.atlassian.net/rest/api/3/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    },
+    "customfield_12071": null,
+    "customfield_12070": null,
+    "customfield_12073": null,
+    "customfield_12072": null,
+    "customfield_12074": null,
+    "customfield_10330": null,
+    "customfield_10452": null,
+    "customfield_10331": null,
+    "customfield_11663": null,
+    "customfield_11662": null,
+    "customfield_10453": null,
+    "customfield_10332": null,
+    "customfield_10333": null,
+    "customfield_11664": null,
+    "customfield_10334": null,
+    "customfield_10324": null,
+    "customfield_10445": null,
+    "customfield_10325": null,
+    "customfield_10446": null,
+    "customfield_10326": null,
+    "customfield_10447": null,
+    "customfield_10448": null,
+    "customfield_10327": null,
+    "customfield_10328": null,
+    "customfield_10449": null,
+    "aggregatetimeestimate": null,
+    "customfield_10329": null,
+    "creator": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=557058%3Aa01b4872-0086-4bc3-903e-23f26637afa2",
+      "accountId": "557058:a01b4872-0086-4bc3-903e-23f26637afa2",
+      "avatarUrls": {
+        "48x48": "https://secure.gravatar.com/avatar/bc07317d8cbdde0ff466674bb68a9dd7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FZJ-1.png",
+        "24x24": "https://secure.gravatar.com/avatar/bc07317d8cbdde0ff466674bb68a9dd7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FZJ-1.png",
+        "16x16": "https://secure.gravatar.com/avatar/bc07317d8cbdde0ff466674bb68a9dd7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FZJ-1.png",
+        "32x32": "https://secure.gravatar.com/avatar/bc07317d8cbdde0ff466674bb68a9dd7?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FZJ-1.png"
+      },
+      "displayName": "Zendesk Support for Jira",
+      "active": true,
+      "timeZone": "America/Los_Angeles",
+      "accountType": "app"
+    },
+    "customfield_12060": null,
+    "customfield_12062": null,
+    "customfield_12061": null,
+    "customfield_12064": null,
+    "customfield_12063": null,
+    "customfield_12066": null,
+    "customfield_12065": null,
+    "customfield_12068": null,
+    "aggregateprogress": {
+      "progress": 0,
+      "total": 0
+    },
+    "customfield_12188": null,
+    "customfield_12067": null,
+    "customfield_10320": null,
+    "customfield_11893": null,
+    "customfield_10321": null,
+    "customfield_12069": null,
+    "customfield_10443": null,
+    "customfield_10322": null,
+    "customfield_10323": null,
+    "customfield_10444": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10372",
+      "value": "✅ Approved for Marketing use",
+      "id": "10372"
+    },
+    "customfield_10434": null,
+    "customfield_10313": null,
+    "customfield_10314": null,
+    "customfield_10435": null,
+    "customfield_10315": null,
+    "customfield_10436": null,
+    "customfield_10437": null,
+    "customfield_10316": null,
+    "customfield_10438": null,
+    "customfield_10439": null,
+    "customfield_10319": null,
+    "timespent": null,
+    "aggregatetimespent": null,
+    "customfield_12059": null,
+    "customfield_10673": null,
+    "customfield_11761": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/11323",
+      "value": "❌ No Documentation Requested",
+      "id": "11323"
+    },
+    "customfield_10310": null,
+    "customfield_10311": null,
+    "customfield_10432": null,
+    "customfield_10302": null,
+    "customfield_10303": null,
+    "customfield_10304": [],
+    "customfield_10305": null,
+    "customfield_10427": null,
+    "customfield_10306": null,
+    "customfield_10307": null,
+    "customfield_10428": null,
+    "customfield_10308": null,
+    "customfield_10309": null,
+    "workratio": -1,
+    "created": "2025-12-02T12:42:25.487-0800",
+    "customfield_10540": null,
+    "customfield_11992": null,
+    "customfield_10301": null,
+    "customfield_12150": null,
+    "customfield_12152": null,
+    "customfield_12151": null,
+    "customfield_12154": null,
+    "customfield_12153": null,
+    "customfield_12155": null,
+    "customfield_10771": null,
+    "customfield_11861": null,
+    "customfield_11860": null,
+    "customfield_10772": null,
+    "customfield_10773": null,
+    "customfield_10522": null,
+    "customfield_10523": null,
+    "security": null,
+    "customfield_10524": null,
+    "customfield_10525": null,
+    "attachment": [
+      {
+        "self": "https://thetalake.atlassian.net/rest/api/3/attachment/44473",
+        "id": "44473",
+        "filename": "4769-channel.docx",
+        "author": {
+          "self": "https://thetalake.atlassian.net/rest/api/3/user?accountId=712020%3A23dbe25f-bca3-4e1b-a301-4a44e4698398",
+          "accountId": "712020:23dbe25f-bca3-4e1b-a301-4a44e4698398",
+          "emailAddress": "alex.perales@thetalake.com",
+          "avatarUrls": {
+            "48x48": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+            "24x24": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+            "16x16": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png",
+            "32x32": "https://secure.gravatar.com/avatar/6d00e03a3b4381661282f65367ff3400?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAP-6.png"
+          },
+          "displayName": "Alex Perales",
+          "active": true,
+          "timeZone": "America/Los_Angeles",
+          "accountType": "atlassian"
+        },
+        "created": "2025-12-02T12:43:02.178-0800",
+        "size": 168452,
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "content": "https://thetalake.atlassian.net/rest/api/3/attachment/content/44473"
+      }
+    ],
+    "customfield_12145": null,
+    "customfield_12147": null,
+    "customfield_11299": null,
+    "customfield_12146": null,
+    "customfield_12025": null,
+    "customfield_12149": null,
+    "customfield_12148": null,
+    "customfield_10511": null,
+    "customfield_10514": null,
+    "customfield_11728": null,
+    "customfield_10517": {
+      "self": "https://thetalake.atlassian.net/rest/api/3/customFieldOption/10894",
+      "value": "❎ None Requested / Required (proceed without UX design)",
+      "id": "10894"
+    },
+    "customfield_10518": null,
+    "customfield_10639": null
+  }
+}

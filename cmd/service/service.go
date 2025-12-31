@@ -32,10 +32,12 @@ type AttachmentConfig struct {
 
 // MarkdownConfig holds configuration for JIRA markdown generation
 type MarkdownConfig struct {
-	IncludeComments    bool   `yaml:"include_comments"`    // Include comments in markdown
-	IncludeAttachments bool   `yaml:"include_attachments"` // Include attachments section
-	UseRelativeLinks   bool   `yaml:"use_relative_links"`  // Use relative paths for attachments
-	FilenamePattern    string `yaml:"filename_pattern"`    // Output filename pattern
+	IncludeComments     bool   `yaml:"include_comments"`      // Include comments in markdown
+	IncludeAttachments  bool   `yaml:"include_attachments"`   // Include attachments section
+	UseRelativeLinks    bool   `yaml:"use_relative_links"`    // Use relative paths for attachments
+	FilenamePattern     string `yaml:"filename_pattern"`      // Output filename pattern
+	IncludeLinkedIssues bool   `yaml:"include_linked_issues"` // Process linked issues (default: true)
+	MaxDepth            int    `yaml:"max_depth"`             // Max depth for linked issues (default: 2)
 }
 
 // FileCopyRule defines files to copy from a source worktree
@@ -244,18 +246,27 @@ func (s *Service) GetJiraAttachmentConfig() jira.AttachmentConfig {
 }
 
 // GetJiraMarkdownConfig returns the markdown configuration with defaults
-func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments bool) {
+func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments, includeLinkedIssues bool, maxDepth int) {
 	config := s.GetConfig()
 	mdConfig := config.Jira.Markdown
 
 	// Default to true if not explicitly configured
 	includeComments = mdConfig.IncludeComments
 	includeAttachments = mdConfig.IncludeAttachments
+	includeLinkedIssues = mdConfig.IncludeLinkedIssues
+	maxDepth = mdConfig.MaxDepth
 
 	// If no config provided, default to true
 	if mdConfig == (MarkdownConfig{}) {
 		includeComments = true
 		includeAttachments = true
+		includeLinkedIssues = true
+		maxDepth = 2
+	}
+
+	// If maxDepth is 0 (not configured), default to 2
+	if maxDepth == 0 {
+		maxDepth = 2
 	}
 
 	// If attachments are disabled in config, don't include them
@@ -263,7 +274,7 @@ func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments b
 		includeAttachments = false
 	}
 
-	return includeComments, includeAttachments
+	return includeComments, includeAttachments, includeLinkedIssues, maxDepth
 }
 
 // SaveConfig writes the current configuration to .gbm/config.yaml
@@ -483,13 +494,15 @@ func (s *Service) CreateJiraMarkdownFile(worktreeName string) error {
 
 	// Load configuration
 	attachmentConfig := s.GetJiraAttachmentConfig()
-	includeComments, includeAttachments := s.GetJiraMarkdownConfig()
+	includeComments, includeAttachments, includeLinkedIssues, maxDepth := s.GetJiraMarkdownConfig()
 
 	// Use the enhanced markdown generation with configuration
 	opts := jira.DefaultIssueMarkdownOptions(worktreePath)
 	opts.AttachmentConfig = attachmentConfig
 	opts.DownloadAttachments = includeAttachments
 	opts.IncludeComments = includeComments
+	opts.IncludeLinkedIssues = includeLinkedIssues
+	opts.MaxDepth = maxDepth
 	opts.Filename = fmt.Sprintf(".jira/%s.md", worktreeName) // Place in .jira directory
 
 	// Generate markdown with attachments

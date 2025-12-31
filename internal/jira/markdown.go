@@ -63,6 +63,11 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 		builder.WriteString("\n")
 	}
 
+	// Linked Issues section
+	if len(details.IssueLinks) > 0 {
+		g.writeLinkedIssues(&builder, details.IssueLinks)
+	}
+
 	// Attachments section
 	if opts.IncludeAttachments && len(opts.AttachmentResults) > 0 {
 		g.writeAttachments(&builder, opts.AttachmentResults, opts.AttachmentBaseDir)
@@ -103,6 +108,46 @@ func (g *MarkdownGenerator) writeMetadata(builder *strings.Builder, details *Jir
 	}
 
 	builder.WriteString("\n")
+}
+
+// writeLinkedIssues writes the linked issues section
+func (g *MarkdownGenerator) writeLinkedIssues(builder *strings.Builder, links []IssueLink) {
+	builder.WriteString("## Linked Issues\n\n")
+
+	for _, link := range links {
+		var linkedIssue *LinkedIssue
+		var relationship string
+
+		// Determine the relationship and which issue to display
+		if link.InwardIssue != nil {
+			linkedIssue = link.InwardIssue
+			relationship = link.Type.Inward // e.g., "is blocked by", "relates to"
+		} else if link.OutwardIssue != nil {
+			linkedIssue = link.OutwardIssue
+			relationship = link.Type.Outward // e.g., "blocks", "is related to"
+		}
+
+		if linkedIssue == nil {
+			continue
+		}
+
+		// Write the linked issue with relationship
+		fmt.Fprintf(builder, "### %s [%s](./%s.md)\n\n",
+			relationship,
+			linkedIssue.Key,
+			linkedIssue.Key,
+		)
+
+		// Create a metadata table for the linked issue
+		builder.WriteString("| Field | Value |\n")
+		builder.WriteString("|-------|-------|\n")
+		fmt.Fprintf(builder, "| **Summary** | %s |\n", linkedIssue.Summary)
+		fmt.Fprintf(builder, "| **Status** | %s |\n", linkedIssue.Status)
+		fmt.Fprintf(builder, "| **Priority** | %s |\n", linkedIssue.Priority)
+		fmt.Fprintf(builder, "| **Type** | %s |\n", linkedIssue.IssueType)
+
+		builder.WriteString("\n")
+	}
 }
 
 // writeAttachments writes the attachments section
