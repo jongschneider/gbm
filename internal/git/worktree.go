@@ -90,8 +90,9 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 
 	// Build git worktree add command
 	if createBranch {
-		// Use default base branch if not specified
-		baseBranch = cmp.Or(baseBranch, "main")
+		// baseBranch should be provided by caller (from config.default_branch)
+		// Fallback to "master" if somehow empty (should not happen in normal usage)
+		baseBranch = cmp.Or(baseBranch, "master")
 
 		args = []string{"worktree", "add", "-b", branchName, worktreePath, baseBranch}
 	}

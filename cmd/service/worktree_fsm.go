@@ -539,10 +539,9 @@ func (w *WorktreeAddFSM) runFeatureExecuteCreate() (string, error) {
 	}
 
 	// Copy files if configured
-	if copyErr := w.state.Service.CopyFilesToWorktree(w.state.WorktreeName); copyErr != nil {
-		// Store warning in LastError if not dry-run, otherwise ignore
-		// Don't print during TUI execution
-	}
+	_ = w.state.Service.CopyFilesToWorktree(w.state.WorktreeName)
+	// Create JIRA markdown if applicable
+	_ = w.state.Service.CreateJiraMarkdownFile(w.state.WorktreeName)
 
 	// Store the created worktree for display in terminal UI
 	w.state.CreatedWorktree = *wt
@@ -717,9 +716,10 @@ func (w *WorktreeAddFSM) runHotfixExecuteCreate() (string, error) {
 		return EventError, nil
 	}
 
-	if copyErr := w.state.Service.CopyFilesToWorktree(w.state.WorktreeName); copyErr != nil {
-		// Don't print during TUI execution
-	}
+	_ = w.state.Service.CopyFilesToWorktree(w.state.WorktreeName)
+
+	// Create JIRA markdown if applicable
+	_ = w.state.Service.CreateJiraMarkdownFile(w.state.WorktreeName)
 
 	// Store the created worktree for display in terminal UI
 	w.state.CreatedWorktree = *wt

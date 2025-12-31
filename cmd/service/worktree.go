@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"os"
 	"strings"
@@ -90,6 +91,9 @@ Examples:
 				return err
 			}
 
+			// Use default branch from config if --base not specified
+			baseBranch = cmp.Or(baseBranch, svc.GetConfig().DefaultBranch, "master")
+
 			// Try to add the worktree
 			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
 			if err == nil {
@@ -143,12 +147,16 @@ Examples:
 			if err := svc.CopyFilesToWorktree(worktreeName); err != nil {
 				fmt.Printf("Warning: failed to copy files to worktree: %v\n", err)
 			}
+			// Create JIRA markdown if applicable
+			if err := svc.CreateJiraMarkdownFile(worktreeName); err != nil {
+				fmt.Printf("Warning: failed to create JIRA markdown: %v\n", err)
+			}
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
-	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to 'main')")
+	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to config.default_branch)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
 	cmd.Flags().BoolVar(&visualizeFSM, "visualize-fsm", false, "Print FSM diagram before running TUI (TUI mode only)")
 	cmd.Flags().StringVar(&fsmGraphType, "fsm-graph-type", "statediagram", "FSM graph type: 'statediagram' or 'flowchart' (default: statediagram)")

@@ -251,5 +251,93 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		}
 	}
 
+	// Parse description
+	if jiraResponse.Fields.Description != nil {
+		ticket.Description = parseDescription(jiraResponse.Fields.Description)
+	}
+
 	return ticket, nil
+}
+
+// parseDescription recursively traverses JIRA's nested content structure
+// and converts it to clean markdown format
+func parseDescription(desc *Description) string {
+	if desc == nil || len(desc.Content) == 0 {
+		return ""
+	}
+
+	var md strings.Builder
+
+	for _, block := range desc.Content {
+		parseContentBlock(&md, block)
+	}
+
+	return strings.TrimSpace(md.String())
+}
+
+// parseContentBlock handles different content block types
+func parseContentBlock(md *strings.Builder, node ContentNode) {
+	switch node.Type {
+	case "paragraph":
+		parseInlineContent(md, node.Content)
+		md.WriteString("\n\n")
+
+	case "codeBlock":
+		md.WriteString("```")
+		if node.Attrs != nil && node.Attrs.Language != "" {
+			md.WriteString(node.Attrs.Language)
+		}
+		md.WriteString("\n")
+		parseInlineContent(md, node.Content)
+		md.WriteString("\n```\n\n")
+
+	case "heading":
+		// Default to h3 since the markdown file already has h1/h2
+		level := 3
+		md.WriteString(strings.Repeat("#", level) + " ")
+		parseInlineContent(md, node.Content)
+		md.WriteString("\n\n")
+
+	case "bulletList":
+		for _, item := range node.Content {
+			if item.Type == "listItem" {
+				md.WriteString("- ")
+				parseInlineContent(md, item.Content)
+				md.WriteString("\n")
+			}
+		}
+		md.WriteString("\n")
+
+	case "orderedList":
+		for i, item := range node.Content {
+			if item.Type == "listItem" {
+				fmt.Fprintf(md, "%d. ", i+1)
+				parseInlineContent(md, item.Content)
+				md.WriteString("\n")
+			}
+		}
+		md.WriteString("\n")
+
+	case "listItem":
+		// List items contain paragraphs, handle their content
+		for _, childNode := range node.Content {
+			if childNode.Type == "paragraph" {
+				parseInlineContent(md, childNode.Content)
+			} else {
+				parseContentBlock(md, childNode)
+			}
+		}
+	}
+}
+
+// parseInlineContent extracts text from inline content nodes
+func parseInlineContent(md *strings.Builder, content []ContentNode) {
+	for _, node := range content {
+		if node.Text != "" {
+			md.WriteString(node.Text)
+		}
+		if len(node.Content) > 0 {
+			parseInlineContent(md, node.Content)
+		}
+	}
 }

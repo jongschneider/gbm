@@ -261,7 +261,8 @@ func performSync(
 
 		// Create worktree for existing branch or create new branch
 		createBranch := !branchExists
-		_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, "main", dryRun)
+		baseBranch := config.DefaultBranch
+		_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, baseBranch, dryRun)
 		if err != nil {
 			return fmt.Errorf("failed to create worktree '%s': %w", name, err)
 		}
@@ -296,7 +297,8 @@ func performSync(
 		_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, false, "", dryRun)
 		if err != nil {
 			// If branch doesn't exist, create it
-			_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, true, "main", dryRun)
+			baseBranch := config.DefaultBranch
+			_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, true, baseBranch, dryRun)
 			if err != nil {
 				return fmt.Errorf("failed to recreate worktree '%s': %w", name, err)
 			}

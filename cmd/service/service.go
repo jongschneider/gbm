@@ -385,3 +385,57 @@ func (s *Service) copyDirectory(sourcePath, targetPath string) error {
 
 	return nil
 }
+
+// CreateJiraMarkdownFile creates a markdown file with JIRA ticket information
+// in the .jira/ directory of the worktree. Only creates the file if worktreeName
+// is a valid JIRA key. All errors return nil to avoid failing worktree creation.
+func (s *Service) CreateJiraMarkdownFile(worktreeName string) error {
+	// Check if worktree name is a JIRA key
+	if !jira.IsJiraKey(worktreeName) {
+		return nil // Silently skip non-JIRA worktrees
+	}
+
+	// Check if JIRA CLI is available
+	if !s.Jira.IsJiraCliAvailable() {
+		return nil // Silently skip if JIRA CLI not installed
+	}
+
+	// Get worktree path
+	if s.RepoRoot == "" {
+		return nil // Not in a git repo
+	}
+	worktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, worktreeName)
+
+	// Check if worktree exists
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		fmt.Printf("Warning: worktree '%s' does not exist, skipping JIRA markdown creation\n", worktreeName)
+		return nil
+	}
+
+	// Fetch JIRA issue details
+	ticket, err := s.Jira.GetJiraIssue(worktreeName, false)
+	if err != nil {
+		fmt.Printf("Warning: failed to fetch JIRA issue %s: %v\n", worktreeName, err)
+		return nil
+	}
+
+	// Generate markdown content
+	markdownContent := generateJiraMarkdown(ticket)
+
+	// Create .jira directory
+	jiraDir := filepath.Join(worktreePath, ".jira")
+	if err := os.MkdirAll(jiraDir, 0755); err != nil {
+		fmt.Printf("Warning: failed to create .jira directory: %v\n", err)
+		return nil
+	}
+
+	// Write markdown file
+	markdownPath := filepath.Join(jiraDir, worktreeName+".md")
+	if err := os.WriteFile(markdownPath, []byte(markdownContent), 0644); err != nil {
+		fmt.Printf("Warning: failed to write JIRA markdown file: %v\n", err)
+		return nil
+	}
+
+	fmt.Printf("Created JIRA markdown at %s\n", markdownPath)
+	return nil
+}

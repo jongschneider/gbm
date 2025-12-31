@@ -14,6 +14,7 @@ type JiraIssue struct {
 type JiraTicketDetails struct {
 	Key           string
 	Summary       string
+	Description   string // Parsed markdown from JIRA's nested content structure
 	Status        string
 	Assignee      string
 	Priority      string
@@ -46,6 +47,26 @@ type JiraFilters struct {
 	CustomArgs []string `yaml:"custom_args,omitempty"` // Additional custom args
 }
 
+// Description represents JIRA's nested content structure for descriptions
+type Description struct {
+	Type    string        `json:"type"`
+	Version int           `json:"version"`
+	Content []ContentNode `json:"content"`
+}
+
+// ContentNode represents a node in JIRA's content tree
+type ContentNode struct {
+	Type    string        `json:"type"`
+	Text    string        `json:"text,omitempty"`
+	Content []ContentNode `json:"content,omitempty"`
+	Attrs   *ContentAttrs `json:"attrs,omitempty"`
+}
+
+// ContentAttrs represents attributes for content nodes (e.g., language for code blocks)
+type ContentAttrs struct {
+	Language string `json:"language,omitempty"`
+}
+
 // jiraRawResponse represents the raw JSON response from JIRA CLI
 type jiraRawResponse struct {
 	Key    string `json:"key"`
@@ -76,14 +97,8 @@ type jiraRawResponse struct {
 		Parent *struct {
 			Key string `json:"key"`
 		} `json:"parent"`
-		Description *struct {
-			Content []struct {
-				Content []struct {
-					Text string `json:"text"`
-				} `json:"content"`
-			} `json:"content"`
-		} `json:"description"`
-		Comment struct {
+		Description *Description `json:"description"`
+		Comment     struct {
 			Comments []struct {
 				Author struct {
 					DisplayName string `json:"displayName"`
