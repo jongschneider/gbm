@@ -9,6 +9,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zalando/go-keyring"
+	"gopkg.in/yaml.v3"
 )
 
 // AttachmentConfig holds configuration for attachment downloads
@@ -31,18 +34,30 @@ func DefaultAttachmentConfig() AttachmentConfig {
 
 // AttachmentService handles downloading JIRA attachments
 type AttachmentService struct {
-	config AttachmentConfig
-	client *http.Client
+	config     AttachmentConfig
+	client     *http.Client
+	jiraEmail  string // JIRA user email for authentication
+	jiraToken  string // JIRA API token for authentication
 }
 
 // NewAttachmentService creates a new attachment service
 func NewAttachmentService(config AttachmentConfig) *AttachmentService {
-	return &AttachmentService{
+	service := &AttachmentService{
 		config: config,
 		client: &http.Client{
 			Timeout: config.Timeout,
 		},
 	}
+
+	// Attempt to load JIRA credentials for authentication
+	// This is optional - if it fails, downloads will be attempted without auth
+	email, token, err := getJiraCredentials()
+	if err == nil {
+		service.jiraEmail = email
+		service.jiraToken = token
+	}
+
+	return service
 }
 
 // DownloadResult represents the result of a download operation
@@ -160,9 +175,11 @@ func (s *AttachmentService) downloadFile(url, destPath string) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Note: JIRA CLI handles authentication through session/cookies
-	// The attachment URLs are authenticated via the JIRA session
-	// If authentication is needed, it would be handled by the jira CLI setup
+	// Add authentication if credentials are available
+	// JIRA Cloud API requires Basic Authentication with email + API token
+	if s.jiraEmail != "" && s.jiraToken != "" {
+		req.SetBasicAuth(s.jiraEmail, s.jiraToken)
+	}
 
 	// Execute request
 	resp, err := s.client.Do(req)
@@ -266,4 +283,76 @@ func FormatAttachmentSize(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// jiraCliConfig represents the structure of jira-cli's config file
+type jiraCliConfig struct {
+	Login    string `yaml:"login"`
+	APIToken string `yaml:"api_token"`
+}
+
+// getJiraCredentials attempts to retrieve JIRA credentials from jira-cli configuration
+// This follows the same priority order as jira-cli itself:
+// 1. api_token from config file
+// 2. keyring/keychain (cross-platform via go-keyring)
+//
+// Returns email and API token for Basic Authentication
+func getJiraCredentials() (email, token string, err error) {
+	// Get config path using the same logic as jira-cli
+	// See: internal/cmdutil/utils.go:GetConfigHome()
+	configPath, err := getJiraConfigPath()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to determine config path: %w", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read jira config: %w", err)
+	}
+
+	var config jiraCliConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return "", "", fmt.Errorf("failed to parse jira config: %w", err)
+	}
+
+	if config.Login == "" {
+		return "", "", fmt.Errorf("no login configured in jira config")
+	}
+
+	// Try api_token from config first
+	if config.APIToken != "" {
+		return config.Login, config.APIToken, nil
+	}
+
+	// Fall back to keyring (uses macOS Keychain, Windows Credential Manager, or Linux Secret Service)
+	// This is exactly how jira-cli does it via github.com/zalando/go-keyring
+	token, err = keyring.Get("jira-cli", config.Login)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get credentials from keyring: %w", err)
+	}
+
+	return config.Login, token, nil
+}
+
+// getJiraConfigPath returns the path to jira-cli config file
+// Follows the same logic as jira-cli's GetConfigHome():
+// 1. XDG_CONFIG_HOME if set
+// 2. $HOME/.config otherwise
+// Then appends /.jira/.config.yml
+func getJiraConfigPath() (string, error) {
+	var configHome string
+
+	// Check XDG_CONFIG_HOME first (XDG Base Directory Specification)
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		configHome = xdg
+	} else {
+		// Fall back to $HOME/.config
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		configHome = filepath.Join(home, ".config")
+	}
+
+	return filepath.Join(configHome, ".jira", ".config.yml"), nil
 }

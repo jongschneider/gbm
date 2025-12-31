@@ -130,6 +130,12 @@ func (s *Service) GenerateIssueMarkdownFile(
 
 	// Step 5: Write markdown file
 	if !dryRun {
+		// Ensure parent directory exists
+		markdownDir := filepath.Dir(markdownPath)
+		if err := os.MkdirAll(markdownDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create markdown directory: %w", err)
+		}
+
 		if err := os.WriteFile(markdownPath, []byte(markdown), 0644); err != nil {
 			return nil, fmt.Errorf("failed to write markdown file: %w", err)
 		}
