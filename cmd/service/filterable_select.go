@@ -45,7 +45,8 @@ func (d simpleItemDelegate) Render(w io.Writer, m list.Model, index int, item li
 		str = "  " + str
 	}
 
-	fmt.Fprint(w, str)
+	// In UI rendering context, write errors are not actionable
+	_, _ = fmt.Fprint(w, str)
 }
 
 // FilterableSelectModel is a Bubble Tea model for a filterable select

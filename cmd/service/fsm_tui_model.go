@@ -39,11 +39,8 @@ func (m *FSMModel) initializeCurrentState() tea.Cmd {
 	state := m.fsm.fsm.Current()
 
 	// Get the UI model for this state
+	// Note: getUIModelForState always returns a non-nil value
 	ui := m.getUIModelForState(state)
-	if ui == nil {
-		m.lastError = fmt.Errorf("unknown state: %s", state)
-		return tea.Quit
-	}
 
 	m.currentUI = ui
 	return ui.Init()
@@ -92,7 +89,10 @@ func (m *FSMModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if wizard, ok := updatedUI.(WizardModel); ok {
 		// Check for completion
 		if wizard.cancelled {
-			m.fsm.fsm.Event(m.ctx, EventCancel)
+			if err := m.fsm.fsm.Event(m.ctx, EventCancel); err != nil {
+				m.lastError = fmt.Errorf("failed to cancel: %w", err)
+				return m, tea.Quit
+			}
 			return m, m.handleStateTransition()
 		}
 		if wizard.completed {
@@ -109,7 +109,10 @@ func (m *FSMModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Handle special case: confirm no -> cancel
 			if event == EventConfirmNo {
-				m.fsm.fsm.Event(m.ctx, EventConfirmNo)
+				if err := m.fsm.fsm.Event(m.ctx, EventConfirmNo); err != nil {
+					m.lastError = fmt.Errorf("failed to handle confirmation: %w", err)
+					return m, tea.Quit
+				}
 				return m, m.handleStateTransition()
 			}
 
@@ -186,11 +189,8 @@ func (m *FSMModel) handleStateTransition() tea.Cmd {
 	}
 
 	// Get the new UI
+	// Note: getUIModelForState always returns a non-nil value
 	ui := m.getUIModelForState(newState)
-	if ui == nil {
-		m.lastError = fmt.Errorf("unknown state: %s", newState)
-		return tea.Quit
-	}
 
 	m.currentUI = ui
 	return ui.Init()

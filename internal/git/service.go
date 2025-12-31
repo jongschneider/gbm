@@ -194,8 +194,13 @@ func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
 
 	counts := strings.Fields(strings.TrimSpace(string(output)))
 	if len(counts) == 2 {
-		fmt.Sscanf(counts[0], "%d", &status.Behind)
-		fmt.Sscanf(counts[1], "%d", &status.Ahead)
+		// Parse commit counts, falling back to 0 on error
+		if _, err := fmt.Sscanf(counts[0], "%d", &status.Behind); err != nil {
+			status.Behind = 0
+		}
+		if _, err := fmt.Sscanf(counts[1], "%d", &status.Ahead); err != nil {
+			status.Ahead = 0
+		}
 	}
 
 	status.UpToDate = status.Ahead == 0 && status.Behind == 0

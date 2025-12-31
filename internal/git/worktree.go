@@ -334,8 +334,8 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 		} else {
 			// Move to Trash using trashbox
 			if err := trashbox.MoveToTrash(renamedPath); err != nil {
-				// Failed to trash - rename back and warn
-				os.Rename(renamedPath, targetWorktree.Path) // best effort to restore
+				// Failed to trash - rename back and warn (best effort, ignore errors)
+				_ = os.Rename(renamedPath, targetWorktree.Path)
 				fmt.Fprintf(os.Stderr, "Warning: Could not move worktree to Trash: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Proceeding with removal...\n")
 			} else {
