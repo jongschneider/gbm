@@ -98,7 +98,11 @@ Examples:
 			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
 			if err == nil {
 				if !dryRun {
-					fmt.Printf("Created worktree '%s' at %s for branch '%s'\n", wt.Name, wt.Path, wt.Branch)
+					// Always output path to stdout (machine-readable)
+					fmt.Println(wt.Path)
+
+					// Always output message to stderr (human-readable)
+					fmt.Fprintf(os.Stderr, "✓ Created worktree '%s' for branch '%s'\n", wt.Name, wt.Branch)
 				}
 				return nil
 			}
@@ -130,7 +134,11 @@ Examples:
 				return err
 			}
 			if !dryRun {
-				fmt.Printf("Created worktree '%s' at %s for branch '%s'\n", wt.Name, wt.Path, wt.Branch)
+				// Always output path to stdout (machine-readable)
+				fmt.Println(wt.Path)
+
+				// Always output message to stderr (human-readable)
+				fmt.Fprintf(os.Stderr, "✓ Created worktree '%s' for branch '%s'\n", wt.Name, wt.Branch)
 			}
 			return nil
 		},

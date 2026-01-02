@@ -27,7 +27,7 @@ type worktreeTableModel struct {
 	confirmingDelete bool
 	deleteTarget     string
 	message          string
-	switchOutput     string // Output from switch command to print after exit
+	switchOutput     string // Worktree path to output after TUI exit
 	branchStatuses   map[string]*git.BranchStatus
 }
 
@@ -322,28 +322,12 @@ func (m worktreeTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case " ", "enter":
-			// Switch to selected worktree by invoking gbm2 wt switch
+			// Store selected worktree path for output after TUI exits
 			cursor := m.table.Cursor()
 			if cursor >= 0 && cursor < len(m.worktrees) {
 				targetWorktree := m.worktrees[cursor]
-
-				// Execute gbm wt switch <name>
-				cmd := exec.Command(os.Args[0], "wt", "switch", targetWorktree.Name)
-				// Inherit environment variables (including GBM_SHELL_INTEGRATION)
-				envVars := []string{"GBM_SHELL_INTEGRATION=1"}
-				// Pass current worktree name via env var so subprocess knows where we're switching from
-				if m.currentWorktree != nil {
-					envVars = append(envVars, fmt.Sprintf("GBM_CURRENT_WORKTREE=%s", m.currentWorktree.Name))
-				}
-				cmd.Env = append(cmd.Environ(), envVars...)
-				output, err := cmd.CombinedOutput()
-				if err != nil {
-					m.message = fmt.Sprintf("Error switching: %v", err)
-					return m, nil
-				}
-
-				// Store the output to print after the program exits
-				m.switchOutput = string(output)
+				// Store just the path (not "cd <path>")
+				m.switchOutput = targetWorktree.Path
 				return m, tea.Quit
 			}
 			return m, nil
@@ -401,31 +385,34 @@ func (m worktreeTableModel) View() string {
 
 func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) error {
 	m := newWorktreeTable(worktrees, trackedBranches, currentWorktree, svc)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+
+	// Open /dev/tty for TUI rendering
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+	}
+	defer func() {
+		_ = tty.Close()
+	}()
+
+	// TUI renders to /dev/tty, leaving stdout clean
+	p := tea.NewProgram(m,
+		tea.WithInput(tty),
+		tea.WithOutput(tty),
+	)
 	finalModel, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("error running table: %w", err)
 	}
 
-	// Write switch output to a temp file for shell integration to read
+	// Output path to stdout if user selected a worktree (universal pattern)
 	if model, ok := finalModel.(worktreeTableModel); ok {
 		if model.switchOutput != "" {
-			// Write cd command to a temp file that shell integration can read
-			// Use PPID (parent process ID, i.e., the shell's PID) for the filename
-			ppid := os.Getppid()
-			tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf(".gbm-switch-%d", ppid))
+			// Always output path to stdout (machine-readable)
+			fmt.Println(model.switchOutput)
 
-			// Clean up any stale temp file from previous run
-			_ = os.Remove(tmpFile)
-
-			// Write the switch output
-			if err := os.WriteFile(tmpFile, []byte(model.switchOutput), 0o600); err != nil {
-				return fmt.Errorf("failed to write switch file: %w", err)
-			}
-			// Note: The shell integration is responsible for cleaning up this file after reading
-
-			// Also print it for non-shell-integration users
-			fmt.Print(model.switchOutput)
+			// Always output message to stderr (human-readable)
+			fmt.Fprintf(os.Stderr, "✓ Selected worktree: %s\n", filepath.Base(model.switchOutput))
 		}
 	}
 

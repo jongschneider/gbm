@@ -8,14 +8,14 @@
 
 ## 📊 Status Overview
 
-**Progress:** 1/5 tasks complete in P1.1
+**Progress:** 3/5 tasks complete in P1.1
 
 | Task | Status | Date | Time |
 |------|--------|------|------|
 | 1.1.1 Switch Command | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.1.2 Shell Wrapper | 📋 PENDING | - | - |
-| 1.1.3 Add Command | 📋 PENDING | - | - |
-| 1.1.4 TUI /dev/tty | 📋 PENDING | - | - |
+| 1.1.3 Add Command | ✅ COMPLETE | 2026-01-02 | ~1h |
+| 1.1.4 TUI /dev/tty | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.1.5 Documentation | 📋 PENDING | - | - |
 
 ---
@@ -44,6 +44,120 @@ fmt.Fprintf(os.Stderr, "✓ Switched to worktree '%s'\n", worktreeName)
 ```
 
 **Key Decision:** Removed `--print-path` flag because the universal pattern makes it redundant. Users can suppress stderr with `2>/dev/null` if they want path-only output.
+
+**Validation:** ✅ All tests pass, linting clean, compiles successfully
+
+---
+
+### Task 1.1.3: Add stdout/stderr separation to worktree add
+**Completed:** 2026-01-02
+**File:** `cmd/service/worktree.go` (lines 101-105, 133-137)
+
+**What Was Done:**
+1. Applied universal stdout/stderr pattern to worktree add command
+2. Updated both success paths: initial creation and retry after user confirmation
+3. Removed output mixing - path goes to stdout, messages go to stderr
+4. No environment variable checks needed - always uses universal pattern
+
+**Code Pattern Applied:**
+```go
+// Always output path to stdout (machine-readable)
+fmt.Println(wt.Path)
+
+// Always output message to stderr (human-readable)
+fmt.Fprintf(os.Stderr, "✓ Created worktree '%s' for branch '%s'\n", wt.Name, wt.Branch)
+```
+
+**Changes Made:**
+- **Line 101-105**: First success path (when branch exists or -b flag used)
+- **Line 133-137**: Retry success path (when user confirms branch creation)
+
+**Benefits:**
+- Scriptable: `new_wt=$(gbm wt add feat-x feat-x -b)` captures path
+- Pipeable: `gbm wt add ... | xargs ls` works cleanly
+- Shell integration: Auto-cd will work once shell wrapper is updated (Task 1.1.2)
+- Consistent: Same pattern as switch command (Task 1.1.1)
+
+**Validation:** ✅ All tests pass, linting clean, compiles successfully
+
+---
+
+### Task 1.1.4: Update TUI to use /dev/tty with stdout output
+**Completed:** 2026-01-02
+**File:** `cmd/service/worktree_table.go` (lines 389-432, 324-333)
+
+**What Was Done:**
+1. Updated TUI to render to `/dev/tty` instead of stdout
+2. Applied universal stdout/stderr pattern to TUI output
+3. Simplified worktree selection - stores path instead of calling subprocess
+4. **Eliminated all temp file logic** from TUI
+
+**Key Changes:**
+
+**Change 1: /dev/tty Rendering (lines 389-407)**
+```go
+// Open /dev/tty for TUI rendering
+tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+if err != nil {
+    return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+}
+defer func() {
+    _ = tty.Close()
+}()
+
+// TUI renders to /dev/tty, leaving stdout clean
+p := tea.NewProgram(m,
+    tea.WithInput(tty),
+    tea.WithOutput(tty),
+)
+```
+
+**Change 2: Universal Pattern Output (lines 422-431)**
+```go
+// Output path to stdout if user selected a worktree (universal pattern)
+if model, ok := finalModel.(worktreeTableModel); ok {
+    if model.switchOutput != "" {
+        // Always output path to stdout (machine-readable)
+        fmt.Println(model.switchOutput)
+
+        // Always output message to stderr (human-readable)
+        fmt.Fprintf(os.Stderr, "✓ Selected worktree: %s\n", filepath.Base(model.switchOutput))
+    }
+}
+```
+
+**Change 3: Simplified Selection (lines 324-333)**
+```go
+case " ", "enter":
+    // Store selected worktree path for output after TUI exits
+    cursor := m.table.Cursor()
+    if cursor >= 0 && cursor < len(m.worktrees) {
+        targetWorktree := m.worktrees[cursor]
+        // Store just the path (not "cd <path>")
+        m.switchOutput = targetWorktree.Path
+        return m, tea.Quit
+    }
+    return m, nil
+```
+
+**What Was Removed:**
+- ❌ All temp file creation code (`$TMPDIR/.gbm-switch-$$`)
+- ❌ `os.Getppid()` usage for temp file naming
+- ❌ `os.WriteFile()` for temp file writing
+- ❌ Subprocess call to `gbm wt switch` from within TUI
+- ❌ Environment variable passing to subprocess
+
+**Benefits:**
+- **No temp files**: Completely eliminated temp file complexity
+- **Cleaner architecture**: TUI directly outputs path instead of calling subprocess
+- **Scriptable**: `result=$(gbm wt list)` captures selected path
+- **Consistent**: Same stdout/stderr pattern as switch and add commands
+- **Simpler**: ~30 lines of code removed
+- **More reliable**: No temp file cleanup issues
+
+**Trade-off:**
+- TUI now requires `/dev/tty` to be available (acceptable for interactive TUI use case)
+- Returns clear error message if `/dev/tty` unavailable
 
 **Validation:** ✅ All tests pass, linting clean, compiles successfully
 
@@ -127,4 +241,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 by Task 1.1.1 completion
+**Last Updated:** 2026-01-02 by Task 1.1.4 completion
