@@ -1,14 +1,14 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P1.1 - Stdout/Stderr Separation (Universal Pattern)
+**Current Phase:** P1.1 - Stdout/Stderr Separation (Universal Pattern) - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 4/5 tasks complete in P1.1
+**Progress:** 5/5 tasks complete in P1.1 ✅
 
 | Task | Status | Date | Time |
 |------|--------|------|------|
@@ -16,7 +16,7 @@
 | 1.1.2 Shell Wrapper | ✅ COMPLETE | 2026-01-02 | ~1h |
 | 1.1.3 Add Command | ✅ COMPLETE | 2026-01-02 | ~1h |
 | 1.1.4 TUI /dev/tty | ✅ COMPLETE | 2026-01-02 | ~2h |
-| 1.1.5 Documentation | 📋 PENDING | - | - |
+| 1.1.5 Documentation | ✅ COMPLETE | 2026-01-02 | ~30min |
 
 ---
 
@@ -261,6 +261,73 @@ fi
 
 ---
 
+### Task 1.1.5: Document universal stdout/stderr pattern
+**Completed:** 2026-01-02
+**File:** `CLAUDE.md` (new "Output Patterns" section after line 187)
+
+**What Was Done:**
+1. Added comprehensive "Output Patterns" section to CLAUDE.md
+2. Documented the universal stdout/stderr pattern for all commands
+3. Provided clear examples for switch, add, and list commands
+4. Explained benefits of the pattern (shell integration, scripting, piping)
+5. Added implementation guidelines for developers
+6. Documented shell integration and TUI rendering approaches
+
+**Content Added:**
+
+**Universal Rule:**
+- stdout: Machine-readable data (paths, IDs, structured output)
+- stderr: Human-readable messages (progress, errors, warnings)
+
+**Examples provided:**
+```bash
+# Switch command
+$ gbm wt switch feature-x
+/path/to/repo/worktrees/feature-x           # stdout
+✓ Switched to worktree 'feature-x'          # stderr
+
+# Add command
+$ gbm wt add PROJ-123 feature/PROJ-123 -b
+/path/to/repo/worktrees/PROJ-123            # stdout
+✓ Created worktree 'PROJ-123' for branch 'feature/PROJ-123'  # stderr
+
+# List command (TUI)
+$ gbm wt list
+[TUI interface shown on /dev/tty]
+/path/to/selected/worktree                   # stdout (after selection)
+✓ Selected worktree: feature-x               # stderr
+```
+
+**Implementation Guidelines:**
+- Always use `fmt.Println(data)` for stdout
+- Always use `fmt.Fprintf(os.Stderr, ...)` for messages
+- Never mix data and messages in the same stream
+- For TUI commands, render to `/dev/tty` to keep stdout clean
+
+**Key principles documented:**
+1. **Always** output data to stdout - no environment variable checks
+2. **Always** output messages to stderr
+3. **Never** mix data and messages in the same stream
+4. For TUI commands, render to `/dev/tty` to keep stdout clean
+5. Test that commands work with shell integration: `result=$(gbm ...)`
+
+**Why this is important:**
+- Ensures all future commands follow the universal pattern
+- Provides clear examples for developers adding new commands
+- Documents the rationale behind the stdout/stderr separation
+- Explains how shell integration and TUI rendering work together
+- Makes the pattern discoverable in the developer guide
+
+**Benefits:**
+- Future commands will automatically follow the pattern
+- Consistent behavior across all commands
+- Easy reference for code reviews
+- Clear onboarding for new contributors
+
+**Validation:** ✅ Documentation added, examples provided, guidelines clear
+
+---
+
 ## 🔑 Key Patterns & Decisions
 
 ### Universal Stdout/Stderr Pattern
@@ -350,4 +417,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 - Added TUI styling fixes and shell-integration command
+**Last Updated:** 2026-01-02 - Completed P1.1 (Task 1.1.5: Documentation of universal stdout/stderr pattern)

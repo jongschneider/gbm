@@ -185,6 +185,86 @@ All git operations should:
 - Use `--git-dir` flag when operating on bare repos
 - Use `-C <path>` flag when operating within worktrees
 
+### Output Patterns
+
+GBM follows strict stdout/stderr separation for all commands to enable shell integration, scripting, and piping.
+
+**Universal Rule:**
+- **stdout**: Machine-readable data (paths, IDs, structured output)
+- **stderr**: Human-readable messages (progress, errors, warnings)
+
+This pattern is applied universally across all commands that output data, with no environment variable checks or special cases.
+
+**Examples:**
+
+```bash
+# Switch command
+$ gbm wt switch feature-x
+/path/to/repo/worktrees/feature-x           # stdout
+✓ Switched to worktree 'feature-x'          # stderr
+
+# Add command
+$ gbm wt add PROJ-123 feature/PROJ-123 -b
+/path/to/repo/worktrees/PROJ-123            # stdout
+✓ Created worktree 'PROJ-123' for branch 'feature/PROJ-123'  # stderr
+
+# List command (TUI)
+$ gbm wt list
+[TUI interface shown on /dev/tty]
+/path/to/selected/worktree                   # stdout (after selection)
+✓ Selected worktree: feature-x               # stderr
+```
+
+**Benefits:**
+- **Shell integration**: `path=$(gbm wt switch foo)` captures the path cleanly
+- **Piping**: `gbm wt list | xargs ls` works without parsing messages
+- **Scripting**: Capture data without parsing human-readable text
+- **Consistent**: All commands work the same way
+- **Unix philosophy**: Follows standard stdout/stderr conventions
+
+**Implementation Guidelines:**
+
+When implementing any command that outputs data:
+
+```go
+// CORRECT: Always separate data from messages
+fmt.Println(data)                                    // stdout
+fmt.Fprintf(os.Stderr, "✓ Operation successful\n")  // stderr
+
+// WRONG: Don't mix them
+fmt.Printf("Created worktree at %s\n", path)  // Mixed - hard to parse
+```
+
+**Key principles:**
+1. **Always** output data to stdout - no environment variable checks
+2. **Always** output messages to stderr
+3. **Never** mix data and messages in the same stream
+4. For TUI commands, render to `/dev/tty` to keep stdout clean
+
+**When implementing new commands:**
+1. Identify the "data" (what users might want to capture or pipe)
+2. Output data to stdout using `fmt.Println()`
+3. Output all messages, progress, and errors to stderr using `fmt.Fprintf(os.Stderr, ...)`
+4. Never mix them in the same stream
+5. Test that the command works with shell integration: `result=$(gbm ...)`
+
+**Shell Integration:**
+
+The shell wrapper in `cmd/service/shell-integration.go` leverages this pattern:
+- Captures stdout (the data/path) while letting stderr through for messages
+- Enables auto-cd functionality for worktree commands
+- Single unified approach - no temp files, no environment variables
+- Works consistently across all shells (bash, zsh, fish)
+
+**TUI Rendering:**
+
+Interactive TUI commands use `/dev/tty` for rendering:
+- TUI interface renders to `/dev/tty` (the controlling terminal)
+- This leaves stdout available for outputting the selected path
+- After TUI exits, the selected path goes to stdout
+- Success messages go to stderr
+- No temp files needed
+
 ### Adding TUI Features
 When extending the Bubble Tea interface:
 - Add new states to the FSM in `worktree_fsm.go` using `fsm.NewFSM()`
