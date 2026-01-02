@@ -492,8 +492,6 @@ Usage:
 }
 
 func newWorktreeSwitchCommand(svc *Service) *cobra.Command {
-	var printPath bool
-
 	cmd := &cobra.Command{
 		Use:     "switch <name>",
 		Aliases: []string{"sw", "s"},
@@ -513,14 +511,14 @@ Use "-" to switch to the previous worktree (like "cd -"):
   gbm worktree switch -
 
 Examples:
-  # Print the path to a worktree
-  gbm worktree switch --print-path feature-x
-
   # With shell integration enabled, switch to a worktree
   gbm worktree switch feature-x
 
   # Switch to the previous worktree
-  gbm worktree switch -`,
+  gbm worktree switch -
+
+  # Capture path without message
+  path=$(gbm worktree switch feature-x 2>/dev/null)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worktreeName := args[0]
@@ -551,7 +549,7 @@ Examples:
 					return ErrNoPreviousWorktree
 				}
 				worktreeName = state.PreviousWorktree
-				fmt.Printf("Switching to previous worktree: %s\n", worktreeName)
+				fmt.Fprintf(os.Stderr, "Switching to previous worktree: %s\n", worktreeName)
 			}
 
 			// List all worktrees to find the target
@@ -573,12 +571,6 @@ Examples:
 				return fmt.Errorf("worktree '%s' not found", worktreeName)
 			}
 
-			// If --print-path is set, just print the path
-			if printPath {
-				fmt.Print(targetWorktree.Path)
-				return nil
-			}
-
 			// Update state to track worktree history
 			state := svc.GetState()
 			if currentWorktree != nil && currentWorktree.Name != targetWorktree.Name {
@@ -588,23 +580,18 @@ Examples:
 			state.CurrentWorktree = targetWorktree.Name
 			_ = svc.SaveState() // Ignore errors - state tracking is optional
 
-			// Check if shell integration is enabled
-			if os.Getenv("GBM_SHELL_INTEGRATION") != "" {
-				// Output cd command for shell wrapper to execute
-				fmt.Printf("cd %s\n", targetWorktree.Path)
-				return nil
-			}
+			// Universal pattern: Always output path to stdout, messages to stderr
+			// This enables shell integration without environment variables
+			// Users can suppress the message with: gbm wt switch foo 2>/dev/null
 
-			// No shell integration, output instructions
-			fmt.Printf("To switch to worktree '%s':\n", worktreeName)
-			fmt.Printf("  cd %s\n\n", targetWorktree.Path)
-			fmt.Printf("To enable automatic directory switching, set up shell integration:\n")
-			fmt.Printf("  eval \"$(gbm shell-integration)\"\n")
+			// Always output path to stdout (machine-readable)
+			fmt.Println(targetWorktree.Path)
+
+			// Always output message to stderr (human-readable)
+			fmt.Fprintf(os.Stderr, "✓ Switched to worktree '%s'\n", worktreeName)
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVar(&printPath, "print-path", false, "Print only the path to the worktree")
 
 	// Add shell completions for worktree names
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -631,6 +618,7 @@ Examples:
 
 	return cmd
 }
+
 // Handler functions for push and pull commands
 
 func handlePushCurrent(svc *Service) error {
