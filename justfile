@@ -123,6 +123,16 @@ completions:
     echo "✓ Completion setup commands copied to clipboard"
     echo "✓ Paste into a new shell session to enable completions for 'gbm2'"
 
+# Copy shell integration setup commands to clipboard
+shell-integration:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Generating shell integration setup commands..."
+    # Create the commands to paste in a new shell and copy to clipboard
+    printf "# Enable gbm2 shell integration (paste this in your shell)\neval \"\$(gbm2 shell-integration)\"\n\n# Or to make it permanent, add this to your ~/.zshrc or ~/.bashrc:\n# eval \"\$(gbm2 shell-integration)\"\n\n# This enables auto-cd for worktree commands:\n#   gbm2 wt switch <name>  - switch and cd to worktree\n#   gbm2 wt add <name>     - create and cd to worktree\n#   gbm2 wt list           - TUI to select and cd to worktree\n" | pbcopy
+    echo "✓ Shell integration setup commands copied to clipboard"
+    echo "✓ Paste into a new shell session to enable auto-cd for worktree commands"
+
 # Uninstall gbm2 from system
 uninstall:
     #!/usr/bin/env bash

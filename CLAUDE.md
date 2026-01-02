@@ -115,6 +115,7 @@ just clean            # Clean build artifacts
 ```bash
 just install          # Build and install globally as gbm2 in /usr/local/bin
 just completions      # Copy zsh completion setup commands to clipboard
+just shell-integration # Copy shell integration setup commands to clipboard
 just uninstall        # Remove gbm2 from /usr/local/bin
 ```
 

@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 var baseStyle = lipgloss.NewStyle().
@@ -384,8 +385,6 @@ func (m worktreeTableModel) View() string {
 }
 
 func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) error {
-	m := newWorktreeTable(worktrees, trackedBranches, currentWorktree, svc)
-
 	// Open /dev/tty for TUI rendering
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
@@ -395,10 +394,25 @@ func runWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		_ = tty.Close()
 	}()
 
+	// Explicitly detect and set color profile for the tty output
+	// This ensures lipgloss renders with colors even though we're using a custom file handle
+	// IMPORTANT: Must be set BEFORE creating the table model so styles are applied correctly
+	renderer := lipgloss.NewRenderer(tty,
+		termenv.WithColorCache(true),
+		termenv.WithTTY(true),
+		termenv.WithProfile(termenv.TrueColor),
+	)
+	lipgloss.SetDefaultRenderer(renderer)
+
+	// Create table model AFTER setting the renderer
+	m := newWorktreeTable(worktrees, trackedBranches, currentWorktree, svc)
+
 	// TUI renders to /dev/tty, leaving stdout clean
+	// Use WithInput/WithOutput to explicitly direct I/O to /dev/tty
 	p := tea.NewProgram(m,
 		tea.WithInput(tty),
 		tea.WithOutput(tty),
+		tea.WithAltScreen(),
 	)
 	finalModel, err := p.Run()
 	if err != nil {

@@ -8,12 +8,12 @@
 
 ## 📊 Status Overview
 
-**Progress:** 3/5 tasks complete in P1.1
+**Progress:** 4/5 tasks complete in P1.1
 
 | Task | Status | Date | Time |
 |------|--------|------|------|
 | 1.1.1 Switch Command | ✅ COMPLETE | 2026-01-02 | ~2h |
-| 1.1.2 Shell Wrapper | 📋 PENDING | - | - |
+| 1.1.2 Shell Wrapper | ✅ COMPLETE | 2026-01-02 | ~1h |
 | 1.1.3 Add Command | ✅ COMPLETE | 2026-01-02 | ~1h |
 | 1.1.4 TUI /dev/tty | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.1.5 Documentation | 📋 PENDING | - | - |
@@ -159,6 +159,104 @@ case " ", "enter":
 - TUI now requires `/dev/tty` to be available (acceptable for interactive TUI use case)
 - Returns clear error message if `/dev/tty` unavailable
 
+**Post-Implementation Fixes:**
+
+**Fix 1: Alt Screen Mode (cmd/service/worktree_table.go:409)**
+- Added `tea.WithAltScreen()` option to enable full-screen interactive mode
+- Without this, TUI would print but not become interactive
+
+**Fix 2: TUI Styling with /dev/tty (cmd/service/worktree_table.go:397-405)**
+- Added `github.com/muesli/termenv` import for explicit color profile control
+- Set up lipgloss renderer BEFORE creating table model (order matters!)
+- Configured renderer with explicit termenv options:
+  ```go
+  renderer := lipgloss.NewRenderer(tty,
+      termenv.WithColorCache(true),           // Cache color conversions for performance
+      termenv.WithTTY(true),                  // Explicitly mark as TTY
+      termenv.WithProfile(termenv.TrueColor), // Force 24-bit color support
+  )
+  lipgloss.SetDefaultRenderer(renderer)
+  ```
+- This ensures lipgloss renders with full colors even when using custom `/dev/tty` file handle
+- Without this, TUI would work but row highlighting/selection colors wouldn't be visible
+
+**Why the styling fix was needed:**
+- When using `/dev/tty` as a custom file handle, lipgloss can't auto-detect terminal capabilities
+- Must explicitly set renderer with color profile before creating styled components
+- Renderer must be set as default BEFORE calling `newWorktreeTable()` so styles apply correctly
+
+**Validation:** ✅ All tests pass, linting clean, compiles successfully, interactive TUI with full styling confirmed working
+
+---
+
+### Task 1.1.2: Simplify shell integration wrapper
+**Completed:** 2026-01-02
+**File:** `cmd/service/shell-integration.go` (lines 36-63)
+
+**What Was Done:**
+1. Applied universal stdout/stderr pattern to shell wrapper
+2. **Eliminated all temp file logic** - no more `$TMPDIR/.gbm-switch-$$`
+3. **Removed environment variable** - no more `GBM_SHELL_INTEGRATION=1`
+4. Unified approach for all worktree commands that output paths
+5. Added support for all command aliases (switch/sw/s, add/a, list/ls/l)
+6. Added auto-cd support for `add` command
+
+**Code Pattern Applied:**
+```bash
+# Capture stdout (path) while letting stderr through for messages
+local result
+result=$(command gbm2 "$@" 2>/dev/stderr)
+local exit_code=$?
+
+# If successful and result is a directory, cd to it
+if [ $exit_code -eq 0 ] && [ -n "$result" ] && [ -d "$result" ]; then
+    cd "$result"
+fi
+```
+
+**What Was Removed:**
+- ❌ `export GBM_SHELL_INTEGRATION=1` environment variable
+- ❌ All temp file creation (`$TMPDIR/.gbm-switch-$$`)
+- ❌ All temp file reading and cleanup logic
+- ❌ Separate code paths for `worktree` vs `wt` commands
+- ❌ `grep '^cd '` parsing and `eval` of cd commands
+- ❌ ~40 lines of complex shell code
+
+**Code Size Reduction:**
+- **Before:** ~60 lines of shell script
+- **After:** ~25 lines of shell script
+- **Reduction:** ~60% smaller, much simpler
+
+**Supported Commands (all auto-cd after success):**
+- `gbm2 wt switch <name>` / `gbm2 worktree switch <name>`
+- `gbm2 wt sw <name>` / `gbm2 worktree sw <name>`
+- `gbm2 wt s <name>` / `gbm2 worktree s <name>`
+- `gbm2 wt add <name> <branch>` / `gbm2 worktree add <name> <branch>`
+- `gbm2 wt a <name> <branch>` / `gbm2 worktree a <name> <branch>`
+- `gbm2 wt list` / `gbm2 worktree list`
+- `gbm2 wt ls` / `gbm2 worktree ls`
+- `gbm2 wt l` / `gbm2 worktree l`
+
+**Benefits:**
+- **No temp files**: Completely eliminated temp file complexity
+- **Single code path**: All commands use same pattern (DRY)
+- **Simpler**: 60% less code, easier to understand and maintain
+- **More reliable**: No temp file cleanup issues or race conditions
+- **Consistent**: Works exactly the same way for all commands
+- **New feature**: Auto-cd after `wt add` command
+
+**How It Works:**
+1. Shell wrapper checks if command is a path-outputting worktree command
+2. Captures stdout (the path) while letting stderr messages through
+3. Checks if the result is a valid directory
+4. If yes, cd to it in the current shell
+5. Preserves exit code for error handling
+
+**Additional Enhancement:**
+- Added `just shell-integration` command to justfile (similar to `just completions`)
+- Copies shell integration setup commands to clipboard for easy testing
+- Updated CLAUDE.md to document the new command
+
 **Validation:** ✅ All tests pass, linting clean, compiles successfully
 
 ---
@@ -194,10 +292,21 @@ $ gbm wt switch feature-x 2>/dev/null
 
 **Example:** `--print-path` was removed because `2>/dev/null` achieves the same result.
 
-### /dev/tty for TUI (Upcoming)
-**Decision:** TUI commands will render to `/dev/tty` instead of using temp files.
+### /dev/tty for TUI
+**Decision:** TUI commands render to `/dev/tty` instead of using temp files.
 
 **Trade-off:** Requires interactive terminal (acceptable for TUI use case).
+
+### Eliminated Temp Files Completely
+**Decision:** No temp files for any worktree operations.
+
+**Why:** Universal stdout/stderr pattern + /dev/tty for TUI = no need for temp files.
+
+**Benefits:**
+- Simpler code (~60% reduction in shell wrapper)
+- No cleanup logic needed
+- No race conditions or PID conflicts
+- Works consistently across all shells
 
 ---
 
@@ -241,4 +350,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 by Task 1.1.4 completion
+**Last Updated:** 2026-01-02 - Added TUI styling fixes and shell-integration command
