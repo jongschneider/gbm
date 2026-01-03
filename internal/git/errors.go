@@ -7,9 +7,17 @@ import (
 	"strings"
 )
 
-// Sentinel errors for git operations
+// Sentinel errors for git operations.
+// These errors help distinguish different failure modes and allow callers
+// to handle specific cases (e.g., "branch not found" vs "permission denied").
+//
+// Use errors.Is() to check for specific error types:
+//
+//	if errors.Is(err, git.ErrBranchNotFound) {
+//	    // Handle branch not found
+//	}
 var (
-	// Parameter validation errors
+	// Parameter validation errors - used when required parameters are empty
 	ErrWorktreesDirectoryEmpty = errors.New("worktrees directory cannot be empty")
 	ErrWorktreeNameEmpty       = errors.New("worktree name cannot be empty")
 	ErrBranchNameEmpty         = errors.New("branch name cannot be empty")
@@ -17,11 +25,11 @@ var (
 	ErrOldWorktreeNameEmpty    = errors.New("old worktree name cannot be empty")
 	ErrNewWorktreeNameEmpty    = errors.New("new worktree name cannot be empty")
 
-	// State errors
+	// State errors - used when the repository or worktree is in an unexpected state
 	ErrNotInWorktree                  = errors.New("not in a worktree")
 	ErrCouldNotDetermineDefaultBranch = errors.New("could not determine default branch from remote")
 
-	// Git operation errors (typed)
+	// Git operation errors - classified from git command output
 	ErrBranchNotFound         = errors.New("branch not found")
 	ErrWorktreeNotFound       = errors.New("worktree not found")
 	ErrBranchExists           = errors.New("branch already exists")
@@ -34,7 +42,17 @@ var (
 	ErrNoRemoteTrackingBranch = errors.New("no remote tracking branch")
 )
 
-// GitError represents a git operation failure with context and exit code
+// GitError represents a git operation failure with context and exit code.
+//
+// This provides richer error information for git failures, including the
+// operation that failed, the exit code, and the stderr output. This allows
+// callers to diagnose and handle different types of failures.
+//
+// Fields:
+//   - Op: The git operation that failed (e.g., "worktree add", "branch delete")
+//   - ExitCode: Exit code returned by the git command
+//   - Stderr: Standard error output from git (trimmed)
+//   - Err: Underlying error from the exec package
 type GitError struct {
 	Op       string // Operation that failed (e.g., "worktree add", "branch delete")
 	ExitCode int    // Exit code from git command
@@ -42,7 +60,8 @@ type GitError struct {
 	Err      error  // Underlying error
 }
 
-// Error implements the error interface for GitError
+// Error implements the error interface for GitError.
+// Returns a formatted error message including the operation, underlying error, and stderr output.
 func (e *GitError) Error() string {
 	msg := fmt.Sprintf("git %s: %v", e.Op, e.Err)
 	if e.Stderr != "" {
@@ -51,17 +70,25 @@ func (e *GitError) Error() string {
 	return msg
 }
 
-// Unwrap returns the underlying error for error wrapping chains
+// Unwrap returns the underlying error for error wrapping chains.
+// This enables Go 1.13+ error wrapping to work correctly.
 func (e *GitError) Unwrap() error {
 	return e.Err
 }
 
-// IsExitCode checks if this error has a specific exit code
+// IsExitCode checks if this error has a specific exit code.
+//
+// Example:
+//
+//	if gitErr, ok := err.(*git.GitError); ok && gitErr.IsExitCode(1) {
+//	    // Handle exit code 1
+//	}
 func (e *GitError) IsExitCode(code int) bool {
 	return e.ExitCode == code
 }
 
-// NewGitError creates a new GitError with operation context
+// NewGitError creates a new GitError with operation context.
+// Returns nil if the error is nil (for convenient chaining).
 func NewGitError(op string, err error, exitCode int, stderr string) error {
 	if err == nil {
 		return nil

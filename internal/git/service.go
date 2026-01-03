@@ -11,8 +11,25 @@ import (
 	"gbm/internal/utils"
 )
 
+// Service provides git operations via shell commands.
+// It wraps git command execution and provides methods for repository
+// management, worktree operations, and branch management.
+//
+// All git operations use exec.Command to shell out to git, which ensures
+// compatibility with various git versions and plugins while keeping the
+// implementation simple and maintainable.
 type Service struct{}
 
+// NewService creates a new Git service.
+// It verifies that git is installed and available in PATH.
+//
+// Returns:
+//   - A new Service instance if git is found
+//   - Panics if git is not installed
+//
+// Example:
+//
+//	gitSvc := git.NewService()
 func NewService() *Service {
 	if _, err := exec.LookPath("git"); err != nil {
 		log.Fatal("git command not found in PATH - please install git")

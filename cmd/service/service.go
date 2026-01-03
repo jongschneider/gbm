@@ -14,7 +14,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// JiraConfig represents JIRA-specific configuration
+// JiraConfig represents JIRA-specific configuration.
+// This holds all JIRA integration settings including filters, attachment downloads, and markdown generation.
 type JiraConfig struct {
 	Me          string           `yaml:"me,omitempty"`          // Cached JIRA username
 	Filters     jira.JiraFilters `yaml:"filters,omitempty"`     // Issue list filters
@@ -22,7 +23,8 @@ type JiraConfig struct {
 	Markdown    MarkdownConfig   `yaml:"markdown,omitempty"`    // Markdown generation settings
 }
 
-// AttachmentConfig holds configuration for JIRA attachment downloads
+// AttachmentConfig holds configuration for JIRA attachment downloads.
+// These settings control how attachments are downloaded when creating worktrees from JIRA issues.
 type AttachmentConfig struct {
 	Enabled            bool   `yaml:"enabled"`                  // Enable attachment downloads
 	MaxSizeMB          int64  `yaml:"max_size_mb"`              // Maximum file size in MB
@@ -32,7 +34,8 @@ type AttachmentConfig struct {
 	RetryBackoffMs     int    `yaml:"retry_backoff_ms"`         // Initial retry backoff in milliseconds
 }
 
-// MarkdownConfig holds configuration for JIRA markdown generation
+// MarkdownConfig holds configuration for JIRA markdown generation.
+// Controls how JIRA issue information is formatted and exported to markdown files.
 type MarkdownConfig struct {
 	IncludeComments     bool   `yaml:"include_comments"`      // Include comments in markdown
 	IncludeAttachments  bool   `yaml:"include_attachments"`   // Include attachments section
@@ -42,13 +45,25 @@ type MarkdownConfig struct {
 	MaxDepth            int    `yaml:"max_depth"`             // Max depth for linked issues (default: 2)
 }
 
-// FileCopyRule defines files to copy from a source worktree
+// FileCopyRule defines files to copy from a source worktree.
+// Rules-based file copying allows selective copy of specific files and directories.
 type FileCopyRule struct {
 	SourceWorktree string   `yaml:"source_worktree"`
 	Files          []string `yaml:"files"`
 }
 
-// AutoFileCopyConfig holds configuration for automatic file copying
+// AutoFileCopyConfig holds configuration for automatic file copying.
+// Enables automatic copying of .gitignore'd and untracked files to new worktrees.
+//
+// Example:
+//
+//	auto:
+//	  enabled: true
+//	  source_worktree: "{default}"
+//	  copy_ignored: true
+//	  exclude:
+//	    - "*.log"
+//	    - "node_modules/"
 type AutoFileCopyConfig struct {
 	Enabled        bool     `yaml:"enabled"`         // Enable automatic copying
 	SourceWorktree string   `yaml:"source_worktree"` // Where to copy from (default: "{default}")
@@ -57,20 +72,35 @@ type AutoFileCopyConfig struct {
 	Exclude        []string `yaml:"exclude"`         // Patterns to exclude (gitignore syntax)
 }
 
-// FileCopyConfig holds file copying rules for new worktrees
+// FileCopyConfig holds file copying rules for new worktrees.
+// Supports both rule-based (explicit file lists) and automatic (gitignore-based) copying.
 type FileCopyConfig struct {
 	Rules []FileCopyRule     `yaml:"rules,omitempty"`
 	Auto  AutoFileCopyConfig `yaml:"auto,omitempty"`
 }
 
-// WorktreeConfig defines a persistent worktree configuration
+// WorktreeConfig defines a persistent worktree configuration.
+// Stores metadata about a worktree such as its branch and merge strategy.
 type WorktreeConfig struct {
 	Branch      string `yaml:"branch"`
 	MergeInto   string `yaml:"merge_into,omitempty"`
 	Description string `yaml:"description,omitempty"`
 }
 
-// Config represents the .gbm/config.yaml structure
+// Config represents the .gbm/config.yaml structure.
+// This is the main configuration file for GBM, stored at .gbm/config.yaml in the repository root.
+//
+// Example:
+//
+//	default_branch: main
+//	worktrees_dir: worktrees
+//	jira:
+//	  enabled: true
+//	  host: https://jira.example.com
+//	file_copy:
+//	  auto:
+//	    enabled: true
+//	    source_worktree: "{default}"
 type Config struct {
 	DefaultBranch string                    `yaml:"default_branch"`
 	WorktreesDir  string                    `yaml:"worktrees_dir"`
@@ -79,14 +109,25 @@ type Config struct {
 	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
 }
 
-// State represents the .gbm/state.yaml structure for cached data
+// State represents the .gbm/state.yaml structure for cached data.
+// This file stores runtime state like the current worktree and cached JIRA issues.
+// It's automatically managed and can be safely deleted.
 type State struct {
 	Jira             jira.IssuesCache `yaml:"jira"`
 	CurrentWorktree  string           `yaml:"current_worktree,omitempty"`  // Last worktree we switched to
 	PreviousWorktree string           `yaml:"previous_worktree,omitempty"` // Worktree before current
 }
 
-// Service wraps the git and jira services and provides configuration
+// Service wraps the git and jira services and provides configuration management.
+//
+// This is the main service for CLI commands. It manages configuration files,
+// state caching, and coordinates between git and JIRA services.
+//
+// Fields:
+//   - Git: Git service for repository operations
+//   - Jira: JIRA service for issue integration
+//   - WorktreeDir: Configured worktrees directory (from config or default)
+//   - RepoRoot: Absolute path to repository root
 type Service struct {
 	Git         *git.Service
 	Jira        *jira.Service
@@ -221,8 +262,20 @@ func (s *Service) GetWorktreesPath() (string, error) {
 	return expandedDir, nil
 }
 
-// GetConfig returns the current configuration
-// Returns a default config if not loaded
+// GetConfig returns the current configuration.
+// Returns a default config if not loaded from file.
+//
+// The returned config is read from .gbm/config.yaml if the service
+// successfully loaded it, otherwise returns a sensible default.
+//
+// Returns:
+//   - *Config: The loaded or default configuration
+//
+// Example:
+//
+//	config := svc.GetConfig()
+//	fmt.Println("Default branch:", config.DefaultBranch)
+//	fmt.Println("Worktrees directory:", config.WorktreesDir)
 func (s *Service) GetConfig() *Config {
 	if s.config == nil {
 		return &Config{
@@ -304,7 +357,22 @@ func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments, 
 	return includeComments, includeAttachments, includeLinkedIssues, maxDepth
 }
 
-// SaveConfig writes the current configuration to .gbm/config.yaml
+// SaveConfig writes the current configuration to .gbm/config.yaml.
+// Creates the .gbm directory if it doesn't exist.
+//
+// The configuration is serialized to YAML format. Errors are returned if
+// the file cannot be written or if not in a git repository.
+//
+// Returns:
+//   - error: Non-nil if the config directory/file cannot be created or written
+//
+// Example:
+//
+//	config := svc.GetConfig()
+//	config.DefaultBranch = "develop"
+//	if err := svc.SaveConfig(); err != nil {
+//	    return err
+//	}
 func (s *Service) SaveConfig() error {
 	if s.RepoRoot == "" {
 		return ErrNotInGitRepository
@@ -346,7 +414,22 @@ func (s *Service) loadState() error {
 	return nil
 }
 
-// SaveState writes the current state to .gbm/state.yaml
+// SaveState writes the current state to .gbm/state.yaml.
+// Creates the .gbm directory if it doesn't exist.
+//
+// State files are automatically managed and can be safely deleted without
+// affecting repository functionality. They cache JIRA issues and worktree history.
+//
+// Returns:
+//   - error: Non-nil if the state file cannot be written
+//
+// Example:
+//
+//	state := svc.GetState()
+//	state.CurrentWorktree = "feature-x"
+//	if err := svc.SaveState(); err != nil {
+//	    return err
+//	}
 func (s *Service) SaveState() error {
 	if s.RepoRoot == "" {
 		return ErrNotInGitRepository
@@ -365,7 +448,20 @@ func (s *Service) SaveState() error {
 	return nil
 }
 
-// GetState returns the current state (loads it if not already loaded)
+// GetState returns the current state (loads it if not already loaded).
+// Never returns nil - returns empty state if loading fails.
+//
+// The state is lazily loaded from .gbm/state.yaml on first access.
+// If the file doesn't exist or can't be read, an empty state is returned.
+//
+// Returns:
+//   - *State: Always non-nil state (loaded or empty)
+//
+// Example:
+//
+//	state := svc.GetState()
+//	fmt.Println("Current worktree:", state.CurrentWorktree)
+//	fmt.Println("Previous worktree:", state.PreviousWorktree)
 func (s *Service) GetState() *State {
 	if s.state == nil {
 		_ = s.loadState() // Ignore errors, return empty state
@@ -376,8 +472,25 @@ func (s *Service) GetState() *State {
 	return s.state
 }
 
-// CopyFilesToWorktree copies files from source worktrees to the target worktree
-// based on the file copy rules in the config and automatic file copy settings
+// CopyFilesToWorktree copies files from source worktrees to the target worktree.
+// Uses both rule-based and automatic file copying based on config.
+//
+// This function applies two copying strategies in order:
+// 1. Automatic copying: If enabled, copies .gitignore'd and untracked files
+// 2. Rule-based copying: Copies files/directories specified in file_copy rules
+//
+// Parameters:
+//   - targetWorktreeName: Name of the worktree where files will be copied
+//
+// Returns:
+//   - error: Non-nil if any file operations fail
+//
+// Example:
+//
+//	// After creating a worktree, copy .env and config files
+//	if err := svc.CopyFilesToWorktree("feature-x"); err != nil {
+//	    return err
+//	}
 func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 	config := s.GetConfig()
 

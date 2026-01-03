@@ -13,7 +13,19 @@ import (
 	"github.com/Kei-K23/trashbox"
 )
 
-// Worktree represents a git worktree with its metadata
+// Worktree represents a git worktree with its metadata.
+//
+// A worktree is a separate working directory that shares the same git
+// repository but has its own branch and commit state. This allows
+// parallel development across multiple branches.
+//
+// Fields:
+//   - Name: Short name of the worktree (usually directory name)
+//   - Path: Absolute filesystem path to the worktree
+//   - Branch: Git branch name this worktree is on
+//   - Commit: Short commit hash (first 7 characters)
+//   - IsBare: True only for the bare repository (.git directory)
+//   - BaseBranch: The base branch used when creating this worktree
 type Worktree struct {
 	Name       string // Worktree name (e.g., "feature-x")
 	Path       string // Absolute path to the worktree
@@ -72,7 +84,37 @@ func parseWorktrees(output string) []Worktree {
 	return worktrees
 }
 
-// AddWorktree creates a new git worktree in the specified directory
+// AddWorktree creates a new git worktree in the specified directory.
+//
+// This function creates a new worktree that can be checked out on a
+// specified branch. It optionally creates the branch first if it doesn't
+// exist, using a base branch as the starting point.
+//
+// Parameters:
+//   - worktreesDir: Directory where worktrees should be created (usually repo/worktrees/)
+//   - worktreeName: Name of the worktree (becomes the directory name)
+//   - branchName: Git branch to check out in the new worktree
+//   - createBranch: If true, create the branch first; if false, branch must exist
+//   - baseBranch: Base branch for creating new branch (only used if createBranch=true)
+//   - dryRun: If true, print the command without executing it
+//
+// Returns:
+//   - *Worktree: The created worktree with metadata, or nil on error
+//   - error: Non-nil if worktree creation failed
+//
+// Errors:
+//   - ErrWorktreesDirectoryEmpty: If worktreesDir is empty
+//   - ErrWorktreeNameEmpty: If worktreeName is empty
+//   - ErrBranchNameEmpty: If branchName is empty
+//   - Other git errors from command execution
+//
+// Example:
+//
+//	worktree, err := gitSvc.AddWorktree("./worktrees", "feature-x", "feature/x", true, "main", false)
+//	if err != nil {
+//	    return err // "failed to add worktree: ..."
+//	}
+//	fmt.Println("Created worktree at:", worktree.Path)
 func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, createBranch bool, baseBranch string, dryRun bool) (*Worktree, error) {
 	if worktreesDir == "" {
 		return nil, ErrWorktreesDirectoryEmpty
@@ -144,7 +186,28 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 	return nil, fmt.Errorf("worktree created at %s but not found in worktree list", worktreePath)
 }
 
-// ListWorktrees lists all git worktrees in the repository
+// ListWorktrees lists all git worktrees in the repository.
+//
+// This returns all worktrees associated with the repository, including
+// the bare repository entry. The list includes both active worktrees and
+// broken worktree references (which should be cleaned up with RemoveWorktree).
+//
+// Parameters:
+//   - dryRun: If true, print the command without executing it
+//
+// Returns:
+//   - []Worktree: Slice of worktrees, sorted by path
+//   - error: Non-nil if the command failed
+//
+// Example:
+//
+//	worktrees, err := gitSvc.ListWorktrees(false)
+//	if err != nil {
+//	    return err
+//	}
+//	for _, wt := range worktrees {
+//	    fmt.Printf("Worktree: %s on branch %s\n", wt.Name, wt.Branch)
+//	}
 func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 	args := []string{"worktree", "list"}
 
@@ -163,7 +226,30 @@ func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 	return parseWorktrees(string(output)), nil
 }
 
-// GetWorktreeBranch returns the branch associated with a worktree
+// GetWorktreeBranch returns the branch name associated with a worktree.
+//
+// This function queries the specified worktree's git directory to determine
+// which branch it's currently on. It's useful for verifying the state of
+// a worktree or displaying branch information.
+//
+// Parameters:
+//   - worktreePath: Absolute path to the worktree directory
+//
+// Returns:
+//   - string: Branch name (e.g., "feature/ABC-123")
+//   - error: Non-nil if the path is invalid or git fails
+//
+// Errors:
+//   - ErrWorktreePathEmpty: If worktreePath is empty
+//   - Git command errors if the path is not a valid worktree
+//
+// Example:
+//
+//	branch, err := gitSvc.GetWorktreeBranch("/path/to/repo/worktrees/feature")
+//	if err != nil {
+//	    return err
+//	}
+//	fmt.Println("Branch:", branch)
 func (s *Service) GetWorktreeBranch(worktreePath string) (string, error) {
 	if worktreePath == "" {
 		return "", ErrWorktreePathEmpty
@@ -252,7 +338,35 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 	return nil
 }
 
-// RemoveWorktree removes a git worktree by name and returns the removed worktree info
+// RemoveWorktree removes a git worktree by name and returns the removed worktree info.
+//
+// This function safely removes a worktree by first moving it to the trash
+// (if available) before deleting the git reference. This provides a safety
+// mechanism to recover accidentally deleted worktrees.
+//
+// The worktree is renamed with a timestamp before trashing to avoid
+// conflicts if the same worktree name is reused immediately.
+//
+// Parameters:
+//   - worktreeName: Name of the worktree to remove (not the path)
+//   - force: If true, force removal even if the worktree is in an inconsistent state
+//   - dryRun: If true, print what would happen without actually removing
+//
+// Returns:
+//   - *Worktree: The removed worktree metadata
+//   - error: Non-nil if the worktree wasn't found or removal failed
+//
+// Errors:
+//   - ErrWorktreeNameEmpty: If worktreeName is empty
+//   - Returns error if worktree not found
+//
+// Example:
+//
+//	removed, err := gitSvc.RemoveWorktree("feature-x", false, false)
+//	if err != nil {
+//	    return err // "worktree 'feature-x' not found"
+//	}
+//	fmt.Printf("Removed worktree: %s\n", removed.Name)
 func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (*Worktree, error) {
 	if worktreeName == "" {
 		return nil, ErrWorktreeNameEmpty
@@ -326,8 +440,32 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 	return targetWorktree, nil
 }
 
-// IsInWorktree checks if the current directory is inside a worktree
-// Returns: (isInWorktree bool, worktreeName string, error)
+// IsInWorktree checks if the current directory is inside a worktree.
+//
+// This function determines whether the given path is within a worktree
+// by comparing it against all known worktrees in the repository. It's
+// useful for commands that need to validate they're being run from within
+// a worktree.
+//
+// Parameters:
+//   - currentPath: Path to check (usually the current working directory)
+//
+// Returns:
+//   - bool: True if currentPath is inside a worktree
+//   - string: Worktree name if in a worktree, empty string otherwise
+//   - error: Non-nil if listing worktrees failed
+//
+// Example:
+//
+//	inWorktree, name, err := gitSvc.IsInWorktree(pwd)
+//	if err != nil {
+//	    return err
+//	}
+//	if inWorktree {
+//	    fmt.Printf("You're in worktree: %s\n", name)
+//	} else {
+//	    fmt.Println("You're in the bare repository")
+//	}
 func (s *Service) IsInWorktree(currentPath string) (bool, string, error) {
 	// Get all worktrees
 	worktrees, err := s.ListWorktrees(false)
