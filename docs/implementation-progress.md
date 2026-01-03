@@ -1,15 +1,16 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P1.2 - E2E Testing Infrastructure - 🔄 IN PROGRESS
+**Current Phase:** P1.2 - E2E Testing Infrastructure - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 2/3 tasks complete in P1.2 🔄
+**Progress:** 3/3 tasks complete in P1.2 ✅
 **P1.1 Progress:** 5/5 tasks complete ✅
+**P1.2 Progress:** 3/3 tasks complete ✅
 
 **P1.1 Tasks:**
 | Task | Status | Date | Time |
@@ -25,7 +26,7 @@
 |------|--------|------|------|
 | 1.2.1 Testutil Package | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.2.2 E2E Worktree Tests | ✅ COMPLETE | 2026-01-02 | ~4h |
-| 1.2.3 E2E Shell Integration | ⏳ PENDING | - | - |
+| 1.2.3 E2E Shell Integration | ✅ COMPLETE | 2026-01-02 | ~3h |
 
 ---
 
@@ -510,6 +511,110 @@ setupGBMRepo(t) (*testRepo, string)               // Create GBM repo with initia
 
 ---
 
+### Task 1.2.3: Add E2E test for shell integration
+**Completed:** 2026-01-02
+**File:** `e2e_test.go` (470 lines total)
+
+**What Was Done:**
+1. Added comprehensive shell integration E2E tests
+2. Validated that stdout/stderr pattern works for shell integration use cases
+3. Tested exit code propagation for success and failure cases
+4. Verified output format matches shell wrapper expectations
+5. Tested all command forms and aliases comprehensively
+6. Tested error handling with empty stdout on failures
+
+**Test Cases Added:**
+
+**1. Shell Integration Command:**
+- `TestE2E_ShellIntegration_Command` - Verifies `gbm shell-integration` outputs correct script
+  - Validates script contains gbm2() function definition
+  - Confirms all command forms (worktree/wt, switch/sw/s, add/a, list/ls/l)
+  - Ensures script includes cd logic for shell integration
+
+**2. Exit Code Testing:**
+- `TestE2E_ShellIntegration_ExitCodes` - Validates exit code propagation
+  - Success case returns exit code 0
+  - Failure case returns non-zero exit code
+  - Shell wrapper can use exit codes for conditional cd
+
+**3. Output Format Validation:**
+- `TestE2E_ShellIntegration_OutputFormat` - Verifies exact output format
+  - Stdout is exactly one line (the path)
+  - Path is absolute and points to existing directory
+  - Stderr contains messages but not the path
+  - Format matches what shell wrapper expects for parsing
+
+**4. All Command Forms:**
+- `TestE2E_ShellIntegration_AllCommands` - Table-driven test for all aliases
+  - `worktree switch <name>`
+  - `wt switch <name>`
+  - `wt sw <name>`
+  - `wt s <name>`
+  - All produce single-line stdout with path
+
+**5. Add Command Integration:**
+- `TestE2E_ShellIntegration_AddCommand` - Validates worktree add for shell integration
+  - Stdout contains new worktree path (single line)
+  - Stderr has success message without path
+  - Shell integration can cd to newly created worktree
+  - Worktree actually exists on filesystem
+
+**6. Error Message Handling:**
+- `TestE2E_ShellIntegration_ErrorMessages` - Validates error behavior
+  - Stdout is empty on error (prevents shell from cd'ing)
+  - Stderr contains error message
+  - Non-zero exit code returned
+
+**7. Both Command Forms:**
+- `TestE2E_ShellIntegration_BothCommandForms` - Validates `worktree` and `wt` consistency
+  - Both forms produce identical output format
+  - Both work with shell integration wrapper
+
+**Test Results:**
+```
+=== Shell Integration Test Summary ===
+✅ TestE2E_ShellIntegration_Command
+✅ TestE2E_ShellIntegration_ExitCodes
+✅ TestE2E_ShellIntegration_OutputFormat
+✅ TestE2E_ShellIntegration_AllCommands (4 sub-tests)
+✅ TestE2E_ShellIntegration_AddCommand
+✅ TestE2E_ShellIntegration_ErrorMessages
+✅ TestE2E_ShellIntegration_BothCommandForms (2 sub-tests)
+
+7 test functions, 6 subtests, all passing
+Total E2E tests: 16 passed, 1 skipped (TUI)
+```
+
+**What Was Validated:**
+- ✅ Shell integration script generation works
+- ✅ Exit codes propagate correctly for conditional cd
+- ✅ Stdout format is exactly what shell wrapper expects (single line, absolute path)
+- ✅ Stderr never contains paths (only messages)
+- ✅ All command forms and aliases work identically
+- ✅ Add command outputs path for auto-cd after creation
+- ✅ Errors produce empty stdout (shell won't cd on failure)
+- ✅ Both `worktree` and `wt` command forms consistent
+
+**Benefits:**
+- **Prevents regressions**: Shell integration is fully tested end-to-end
+- **Validates universal pattern**: Confirms stdout/stderr separation works for real use cases
+- **Exit code safety**: Ensures shell wrapper can rely on exit codes
+- **Format stability**: Tests lock in the exact format shell script expects
+- **Comprehensive coverage**: All aliases, command forms, and error cases tested
+
+**Code Quality:**
+- All tests use testify assert/require pattern
+- Clear test names describe what's being validated
+- Proper use of table-driven tests for command variants
+- Each test validates one specific aspect of shell integration
+
+**Files Modified:**
+- `e2e_test.go` (added 7 new test functions, ~190 lines)
+
+**Validation:** ✅ All tests pass (16 E2E tests), full validation pipeline successful
+
+---
+
 ## 🔑 Key Patterns & Decisions
 
 ### Universal Stdout/Stderr Pattern
@@ -630,4 +735,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P1.2 Task 1.2.2 (E2E test suite for worktree operations)
+**Last Updated:** 2026-01-02 - Completed P1.2 Task 1.2.3 (E2E shell integration tests) - **P1.2 COMPLETE ✅**

@@ -277,3 +277,193 @@ func TestE2E_Init_CreatesStructure(t *testing.T) {
 	worktreesDir := filepath.Join(repoDir, "worktrees")
 	assert.DirExists(t, worktreesDir, "worktrees directory should exist")
 }
+
+// ==================== Shell Integration Tests ====================
+// These tests validate that the stdout/stderr pattern works correctly
+// for shell integration, including exit codes and output format.
+
+func TestE2E_ShellIntegration_Command(t *testing.T) {
+	binPath := buildBinary(t)
+
+	// Test that shell-integration command outputs the script - require (need output)
+	stdout, stderr, err := runGBMStdout(t, binPath, ".", "shell-integration")
+	require.NoError(t, err, "shell-integration command should succeed")
+
+	// Validate script content - use assert (want to see all issues)
+	assert.Contains(t, stdout, "gbm2()", "script should define gbm2 function")
+	assert.Contains(t, stdout, "worktree", "script should handle worktree commands")
+	assert.Contains(t, stdout, "switch", "script should handle switch command")
+	assert.Contains(t, stdout, "cd \"$result\"", "script should cd to result")
+	assert.Empty(t, stderr, "shell-integration should not output to stderr")
+
+	// Verify script contains all supported command forms
+	assert.Contains(t, stdout, "wt", "script should handle 'wt' alias")
+	assert.Contains(t, stdout, "sw", "script should handle 'sw' alias")
+	assert.Contains(t, stdout, "add", "script should handle 'add' command")
+	assert.Contains(t, stdout, "list", "script should handle 'list' command")
+}
+
+func TestE2E_ShellIntegration_ExitCodes(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree for success case
+	_, err := runGBM(t, binPath, repo.Root, "wt", "add", "success-test", "success-test", "-b")
+	require.NoError(t, err, "failed to create worktree")
+
+	// Test success case (exit code 0)
+	cmd := exec.Command(binPath, "wt", "switch", "success-test")
+	cmd.Dir = repo.Root
+	err = cmd.Run()
+	assert.NoError(t, err, "successful switch should have exit code 0")
+
+	// Test failure case (exit code non-zero)
+	cmd = exec.Command(binPath, "wt", "switch", "non-existent-worktree")
+	cmd.Dir = repo.Root
+	err = cmd.Run()
+	assert.Error(t, err, "failed switch should have non-zero exit code")
+
+	// Verify it's an ExitError with non-zero code
+	var exitErr *exec.ExitError
+	if assert.ErrorAs(t, err, &exitErr, "error should be ExitError") {
+		assert.NotEqual(t, 0, exitErr.ExitCode(), "failed command should return non-zero exit code")
+	}
+}
+
+func TestE2E_ShellIntegration_OutputFormat(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	// Create worktree for testing
+	_, err := runGBM(t, binPath, repo.Root, "wt", "add", "format-test", "format-test", "-b")
+	require.NoError(t, err, "failed to create worktree")
+
+	// Test that stdout is exactly one line with the path
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "wt", "switch", "format-test")
+	require.NoError(t, err, "switch should succeed")
+
+	// Stdout should be exactly one line
+	stdoutLines := strings.Split(strings.TrimSpace(stdout), "\n")
+	assert.Len(t, stdoutLines, 1, "stdout should contain exactly 1 line for shell integration")
+
+	// The line should be a valid absolute path
+	path := stdoutLines[0]
+	assert.True(t, filepath.IsAbs(path), "stdout should contain absolute path, got: %q", path)
+
+	// Path should exist and be a directory
+	info, err := os.Stat(path)
+	require.NoError(t, err, "path from stdout should exist: %q", path)
+	assert.True(t, info.IsDir(), "path from stdout should be a directory")
+
+	// Stderr can have messages but should not have the path
+	assert.NotContains(t, stderr, path, "stderr should not contain the path")
+}
+
+func TestE2E_ShellIntegration_AllCommands(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	testCases := []struct {
+		name     string
+		args     []string
+		wantPath string
+	}{
+		{
+			name:     "worktree switch",
+			args:     []string{"worktree", "switch", "main"},
+			wantPath: filepath.Join(repo.Root, "worktrees", "main"),
+		},
+		{
+			name:     "wt switch",
+			args:     []string{"wt", "switch", "main"},
+			wantPath: filepath.Join(repo.Root, "worktrees", "main"),
+		},
+		{
+			name:     "wt sw",
+			args:     []string{"wt", "sw", "main"},
+			wantPath: filepath.Join(repo.Root, "worktrees", "main"),
+		},
+		{
+			name:     "wt s",
+			args:     []string{"wt", "s", "main"},
+			wantPath: filepath.Join(repo.Root, "worktrees", "main"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, _, err := runGBMStdout(t, binPath, repo.Root, tc.args...)
+			require.NoError(t, err, "%s should succeed", tc.name)
+
+			// Verify stdout contains the expected path
+			assert.Contains(t, stdout, tc.wantPath,
+				"%s should output correct path", tc.name)
+
+			// Verify it's a single line
+			stdoutLines := strings.Split(strings.TrimSpace(stdout), "\n")
+			assert.Len(t, stdoutLines, 1,
+				"%s stdout should be single line", tc.name)
+		})
+	}
+}
+
+func TestE2E_ShellIntegration_AddCommand(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	// Test that 'wt add' outputs path for shell integration to cd
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "wt", "add", "new-wt", "new-branch", "-b")
+	require.NoError(t, err, "wt add should succeed")
+
+	expectedPath := filepath.Join(repo.Root, "worktrees", "new-wt")
+
+	// Validate stdout - use assert (want to see all issues)
+	assert.Contains(t, stdout, expectedPath, "stdout should contain new worktree path")
+	stdoutLines := strings.Split(strings.TrimSpace(stdout), "\n")
+	assert.Len(t, stdoutLines, 1, "stdout should be single line")
+
+	// Stderr should have messages but not the path
+	assert.NotContains(t, stderr, expectedPath, "stderr should not contain path")
+	assert.True(t,
+		strings.Contains(stderr, "Created") || strings.Contains(stderr, "✓"),
+		"stderr should contain success message")
+
+	// Verify the worktree was actually created
+	assert.DirExists(t, expectedPath, "worktree should exist")
+}
+
+func TestE2E_ShellIntegration_ErrorMessages(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	// Test that error messages go to stderr, not stdout
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "wt", "switch", "does-not-exist")
+	require.Error(t, err, "switching to non-existent worktree should fail")
+
+	// Stdout should be empty or minimal (no path on error)
+	assert.Empty(t, strings.TrimSpace(stdout),
+		"stdout should be empty on error (shell integration should not cd)")
+
+	// Stderr should contain error message
+	assert.NotEmpty(t, stderr, "stderr should contain error message")
+}
+
+func TestE2E_ShellIntegration_BothCommandForms(t *testing.T) {
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree to test with
+	_, err := runGBM(t, binPath, repo.Root, "wt", "add", "test-both", "test-both", "-b")
+	require.NoError(t, err, "failed to create worktree")
+
+	expectedPath := filepath.Join(repo.Root, "worktrees", "test-both")
+
+	// Test both 'worktree' and 'wt' command forms
+	for _, cmdForm := range []string{"worktree", "wt"} {
+		t.Run(cmdForm, func(t *testing.T) {
+			stdout, _, err := runGBMStdout(t, binPath, repo.Root, cmdForm, "switch", "test-both")
+			require.NoError(t, err, "%s switch should succeed", cmdForm)
+
+			assert.Contains(t, stdout, expectedPath,
+				"%s switch should output path", cmdForm)
+
+			stdoutLines := strings.Split(strings.TrimSpace(stdout), "\n")
+			assert.Len(t, stdoutLines, 1,
+				"%s switch stdout should be single line", cmdForm)
+		})
+	}
+}
