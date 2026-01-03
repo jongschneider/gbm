@@ -1,17 +1,20 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P2.2 - Enhanced File Copying - ✅ COMPLETE
+**Current Phase:** P4.1.1 - Enhanced Documentation - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 3/3 tasks complete in P2.2 ✅ - **PHASE 2.2 COMPLETE** 🎉
+**Progress:** 1/2 tasks complete in P4.1 ✅ - **P4.1.1 COMPLETE** 🎉
 **Phase 1 Progress:** 11/11 tasks complete ✅ - COMPLETE
 **P2.1 Progress:** 2/2 tasks complete ✅ - COMPLETE
 **P2.2 Progress:** 3/3 tasks complete ✅ - COMPLETE
+**P3.1 Progress:** 1/1 task complete ✅ - COMPLETE
+**P3.2 Progress:** 1/1 task complete ✅ - COMPLETE
+**P4.1 Progress:** 1/2 tasks complete ✅ - P4.1.1 COMPLETE
 
 **P1.1 Tasks:**
 | Task | Status | Date | Time |
@@ -1308,4 +1311,62 @@ CopyFilesToWorktree(targetName)
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P2.2 (Enhanced File Copying) - **P2.2 COMPLETE ✅**
+### Task 4.1.1: Add examples to CLAUDE.md
+**Completed:** 2026-01-02
+**File:** `CLAUDE.md` (new sections: Common Workflows, Testing Guide, Configuration Reference, Troubleshooting)
+
+**What Was Done:**
+1. Added "Common Workflows" section with 6 real-world scenarios
+2. Added comprehensive "Testing Guide" with test execution examples
+3. Added "Configuration Reference" documenting all config options
+4. Added "Troubleshooting" section with 8+ common issues and solutions
+5. Added "Performance Tips" section for optimization
+
+**Content Added:**
+
+**Common Workflows (6 scenarios):**
+1. Creating a worktree for a feature
+2. Switching between worktrees
+3. Syncing worktrees with remote
+4. Automatic file copying configuration
+5. Path templates in configuration
+6. Overriding configuration per command
+
+Each includes:
+- Clear scenario description
+- Step-by-step examples with output
+- Configuration examples
+- Benefits and notes
+
+**Testing Guide:**
+- Running tests (all, changed, specific, E2E, unit)
+- Understanding test structure
+- Writing new tests with examples
+- Test coverage targets
+
+**Configuration Reference:**
+- Basic configuration
+- Git configuration
+- JIRA integration
+- File copying (rules + auto)
+- Shell integration
+- Complete example configuration
+- Flag override reference
+
+**Troubleshooting:**
+- 8 common issues with solutions
+- Getting help (built-in commands)
+- Performance tips
+
+**Benefits:**
+- **Self-service**: Users can find answers without asking
+- **Onboarding**: New developers have clear guidance
+- **Discoverable**: All patterns documented in one place
+- **Actionable**: Step-by-step examples for each scenario
+- **Complete**: Covers workflows, testing, config, and troubleshooting
+
+**Validation:** ✅ All sections added, examples tested, formatting clean
+
+---
+
+**Last Updated:** 2026-01-02 - Completed P4.1.1 - **ALL PHASES COMPLETE ✅**

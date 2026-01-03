@@ -537,3 +537,812 @@ func TestExample(t *testing.T) {
 - Unit tests colocated with source code (e.g., `internal/git/init_test.go`)
 - Test utilities in `testutil/` package
 - Use `t.Helper()` in test helper functions
+
+---
+
+## Common Workflows
+
+This section shows common workflows and use cases for GBM.
+
+### Workflow 1: Creating a Worktree for a Feature
+
+**Scenario:** You're starting work on a new feature and want to create a dedicated worktree.
+
+```bash
+# Method 1: Create worktree with automatic branch creation
+gbm wt add feature-x feature/feature-x -b
+# Output:
+# /path/to/repo/worktrees/feature-x
+# ✓ Created worktree 'feature-x' for branch 'feature/feature-x'
+
+# Automatically cd's into the worktree via shell integration
+cd $( gbm wt add feature-x feature/feature-x -b )
+
+# Method 2: Create worktree for existing branch
+gbm wt add feature-x feature/feature-x
+# Output:
+# /path/to/repo/worktrees/feature-x
+# ✓ Created worktree 'feature-x' for branch 'feature/feature-x'
+
+# Method 3: Using JIRA integration (if configured)
+gbm wt add PROJ-123  # Creates from JIRA issue
+# Output:
+# /path/to/repo/worktrees/PROJ-123
+# ✓ Created worktree 'PROJ-123' for branch 'feature/PROJ-123'
+```
+
+**With shell integration enabled:**
+```bash
+# After running `eval "$(gbm shell-integration)"`, auto-cd works:
+gbm wt add feature-x feature/feature-x -b
+# You're automatically cd'd to /path/to/repo/worktrees/feature-x
+# No need for cd command!
+```
+
+**Configuration notes:**
+- Default branch (created with `-b`) uses `config.DefaultBranch` (default: `main`)
+- Override with `--base`: `gbm wt add feat-x feat/x -b --base develop`
+
+---
+
+### Workflow 2: Switching Between Worktrees
+
+**Scenario:** You have multiple worktrees and need to switch between them.
+
+```bash
+# List worktrees and select interactively (TUI)
+gbm wt list
+# Shows table of all worktrees, select with arrow keys and Enter
+
+# Switch directly to named worktree
+gbm wt switch feature-x
+# Output:
+# /path/to/repo/worktrees/feature-x
+# ✓ Switched to worktree 'feature-x'
+
+# With shell integration, automatically cd's:
+eval "$(gbm shell-integration)"
+gbm wt switch feature-x
+# You're now in the worktree directory
+
+# Using aliases
+gbm wt sw feature-x      # Short form: sw
+gbm wt s feature-x       # Shorter form: s
+gbm worktree switch feature-x  # Full command form
+
+# List aliases
+gbm wt list        # Full form
+gbm wt ls          # Short form: ls
+gbm wt l           # Shorter form: l
+```
+
+**Error handling:**
+```bash
+$ gbm wt switch nonexistent
+# Error: worktree 'nonexistent' not found
+# Try: gbm wt list
+```
+
+---
+
+### Workflow 3: Syncing Worktrees with Remote
+
+**Scenario:** You want to ensure your worktree is up-to-date with the remote.
+
+```bash
+# Fetch latest from remote for all branches
+gbm wt sync --fetch
+
+# Fetch and pull in current worktree
+gbm wt sync --pull
+
+# Fetch and push in current worktree
+gbm wt sync --push
+
+# Dry-run mode (see what would happen)
+gbm wt sync --fetch --dry-run
+# Output shows git commands without executing
+```
+
+---
+
+### Workflow 4: Automatic File Copying
+
+**Scenario:** You want to automatically copy configuration files (`.env`, `.config`) to new worktrees.
+
+**Configuration in `.gbm/config.yaml`:**
+```yaml
+file_copy:
+  auto:
+    enabled: true
+    source_worktree: "{default}"  # Use worktree with default branch
+    copy_ignored: true            # Copy .gitignored files
+    copy_untracked: false         # Don't copy untracked files
+    exclude:
+      - "*.log"                   # Exclude log files
+      - "node_modules/"           # Exclude directories
+```
+
+**When you create a worktree:**
+```bash
+gbm wt add feature-x feature/x -b
+# Automatically copies:
+# - .env (if ignored)
+# - .config/ directory (if ignored)
+# - Other files matching copy_ignored config
+# - But excludes *.log and node_modules/
+```
+
+**How source resolution works:**
+- `"{default}"` → Worktree with branch matching `DefaultBranch`
+- `"{current}"` → The worktree you're currently in
+- `"main"` → Specific worktree name
+
+**Disable auto-copy for one operation:**
+```bash
+# Modify config temporarily or use explicit source
+gbm wt add feature-x feature/x -b
+# Auto copy happens automatically
+```
+
+---
+
+### Workflow 5: Path Templates in Configuration
+
+**Scenario:** You want to organize worktrees outside the repository directory.
+
+**Configuration in `.gbm/config.yaml`:**
+```yaml
+worktrees_dir: ../{gitroot}-worktrees
+# For repo "gbm": /path/to/gbm-worktrees
+# For repo "cli": /path/to/cli-worktrees
+
+# Or with home directory:
+worktrees_dir: ~/dev/{gitroot}/worktrees
+# For repo "gbm": /home/user/dev/gbm/worktrees
+```
+
+**Template variables:**
+- `{gitroot}` - Repository directory name (e.g., "gbm")
+- `{branch}` - Branch name (context-specific)
+- `{issue}` - JIRA issue key (if JIRA enabled)
+
+**Benefits:**
+- Share config across multiple repos
+- Organize worktrees per-repo or centrally
+- Easy relocation if repo is renamed
+
+---
+
+### Workflow 6: Overriding Configuration Per Command
+
+**Scenario:** You want to use a different base branch for one-off operations.
+
+```bash
+# Config has default_branch: "main"
+gbm wt add feat-x feat/x -b
+# Uses "main" as base branch
+
+# Override for this command only
+gbm wt add feat-x feat/x -b --base develop
+# Uses "develop" as base branch
+
+# Without modifying .gbm/config.yaml
+# Perfect for testing or experimentation
+```
+
+**Other flag overrides:**
+- `--dry-run` - Preview what will happen
+- `--base <branch>` - Base branch for new branches
+- `--remote <name>` - Git remote to use
+
+---
+
+## Testing Guide
+
+### Running Tests
+
+**Run all tests:**
+```bash
+just test
+# Runs: go test ./... -timeout 10m
+
+# Or directly:
+go test ./...
+```
+
+**Run tests for changed packages only:**
+```bash
+just test-changed
+# Only runs tests for files you've modified
+```
+
+**Run specific test:**
+```bash
+go test ./internal/git -run TestAddWorktree
+go test ./... -v  # Verbose output
+```
+
+**Run E2E tests only:**
+```bash
+go test -v -run TestE2E ./...
+# Tests real command execution, shell integration, etc.
+```
+
+**Run unit tests only (no E2E):**
+```bash
+go test -v -short ./...  # Short flag skips slow E2E tests
+```
+
+### Understanding Test Structure
+
+**Unit tests:**
+- Located with source code: `internal/git/worktree_test.go`
+- Fast, focused on single functions
+- Mock dependencies
+- Example: `TestAddWorktree` tests git.Service.AddWorktree()
+
+**E2E tests:**
+- Located in `e2e_test.go` at project root
+- Build binary and run real commands
+- Validate real workflows
+- Example: `TestE2E_WorktreeAdd_CLI` tests `gbm wt add` command
+
+**Test utilities:**
+- In `testutil/` package
+- Reusable across tests
+- Example: `testutil.TestRepo` for git repository setup
+
+### Writing New Tests
+
+**Example unit test:**
+```go
+func TestMyFunction(t *testing.T) {
+    // Arrange: Set up test data
+    service := git.NewService(repoRoot)
+    
+    // Act: Call the function
+    result, err := service.MyFunction(...)
+    
+    // Assert: Verify result
+    require.NoError(t, err, "function must succeed")
+    assert.Equal(t, expected, result, "result should match expected")
+}
+```
+
+**Example E2E test:**
+```go
+func TestE2E_MyWorkflow(t *testing.T) {
+    // Setup: Build binary and create test repo
+    binPath := buildBinary(t)
+    repo := setupGBMRepo(t)
+    
+    // Execute: Run command
+    out, err := runGBM(t, binPath, repo.Root, "wt", "add", "test", "test", "-b")
+    
+    // Verify: Check results
+    require.NoError(t, err, "command must succeed")
+    assert.DirExists(t, filepath.Join(repo.Root, "worktrees", "test"))
+}
+```
+
+### Test Coverage
+
+**Check coverage:**
+```bash
+go test ./... -cover
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out  # Opens HTML report
+```
+
+**Target:**
+- Unit tests: >80% coverage
+- E2E tests: Core workflows covered
+- Overall: >70% combined coverage
+
+---
+
+## Configuration Reference
+
+GBM is configured via `.gbm/config.yaml` in the repository root. This section documents all available options.
+
+### Basic Configuration
+
+```yaml
+# Default base branch for new branches (-b flag)
+default_branch: main
+
+# Worktrees directory (relative to repo root)
+worktrees_dir: worktrees
+
+# Supports templates:
+worktrees_dir: ../{gitroot}-worktrees  # /path/to/gbm-worktrees
+worktrees_dir: ~/dev/{gitroot}/wt      # /home/user/dev/gbm/wt
+```
+
+### Git Configuration
+
+```yaml
+# Git remotes to configure
+remotes:
+  origin:
+    url: git@github.com:user/repo.git
+  upstream:
+    url: git@github.com:original/repo.git
+
+# Default branch to fetch from when syncing
+default_branch: main
+
+# Fetch tags when syncing
+fetch_tags: true
+```
+
+### JIRA Integration
+
+```yaml
+jira:
+  enabled: true
+  host: https://jira.company.com
+  
+  # Your JIRA API token (generate in JIRA → Settings → API tokens)
+  api_token: ${JIRA_API_TOKEN}  # Or paste directly
+  
+  # Your JIRA username (email for cloud instances)
+  username: user@company.com
+  
+  # JQL query to filter issues
+  jql: "assignee = currentUser() AND status != Done"
+  
+  # Generate branch name from issue key
+  # Example: PROJ-123 → feature/PROJ-123
+  branch_prefix: feature/
+```
+
+### File Copying Configuration
+
+```yaml
+file_copy:
+  # Rule-based copying (existing feature)
+  rules:
+    - source: ".env"      # File to copy from source worktree
+      target: ".env"      # Where to copy it to
+      create_if_missing: true  # Create empty file if source missing
+    
+    - source: "config/"   # Directory to copy
+      target: "config/"
+      create_if_missing: false
+
+  # Automatic copying (optional new feature)
+  auto:
+    enabled: false                    # Enable auto-copy
+    source_worktree: "{default}"      # Source: {default}, {current}, or name
+    copy_ignored: true                # Copy .gitignored files
+    copy_untracked: false             # Copy untracked files
+    exclude:                          # Exclude patterns (gitignore syntax)
+      - "*.log"                       # Exclude log files
+      - "node_modules/"               # Exclude directories
+      - ".DS_Store"                   # Exclude specific files
+```
+
+### Shell Integration
+
+GBM provides shell integration for auto-cd functionality. Add to your shell config:
+
+```bash
+# In ~/.bashrc or ~/.zshrc:
+eval "$(gbm shell-integration)"
+
+# Now these commands auto-cd:
+gbm wt switch feature-x
+gbm wt add feat-x feat/x -b
+gbm wt list               # Select worktree with TUI
+```
+
+### Example Complete Configuration
+
+```yaml
+# Repository structure
+default_branch: main
+worktrees_dir: worktrees
+
+# Git remotes
+remotes:
+  origin:
+    url: git@github.com:user/repo.git
+  upstream:
+    url: git@github.com:org/repo.git
+
+# JIRA integration (optional)
+jira:
+  enabled: true
+  host: https://jira.company.com
+  username: user@company.com
+  api_token: ${JIRA_API_TOKEN}
+  jql: "assignee = currentUser() AND sprint = openSprints()"
+  branch_prefix: feature/
+
+# File copying
+file_copy:
+  rules:
+    - source: ".env"
+      target: ".env"
+      create_if_missing: true
+    
+    - source: ".secrets/"
+      target: ".secrets/"
+      create_if_missing: false
+  
+  auto:
+    enabled: true
+    source_worktree: "{default}"
+    copy_ignored: true
+    copy_untracked: false
+    exclude:
+      - "*.log"
+      - "build/"
+      - "node_modules/"
+```
+
+### Flag Overrides
+
+Many options can be overridden per-command without editing config:
+
+```bash
+# Override default_branch
+gbm wt add feat-x feat/x -b --base develop
+
+# Override worktrees_dir (if supported by command)
+# Dry-run mode
+gbm wt sync --dry-run
+
+# List all available flags
+gbm --help
+gbm wt --help
+gbm wt add --help
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Issue: "worktree not found"
+
+**Symptom:**
+```bash
+$ gbm wt switch feature-x
+Error: worktree 'feature-x' not found
+```
+
+**Solutions:**
+
+1. **List available worktrees:**
+   ```bash
+   gbm wt list      # See all worktrees in TUI
+   gbm wt ls        # Alternative
+   ```
+
+2. **Check worktrees directory:**
+   ```bash
+   ls /path/to/repo/worktrees/
+   # Check if directory exists and has worktrees
+   ```
+
+3. **Verify git configuration:**
+   ```bash
+   git worktree list
+   # Should show same worktrees as gbm
+   ```
+
+---
+
+#### Issue: Auto-cd not working
+
+**Symptom:**
+```bash
+gbm wt switch feature-x
+# Prints path to stdout but doesn't cd
+
+# vs. expected:
+gbm wt switch feature-x
+# cd's automatically to /path/to/repo/worktrees/feature-x
+```
+
+**Solutions:**
+
+1. **Verify shell integration enabled:**
+   ```bash
+   # Check if function is defined
+   type gbm2  # Should show it's a function, not a command
+   
+   # If not a function, enable it:
+   eval "$(gbm shell-integration)"
+   
+   # Or add to ~/.bashrc / ~/.zshrc:
+   eval "$(gbm shell-integration)"
+   ```
+
+2. **Verify shell integration script:**
+   ```bash
+   gbm shell-integration  # Shows the integration script
+   
+   # Should contain something like:
+   # gbm2() { command gbm2 "$@"; ... }
+   ```
+
+3. **Check shell configuration:**
+   ```bash
+   echo $SHELL  # Should be bash or zsh
+   # Fish shell needs separate setup (future enhancement)
+   ```
+
+---
+
+#### Issue: ".gbm/config.yaml not found"
+
+**Symptom:**
+```bash
+$ gbm wt add feature-x feature/x
+Error: .gbm/config.yaml not found
+```
+
+**Solutions:**
+
+1. **Initialize repository:**
+   ```bash
+   gbm init                    # Creates .gbm/config.yaml
+   # or
+   gbm clone <repo-url>        # Clone with config
+   ```
+
+2. **Create config manually:**
+   ```bash
+   mkdir -p .gbm
+   cp config.example.yaml .gbm/config.yaml
+   # Edit .gbm/config.yaml with your settings
+   ```
+
+3. **Verify current directory:**
+   ```bash
+   pwd                         # Must be repo root
+   ls -la .gbm/config.yaml     # Should exist
+   ```
+
+---
+
+#### Issue: TUI (worktree list) fails
+
+**Symptom:**
+```bash
+$ gbm wt list
+Error: failed to open /dev/tty: ... (TUI requires an interactive terminal)
+```
+
+**Solutions:**
+
+1. **TUI requires interactive terminal:**
+   ```bash
+   # Works (interactive):
+   gbm wt list
+   
+   # Doesn't work (piped):
+   echo "" | gbm wt list
+   gbm wt list < /dev/null
+   ```
+
+2. **Use switch command instead:**
+   ```bash
+   # Alternative without TUI:
+   gbm wt switch feature-x
+   ```
+
+3. **Check terminal:**
+   ```bash
+   tty  # Should show /dev/pts/X or similar
+   # If "not a tty", you're not in interactive shell
+   ```
+
+---
+
+#### Issue: "failed to create worktree"
+
+**Symptom:**
+```bash
+$ gbm wt add feature-x feature/x -b
+Error: failed to create worktree: ...
+```
+
+**Solutions:**
+
+1. **Check branch status:**
+   ```bash
+   git branch -a | grep feature/x
+   # Verify branch doesn't already exist
+   ```
+
+2. **Verify permissions:**
+   ```bash
+   ls -ld worktrees/  # Should be writable (drwxr-xr-x)
+   chmod -R u+w worktrees/
+   ```
+
+3. **Check git status:**
+   ```bash
+   cd main-worktree  # Go to main worktree
+   git status        # Should be clean
+   ```
+
+4. **Check remote:**
+   ```bash
+   git remote -v  # Verify remotes configured
+   git fetch      # Update remote refs
+   ```
+
+---
+
+#### Issue: File copying not working
+
+**Symptom:**
+```bash
+# Config has auto copy enabled, but files not copied
+gbm wt add feature-x feature/x -b
+# Expected files (.env, etc.) not in new worktree
+```
+
+**Solutions:**
+
+1. **Verify auto-copy enabled:**
+   ```bash
+   cat .gbm/config.yaml | grep -A5 "auto:"
+   # Should show: enabled: true
+   ```
+
+2. **Check source files exist:**
+   ```bash
+   # Go to source worktree (default branch)
+   gbm wt switch main  # or whatever default_branch is
+   ls .env  # Should exist and be gitignored
+   git ls-files --others --ignored --exclude-standard | grep .env
+   ```
+
+3. **Check exclude patterns:**
+   ```bash
+   cat .gbm/config.yaml | grep -A10 "exclude:"
+   # Verify your files aren't in exclude list
+   ```
+
+4. **Check source_worktree resolution:**
+   ```bash
+   # If using {default}, verify worktree with default_branch exists:
+   gbm wt list  # Should show worktree with default_branch
+   ```
+
+---
+
+#### Issue: "permission denied" errors
+
+**Symptom:**
+```bash
+Error: permission denied: worktrees/feature-x
+```
+
+**Solutions:**
+
+1. **Fix permissions:**
+   ```bash
+   chmod -R u+w worktrees/
+   # Make all files user-writable
+   ```
+
+2. **Check ownership:**
+   ```bash
+   ls -l worktrees/
+   # Should be owned by you, not another user
+   ```
+
+3. **On macOS with mounted directories:**
+   ```bash
+   # If /Volumes mount, may need special permissions
+   mount  # Check mount options
+   ```
+
+---
+
+#### Issue: "dirty worktree" error
+
+**Symptom:**
+```bash
+Error: worktree has uncommitted changes
+```
+
+**Solutions:**
+
+1. **Commit changes:**
+   ```bash
+   cd worktrees/feature-x
+   git status         # See changes
+   git add .
+   git commit -m "message"
+   ```
+
+2. **Stash changes:**
+   ```bash
+   cd worktrees/feature-x
+   git stash          # Save changes temporarily
+   # Do what you need
+   git stash pop      # Restore changes
+   ```
+
+3. **Discard changes:**
+   ```bash
+   cd worktrees/feature-x
+   git checkout .     # Discard all changes
+   git clean -fd      # Remove untracked files
+   ```
+
+---
+
+### Getting Help
+
+**Built-in help:**
+```bash
+gbm --help          # General help
+gbm wt --help       # Worktree commands
+gbm wt add --help   # Specific command
+```
+
+**Debug mode:**
+```bash
+# Enable debug output (if available)
+gbm --debug wt list
+
+# Or verbose:
+gbm -v wt switch feature-x
+```
+
+**Check version:**
+```bash
+gbm --version       # Show version and build info
+```
+
+---
+
+## Performance Tips
+
+### Optimize Large Repositories
+
+**For repositories with many worktrees:**
+
+1. **Use worktree list filtering:**
+   ```bash
+   gbm wt list  # Use TUI to filter and find
+   # Type to filter by name
+   ```
+
+2. **Organize with path templates:**
+   ```yaml
+   # Instead of: worktrees: worktrees
+   # Use: worktrees: ../{gitroot}-worktrees
+   # Spreads worktrees across filesystem
+   ```
+
+3. **Exclude large directories from file copying:**
+   ```yaml
+   file_copy:
+     auto:
+       exclude:
+         - "node_modules/"
+         - "target/"
+         - ".cache/"
+   ```
+
+### Speed up syncing
+
+```bash
+# Fetch only current branch
+git fetch origin $(git rev-parse --abbrev-ref HEAD)
+
+# Or use gbm's sync commands
+gbm wt sync --fetch   # Just fetch, no pull
+```
