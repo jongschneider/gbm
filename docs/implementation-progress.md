@@ -1,15 +1,17 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P1.1 - Stdout/Stderr Separation (Universal Pattern) - ✅ COMPLETE
+**Current Phase:** P1.2 - E2E Testing Infrastructure - 🔄 IN PROGRESS
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 5/5 tasks complete in P1.1 ✅
+**Progress:** 2/3 tasks complete in P1.2 🔄
+**P1.1 Progress:** 5/5 tasks complete ✅
 
+**P1.1 Tasks:**
 | Task | Status | Date | Time |
 |------|--------|------|------|
 | 1.1.1 Switch Command | ✅ COMPLETE | 2026-01-02 | ~2h |
@@ -17,6 +19,13 @@
 | 1.1.3 Add Command | ✅ COMPLETE | 2026-01-02 | ~1h |
 | 1.1.4 TUI /dev/tty | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.1.5 Documentation | ✅ COMPLETE | 2026-01-02 | ~30min |
+
+**P1.2 Tasks:**
+| Task | Status | Date | Time |
+|------|--------|------|------|
+| 1.2.1 Testutil Package | ✅ COMPLETE | 2026-01-02 | ~2h |
+| 1.2.2 E2E Worktree Tests | ✅ COMPLETE | 2026-01-02 | ~4h |
+| 1.2.3 E2E Shell Integration | ⏳ PENDING | - | - |
 
 ---
 
@@ -328,6 +337,179 @@ $ gbm wt list
 
 ---
 
+### Task 1.2.1: Create testutil package
+**Completed:** 2026-01-02
+**Files:** `testutil/repo.go`, `testutil/repo_test.go`
+
+**What Was Done:**
+1. Created reusable test utilities package for E2E testing
+2. Implemented `TestRepo` struct with helper methods for git operations
+3. Added comprehensive test coverage for all utility functions
+4. Followed git-wt pattern for test repository management
+
+**Key Features:**
+
+**TestRepo Structure:**
+- Automatic temp directory creation with cleanup via `t.Cleanup()`
+- Symlink resolution for macOS `/var` → `/private/var` compatibility
+- Pre-configured git repository with test user credentials
+- Default branch set to `main`
+
+**Helper Methods:**
+```go
+// Core git operations
+Git(args ...string) string              // Execute git command, fatal on error
+GitE(args ...string) (string, error)    // Execute git command, return error
+
+// File operations
+CreateFile(path, content string)        // Create file with automatic directory creation
+Commit(message string)                  // Stage all changes and commit
+
+// Directory operations
+Chdir() func()                          // Change to repo dir, returns restore function
+Path(relPath string) string             // Get absolute path to file in repo
+ParentDir() string                      // Get parent directory (for worktree tests)
+```
+
+**Test Coverage:**
+Comprehensive tests validating all helper methods:
+- `TestNewTestRepo` - Repository initialization
+- `TestGit` / `TestGitE` - Git command execution (success and error cases)
+- `TestCreateFile` - File creation including nested directories
+- `TestCommit` - Staging and committing changes
+- `TestChdir` - Directory navigation with restoration
+- `TestPath` / `TestParentDir` - Path helper methods
+- `TestCleanup` - Automatic cleanup verification
+- `TestIntegration` - Complete workflow with branches and commits
+
+**Code Quality:**
+- All linter checks pass (errcheck violations fixed)
+- 10 test cases, all passing
+- Follows established patterns from git-wt reference implementation
+
+**Benefits:**
+- **Reusable**: Common git operations abstracted into simple methods
+- **Safe**: Automatic cleanup prevents temp directory leaks
+- **Convenient**: Helper methods reduce boilerplate in E2E tests
+- **Well-tested**: Test utilities themselves are thoroughly tested
+- **Ready for E2E**: Foundation for Tasks 1.2.2 and 1.2.3
+
+**Files Created:**
+- `testutil/repo.go` (138 lines) - Core test repository utilities
+- `testutil/repo_test.go` (219 lines) - Comprehensive test suite
+
+**Validation:** ✅ All tests pass, linting clean, ready for E2E test implementation
+
+---
+
+### Task 1.2.2: Add E2E test for worktree creation
+**Completed:** 2026-01-02
+**File:** `e2e_test.go` (357 lines)
+
+**What Was Done:**
+1. Created comprehensive E2E test suite for worktree operations
+2. Implemented test helpers for building binary and running commands
+3. Added tests for stdout/stderr separation verification
+4. Tested command aliases and error handling
+5. Verified universal stdout/stderr pattern implementation
+
+**Test Infrastructure:**
+
+**Helper Functions:**
+```go
+// Binary building and execution
+buildBinary(t) string                              // Build gbm for testing
+runGBM(t, binPath, dir string, args...) (string, error)  // Run with combined output
+runGBMStdout(t, binPath, dir string, args...) (stdout, stderr string, err error)  // Separate streams
+
+// Test setup
+setupGBMRepo(t) (*testRepo, string)               // Create GBM repo with initial commit
+```
+
+**Test Cases Implemented:**
+
+**1. Basic Worktree Operations:**
+- `TestE2E_WorktreeAdd_CLI` - Create worktree with new branch
+- `TestE2E_WorktreeAdd_ExistingBranch` - Create worktree from existing branch
+- `TestE2E_Init_CreatesStructure` - Verify gbm init creates correct structure
+
+**2. Stdout/Stderr Separation (Universal Pattern):**
+- `TestE2E_WorktreeSwitch_StdoutOutput` - Verify path goes to stdout, messages to stderr
+- `TestE2E_WorktreeAdd_StdoutOutput` - Verify stdout/stderr separation for add command
+
+**3. Command Aliases:**
+- `TestE2E_WorktreeSwitch_Aliases` - Test `sw` and `s` aliases for switch command
+- `TestE2E_WorktreeAdd_Aliases` - Test `a` alias for add command
+
+**4. Error Handling:**
+- `TestE2E_WorktreeSwitch_NonExistent` - Verify error when switching to non-existent worktree
+
+**5. TUI Testing:**
+- `TestE2E_WorktreeList` - Skipped (TUI requires interactive terminal)
+
+**Key Features:**
+
+**Setup Process:**
+1. Creates temporary directory for test repository
+2. Runs `gbm init` to create bare repo structure
+3. Creates initial commit in main worktree
+4. Provides clean test environment with automatic cleanup
+
+**Stdout/Stderr Validation:**
+- Verifies universal pattern: data → stdout, messages → stderr
+- Confirms stdout contains ONLY the path (single line)
+- Confirms stderr contains success messages but not paths
+- Tests both `worktree add` and `worktree switch` commands
+
+**Alias Testing:**
+- Verifies `wt sw`, `wt s` (switch aliases)
+- Verifies `wt a` (add alias)
+- All aliases follow same stdout/stderr pattern
+
+**Test Results:**
+```
+=== E2E Test Summary ===
+✅ TestE2E_WorktreeAdd_CLI
+✅ TestE2E_WorktreeAdd_ExistingBranch
+⏭️  TestE2E_WorktreeList (skipped - TUI)
+✅ TestE2E_WorktreeSwitch_StdoutOutput
+✅ TestE2E_WorktreeAdd_StdoutOutput
+✅ TestE2E_WorktreeSwitch_Aliases
+✅ TestE2E_WorktreeAdd_Aliases
+✅ TestE2E_WorktreeSwitch_NonExistent
+✅ TestE2E_Init_CreatesStructure
+
+8 passed, 1 skipped
+```
+
+**Benefits:**
+- **Catch regressions**: Tests verify real command behavior, not just unit logic
+- **Validate P1.1**: Confirms universal stdout/stderr pattern works end-to-end
+- **Shell integration ready**: Tests prove commands work with stdout capture
+- **Alias coverage**: Ensures all command shortcuts work correctly
+- **Error handling**: Verifies appropriate errors for invalid operations
+
+**Code Quality:**
+- All lint checks pass (errcheck violations fixed)
+- Proper error handling throughout
+- Clean test isolation with automatic cleanup
+- Clear test names and assertions
+
+**Files Created:**
+- `e2e_test.go` (357 lines) - Comprehensive E2E test suite
+
+**Validation:** ✅ All E2E tests pass, full validation pipeline successful
+
+**Post-Implementation Enhancement:**
+- Refactored all E2E tests to use `testify/assert` and `testify/require`
+- **`require`** for critical operations (setup, command execution)
+- **`assert`** for validation checks (multiple properties, want to see all failures)
+- Replaced manual error checking with semantic assertions
+- Added comprehensive testing patterns documentation to CLAUDE.md
+- Standardized testing approach: clear distinction between critical and validation checks
+
+---
+
 ## 🔑 Key Patterns & Decisions
 
 ### Universal Stdout/Stderr Pattern
@@ -375,6 +557,37 @@ $ gbm wt switch feature-x 2>/dev/null
 - No race conditions or PID conflicts
 - Works consistently across all shells
 
+### Testify Assert/Require for Testing
+**Decision:** Use `github.com/stretchr/testify` for all test assertions. Choose `assert` vs `require` based on failure impact.
+
+**Pattern:**
+```go
+// require for critical setup - stop if this fails
+require.NoError(t, err, "setup must succeed")
+
+// assert for validation - collect all failures
+assert.Contains(t, output, "expected", "should contain text")
+assert.DirExists(t, path, "directory should exist")
+```
+
+**When to use each:**
+- **`require`** (fail-fast): Setup operations, prerequisites, single critical check
+- **`assert`** (continue): Multiple independent validations, property checks
+
+**Why:**
+- **Cleaner code**: No manual if/err checks
+- **Better errors**: Automatic diffs, clear failure messages
+- **Smart failing**: `require` stops wasted execution, `assert` collects all issues
+- **Clear intent**: Code signals what's critical vs validation
+- **Industry standard**: Widely used in Go ecosystem
+
+**Benefits:**
+- Faster test development and debugging
+- See all failures at once (with `assert`)
+- Stop early when critical steps fail (with `require`)
+- Consistent testing style across codebase
+- Self-documenting test intent
+
 ---
 
 ## 🚀 How to Continue
@@ -417,4 +630,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P1.1 (Task 1.1.5: Documentation of universal stdout/stderr pattern)
+**Last Updated:** 2026-01-02 - Completed P1.2 Task 1.2.2 (E2E test suite for worktree operations)

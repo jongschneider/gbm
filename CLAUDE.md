@@ -291,3 +291,86 @@ The `runCommand()` method in `internal/git/service.go` handles dry-run:
 ### Repository Navigation
 - Use `FindGitRoot()` instead of `git rev-parse --show-toplevel` for bare repo + worktree setups
 - It correctly finds the repo root even when run from inside a worktree by detecting `/.git/worktrees/` in the git-dir path
+
+### Testing Patterns
+
+GBM uses **testify** for all test assertions. Choose between `require` (fail-fast) and `assert` (continue) based on the situation.
+
+#### Assert vs Require
+
+**Use `require` for critical assertions** (test stops immediately if failed):
+- Setup operations (building binary, creating test repo)
+- Prerequisites for subsequent checks (if this fails, nothing else matters)
+- Single-purpose tests where one failure makes the rest meaningless
+
+**Use `assert` for validation checks** (test continues, collects all failures):
+- Multiple independent verifications in one test
+- Checking various properties of an output
+- When you want to see all failures at once for better debugging
+
+**Example:**
+
+```go
+import (
+    "testing"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+
+func TestExample(t *testing.T) {
+    // Use require for critical setup - if this fails, stop immediately
+    repo, binPath := setupGBMRepo(t)
+    out, err := runGBM(t, binPath, repo.Root, "worktree", "add", "test", "test", "-b")
+    require.NoError(t, err, "worktree add must succeed")
+
+    // Use assert for multiple independent checks - collect all failures
+    expectedPath := filepath.Join(repo.Root, "worktrees", "test")
+    assert.DirExists(t, expectedPath, "directory should exist")
+    assert.FileExists(t, filepath.Join(expectedPath, ".git"), ".git should exist")
+    assert.Contains(t, out, "Created", "output should mention creation")
+
+    // Use require when failure makes further checks impossible
+    stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "wt", "switch", "test")
+    require.NoError(t, err, "switch must succeed for stdout/stderr checks")
+
+    // Use assert to verify both stdout and stderr (want to see all failures)
+    assert.Contains(t, stdout, expectedPath, "stdout should have path")
+    assert.NotContains(t, stdout, "Switched to", "stdout should not have messages")
+    assert.Contains(t, stderr, "Switched to", "stderr should have messages")
+}
+```
+
+**Common assertions (both assert and require have the same methods):**
+- `NoError(t, err, "message")` - Assert no error occurred
+- `Error(t, err, "message")` - Assert an error occurred
+- `Equal(t, expected, actual, "message")` - Assert equality
+- `Contains(t, haystack, needle, "message")` - Assert string/slice contains element
+- `NotContains(t, haystack, needle, "message")` - Assert does not contain
+- `Len(t, slice, length, "message")` - Assert length
+- `DirExists(t, path, "message")` - Assert directory exists
+- `FileExists(t, path, "message")` - Assert file exists
+- `True(t, condition, "message")` - Assert boolean true
+- `False(t, condition, "message")` - Assert boolean false
+
+**Decision Guide:**
+
+| Situation | Use | Reason |
+|-----------|-----|--------|
+| Test setup/prerequisites | `require` | If setup fails, nothing else matters |
+| Single assertion test | `require` | One check, one failure |
+| Multiple related checks | `assert` | See all failures for debugging |
+| Checking command succeeded | `require` | Need output for further checks |
+| Validating output properties | `assert` | Want to see all issues at once |
+
+**Benefits:**
+- **Clear intent**: `require` signals critical, `assert` signals validation
+- **Better debugging**: `assert` shows all failures, not just the first
+- **Fail fast when needed**: `require` stops wasted execution
+- **Less boilerplate**: No manual if/err checks
+- **Better diffs**: Automatically shows differences for failed comparisons
+
+**Test Organization:**
+- E2E tests in `e2e_test.go` at project root
+- Unit tests colocated with source code (e.g., `internal/git/init_test.go`)
+- Test utilities in `testutil/` package
+- Use `t.Helper()` in test helper functions
