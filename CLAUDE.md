@@ -42,6 +42,7 @@ internal/
     init.go                    # Repository initialization logic
     clone.go                   # Repository cloning logic
     worktree.go                # Worktree management logic
+    branch.go                  # Branch management logic
     errors.go                  # Git error types
   jira/                        # JIRA integration
     service.go                 # JIRA client service
@@ -355,6 +356,83 @@ The `runCommand()` method in `internal/git/service.go` handles dry-run:
 ### Repository Navigation
 - Use `FindGitRoot()` instead of `git rev-parse --show-toplevel` for bare repo + worktree setups
 - It correctly finds the repo root even when run from inside a worktree by detecting `/.git/worktrees/` in the git-dir path
+
+### Git Service Organization
+
+The `internal/git` package is organized into focused files, each with a specific responsibility:
+
+#### File Organization
+
+**service.go** (core operations)
+- Repository navigation: `FindGitRoot()`, `GetCurrentWorktree()`
+- Utility functions: `runCommand()` (dry-run support for all operations)
+- Branch status: `GetBranchStatus()` (sync with remote)
+
+**worktree.go** (worktree operations)
+- Worktree management: `AddWorktree()`, `RemoveWorktree()`, `MoveWorktree()`, `ListWorktrees()`
+- Worktree queries: `GetWorktreeBranch()`, `IsInWorktree()`
+- Sync operations: `PullWorktree()`, `PushWorktree()`, `Fetch()`
+- Worktree-specific branch info: `GetUpstreamBranch()` (called from worktree context)
+
+**branch.go** (branch operations)
+- Branch checking: `BranchExists()`, `BranchExistsInPath()`
+- Branch operations: `DeleteBranch()`, `ListBranches()`, `MergeBranchWithCommit()`
+- Branch metadata: `GetUpstreamBranch()` (generic branch operations)
+
+**init.go** (repository initialization)
+- Repository setup: `Init()` - creates bare repo + main worktree
+
+**clone.go** (repository cloning)
+- Remote cloning: `Clone()` - clones remote as bare repo + worktree
+- Helper functions: `extractRepoName()`, `getDefaultBranch()`
+
+**errors.go** (error definitions)
+- Sentinel errors: validation and state errors
+- Typed errors: `GitError` with exit codes and context
+- Error classification: `ClassifyError()` for mapping git failures to typed errors
+
+#### Adding New Git Operations
+
+When adding functionality to the git service:
+
+1. **Core utilities/navigation** → `service.go` (e.g., reading repository state)
+2. **Worktree management** → `worktree.go` (e.g., creating/removing/querying worktrees)
+3. **Branch operations** → `branch.go` (e.g., checking/deleting/listing branches)
+4. **Initialization** → `init.go` (e.g., new repository setup)
+5. **Cloning** → `clone.go` (e.g., remote repository cloning)
+
+#### Common Patterns
+
+All git operations should:
+- Use `exec.Command("git", ...)` for git execution
+- Call `s.runCommand(cmd, dryRun)` for dry-run support
+- Return formatted errors: `fmt.Errorf("failed to X: %w\nOutput: %s", err, output)`
+- Use `--git-dir` for bare repo operations
+- Use `-C <path>` for worktree-specific operations
+
+Example:
+```go
+cmd := exec.Command("git", "worktree", "add", path, branch)
+output, err := s.runCommand(cmd, dryRun)
+if err != nil {
+    return fmt.Errorf("failed to add worktree: %w\nOutput: %s", err, string(output))
+}
+```
+
+#### Public API Surface (25 functions)
+
+| Category | Functions |
+|----------|-----------|
+| Repository | `NewService()`, `FindGitRoot()`, `GetCurrentWorktree()` |
+| Branch Status | `GetBranchStatus()`, `Fetch()` |
+| Worktree Ops | `AddWorktree()`, `ListWorktrees()`, `RemoveWorktree()`, `MoveWorktree()` |
+| Worktree Queries | `GetWorktreeBranch()`, `IsInWorktree()` |
+| Branch Ops | `BranchExists()`, `BranchExistsInPath()`, `DeleteBranch()`, `ListBranches()`, `MergeBranchWithCommit()` |
+| Branch Info | `GetUpstreamBranch()` |
+| Sync | `PullWorktree()`, `PushWorktree()` |
+| Init/Clone | `Init()`, `Clone()` |
+
+**All APIs are intentional and stable.** No unnecessary duplication.
 
 ### Testing Patterns
 
