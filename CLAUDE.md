@@ -38,7 +38,7 @@ cmd/
     shell-integration.go       # Shell integration helpers
 internal/
   git/                         # Git operations via exec wrapper
-    service.go                 # Service struct with runCommand helper
+    service.go                 # Service struct with utilities
     init.go                    # Repository initialization logic
     clone.go                   # Repository cloning logic
     worktree.go                # Worktree management logic
@@ -71,8 +71,8 @@ deps/huh/                      # Vendored/modified UI components
 
 ### Git Service Layer
 The `internal/git.Service` executes git commands via shell:
-- `runCommand()` helper handles dry-run mode and command formatting
 - All git operations use `exec.Command("git", ...)` with appropriate flags
+- Dry-run mode uses `printDryRun()` helper for stderr output
 - Supports `--git-dir` for bare repo operations and `-C` for worktree operations
 
 ### TUI Layer (Bubble Tea)
@@ -176,13 +176,14 @@ This allows for faster iteration by only validating what you've changed.
    - Git operations → `internal/git/Service`
    - JIRA operations → `internal/jira/Service`
    - Interactive flows → Bubble Tea TUI in `cmd/service/`
-4. Use `Service.runCommand()` helper for all git exec calls to get dry-run support
+4. Follow the dry-run pattern for operations that support it
 
 ### Adding Git Operations
 All git operations should:
 - Use `exec.Command("git", ...)` for git execution
-- Call `s.runCommand(cmd, dryRun)` to execute with dry-run support
-- Return formatted errors with command output: `fmt.Errorf("failed to X: %w\nOutput: %s", err, output)`
+- Check `if dryRun` and call `printDryRun(cmd)` before executing
+- Execute using either `cmd.Output()` for capturing output or `cmd.Run()` with stdout/stderr inherited for streaming
+- Return formatted errors: `fmt.Errorf("failed to X: %w", err)`
 - Use `--git-dir` flag when operating on bare repos
 - Use `-C <path>` flag when operating within worktrees
 
@@ -347,11 +348,26 @@ To add or modify JIRA features:
 - Display formatting should use `display.go` and `format.go` utilities
 - Handle authentication errors gracefully with fallback to non-JIRA flow
 
-### Dry-Run Mode
-The `runCommand()` method in `internal/git/service.go` handles dry-run:
-- Formats commands for display using `formatCommand()`
-- Prints `[DRY RUN] <command>` instead of executing
-- All commands support `--dry-run` flag to preview operations
+### Dry-Run Pattern
+All git operations support `--dry-run` mode using a consistent pattern:
+
+```go
+cmd := exec.Command("git", ...)
+
+if dryRun {
+    printDryRun(cmd)  // Shows command to stderr
+    return mockResult  // Return early with mock data
+}
+
+// Execute command (pattern depends on operation type)
+output, err := cmd.Output()  // For data capture
+// OR
+cmd.Stdout = os.Stdout  // For streaming operations
+cmd.Stderr = os.Stderr
+err := cmd.Run()
+```
+
+Dry-run messages always go to stderr (not stdout), enabling clean shell integration.
 
 ### Repository Navigation
 - Use `FindGitRoot()` instead of `git rev-parse --show-toplevel` for bare repo + worktree setups
@@ -365,7 +381,7 @@ The `internal/git` package is organized into focused files, each with a specific
 
 **service.go** (core operations)
 - Repository navigation: `FindGitRoot()`, `GetCurrentWorktree()`
-- Utility functions: `runCommand()` (dry-run support for all operations)
+- Utility functions: `printDryRun()` (dry-run message helper)
 - Branch status: `GetBranchStatus()` (sync with remote)
 
 **worktree.go** (worktree operations)
@@ -405,17 +421,22 @@ When adding functionality to the git service:
 
 All git operations should:
 - Use `exec.Command("git", ...)` for git execution
-- Call `s.runCommand(cmd, dryRun)` for dry-run support
-- Return formatted errors: `fmt.Errorf("failed to X: %w\nOutput: %s", err, output)`
+- Check `if dryRun` and call `printDryRun()` before executing
+- Execute using either `cmd.Output()` for capturing output or `cmd.Run()` with stdout/stderr inherited for streaming
+- Return formatted errors: `fmt.Errorf("failed to X: %w", err)`
 - Use `--git-dir` for bare repo operations
 - Use `-C <path>` for worktree-specific operations
 
 Example:
 ```go
 cmd := exec.Command("git", "worktree", "add", path, branch)
-output, err := s.runCommand(cmd, dryRun)
+if dryRun {
+    printDryRun(cmd)
+    return mockWorktree, nil
+}
+_, err := cmd.Output()
 if err != nil {
-    return fmt.Errorf("failed to add worktree: %w\nOutput: %s", err, string(output))
+    return fmt.Errorf("failed to add worktree: %w", err)
 }
 ```
 

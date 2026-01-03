@@ -53,9 +53,14 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 	}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	_, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to delete branch: %w\nOutput: %s", err, string(output))
+		return fmt.Errorf("failed to delete branch: %w", err)
 	}
 
 	return nil
@@ -64,13 +69,15 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 // ListBranches returns all local and remote branches
 func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 	cmd := exec.Command("git", "branch", "-a", "--format=%(refname:short)")
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list branches: %w\nOutput: %s", err, output)
-	}
 
 	if dryRun {
-		return []string{"main", "develop", "origin/feature/example"}, nil
+		printDryRun(cmd)
+		return []string{}, nil
+	}
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches: %w", err)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -87,9 +94,15 @@ func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 // MergeBranchWithCommit merges a branch and creates a commit with the specified message
 func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessage string, dryRun bool) error {
 	cmd := exec.Command("git", "-C", worktreePath, "merge", "-m", commitMessage, sourceBranch)
-	output, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	_, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to merge branch: %w\nOutput: %s", err, output)
+		return fmt.Errorf("failed to merge branch: %w", err)
 	}
 	return nil
 }

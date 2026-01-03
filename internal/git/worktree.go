@@ -98,13 +98,9 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 	}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add worktree: %w\nOutput: %s", err, string(output))
-	}
 
-	// If dry-run, return a mock Worktree
 	if dryRun {
+		printDryRun(cmd)
 		return &Worktree{
 			Name:       worktreeName,
 			Path:       worktreePath,
@@ -113,6 +109,10 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 			IsBare:     false,
 			BaseBranch: baseBranch,
 		}, nil
+	}
+
+	if _, err := cmd.Output(); err != nil {
+		return nil, fmt.Errorf("failed to add worktree: %w", err)
 	}
 
 	// Get the newly created worktree info
@@ -149,14 +149,15 @@ func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 	args := []string{"worktree", "list"}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list worktrees: %w\nOutput: %s", err, string(output))
+
+	if dryRun {
+		printDryRun(cmd)
+		return []Worktree{}, nil
 	}
 
-	// In dry-run mode, git command prints but doesn't execute, so we can't parse output
-	if dryRun {
-		return nil, nil
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
 	return parseWorktrees(string(output)), nil
@@ -186,15 +187,21 @@ func (s *Service) Fetch(dryRun bool) error {
 	args := []string{"fetch", "--all"}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return fmt.Errorf("failed to fetch: %w\nOutput: %s", err, string(output))
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch: %w", err)
 	}
 
 	return nil
 }
-
-
 
 // MoveWorktree moves a git worktree to a new location
 func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
@@ -231,9 +238,15 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 	args := []string{"worktree", "move", oldPath, newPath}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	_, err = cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to move worktree: %w\nOutput: %s", err, string(output))
+		return fmt.Errorf("failed to move worktree: %w", err)
 	}
 
 	return nil
@@ -299,15 +312,19 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 	}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return targetWorktree, nil
+	}
+
+	_, err = cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to remove worktree: %w\nOutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to remove worktree: %w", err)
 	}
 
 	return targetWorktree, nil
 }
-
-
 
 // IsInWorktree checks if the current directory is inside a worktree
 // Returns: (isInWorktree bool, worktreeName string, error)
@@ -388,8 +405,12 @@ func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
 		if remoteBranchExists {
 			// Remote branch exists, set upstream and pull
 			setUpstreamCmd := exec.Command("git", "-C", worktreePath, "branch", "--set-upstream-to", remoteBranch)
-			if _, err := s.runCommand(setUpstreamCmd, dryRun); err != nil {
-				return fmt.Errorf("failed to set upstream: %w", err)
+			if dryRun {
+				printDryRun(setUpstreamCmd)
+			} else {
+				if _, err := setUpstreamCmd.Output(); err != nil {
+					return fmt.Errorf("failed to set upstream: %w", err)
+				}
 			}
 		} else {
 			// Remote branch doesn't exist, try to pull with explicit remote and branch
@@ -398,9 +419,17 @@ func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
 	}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return fmt.Errorf("failed to pull worktree: %w\nOutput: %s", err, string(output))
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to pull worktree: %w", err)
 	}
 
 	return nil
@@ -439,14 +468,17 @@ func (s *Service) PushWorktree(worktreePath string, dryRun bool) error {
 	}
 
 	cmd := exec.Command("git", args...)
-	output, err := s.runCommand(cmd, dryRun)
-	if err != nil {
-		return fmt.Errorf("failed to push worktree: %w\nOutput: %s", err, string(output))
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
 	}
 
-	// Print all output at once (includes PR links from git remote)
-	if len(output) > 0 {
-		fmt.Print(string(output))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to push worktree: %w", err)
 	}
 
 	return nil

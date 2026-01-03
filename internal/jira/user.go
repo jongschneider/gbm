@@ -32,9 +32,15 @@ func (s *Service) GetJiraUser(cachedUser string, dryRun bool) (string, bool, err
 
 	// Otherwise, fetch it from jira CLI
 	cmd := exec.Command("jira", "me")
-	userOutput, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return "testuser", true, nil // true indicates cache miss, caller should save
+	}
+
+	userOutput, err := cmd.Output()
 	if err != nil {
-		return "", false, fmt.Errorf("failed to get current JIRA user: %w\nOutput: %s", err, string(userOutput))
+		return "", false, fmt.Errorf("failed to get current JIRA user: %w", err)
 	}
 
 	user := strings.TrimSpace(string(userOutput))

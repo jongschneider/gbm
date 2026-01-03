@@ -107,9 +107,15 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 
 	// Execute command
 	cmd := exec.Command("jira", args...)
-	output, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return []JiraIssue{}, nil
+	}
+
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch JIRA issues: %w\nOutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to fetch JIRA issues: %w", err)
 	}
 
 	// Parse JSON response
@@ -159,9 +165,19 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 
 	// Get raw JSON data using jira CLI
 	cmd := exec.Command("jira", "issue", "view", key, "--raw")
-	output, err := s.runCommand(cmd, dryRun)
+
+	if dryRun {
+		printDryRun(cmd)
+		return &JiraTicketDetails{
+			Key:     key,
+			Summary: "Sample ticket",
+			Status:  "Open",
+		}, nil
+	}
+
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get JIRA issue: %w\nOutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to get JIRA issue: %w", err)
 	}
 
 	// Parse the JSON response

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 
 	"gbm/internal/utils"
@@ -46,13 +47,8 @@ func NewService(debug bool, store CacheStore) *Service {
 	}
 }
 
-// runCommand executes a jira CLI command with dry-run support
-// Follows git.Service.runCommand pattern
-func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
+// printDryRun prints a dry-run message to stderr for visibility
+func printDryRun(cmd *exec.Cmd) {
 	cmdStr := utils.FormatCommand(cmd)
-	if dryRun {
-		fmt.Printf("[DRY RUN] %s\n", cmdStr)
-		// Still execute reads - they're safe
-	}
-	return cmd.CombinedOutput()
+	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", cmdStr)
 }

@@ -36,24 +36,38 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 
 	// Clone bare repository to .git
 	cmd := exec.Command("git", "clone", "--bare", repoURL, gitDir)
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		// Clean up the directory if cloning fails
-		if !dryRun {
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			// Clean up the directory if cloning fails
 			_ = os.RemoveAll(absPath)
+			return fmt.Errorf("failed to clone bare repository: %w", err)
 		}
-		return fmt.Errorf("failed to clone bare repository: %w\nOutput: %s", err, output)
 	}
 
 	// Set remote origin fetch configuration
 	cmd = exec.Command("git", "--git-dir", gitDir, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to configure remote origin fetch: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to configure remote origin fetch: %w", err)
+		}
 	}
 
 	// Fetch all branches from remote
 	cmd = exec.Command("git", "--git-dir", gitDir, "fetch", "origin")
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to fetch from origin: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to fetch from origin: %w", err)
+		}
 	}
 
 	// Get the default branch from remote
@@ -73,8 +87,12 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 
 	// Add worktree for the default branch
 	cmd = exec.Command("git", "--git-dir", gitDir, "worktree", "add", mainWorktreePath, defaultBranch)
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to create main worktree: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to create main worktree: %w", err)
+		}
 	}
 
 	// Create .gbm directory and config.yaml
@@ -162,17 +180,18 @@ func extractRepoName(repoURL string) string {
 func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 	// First, try to set the remote HEAD reference
 	cmd := exec.Command("git", "--git-dir", gitDir, "remote", "set-head", "origin", "-a")
-	if _, err := s.runCommand(cmd, dryRun); err != nil {
+
+	if dryRun {
+		printDryRun(cmd)
+		return "main", nil // Return sensible default for dry-run
+	}
+
+	if _, err := cmd.Output(); err != nil {
 		// If that fails, try to get the remote HEAD manually using ls-remote
 		cmd = exec.Command("git", "--git-dir", gitDir, "ls-remote", "--symref", "origin", "HEAD")
-		output, err := s.runCommand(cmd, dryRun)
+		output, err := cmd.Output()
 		if err != nil {
 			return "", fmt.Errorf("failed to get default branch: %w", err)
-		}
-
-		// In dry run mode, return a sensible default
-		if dryRun {
-			return "", nil
 		}
 
 		// Parse the output to extract branch name
@@ -194,14 +213,9 @@ func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 
 	// Now try to get the symbolic ref
 	cmd = exec.Command("git", "--git-dir", gitDir, "symbolic-ref", "refs/remotes/origin/HEAD")
-	output, err := s.runCommand(cmd, dryRun)
+	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get default branch: %w", err)
-	}
-
-	// In dry run mode, return a sensible default
-	if dryRun {
-		return "", nil
 	}
 
 	// Parse the output to extract branch name

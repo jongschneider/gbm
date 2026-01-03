@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -208,14 +209,8 @@ func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
 	return status, nil
 }
 
-// runCommand executes a command or prints it if in dry-run mode
-func (s *Service) runCommand(cmd *exec.Cmd, dryRun bool) ([]byte, error) {
+// printDryRun prints a dry-run message to stderr for visibility
+func printDryRun(cmd *exec.Cmd) {
 	cmdStr := utils.FormatCommand(cmd)
-
-	if dryRun {
-		fmt.Printf("[DRY RUN] %s\n", cmdStr)
-		return nil, nil
-	}
-
-	return cmd.CombinedOutput()
+	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", cmdStr)
 }

@@ -43,14 +43,22 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 
 	// Initialize bare repository
 	cmd := exec.Command("git", "init", "--bare", gitDir)
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to initialize bare repository: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to initialize bare repository: %w", err)
+		}
 	}
 
 	// Set the default branch name
 	cmd = exec.Command("git", "--git-dir", gitDir, "config", "init.defaultBranch", defaultBranchName)
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to set default branch name: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to set default branch name: %w", err)
+		}
 	}
 
 	// Create worktrees directory structure
@@ -64,14 +72,22 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 
 	// Add worktree for the default branch
 	cmd = exec.Command("git", "--git-dir", gitDir, "worktree", "add", mainWorktreePath, "-b", defaultBranchName)
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to create main worktree: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to create main worktree: %w", err)
+		}
 	}
 
 	// Create initial empty commit in the worktree
 	cmd = exec.Command("git", "-C", mainWorktreePath, "commit", "--allow-empty", "-m", "Initial commit")
-	if output, err := s.runCommand(cmd, dryRun); err != nil {
-		return fmt.Errorf("failed to create initial commit: %w\nOutput: %s", err, output)
+	if dryRun {
+		printDryRun(cmd)
+	} else {
+		if _, err := cmd.Output(); err != nil {
+			return fmt.Errorf("failed to create initial commit: %w", err)
+		}
 	}
 
 	// Create .gbm directory and config.yaml
