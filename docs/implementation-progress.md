@@ -1052,4 +1052,157 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P2.1 Tasks 2.1.1 & 2.1.2 (Template Variables) - **P2.1 COMPLETE ✅** - **🎉 PHASE 2.1 COMPLETE 🎉**
+## ✅ Phase 3 Completed Work
+
+### Task 3.1.1: Audit git service organization
+**Completed:** 2026-01-02
+**File:** `docs/git-service-refactor.md` (280 lines)
+
+**What Was Done:**
+1. Analyzed current git service structure across 5 files (1024 lines total)
+2. Documented responsibility of each file with line counts
+3. Assessed code quality and organization metrics
+4. Evaluated three refactoring options
+5. Provided clear recommendation with implementation plan
+
+**Key Findings:**
+
+**Current Structure (Well-Organized):**
+- `service.go` (94 lines) - Core repository operations
+- `worktree.go` (554 lines) - Worktree & branch management
+- `init.go` (142 lines) - Repository initialization
+- `clone.go` (216 lines) - Repository cloning
+- `errors.go` (18 lines) - Error definitions
+
+**Quality Assessment:**
+- ✅ Clear separation of concerns
+- ✅ Balanced file sizes (94-554 lines acceptable)
+- ✅ No code duplication
+- ✅ Intentional public API (25 functions, all necessary)
+- ⚠️ Limited godoc comments (opportunity for improvement)
+- ⚠️ Basic error types (can add typed errors in P3.2)
+
+**Three Options Evaluated:**
+1. **Option A (Recommended)** - Keep current structure, focus on documentation
+2. **Option B (Optional)** - Create `branch.go` for branch-specific operations
+3. **Option C (Alternative)** - Do nothing, prioritize P4.1 documentation work
+
+**Recommendation:** Option A - Current structure is excellent, no breaking changes needed.
+
+**Action Items for P3.1.2:**
+- Skip code reorganization (not needed)
+- Focus on inline godoc documentation instead
+- Proceed to P3.2 (typed errors)
+
+**Benefits:**
+- No breaking changes to API
+- Clear guidance for future development
+- Architecture documented for code reviews
+- Foundation for P4.1 documentation work
+
+**Validation:** ✅ Analysis complete, recommendations documented, ready for team review
+
+---
+
+### Task 3.2.1: Add typed git errors
+**Completed:** 2026-01-02
+**Files:** `internal/git/errors.go` (198 lines), `internal/git/errors_test.go` (327 lines)
+
+**What Was Done:**
+1. Expanded error types to handle specific git failures
+2. Created `GitError` struct with operation context and exit codes
+3. Implemented `ClassifyError()` to automatically detect error types from stderr
+4. Added pattern matching for common git error messages
+5. Implemented comprehensive test suite covering all error types
+
+**New Error Types Added:**
+- `ErrBranchNotFound` - Branch doesn't exist
+- `ErrWorktreeNotFound` - Worktree doesn't exist
+- `ErrBranchExists` - Branch already exists
+- `ErrWorktreeExists` - Worktree already exists
+- `ErrNotMerged` - Branch not fully merged
+- `ErrDirtyWorktree` - Uncommitted changes in worktree
+- `ErrRemoteNotFound` - Remote not configured
+- `ErrNoUpstream` - Branch has no upstream
+- `ErrNotAGitRepository` - Not in a git repository
+- `ErrNoRemoteTrackingBranch` - No tracking branch
+
+**New Type: GitError**
+```go
+type GitError struct {
+    Op       string  // Operation that failed (e.g., "branch delete")
+    ExitCode int     // Exit code from git command
+    Stderr   string  // Standard error output
+    Err      error   // Underlying error
+}
+```
+
+**Key Functions:**
+- `ClassifyError(op, err, output)` - Analyze error and return typed error
+- `NewGitError(op, err, exitCode, stderr)` - Create GitError with context
+- `Wrap(op, err)` - Simple wrapping with operation context
+- `classifyByContent(op, stderr)` - Pattern matching logic
+
+**Pattern Matching Examples:**
+- "not found" + "branch" operation → `ErrBranchNotFound`
+- "not a working tree" → `ErrWorktreeNotFound`
+- "already exists" + "branch" → `ErrBranchExists`
+- "uncommitted changes" → `ErrDirtyWorktree`
+- "no upstream" or "no tracking" → `ErrNoUpstream`
+
+**Test Coverage:**
+- 18 test functions covering all error types
+- Tests for GitError methods (Error, Unwrap, IsExitCode)
+- Tests for ClassifyError pattern matching
+- Tests for sentinel error definitions
+- Error chaining demonstration
+- All 30+ tests passing ✅
+
+**Usage Examples:**
+```go
+// Example 1: Classify git error
+cmd := exec.Command("git", "branch", "-d", "test")
+output, err := cmd.CombinedOutput()
+if err != nil {
+    typedErr := ClassifyError("branch delete", err, string(output))
+    if errors.Is(typedErr, ErrBranchNotFound) {
+        // Handle branch not found
+    }
+}
+
+// Example 2: Wrap with context
+worktrees, err := s.ListWorktrees(false)
+if err != nil {
+    return Wrap("list worktrees", err)
+}
+
+// Example 3: Check exit code
+var gitErr *GitError
+if errors.As(err, &gitErr) {
+    if gitErr.IsExitCode(1) {
+        // Handle exit code 1
+    }
+}
+```
+
+**Benefits:**
+- **Consistent error handling** - All git operations use same pattern
+- **Type-safe checking** - Use `errors.Is()` to check specific errors
+- **Rich context** - Exit codes and stderr included
+- **Automatic classification** - ClassifyError analyzes output
+- **Error chains** - Works with Go 1.13+ error wrapping
+- **Easy to test** - Mock errors without actual git commands
+- **Clear intent** - Typed errors make caller intent explicit
+
+**Integration Points:**
+Ready to be used by:
+- `cmd/service/` commands (error handling improvements)
+- `internal/git/` methods (return typed errors)
+- E2E tests (verify error behavior)
+- User-facing error messages (better diagnostics)
+
+**Validation:** ✅ All 30+ tests pass, linting clean, compiles successfully
+
+---
+
+**Last Updated:** 2026-01-02 - Completed P3.2.1 (Typed Errors) - **P3.2.1 COMPLETE ✅**
