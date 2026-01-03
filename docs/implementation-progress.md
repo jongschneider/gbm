@@ -1,17 +1,17 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P2.1 - Template Variables - ✅ COMPLETE
+**Current Phase:** P2.2 - Enhanced File Copying - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 2/2 tasks complete in P2.1 ✅ - **PHASE 2.1 COMPLETE** 🎉
+**Progress:** 3/3 tasks complete in P2.2 ✅ - **PHASE 2.2 COMPLETE** 🎉
 **Phase 1 Progress:** 11/11 tasks complete ✅ - COMPLETE
-**P2.1 Progress:** 2/2 tasks complete ✅
-**P2.2 Progress:** (Optional - skipped for Phase 2 completion)
+**P2.1 Progress:** 2/2 tasks complete ✅ - COMPLETE
+**P2.2 Progress:** 3/3 tasks complete ✅ - COMPLETE
 
 **P1.1 Tasks:**
 | Task | Status | Date | Time |
@@ -1205,4 +1205,107 @@ Ready to be used by:
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P3.2.1 (Typed Errors) - **P3.2.1 COMPLETE ✅**
+### Task 2.2.1: Add automatic file copy option to config
+**Completed:** 2026-01-02
+**File:** `cmd/service/service.go` (lines 50-60)
+
+**What Was Done:**
+1. Added `AutoFileCopyConfig` struct to config
+2. Extended `FileCopyConfig` with `Auto` field
+3. Supports configurable source worktree resolution
+4. Supports exclude patterns (gitignore syntax)
+
+**New Config Structure:**
+```yaml
+file_copy:
+  auto:
+    enabled: true
+    source_worktree: "{default}"  # or "{current}" or literal name
+    copy_ignored: true
+    copy_untracked: false
+    exclude:
+      - "*.log"
+      - "node_modules/"
+```
+
+**Validation:** ✅ All validation passes
+
+---
+
+### Task 2.2.2: Implement gitignore pattern matcher
+**Completed:** 2026-01-02
+**File:** `internal/git/filematcher.go` (62 lines)
+
+**What Was Done:**
+1. Created file matcher using git commands
+2. Implemented `ListIgnoredFiles()` - uses `git ls-files --others --ignored --exclude-standard`
+3. Implemented `ListUntrackedFiles()` - uses `git ls-files --others --exclude-standard`
+4. Implemented `MatchesPattern()` - uses go-git's gitignore matcher
+5. Added dependency on `github.com/go-git/go-git/v5`
+
+**Functions:**
+```go
+ListIgnoredFiles(repoPath string) ([]string, error)
+ListUntrackedFiles(repoPath string) ([]string, error)
+MatchesPattern(path string, patterns []string) bool
+```
+
+**Why git commands:**
+- Respects .gitignore rules exactly as git does
+- Handles complex patterns natively
+- No need for custom pattern matching logic
+
+**Validation:** ✅ All tests pass
+
+---
+
+### Task 2.2.3: Integrate automatic file copying
+**Completed:** 2026-01-02
+**File:** `cmd/service/service.go` (lines 375-582)
+
+**What Was Done:**
+1. Updated `CopyFilesToWorktree()` to support both auto and rule-based copying
+2. Implemented `resolveSourceWorktree()` - template variable resolution
+3. Implemented `autoCopyFiles()` - automatic file copying
+4. Added pattern filtering with `filterFiles()` and `matchGlob()`
+
+**Code Flow:**
+```go
+CopyFilesToWorktree(targetName)
+  ├─ Phase 1: Automatic (if enabled)
+  │   └─ autoCopyFiles()
+  │       ├─ resolveSourceWorktree() → find source
+  │       ├─ ListIgnoredFiles() / ListUntrackedFiles()
+  │       └─ filterFiles() → exclude patterns
+  │       └─ Copy each file
+  └─ Phase 2: Rules (existing)
+      └─ Rule-based copying
+```
+
+**Template Variables:**
+- `""` or `"{default}"` → worktree with `DefaultBranch`
+- `"{current}"` → current worktree
+- Literal name → specific worktree
+
+**Exclude Patterns:**
+- Supports `*.log` (suffix matching)
+- Supports `dir/` (directory matching)
+- Supports `*` (wildcard)
+
+**Benefits:**
+- Automatic copy of .env, config files
+- Flexible source selection
+- Configurable exclusions
+- Backward compatible (auto disabled by default)
+
+**Validation:** ✅ All tests pass, validation complete
+
+**Post-Implementation Enhancement:**
+- Improved `autoCopyFiles()` to use `map[string]struct{}` for deduplication
+- Prevents duplicate file entries if file appears in both ignored and untracked lists
+- O(1) lookup performance, cleaner code, more defensive programming
+- All 18 E2E tests still pass ✅
+
+---
+
+**Last Updated:** 2026-01-02 - Completed P2.2 (Enhanced File Copying) - **P2.2 COMPLETE ✅**

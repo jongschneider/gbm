@@ -39,9 +39,21 @@ jira:
   #   # Additional filters: component, reporter, order_by, custom_args
   #   # Run 'jira issue list --help' for all available options
 
-# File copying rules - automatically copy files from source worktrees to new worktrees
+# File copying - automatically copy files from source worktrees to new worktrees
 # Useful for configuration files, .env files, etc.
 # file_copy:
+#   # Automatic copying of ignored/untracked files
+#   auto:
+#     enabled: true                   # Enable automatic file copying
+#     source_worktree: "{default}"    # Use worktree with default branch (or "{current}" or literal name)
+#     copy_ignored: true              # Copy .gitignore'd files (.env, etc.)
+#     copy_untracked: false           # Copy untracked files
+#     exclude:                        # Patterns to exclude (gitignore syntax)
+#       - "*.log"
+#       - "node_modules/"
+#       - ".DS_Store"
+#
+#   # Explicit rules for specific files
 #   rules:
 #     - source_worktree: main
 #       files:

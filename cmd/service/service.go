@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gbm/internal/git"
@@ -47,9 +48,19 @@ type FileCopyRule struct {
 	Files          []string `yaml:"files"`
 }
 
+// AutoFileCopyConfig holds configuration for automatic file copying
+type AutoFileCopyConfig struct {
+	Enabled        bool     `yaml:"enabled"`         // Enable automatic copying
+	SourceWorktree string   `yaml:"source_worktree"` // Where to copy from (default: "{default}")
+	CopyIgnored    bool     `yaml:"copy_ignored"`    // Copy .gitignore'd files
+	CopyUntracked  bool     `yaml:"copy_untracked"`  // Copy untracked files
+	Exclude        []string `yaml:"exclude"`         // Patterns to exclude (gitignore syntax)
+}
+
 // FileCopyConfig holds file copying rules for new worktrees
 type FileCopyConfig struct {
-	Rules []FileCopyRule `yaml:"rules,omitempty"`
+	Rules []FileCopyRule     `yaml:"rules,omitempty"`
+	Auto  AutoFileCopyConfig `yaml:"auto,omitempty"`
 }
 
 // WorktreeConfig defines a persistent worktree configuration
@@ -366,12 +377,9 @@ func (s *Service) GetState() *State {
 }
 
 // CopyFilesToWorktree copies files from source worktrees to the target worktree
-// based on the file copy rules in the config
+// based on the file copy rules in the config and automatic file copy settings
 func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 	config := s.GetConfig()
-	if len(config.FileCopy.Rules) == 0 {
-		return nil // No rules configured
-	}
 
 	if s.RepoRoot == "" {
 		return ErrNotInGitRepository
@@ -379,23 +387,209 @@ func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 
 	targetWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, targetWorktreeName)
 
-	for _, rule := range config.FileCopy.Rules {
-		sourceWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, rule.SourceWorktree)
-
-		// Check if source worktree exists
-		if _, err := os.Stat(sourceWorktreePath); os.IsNotExist(err) {
-			fmt.Printf("Warning: source worktree '%s' does not exist, skipping file copy rule\n", rule.SourceWorktree)
-			continue
+	// Phase 1: Automatic copying (if enabled)
+	if config.FileCopy.Auto.Enabled {
+		if err := s.autoCopyFiles(targetWorktreeName); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: automatic file copy failed: %v\n", err)
 		}
+	}
 
-		for _, filePattern := range rule.Files {
-			if err := s.copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern); err != nil {
-				fmt.Printf("Warning: failed to copy '%s' from '%s': %v\n", filePattern, rule.SourceWorktree, err)
+	// Phase 2: Explicit rules (existing behavior)
+	if len(config.FileCopy.Rules) > 0 {
+		for _, rule := range config.FileCopy.Rules {
+			sourceWorktreePath := filepath.Join(s.RepoRoot, s.WorktreeDir, rule.SourceWorktree)
+
+			// Check if source worktree exists
+			if _, err := os.Stat(sourceWorktreePath); os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Warning: source worktree '%s' does not exist, skipping file copy rule\n", rule.SourceWorktree)
+				continue
+			}
+
+			for _, filePattern := range rule.Files {
+				if err := s.copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to copy '%s' from '%s': %v\n", filePattern, rule.SourceWorktree, err)
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+// resolveSourceWorktree determines the actual source worktree based on the config specification
+// Template values: "{default}" or "" → worktree with DefaultBranch
+//
+//	"{current}" → current worktree
+//	other → literal worktree name
+func (s *Service) resolveSourceWorktree(sourceSpec string) (*git.Worktree, error) {
+	config := s.GetConfig()
+
+	// Determine what worktree to use
+	switch sourceSpec {
+	case "", "{default}":
+		// Find worktree associated with DefaultBranch
+		worktrees, err := s.Git.ListWorktrees(false)
+		if err != nil {
+			return nil, err
+		}
+
+		defaultBranch := config.DefaultBranch
+		if defaultBranch == "" {
+			defaultBranch = "master" // Ultimate fallback
+		}
+
+		for _, wt := range worktrees {
+			if wt.Branch == defaultBranch {
+				return &wt, nil
+			}
+		}
+
+		// Fallback: use current worktree with warning
+		fmt.Fprintf(os.Stderr, "Warning: No worktree found for default branch '%s', using current worktree\n", defaultBranch)
+		return s.Git.GetCurrentWorktree()
+
+	case "{current}":
+		return s.Git.GetCurrentWorktree()
+
+	default:
+		// Literal worktree name
+		worktrees, err := s.Git.ListWorktrees(false)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, wt := range worktrees {
+			if wt.Name == sourceSpec {
+				return &wt, nil
+			}
+		}
+
+		return nil, fmt.Errorf("worktree '%s' not found", sourceSpec)
+	}
+}
+
+// autoCopyFiles automatically copies ignored and untracked files from source to target worktree
+func (s *Service) autoCopyFiles(targetWorktreeName string) error {
+	config := s.GetConfig()
+
+	// Resolve source worktree using template expansion
+	sourceWorktree, err := s.resolveSourceWorktree(config.FileCopy.Auto.SourceWorktree)
+	if err != nil {
+		return err
+	}
+
+	// Use map to collect unique files (avoid duplicates if file appears in both ignored and untracked)
+	fileMap := make(map[string]struct{})
+
+	if config.FileCopy.Auto.CopyIgnored {
+		ignored, _ := s.Git.ListIgnoredFiles(sourceWorktree.Path)
+		for _, f := range ignored {
+			fileMap[f] = struct{}{}
+		}
+	}
+	if config.FileCopy.Auto.CopyUntracked {
+		untracked, _ := s.Git.ListUntrackedFiles(sourceWorktree.Path)
+		for _, f := range untracked {
+			fileMap[f] = struct{}{}
+		}
+	}
+
+	// Convert map keys to slice
+	var files []string
+	for f := range fileMap {
+		files = append(files, f)
+	}
+
+	// Filter by exclude patterns
+	filtered := filterFiles(files, config.FileCopy.Auto.Exclude)
+
+	// Copy files
+	targetPath := filepath.Join(s.RepoRoot, s.WorktreeDir, targetWorktreeName)
+	for _, file := range filtered {
+		if err := s.copyFile(
+			filepath.Join(sourceWorktree.Path, file),
+			filepath.Join(targetPath, file),
+		); err != nil {
+			// Skip files that fail to copy (e.g., permission issues)
+			continue
+		}
+	}
+
+	return nil
+}
+
+// filterFiles removes files that match any of the exclude patterns
+func filterFiles(files []string, excludePatterns []string) []string {
+	if len(excludePatterns) == 0 {
+		return files
+	}
+
+	var filtered []string
+	for _, file := range files {
+		if !matchesAnyPattern(file, excludePatterns) {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
+// matchesAnyPattern checks if a path matches any of the exclude patterns
+func matchesAnyPattern(path string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if matchGlob(path, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchGlob implements simple glob matching (supports * and /)
+func matchGlob(path, pattern string) bool {
+	// Simple glob matching: * matches everything in a path component
+	parts := filepath.SplitList(path)
+	patternParts := filepath.SplitList(pattern)
+
+	// Handle ** (matches anything)
+	if pattern == "**" || pattern == "*" {
+		return true
+	}
+
+	// Check if pattern matches the file name
+	if len(patternParts) == 1 && len(parts) >= 1 {
+		return globMatch(filepath.Base(path), patternParts[0])
+	}
+
+	return false
+}
+
+// globMatch implements simple glob matching for a single component
+func globMatch(name, pattern string) bool {
+	// Handle exact match
+	if pattern == name {
+		return true
+	}
+
+	// Handle * wildcard
+	if pattern == "*" {
+		return true
+	}
+
+	// Handle patterns like "*.log" or "node_modules"
+	if strings.Contains(pattern, "*") {
+		// Simple wildcard matching
+		parts := strings.Split(pattern, "*")
+		if len(parts) == 2 {
+			prefix, suffix := parts[0], parts[1]
+			return strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix)
+		}
+	}
+
+	// Handle directory patterns like "node_modules/"
+	if strings.HasSuffix(pattern, "/") {
+		return strings.HasSuffix(name, strings.TrimSuffix(pattern, "/"))
+	}
+
+	return false
 }
 
 // copyFileOrDirectory copies a file or directory from source to target
