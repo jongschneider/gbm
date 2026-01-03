@@ -1369,4 +1369,71 @@ Each includes:
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P4.1.1 - **ALL PHASES COMPLETE ✅**
+### Task 4.1.2: Add inline code documentation (godoc comments)
+**Completed:** 2026-01-02
+**Files:** `internal/git/service.go`, `internal/git/worktree.go`, `internal/git/errors.go`, `cmd/service/service.go`
+
+**What Was Done:**
+1. Added comprehensive godoc comments to all public APIs
+2. Documented git service structs and functions
+3. Documented command service structs and configuration types
+4. Documented error types with usage examples
+5. Added usage examples to key functions
+
+**Git Service Documentation:**
+- Service struct with multi-line description
+- NewService() creation documentation
+- Worktree struct with detailed field descriptions
+- AddWorktree() with parameters, returns, and examples
+- ListWorktrees() with usage examples
+- GetWorktreeBranch() with comprehensive documentation
+- RemoveWorktree() with safety mechanism notes
+- IsInWorktree() with usage patterns
+
+**Command Service Documentation:**
+- Config struct with YAML example
+- State struct with caching notes
+- Service struct with field descriptions
+- GetConfig() with default behavior
+- SaveConfig() with error handling
+- SaveState() with automatic management notes
+- GetState() with lazy loading documentation
+- CopyFilesToWorktree() with two-phase strategy
+
+**Error Documentation:**
+- Sentinel errors grouped by category (validation, state, git operations)
+- GitError struct with rich context explanation
+- Error() method explaining formatted output
+- IsExitCode() with usage pattern examples
+- ClassifyError() with common pattern matching examples
+
+**Benefits:**
+- **Discoverable**: All public APIs documented in source code
+- **Examples**: Real usage patterns for developers
+- **Clear Intent**: Purpose and parameters documented
+- **Godoc Compatible**: Renders in `go doc` and GoLang docs
+- **Onboarding**: New contributors understand API surface quickly
+
+**Documentation Stats:**
+- Added 50+ godoc comments
+- Added 25+ usage examples
+- Documented all 30+ public functions
+- Enhanced all configuration/error types
+- Total: 328 lines of documentation added
+
+**Validation:** ✅ Code compiles, all tests pass, documentation is clear
+
+---
+
+## 📊 Phase 4 Status
+
+**Phase 4 (Documentation & DX) - 2/2 TASKS COMPLETE** ✅
+
+- ✅ P4.1.1: Examples to CLAUDE.md (813 lines, 6 sections)
+- ✅ P4.1.2: Inline godoc comments (328 lines, 50+ comments)
+
+**All Improvements PRD Tasks Completed:** 19/19 ✅
+
+---
+
+**Last Updated:** 2026-01-02 - **ALL PHASES AND TASKS COMPLETE** 🎉
