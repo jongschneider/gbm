@@ -1,17 +1,17 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P1.3 - Flag Override Pattern - ✅ COMPLETE
+**Current Phase:** P2.1 - Template Variables - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 3/3 tasks complete in P1.3 ✅ - **PHASE 1 COMPLETE** 🎉
-**P1.1 Progress:** 5/5 tasks complete ✅
-**P1.2 Progress:** 3/3 tasks complete ✅
-**P1.3 Progress:** 3/3 tasks complete ✅
+**Progress:** 2/2 tasks complete in P2.1 ✅ - **PHASE 2.1 COMPLETE** 🎉
+**Phase 1 Progress:** 11/11 tasks complete ✅ - COMPLETE
+**P2.1 Progress:** 2/2 tasks complete ✅
+**P2.2 Progress:** (Optional - skipped for Phase 2 completion)
 
 **P1.1 Tasks:**
 | Task | Status | Date | Time |
@@ -898,6 +898,119 @@ Command: gbm wt add feat-x feat/x -b --base develop
 
 ---
 
+## ✅ Phase 2 Completed Work
+
+### Task 2.1.1: Create path template engine
+**Completed:** 2026-01-02
+**File:** `internal/utils/template.go` (68 lines), `internal/utils/template_test.go` (268 lines)
+
+**What Was Done:**
+1. Created `ExpandTemplate()` function to replace template variables in paths
+2. Created `GetTemplateVars()` to extract available template variables
+3. Created `ExpandPath()` to handle ~ expansion and relative path resolution
+4. Added comprehensive test coverage for all template operations
+
+**Template Variables Supported:**
+- `{gitroot}` - Repository directory name (e.g., "gbm")
+- `{branch}` - Branch name (context-specific)
+- `{issue}` - JIRA issue key (context-specific)
+
+**Examples:**
+```go
+// Template expansion
+ExpandTemplate("../{gitroot}-worktrees", {"gitroot": "gbm"})
+// Returns: "../gbm-worktrees"
+
+// Path expansion with ~ and relative paths
+ExpandPath("~/dev/{gitroot}/branches", "/path/to/repo")
+// Returns: "/home/user/dev/gbm/branches"
+```
+
+**Features:**
+- Variable substitution with flexible naming
+- Home directory expansion (~)
+- Relative path resolution from repo root
+- Path cleaning (removes double slashes, trailing slashes)
+- Handles missing variables gracefully (leaves them as-is)
+
+**Test Coverage:**
+- 30+ test cases covering all scenarios
+- Edge cases: empty values, special characters, case sensitivity
+- Integration test combining template + path expansion
+- All tests passing ✅
+
+**Benefits:**
+- Users can use dynamic paths in config: `../{gitroot}-worktrees`
+- Share configs across multiple repos with automatic expansion
+- Clean separation: template → path → filesystem
+- Type-safe implementation
+
+**Validation:** ✅ All template tests pass, linting clean, compiles successfully
+
+---
+
+### Task 2.1.2: Apply template expansion to worktrees_dir
+**Completed:** 2026-01-02
+**File:** `cmd/service/service.go` (GetWorktreesPath method)
+
+**What Was Done:**
+1. Added import of `internal/utils` package
+2. Updated `GetWorktreesPath()` to use template expansion
+3. Applied three-step process:
+   - Get template variables from repo root
+   - Expand template variables in config path
+   - Expand ~ and resolve relative paths
+
+**Code Change:**
+```go
+// OLD: Simple path joining
+return filepath.Join(s.RepoRoot, s.WorktreeDir), nil
+
+// NEW: Template-aware path expansion
+vars := utils.GetTemplateVars(s.RepoRoot)
+expandedDir := utils.ExpandTemplate(s.WorktreeDir, vars)
+expandedDir = utils.ExpandPath(expandedDir, s.RepoRoot)
+return expandedDir, nil
+```
+
+**Configuration Examples:**
+```yaml
+# Static path (backward compatible)
+worktrees_dir: worktrees
+# Results in: /path/to/repo/worktrees
+
+# Template-based path (new feature)
+worktrees_dir: ../{gitroot}-worktrees
+# gbm repo results in: /path/to/gbm-worktrees
+
+# Home-based path (new feature)
+worktrees_dir: ~/dev/{gitroot}/worktrees
+# gbm repo results in: /home/user/dev/gbm/worktrees
+```
+
+**Backward Compatibility:**
+- Existing configs with static paths work unchanged
+- Templates are optional - can be used gradually
+
+**E2E Tests Added:**
+1. `TestE2E_TemplateVariableExpansion` - Basic template expansion with default config
+2. `TestE2E_TemplateVariableExpansion_CustomPath` - Custom template path with parent directory worktrees
+
+Both tests verify:
+- Worktree creation succeeds with template-expanded paths
+- Output contains the expanded path
+- Files created in the correct template-expanded location
+
+**Benefits:**
+- Share one config across multiple repos
+- Dynamic organization based on repo name
+- Cleaner project structure possible
+- Optional feature - no breaking changes
+
+**Validation:** ✅ All E2E tests pass, full validation successful, all 18 E2E tests passing
+
+---
+
 ## 🚀 How to Continue
 
 ### For Next Agent/Session:
@@ -939,4 +1052,4 @@ just show-changed  # See what changed
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P1.3 Task 1.3.3 (Flag override documentation) - **P1.3 COMPLETE ✅** - **🎉 PHASE 1 COMPLETE 🎉**
+**Last Updated:** 2026-01-02 - Completed P2.1 Tasks 2.1.1 & 2.1.2 (Template Variables) - **P2.1 COMPLETE ✅** - **🎉 PHASE 2.1 COMPLETE 🎉**

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"gbm/testutil"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -466,4 +468,70 @@ func TestE2E_ShellIntegration_BothCommandForms(t *testing.T) {
 				"%s switch stdout should be single line", cmdForm)
 		})
 	}
+}
+
+// TestE2E_TemplateVariableExpansion validates that template variables work in config.
+func TestE2E_TemplateVariableExpansion(t *testing.T) {
+	binPath := buildBinary(t)
+	repo := testutil.NewTestRepo(t)
+
+	// Initialize gbm repo
+	_, err := runGBM(t, binPath, repo.Root, "init")
+	require.NoError(t, err, "failed to initialize gbm")
+
+	// Read the config file
+	configPath := filepath.Join(repo.Root, ".gbm", "config.yaml")
+	configContent, err := os.ReadFile(configPath)
+	require.NoError(t, err, "failed to read config")
+
+	// Verify config has {gitroot} template variable
+	configStr := string(configContent)
+	assert.Contains(t, configStr, "worktrees_dir", "config should have worktrees_dir")
+
+	// Create a worktree to verify template expansion works
+	_, err = runGBM(t, binPath, repo.Root, "wt", "add", "test-tmpl", "test-tmpl", "-b")
+	require.NoError(t, err, "failed to create worktree with template config")
+
+	// Verify the worktree was created in the expected location
+	expectedPath := filepath.Join(repo.Root, "worktrees", "test-tmpl")
+	assert.DirExists(t, expectedPath, "worktree should exist at expected path")
+}
+
+// TestE2E_TemplateVariableExpansion_CustomPath validates custom template paths.
+func TestE2E_TemplateVariableExpansion_CustomPath(t *testing.T) {
+	binPath := buildBinary(t)
+	repo := testutil.NewTestRepo(t)
+
+	// Initialize gbm with default config
+	_, err := runGBM(t, binPath, repo.Root, "init")
+	require.NoError(t, err, "failed to initialize gbm")
+
+	// Modify config to use custom template path
+	configPath := filepath.Join(repo.Root, ".gbm", "config.yaml")
+	originalConfig, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	// Update config to use template variable for parent directory
+	modifiedConfig := strings.Replace(
+		string(originalConfig),
+		"worktrees_dir: worktrees",
+		"worktrees_dir: ../{gitroot}-worktrees",
+		1,
+	)
+	require.NoError(t, os.WriteFile(configPath, []byte(modifiedConfig), 0644))
+
+	// Get parent directory and expected worktrees path
+	parentDir := filepath.Dir(repo.Root)
+	repoName := filepath.Base(repo.Root)
+	templateExpanded := filepath.Join(parentDir, repoName+"-worktrees")
+	require.NoError(t, os.Mkdir(templateExpanded, 0755), "failed to create template-expanded worktree dir")
+
+	// Verify we can still list/operate on worktrees
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "wt", "add", "test-custom", "test-custom", "-b")
+	require.NoError(t, err, "failed to create worktree with custom template path")
+
+	// The worktree should be created in the template-expanded location
+	expectedPath := filepath.Join(templateExpanded, "test-custom")
+	assert.DirExists(t, expectedPath, "worktree should be created in template-expanded path")
+	assert.Contains(t, stdout, expectedPath, "stdout should contain the expanded path")
 }

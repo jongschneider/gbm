@@ -8,6 +8,7 @@ import (
 
 	"gbm/internal/git"
 	"gbm/internal/jira"
+	"gbm/internal/utils"
 
 	"gopkg.in/yaml.v3"
 )
@@ -186,12 +187,27 @@ func (s *Service) loadConfig() error {
 	return nil
 }
 
-// GetWorktreesPath returns the absolute path to the worktrees directory
+// GetWorktreesPath returns the absolute path to the worktrees directory.
+// Supports template variables like {gitroot} in the configured worktrees_dir.
+//
+// Example:
+//
+//	Config: worktrees_dir = "../{gitroot}-worktrees"
+//	Repo: /home/user/projects/gbm
+//	Returns: /home/user/projects/gbm-worktrees
 func (s *Service) GetWorktreesPath() (string, error) {
 	if s.RepoRoot == "" {
 		return "", ErrNotInGitRepository
 	}
-	return filepath.Join(s.RepoRoot, s.WorktreeDir), nil
+
+	// Expand template variables
+	vars := utils.GetTemplateVars(s.RepoRoot)
+	expandedDir := utils.ExpandTemplate(s.WorktreeDir, vars)
+
+	// Expand ~ and resolve relative paths
+	expandedDir = utils.ExpandPath(expandedDir, s.RepoRoot)
+
+	return expandedDir, nil
 }
 
 // GetConfig returns the current configuration
