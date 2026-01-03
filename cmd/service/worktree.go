@@ -2,7 +2,6 @@ package service
 
 import (
 	"bufio"
-	"cmp"
 	"fmt"
 	"os"
 	"strings"
@@ -91,8 +90,11 @@ Examples:
 				return err
 			}
 
-			// Use default branch from config if --base not specified
-			baseBranch = cmp.Or(baseBranch, svc.GetConfig().DefaultBranch, "master")
+			// Flag override pattern: explicit flag > config > default
+			baseBranch = utils.GetStringFlagOrConfig(cmd, "base", svc.GetConfig().DefaultBranch)
+			if baseBranch == "" {
+				baseBranch = "master" // Ultimate fallback
+			}
 
 			// Try to add the worktree
 			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)

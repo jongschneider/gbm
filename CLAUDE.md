@@ -265,6 +265,70 @@ Interactive TUI commands use `/dev/tty` for rendering:
 - Success messages go to stderr
 - No temp files needed
 
+### Flag Override Pattern
+
+GBM uses a flag override pattern to provide clear configuration precedence:
+
+**Priority Order:**
+1. **Explicit flags** - Highest priority (user command-line flags)
+2. **Config file** - Middle priority (`.gbm/config.yaml`)
+3. **Defaults** - Fallback (hardcoded values)
+
+This pattern allows users to override config values on a per-command basis without modifying the config file, making it ideal for one-off operations and experimentation.
+
+**Implementation:**
+
+Use the helper functions from `internal/utils/flags.go`:
+
+```go
+import "gbm/internal/utils"
+
+// String flags
+baseBranch := utils.GetStringFlagOrConfig(cmd, "base", config.DefaultBranch)
+if baseBranch == "" {
+    baseBranch = "master"  // Ultimate fallback
+}
+
+// Boolean flags
+dryRun := utils.GetBoolFlagOrConfig(cmd, "dry-run", config.DryRun)
+
+// Integer flags
+timeout := utils.GetIntFlagOrConfig(cmd, "timeout", config.Timeout)
+```
+
+**How it works:**
+
+The helper functions check if a flag was explicitly set using `cmd.Flags().Changed()`:
+- If the flag was set: returns the flag value (even if it's empty/zero)
+- If the flag was not set: returns the config value
+
+This is different from simply reading the flag value, which would always return something (either the user's value or the default value), making it impossible to distinguish between "user set it to the default" and "user didn't set it at all".
+
+**Example use case:**
+
+```bash
+# Uses config value from .gbm/config.yaml (e.g., "main")
+$ gbm wt add feature-x feature/x -b
+
+# Overrides config, uses "develop" instead
+$ gbm wt add feature-x feature/x -b --base develop
+
+# Config has default_branch: "main", but user wants "master" this time
+$ gbm wt add hotfix hotfix/urgent -b --base master
+```
+
+**When to use this pattern:**
+
+Use flag override pattern when:
+- The command has a corresponding config file setting
+- Users might want to override config without editing the file
+- There's a logical fallback chain: flag > config > hardcoded default
+
+Don't use it for:
+- Flags that don't have config equivalents
+- Required flags (use cobra's required flags instead)
+- Flags that are always specified by the user
+
 ### Adding TUI Features
 When extending the Bubble Tea interface:
 - Add new states to the FSM in `worktree_fsm.go` using `fsm.NewFSM()`

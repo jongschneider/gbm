@@ -1,16 +1,17 @@
 # GBM Implementation Progress Tracker
 
 **Last Updated:** 2026-01-02
-**Current Phase:** P1.2 - E2E Testing Infrastructure - ✅ COMPLETE
+**Current Phase:** P1.3 - Flag Override Pattern - ✅ COMPLETE
 **Reference:** [improvement-prd.md](./improvement-prd.md)
 
 ---
 
 ## 📊 Status Overview
 
-**Progress:** 3/3 tasks complete in P1.2 ✅
+**Progress:** 3/3 tasks complete in P1.3 ✅ - **PHASE 1 COMPLETE** 🎉
 **P1.1 Progress:** 5/5 tasks complete ✅
 **P1.2 Progress:** 3/3 tasks complete ✅
+**P1.3 Progress:** 3/3 tasks complete ✅
 
 **P1.1 Tasks:**
 | Task | Status | Date | Time |
@@ -27,6 +28,13 @@
 | 1.2.1 Testutil Package | ✅ COMPLETE | 2026-01-02 | ~2h |
 | 1.2.2 E2E Worktree Tests | ✅ COMPLETE | 2026-01-02 | ~4h |
 | 1.2.3 E2E Shell Integration | ✅ COMPLETE | 2026-01-02 | ~3h |
+
+**P1.3 Tasks:**
+| Task | Status | Date | Time |
+|------|--------|------|------|
+| 1.3.1 Flag Override Helper | ✅ COMPLETE | 2026-01-02 | ~2h |
+| 1.3.2 Apply to --base Flag | ✅ COMPLETE | 2026-01-02 | ~1h |
+| 1.3.3 Documentation | ✅ COMPLETE | 2026-01-02 | ~1h |
 
 ---
 
@@ -615,6 +623,157 @@ Total E2E tests: 16 passed, 1 skipped (TUI)
 
 ---
 
+### Task 1.3.1: Create flag override helper utilities
+**Completed:** 2026-01-02
+**Files:** `internal/utils/flags.go`, `internal/utils/flags_test.go`
+
+**What Was Done:**
+1. Created reusable flag override helper functions
+2. Implemented type-specific helpers for string, bool, and int flags
+3. Added comprehensive unit tests with edge case coverage
+4. Documented the pattern with clear examples
+
+**Helper Functions Created:**
+```go
+// Check if flag was explicitly set, otherwise use config value
+GetStringFlagOrConfig(cmd *cobra.Command, flagName string, configValue string) string
+GetBoolFlagOrConfig(cmd *cobra.Command, flagName string, configValue bool) bool
+GetIntFlagOrConfig(cmd *cobra.Command, flagName string, configValue int) int
+```
+
+**How It Works:**
+- Uses `cmd.Flags().Changed()` to detect if flag was explicitly set
+- Returns flag value if set (even if it's empty/zero)
+- Returns config value if flag not set
+- Enables clear precedence: flags > config > defaults
+
+**Test Coverage:**
+Comprehensive tests validating all scenarios:
+- Flag explicitly set (should use flag value)
+- Flag not set (should use config value)
+- Edge cases: empty strings, zero values, negative numbers
+- All tests pass with testify assert pattern
+
+**Benefits:**
+- **Clear precedence**: Users can override config without editing files
+- **One-off overrides**: Perfect for experimentation
+- **Type-safe**: Separate functions for each type prevent errors
+- **Well-documented**: Examples and usage patterns included
+- **Reusable**: Can be used across all commands
+
+**Files Created:**
+- `internal/utils/flags.go` (52 lines) - Helper functions
+- `internal/utils/flags_test.go` (190 lines) - Comprehensive test suite
+
+**Validation:** ✅ All tests pass, linting clean, ready for use
+
+---
+
+### Task 1.3.2: Apply flag override to worktree add --base
+**Completed:** 2026-01-02
+**File:** `cmd/service/worktree.go` (lines 94-98)
+
+**What Was Done:**
+1. Applied flag override pattern to `--base` flag in worktree add command
+2. Replaced `cmp.Or()` logic with `GetStringFlagOrConfig()`
+3. Removed unused `cmp` import
+4. Maintained backward compatibility with existing behavior
+
+**Code Change:**
+```go
+// OLD: Using cmp.Or
+baseBranch = cmp.Or(baseBranch, svc.GetConfig().DefaultBranch, "master")
+
+// NEW: Flag override pattern
+baseBranch = utils.GetStringFlagOrConfig(cmd, "base", svc.GetConfig().DefaultBranch)
+if baseBranch == "" {
+    baseBranch = "master" // Ultimate fallback
+}
+```
+
+**Precedence Chain:**
+1. `--base` flag if explicitly set
+2. `config.DefaultBranch` from `.gbm/config.yaml`
+3. `"master"` as ultimate fallback
+
+**User Experience:**
+```bash
+# Uses config value from .gbm/config.yaml (e.g., "main")
+$ gbm wt add feature-x feature/x -b
+
+# Overrides config, uses "develop" instead
+$ gbm wt add feature-x feature/x -b --base develop
+
+# One-off override to "master" without changing config
+$ gbm wt add hotfix hotfix/urgent -b --base master
+```
+
+**Benefits:**
+- **Flexible**: Users can override config per command
+- **Backward compatible**: Existing usage patterns still work
+- **Cleaner code**: Removed `cmp` dependency
+- **Clear intent**: Code explicitly shows precedence order
+
+**Validation:** ✅ All existing tests pass, E2E tests validate behavior
+
+---
+
+### Task 1.3.3: Document flag override pattern
+**Completed:** 2026-01-02
+**File:** `CLAUDE.md` (new "Flag Override Pattern" section)
+
+**What Was Done:**
+1. Added comprehensive "Flag Override Pattern" section to CLAUDE.md
+2. Documented the three-level precedence: flags > config > defaults
+3. Provided clear implementation examples for all supported types
+4. Explained how the pattern works internally
+5. Added usage guidelines for when to use (and not use) the pattern
+
+**Content Added:**
+
+**Priority Order:**
+1. Explicit flags (highest)
+2. Config file (middle)
+3. Defaults (fallback)
+
+**Implementation Examples:**
+```go
+// String flags
+baseBranch := utils.GetStringFlagOrConfig(cmd, "base", config.DefaultBranch)
+
+// Boolean flags
+dryRun := utils.GetBoolFlagOrConfig(cmd, "dry-run", config.DryRun)
+
+// Integer flags
+timeout := utils.GetIntFlagOrConfig(cmd, "timeout", config.Timeout)
+```
+
+**Key Explanations:**
+- How `cmd.Flags().Changed()` enables detection of explicit flags
+- Why this is different from just reading flag values
+- Real-world usage examples
+- Guidelines for when to use the pattern
+
+**When to Use:**
+- Command has corresponding config setting
+- Users might want per-command overrides
+- Logical fallback chain exists
+
+**When NOT to Use:**
+- Flags without config equivalents
+- Required flags
+- Flags always specified by user
+
+**Benefits:**
+- **Discoverable**: Easy for developers to find and understand
+- **Consistent**: All future commands will follow same pattern
+- **Clear guidelines**: Prevents misuse or over-application
+- **Examples**: Real code developers can copy
+
+**Validation:** ✅ Documentation added, examples clear, pattern well-explained
+
+---
+
 ## 🔑 Key Patterns & Decisions
 
 ### Universal Stdout/Stderr Pattern
@@ -693,6 +852,50 @@ assert.DirExists(t, path, "directory should exist")
 - Consistent testing style across codebase
 - Self-documenting test intent
 
+### Flag Override Pattern
+**The Rule:** Use `cmd.Flags().Changed()` to detect explicit flags and provide clear precedence: flags > config > defaults.
+
+**Why:**
+- Enables per-command config overrides without editing files
+- Clear and explicit precedence order
+- Perfect for experimentation and one-off operations
+- Type-safe with dedicated helper functions
+
+**Example:**
+```go
+// Flag override pattern with helpers
+baseBranch := utils.GetStringFlagOrConfig(cmd, "base", config.DefaultBranch)
+if baseBranch == "" {
+    baseBranch = "master" // Ultimate fallback
+}
+```
+
+**Precedence Chain:**
+```
+Command: gbm wt add feat-x feat/x -b --base develop
+
+1. Check --base flag (explicitly set?) → YES → use "develop" ✓
+2. Check config.DefaultBranch            → skipped
+3. Use "master" default                  → skipped
+```
+
+**When to Use:**
+- Command has corresponding config setting
+- Users might want per-command overrides
+- Logical fallback chain exists (flag > config > default)
+
+**Helper Functions:**
+- `GetStringFlagOrConfig()` - For string flags
+- `GetBoolFlagOrConfig()` - For boolean flags
+- `GetIntFlagOrConfig()` - For integer flags
+
+**Benefits:**
+- Users can override config without editing files
+- One-off experiments don't require config changes
+- Clear code intent - precedence order is explicit
+- Type-safe - separate functions for each type
+- Reusable across all commands
+
 ---
 
 ## 🚀 How to Continue
@@ -730,9 +933,10 @@ just show-changed  # See what changed
 - Task 1.1.5 (Documentation) should be done after other tasks for complete examples
 
 ### Testing Notes:
-- All changes so far compile and pass existing tests
-- No new tests added yet (E2E testing is P1.2)
+- All changes compile and pass existing tests
+- E2E testing infrastructure complete (P1.2)
+- Flag override helpers fully tested
 
 ---
 
-**Last Updated:** 2026-01-02 - Completed P1.2 Task 1.2.3 (E2E shell integration tests) - **P1.2 COMPLETE ✅**
+**Last Updated:** 2026-01-02 - Completed P1.3 Task 1.3.3 (Flag override documentation) - **P1.3 COMPLETE ✅** - **🎉 PHASE 1 COMPLETE 🎉**
