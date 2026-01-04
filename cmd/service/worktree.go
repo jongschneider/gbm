@@ -81,11 +81,17 @@ Examples:
 			// Get worktrees directory from service (reads from config)
 			worktreesDir, err := svc.GetWorktreesPath()
 			if err != nil {
+				if ShouldUseJSON() {
+					return HandleError(fmt.Sprintf("failed to get worktrees directory: %v", err))
+				}
 				return fmt.Errorf("failed to get worktrees directory: %w", err)
 			}
 
 			// Create worktrees directory if it doesn't exist
 			if err := utils.MkdirAll(worktreesDir, ShouldUseDryRun()); err != nil {
+				if ShouldUseJSON() {
+					return HandleError(err.Error())
+				}
 				return err
 			}
 
@@ -99,10 +105,20 @@ Examples:
 			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, ShouldUseDryRun())
 			if err == nil {
 				if !ShouldUseDryRun() {
-					// Always output path to stdout (machine-readable)
-					fmt.Println(wt.Path)
+					if ShouldUseJSON() {
+						response := WorktreeAddResponse{
+							Worktree: WorktreeResponse{
+								Name:   wt.Name,
+								Path:   wt.Path,
+								Branch: wt.Branch,
+							},
+							Created: true,
+						}
+						return OutputJSONWithMessage(response, fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
+					}
 
-					// Always output message to stderr (human-readable)
+					// Text output: path to stdout, message to stderr
+					fmt.Println(wt.Path)
 					PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
 				}
 				return nil
@@ -112,7 +128,18 @@ Examples:
 			errMsg := err.Error()
 			isBranchNotExist := strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "invalid reference")
 			if !isBranchNotExist || createBranch {
+				if ShouldUseJSON() {
+					return HandleError(errMsg)
+				}
 				return err
+			}
+
+			// Handle no-input mode
+			if !ShouldAllowInput() {
+				if ShouldUseJSON() {
+					return HandleError(fmt.Sprintf("Branch '%s' does not exist and --no-input mode prevents prompting", branchName))
+				}
+				return fmt.Errorf("branch '%s' does not exist. Use -b to create it", branchName)
 			}
 
 			// Prompt user if they want to create a new branch
@@ -121,6 +148,9 @@ Examples:
 			reader := bufio.NewReader(os.Stdin)
 			response, err := reader.ReadString('\n')
 			if err != nil {
+				if ShouldUseJSON() {
+					return HandleError(fmt.Sprintf("failed to read user input: %v", err))
+				}
 				return fmt.Errorf("failed to read user input: %w", err)
 			}
 
@@ -132,13 +162,26 @@ Examples:
 			// Retry with createBranch = true
 			wt, err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, ShouldUseDryRun())
 			if err != nil {
+				if ShouldUseJSON() {
+					return HandleError(err.Error())
+				}
 				return err
 			}
 			if !ShouldUseDryRun() {
-				// Always output path to stdout (machine-readable)
-				fmt.Println(wt.Path)
+				if ShouldUseJSON() {
+					response := WorktreeAddResponse{
+						Worktree: WorktreeResponse{
+							Name:   wt.Name,
+							Path:   wt.Path,
+							Branch: wt.Branch,
+						},
+						Created: true,
+					}
+					return OutputJSONWithMessage(response, fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
+				}
 
-				// Always output message to stderr (human-readable)
+				// Text output: path to stdout, message to stderr
+				fmt.Println(wt.Path)
 				PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
 			}
 			return nil
@@ -215,15 +258,24 @@ func newWorktreeListCommand(svc *Service) *cobra.Command {
 
 Examples:
   # List all worktrees
-  gbm worktree list`,
+  gbm worktree list
+  
+  # List all worktrees in JSON format
+  gbm --json worktree list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worktrees, err := svc.Git.ListWorktrees(ShouldUseDryRun())
 			if err != nil {
+				if ShouldUseJSON() {
+					return HandleError(err.Error())
+				}
 				return err
 			}
 
 			if len(worktrees) == 0 {
+				if ShouldUseJSON() {
+					return OutputJSONArray([]map[string]interface{}{})
+				}
 				fmt.Println("No worktrees found.")
 				return nil
 			}
@@ -268,6 +320,28 @@ Examples:
 			sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
 			sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
 
+			// Handle JSON output
+			if ShouldUseJSON() {
+				// Convert worktrees to structured response
+				wtList := make([]WorktreeListItemResponse, len(sortedWorktrees))
+				for i, wt := range sortedWorktrees {
+					isCurrent := currentWorktree != nil && wt.Name == currentWorktree.Name
+					isTracked := trackedBranches[wt.Branch]
+					wtList[i] = WorktreeListItemResponse{
+						Name:    wt.Name,
+						Path:    wt.Path,
+						Branch:  wt.Branch,
+						Current: isCurrent,
+						Tracked: isTracked,
+					}
+				}
+				response := WorktreeListResponse{
+					Count:     len(wtList),
+					Worktrees: wtList,
+				}
+				return OutputJSONArray(response)
+			}
+
 			// Display using bubbletea table
 			return runWorktreeTable(sortedWorktrees, trackedBranches, currentWorktree, svc)
 		},
@@ -278,7 +352,7 @@ Examples:
 
 func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
 	var (
-		force  bool
+		force bool
 	)
 
 	cmd := &cobra.Command{
@@ -548,6 +622,9 @@ Examples:
 			if worktreeName == "-" {
 				state := svc.GetState()
 				if state.PreviousWorktree == "" {
+					if ShouldUseJSON() {
+						return HandleError(ErrNoPreviousWorktree.Error())
+					}
 					return ErrNoPreviousWorktree
 				}
 				worktreeName = state.PreviousWorktree
@@ -557,6 +634,9 @@ Examples:
 			// List all worktrees to find the target
 			worktrees, err := svc.Git.ListWorktrees(false)
 			if err != nil {
+				if ShouldUseJSON() {
+					return HandleError(fmt.Sprintf("failed to list worktrees: %v", err))
+				}
 				return fmt.Errorf("failed to list worktrees: %w", err)
 			}
 
@@ -570,6 +650,9 @@ Examples:
 			}
 
 			if targetWorktree == nil {
+				if ShouldUseJSON() {
+					return HandleError(fmt.Sprintf("worktree '%s' not found", worktreeName))
+				}
 				return fmt.Errorf("worktree '%s' not found", worktreeName)
 			}
 
@@ -581,6 +664,19 @@ Examples:
 			}
 			state.CurrentWorktree = targetWorktree.Name
 			_ = svc.SaveState() // Ignore errors - state tracking is optional
+
+			// Handle output based on format
+			if ShouldUseJSON() {
+				response := WorktreeSwitchResponse{
+					Worktree: WorktreeResponse{
+						Name:   targetWorktree.Name,
+						Path:   targetWorktree.Path,
+						Branch: targetWorktree.Branch,
+					},
+					Previous: state.PreviousWorktree,
+				}
+				return OutputJSONWithMessage(response, fmt.Sprintf("Switched to worktree '%s'", worktreeName))
+			}
 
 			// Universal pattern: Always output path to stdout, messages to stderr
 			// This enables shell integration without environment variables

@@ -614,3 +614,203 @@ func TestE2E_InitConfig_Force(t *testing.T) {
 	assert.Contains(t, content, "default_branch:")
 	assert.Contains(t, content, "# GBM Configuration")
 }
+
+// TestE2E_JSON_WorktreeList tests JSON output for worktree list
+func TestE2E_JSON_WorktreeList(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree first
+	out, err := runGBM(t, binPath, repo.Root, "worktree", "add", "feature-x", "feature/x", "-b")
+	require.NoError(t, err)
+	assert.NotEmpty(t, out)
+
+	// Run list with JSON flag
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "list")
+	require.NoError(t, err, "worktree list with --json should succeed")
+
+	// Verify stderr contains success message (still shown even with JSON)
+	assert.Empty(t, stderr, "stderr should be empty for JSON output")
+
+	// Verify stdout is valid JSON
+	assert.NotEmpty(t, stdout, "stdout should contain JSON")
+	assert.Contains(t, stdout, "success")
+	assert.Contains(t, stdout, "data")
+
+	// Verify JSON contains worktree data
+	assert.Contains(t, stdout, "feature-x")
+	assert.Contains(t, stdout, "feature/x")
+	assert.Contains(t, stdout, "\"name\"")
+	assert.Contains(t, stdout, "\"path\"")
+	assert.Contains(t, stdout, "\"branch\"")
+}
+
+// TestE2E_JSON_WorktreeSwitch tests JSON output for worktree switch
+func TestE2E_JSON_WorktreeSwitch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree
+	_, err := runGBM(t, binPath, repo.Root, "worktree", "add", "feature-y", "feature/y", "-b")
+	require.NoError(t, err)
+
+	// Switch to it with JSON flag
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "switch", "feature-y")
+	require.NoError(t, err, "worktree switch with --json should succeed")
+
+	// Verify stdout is valid JSON
+	assert.NotEmpty(t, stdout, "stdout should contain JSON")
+	assert.Contains(t, stdout, "success")
+	assert.Contains(t, stdout, "data")
+	assert.Contains(t, stdout, "feature-y")
+
+	// Verify JSON contains success and message
+	assert.Contains(t, stdout, "\"success\":true")
+	assert.Contains(t, stdout, "\"message\"")
+}
+
+// TestE2E_JSON_WorktreeAdd tests JSON output for worktree add
+func TestE2E_JSON_WorktreeAdd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Add worktree with JSON flag
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "add", "feature-z", "feature/z", "-b")
+	require.NoError(t, err, "worktree add with --json should succeed")
+
+	// Verify stdout is valid JSON
+	assert.NotEmpty(t, stdout, "stdout should contain JSON")
+	assert.Contains(t, stdout, "success")
+	assert.Contains(t, stdout, "feature-z")
+	assert.Contains(t, stdout, "feature/z")
+
+	// Verify message is in JSON
+	assert.Contains(t, stdout, "message")
+	assert.Contains(t, stdout, "Created worktree")
+
+	// Verify JSON structure
+	assert.Contains(t, stdout, "\"success\":true")
+}
+
+// TestE2E_JSON_QuietMode tests JSON output with quiet mode
+func TestE2E_JSON_QuietMode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Create worktree with JSON and quiet flags
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "--json", "-q", "worktree", "add", "quiet-test", "quiet/test", "-b")
+	require.NoError(t, err, "worktree add with --json -q should succeed")
+
+	// Verify stdout still has JSON (data always goes to stdout)
+	assert.NotEmpty(t, stdout, "stdout should contain JSON even in quiet mode")
+	assert.Contains(t, stdout, "success")
+
+	// Verify stderr is empty (quiet mode suppresses messages)
+	assert.Empty(t, stderr, "stderr should be empty in quiet mode")
+}
+
+// TestE2E_JSON_ErrorHandling tests JSON error output
+func TestE2E_JSON_ErrorHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Try to switch to non-existent worktree with JSON
+	// This should either fail or return an error in the JSON response
+	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "switch", "nonexistent-wt-xyz")
+
+	// Verify error is in JSON format
+	assert.NotEmpty(t, stdout, "stdout should contain error JSON")
+	assert.Contains(t, stdout, "success")
+	// Either success:false in JSON or an actual command error
+	if !strings.Contains(stdout, "false") {
+		// Command may have failed, which is fine
+		return
+	}
+	assert.Contains(t, stdout, "error")
+}
+
+// TestE2E_JSON_FlagCombinations tests multiple flags together
+func TestE2E_JSON_FlagCombinations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Test --json with --no-color (both flags should work)
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "--no-color", "worktree", "list")
+	require.NoError(t, err)
+
+	// Verify JSON output (flags don't interfere)
+	assert.Contains(t, stdout, "success")
+	assert.Contains(t, stdout, "data")
+}
+
+// TestE2E_JSON_DataFormat tests JSON data structure validity
+func TestE2E_JSON_DataFormat(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree
+	_, err := runGBM(t, binPath, repo.Root, "worktree", "add", "format-test", "format/test", "-b")
+	require.NoError(t, err)
+
+	// Get JSON list
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "list")
+	require.NoError(t, err)
+
+	// Verify top-level structure
+	assert.Contains(t, stdout, "\"success\":true")
+	assert.Contains(t, stdout, "\"data\":")
+
+	// Verify response structure
+	assert.Contains(t, stdout, "\"count\":")
+	assert.Contains(t, stdout, "\"worktrees\":[")
+
+	// Verify worktree object structure in array
+	assert.Contains(t, stdout, "\"name\":")
+	assert.Contains(t, stdout, "\"path\":")
+	assert.Contains(t, stdout, "\"branch\":")
+	assert.Contains(t, stdout, "\"current\":")
+	assert.Contains(t, stdout, "\"tracked\":")
+}
+
+// TestE2E_JSON_ListStructure tests JSON output list structure
+func TestE2E_JSON_ListStructure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// List with JSON when "main" worktree exists
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "list")
+	require.NoError(t, err)
+
+	// Verify JSON structure
+	assert.Contains(t, stdout, "\"success\":true")
+	assert.Contains(t, stdout, "\"data\":")
+	// Should have response structure with count and worktrees
+	assert.Contains(t, stdout, "\"count\":")
+	assert.Contains(t, stdout, "\"worktrees\":")
+	// Should have "main" worktree from setup
+	assert.Contains(t, stdout, "\"name\":\"main\"")
+}

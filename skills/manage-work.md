@@ -17,48 +17,15 @@ When asked to implement work on GBM:
 
 ---
 
-## Available Work Plans
+## Choosing Available Work
 
-### Completed Projects
-
-#### 1. Configuration Management 
-✅ **Status:** Complete and Approved  
-**Files:**
-- `config-management-plan.md` - Original implementation plan
-- `config-management-plan-progress.md` - Completion status
-
-**What was implemented:**
-- Phase 1: Schema validation with error messages
-- Phase 2: Config generation command (gbm init-config)
-- 26 tests (23 unit + 3 E2E) all passing
-- Backward compatible, no breaking changes
-
----
-
-### In-Progress / Planned Projects
-
-#### 2. Standard CLI Flags ⚠️ PLANNED (Not started)
-**Status:** Ready to start  
-**Estimated Effort:** 4-6 hours  
-**Priority:** High (CI/CD compatibility, scripting support)
-
-**Files:**
-- `cli-flags-implementation-plan.md` - Detailed implementation plan
-- `cli-flags-implementation-progress.md` - Progress tracking
-
-**Flags to implement:**
-- `--json` / `-j` - Output in JSON format
-- `--no-color` - Disable colored output  
-- `-q, --quiet` - Suppress non-essential messages
-- `--no-input` - Disable interactive prompts
-
-**How to use:**
 ```
 1. Open cli-flags-implementation-plan.md (read goals & tasks)
 2. Open cli-flags-implementation-progress.md (track progress)
-3. Use just build / just test / just run
-4. Update checkboxes as you complete tasks
-5. When finished, ask for review
+3. Choose logical next task
+4. Use just build / just test / just run
+5. Update checkboxes as you complete tasks
+6. When finished, ask for review
 ```
 
 ---
@@ -193,8 +160,6 @@ go test ./cmd/service -v -run TestName
 gbm/worktrees/cli_improvements/
 ├── cli-flags-implementation-plan.md      # Current task plan
 ├── cli-flags-implementation-progress.md   # Current task progress
-├── config-management-plan.md             # Previous plan (reference)
-├── config-management-plan-progress.md    # Previous completion
 ├── cli-improvement-analysis.md           # Analysis document
 ├── skills/
 │   └── manage-work.md                    # This file
@@ -203,26 +168,3 @@ gbm/worktrees/cli_improvements/
     ├── service.go                        # Main service
     └── ...
 ```
-
----
-
-## References
-
-- **CLAUDE.md** - Architecture patterns and implementation guides
-- **go test docs** - https://golang.org/cmd/go/#hdr-Test_packages
-- **Testify** - https://github.com/stretchr/testify (assertion library)
-- **Cobra** - https://cobra.dev (CLI framework)
-
----
-
-## Summary
-
-This skill provides a structured approach to implementing planned work on GBM:
-
-1. **Read plan** → Understand goals and tasks
-2. **Implement** → Follow phases, use checkboxes
-3. **Test** → Use `just` commands frequently
-4. **Review** → Ask for evaluation, wait for approval
-5. **Complete** → Update progress, commit (after approval)
-
-The plan and progress files are your roadmap. Follow them closely, and track all progress.
