@@ -535,3 +535,82 @@ func TestE2E_TemplateVariableExpansion_CustomPath(t *testing.T) {
 	assert.DirExists(t, expectedPath, "worktree should be created in template-expanded path")
 	assert.Contains(t, stdout, expectedPath, "stdout should contain the expanded path")
 }
+
+// TestE2E_InitConfig validates the init-config command creates a valid config.
+func TestE2E_InitConfig(t *testing.T) {
+	binPath := buildBinary(t)
+	repo, _ := setupGBMRepo(t)
+
+	// Remove existing config to test generation
+	configPath := filepath.Join(repo.Root, ".gbm", "config.yaml")
+	err := os.Remove(configPath)
+	require.NoError(t, err, "failed to remove existing config")
+
+	// Run init-config
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "init-config")
+	require.NoError(t, err, "init-config should succeed")
+
+	// Verify success message in stderr
+	assert.Contains(t, stderr, "✓ Created example config")
+	assert.Contains(t, stderr, "Edit the file to configure")
+	assert.Empty(t, stdout, "stdout should be empty for init-config")
+
+	// Verify config file created
+	assert.FileExists(t, configPath)
+
+	// Verify config is valid YAML with proper structure
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	content := string(data)
+	// Just verify the basic YAML structure is present
+	assert.Contains(t, content, "default_branch:")
+	assert.Contains(t, content, "worktrees_dir: worktrees")
+}
+
+// TestE2E_InitConfig_AlreadyExists validates init-config fails if config exists.
+func TestE2E_InitConfig_AlreadyExists(t *testing.T) {
+	binPath := buildBinary(t)
+	repo, _ := setupGBMRepo(t)
+
+	// Config already exists from setupGBMRepo
+	configPath := filepath.Join(repo.Root, ".gbm", "config.yaml")
+	require.FileExists(t, configPath, "config should exist from setup")
+
+	// Run init-config (should fail)
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "init-config")
+	require.Error(t, err, "init-config should fail when config exists")
+
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "already exists")
+}
+
+// TestE2E_InitConfig_Force validates init-config --force overwrites existing config.
+func TestE2E_InitConfig_Force(t *testing.T) {
+	binPath := buildBinary(t)
+	repo, _ := setupGBMRepo(t)
+
+	configPath := filepath.Join(repo.Root, ".gbm", "config.yaml")
+
+	// Write custom content
+	originalContent := []byte("custom: value\n")
+	err := os.WriteFile(configPath, originalContent, 0644)
+	require.NoError(t, err)
+
+	// Run init-config --force
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "init-config", "--force")
+	require.NoError(t, err, "init-config --force should succeed")
+
+	// Verify success message
+	assert.Contains(t, stderr, "✓ Created example config")
+	assert.Empty(t, stdout)
+
+	// Verify config was overwritten
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	content := string(data)
+	assert.NotEqual(t, originalContent, data, "config should be overwritten")
+	assert.Contains(t, content, "default_branch:")
+	assert.Contains(t, content, "# GBM Configuration")
+}

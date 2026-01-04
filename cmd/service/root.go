@@ -30,6 +30,7 @@ notifications when configurations drift out of sync.`,
 
 	// Add all subcommands
 	rootCmd.AddCommand(newInitCommand(svc))
+	rootCmd.AddCommand(newInitConfigCommand())
 	rootCmd.AddCommand(newCloneCommand(svc))
 	rootCmd.AddCommand(newWorktreeCommand(svc))
 	rootCmd.AddCommand(newSyncCommand(svc))

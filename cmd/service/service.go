@@ -102,8 +102,8 @@ type WorktreeConfig struct {
 //	    enabled: true
 //	    source_worktree: "{default}"
 type Config struct {
-	DefaultBranch string                    `yaml:"default_branch"`
-	WorktreesDir  string                    `yaml:"worktrees_dir"`
+	DefaultBranch string                    `yaml:"default_branch" validate:"required,min=1"`
+	WorktreesDir  string                    `yaml:"worktrees_dir" validate:"required,min=1"`
 	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
 	Jira          JiraConfig                `yaml:"jira,omitempty"`
 	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
@@ -227,6 +227,11 @@ func (s *Service) loadConfig() error {
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	// Validate config structure
+	if err := validateConfig(&config); err != nil {
+		return err
 	}
 
 	s.config = &config
