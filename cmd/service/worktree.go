@@ -35,7 +35,6 @@ func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	var (
 		createBranch bool
 		baseBranch   string
-		dryRun       bool
 		visualizeFSM bool
 		fsmGraphType string
 	)
@@ -86,7 +85,7 @@ Examples:
 			}
 
 			// Create worktrees directory if it doesn't exist
-			if err := utils.MkdirAll(worktreesDir, dryRun); err != nil {
+			if err := utils.MkdirAll(worktreesDir, ShouldUseDryRun()); err != nil {
 				return err
 			}
 
@@ -97,14 +96,14 @@ Examples:
 			}
 
 			// Try to add the worktree
-			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, dryRun)
+			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, ShouldUseDryRun())
 			if err == nil {
-				if !dryRun {
+				if !ShouldUseDryRun() {
 					// Always output path to stdout (machine-readable)
 					fmt.Println(wt.Path)
 
 					// Always output message to stderr (human-readable)
-					fmt.Fprintf(os.Stderr, "✓ Created worktree '%s' for branch '%s'\n", wt.Name, wt.Branch)
+					PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
 				}
 				return nil
 			}
@@ -131,16 +130,16 @@ Examples:
 			}
 
 			// Retry with createBranch = true
-			wt, err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, dryRun)
+			wt, err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, ShouldUseDryRun())
 			if err != nil {
 				return err
 			}
-			if !dryRun {
+			if !ShouldUseDryRun() {
 				// Always output path to stdout (machine-readable)
 				fmt.Println(wt.Path)
 
 				// Always output message to stderr (human-readable)
-				fmt.Fprintf(os.Stderr, "✓ Created worktree '%s' for branch '%s'\n", wt.Name, wt.Branch)
+				PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
 			}
 			return nil
 		},
@@ -149,7 +148,7 @@ Examples:
 			if len(args) == 0 {
 				return nil
 			}
-			if dryRun {
+			if ShouldUseDryRun() {
 				return nil
 			}
 			worktreeName := args[0]
@@ -167,7 +166,6 @@ Examples:
 
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to config.default_branch)")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
 	cmd.Flags().BoolVar(&visualizeFSM, "visualize-fsm", false, "Print FSM diagram before running TUI (TUI mode only)")
 	cmd.Flags().StringVar(&fsmGraphType, "fsm-graph-type", "statediagram", "FSM graph type: 'statediagram' or 'flowchart' (default: statediagram)")
 
@@ -209,8 +207,6 @@ Examples:
 }
 
 func newWorktreeListCommand(svc *Service) *cobra.Command {
-	var dryRun bool
-
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls", "l"},
@@ -222,7 +218,7 @@ Examples:
   gbm worktree list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			worktrees, err := svc.Git.ListWorktrees(dryRun)
+			worktrees, err := svc.Git.ListWorktrees(ShouldUseDryRun())
 			if err != nil {
 				return err
 			}
@@ -277,15 +273,12 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
-
 	return cmd
 }
 
 func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
 	var (
 		force  bool
-		dryRun bool
 	)
 
 	cmd := &cobra.Command{
@@ -326,7 +319,7 @@ Examples:
 			currentWorktree, err := svc.Git.GetCurrentWorktree()
 			isCurrentWorktree := (err == nil && currentWorktree.Name == worktreeName)
 
-			if isCurrentWorktree && !dryRun {
+			if isCurrentWorktree && !ShouldUseDryRun() {
 				// Get current working directory
 				cwd, err := os.Getwd()
 				if err != nil {
@@ -343,17 +336,17 @@ Examples:
 				if err := os.Chdir(repoRoot); err != nil {
 					return fmt.Errorf("failed to change directory to repo root: %w", err)
 				}
-				fmt.Printf("Switching to repository root before removing current worktree...\n")
+				PrintMessage("Switching to repository root before removing current worktree...\n")
 			}
 
 			// Remove the worktree (this validates it exists and returns its info)
-			removedWorktree, err := svc.Git.RemoveWorktree(worktreeName, force, dryRun)
+			removedWorktree, err := svc.Git.RemoveWorktree(worktreeName, force, ShouldUseDryRun())
 			if err != nil {
 				return err
 			}
 
 			// If we're in dry-run mode or there's no branch, return early
-			if dryRun || removedWorktree.Branch == "" {
+			if ShouldUseDryRun() || removedWorktree.Branch == "" {
 				return nil
 			}
 
@@ -375,17 +368,16 @@ Examples:
 			}
 
 			// Delete the branch
-			if err := svc.Git.DeleteBranch(branchName, force, dryRun); err != nil {
+			if err := svc.Git.DeleteBranch(branchName, force, ShouldUseDryRun()); err != nil {
 				return fmt.Errorf("failed to delete branch: %w", err)
 			}
-			fmt.Printf("Branch '%s' deleted successfully.\n", branchName)
+			PrintMessage("Branch '%s' deleted successfully.\n", branchName)
 
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force removal even if worktree has uncommitted changes")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
 
 	// Add shell completions for worktree names
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

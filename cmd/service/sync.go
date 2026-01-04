@@ -36,8 +36,7 @@ type WorktreeMove struct {
 
 func newSyncCommand(svc *Service) *cobra.Command {
 	var (
-		dryRun bool
-		force  bool
+		force bool
 	)
 
 	cmd := &cobra.Command{
@@ -52,27 +51,27 @@ Destructive operations (removing/recreating worktrees) will prompt for
 confirmation unless --force is specified.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Fetch from remote first to ensure we have latest refs
-			if !dryRun {
-				fmt.Println("Fetching from remote...")
+			if !ShouldUseDryRun() {
+				PrintMessage("Fetching from remote...\n")
 			}
-			if err := svc.Git.Fetch(dryRun); err != nil {
+			if err := svc.Git.Fetch(ShouldUseDryRun()); err != nil {
 				return fmt.Errorf("failed to fetch from remote: %w", err)
 			}
 
 			// Get sync status
-			status, err := getSyncStatus(svc, dryRun)
+			status, err := getSyncStatus(svc, ShouldUseDryRun())
 			if err != nil {
 				return err
 			}
 
 			// In dry-run mode, just show what would happen
-			if dryRun {
+			if ShouldUseDryRun() {
 				return showSyncStatus(svc, status)
 			}
 
 			// Check if everything is in sync
 			if status.InSync {
-				fmt.Println("All worktrees are in sync with config.yaml")
+				PrintMessage("All worktrees are in sync with config.yaml\n")
 				return nil
 			}
 
@@ -80,7 +79,7 @@ confirmation unless --force is specified.`,
 			var confirmFunc func(string) bool
 			if force {
 				confirmFunc = func(message string) bool {
-					fmt.Println(message, "[forced: yes]")
+					PrintMessage("%s [forced: yes]\n", message)
 					return true
 				}
 			} else {
@@ -97,11 +96,10 @@ confirmation unless --force is specified.`,
 			}
 
 			// Perform sync
-			return performSync(svc, status, dryRun, confirmFunc)
+			return performSync(svc, status, ShouldUseDryRun(), confirmFunc)
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompts for destructive operations")
 
 	return cmd

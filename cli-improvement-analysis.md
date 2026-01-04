@@ -7,15 +7,20 @@
 
 ## Executive Summary
 
-The GBM CLI implementation demonstrates strong architectural patterns with excellent stdout/stderr separation, sophisticated TUI capabilities, and comprehensive JIRA integration. However, comparison with industry best practices reveals opportunities for improvement in:
+The GBM CLI implementation demonstrates strong architectural patterns with excellent stdout/stderr separation, sophisticated TUI capabilities, and comprehensive JIRA integration. 
 
+**Completed Improvements:**
+- ✅ Configuration validation with schema checking (Phase 1)
+- ✅ Config generation command with auto-detection (Phase 2)
+
+**Remaining Opportunities:**
 1. **Testing coverage** - Currently ~2 unit test files in cmd/, needs expansion
 2. **Code organization** - 3 files exceed 700 lines, should be split
 3. **Error handling** - Inconsistent patterns, some silent failures
-4. **Configuration validation** - No schema validation
-5. **Documentation gaps** - Missing config examples and troubleshooting guides
+4. **Standard CLI flags** - Missing --json, --no-color, --quiet, --no-input
+5. **Documentation gaps** - Error message improvements
 
-**Estimated Impact:** Implementing Priority 1 & 2 recommendations (20-25 hours) would improve maintainability by 40% and reduce onboarding time by 50%.
+**Estimated Impact:** Implementing Priority 1 & 2 recommendations (15-20 hours) would improve maintainability by 40% and reduce onboarding time by 50%.
 
 ---
 
@@ -166,72 +171,18 @@ Matches git-wt's approach, enables config sharing across repos.
 
 **Comparison:** Better than git-wt (uses git config only), similar to gh-dash's config/cache split.
 
----
+**Schema Validation:** ✅ IMPLEMENTED
+- Validator library added (`github.com/go-playground/validator/v10`)
+- Validation tags on Config struct (required fields, template variables)
+- Clear error messages with field names and validation rules
+- Comprehensive unit and E2E tests
 
-#### ⚠️ Areas for Improvement
-
-**No Schema Validation:**
-
-**Current:** YAML loaded directly without validation
-
-**Best Practice (from gh-dash):**
-```go
-import "github.com/go-playground/validator/v10"
-
-type Config struct {
-    DefaultBranch string `yaml:"default_branch" validate:"required,min=1"`
-    WorktreesDir  string `yaml:"worktrees_dir" validate:"required"`
-    Remotes       map[string]Remote `yaml:"remotes" validate:"dive"`
-}
-
-func LoadConfig(path string) (*Config, error) {
-    var cfg Config
-    if err := yaml.Unmarshal(data, &cfg); err != nil {
-        return nil, err
-    }
-
-    validate := validator.New()
-    if err := validate.Struct(&cfg); err != nil {
-        return nil, fmt.Errorf("invalid config: %w", err)
-    }
-
-    return &cfg, nil
-}
-```
-
-**Impact:** High - Prevents confusing runtime errors from malformed config
-
----
-
-**Missing Config Generation:**
-
-**Current:** No `gbm init-config` command
-
-**Best Practice (from agent-skills):**
-```bash
-$ gbm init-config
-✓ Created example config at .gbm/config.yaml
-
-Edit the file to configure:
-  • Git remotes
-  • JIRA integration (optional)
-  • File copying rules
-```
-
-**Implementation:**
-```go
-func newInitConfigCommand(svc *Service) *cobra.Command {
-    return &cobra.Command{
-        Use:   "init-config",
-        Short: "Generate example configuration",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            return svc.InitConfig(exampleConfig)
-        },
-    }
-}
-```
-
-**Impact:** Medium - Improves onboarding, reduces support burden
+**Config Generation:** ✅ IMPLEMENTED
+- `gbm init-config` command generates example config with comments
+- Auto-detects default branch from git config
+- Includes all config sections: remotes, JIRA, file copying
+- Success message with next steps
+- `--force` flag to overwrite existing config
 
 ---
 
@@ -1157,43 +1108,14 @@ ValidArgsFunction: CompleteJiraKeys(svc)
 
 ---
 
-#### 2.2 Add Configuration Validation
+#### 2.2 Configuration Validation ✅ COMPLETED
 
-**Current:** No validation on config load
+Schema validation and config generation have been successfully implemented:
+- Config validation with clear error messages
+- `gbm init-config` command for easy setup
+- Comprehensive test coverage (26 tests)
 
-**Add:**
-```go
-import "github.com/go-playground/validator/v10"
-
-type Config struct {
-    Version       int               `yaml:"version" validate:"gte=1,lte=2"`
-    DefaultBranch string            `yaml:"default_branch" validate:"required,min=1"`
-    WorktreesDir  string            `yaml:"worktrees_dir" validate:"required"`
-    Remotes       map[string]Remote `yaml:"remotes" validate:"dive"`
-}
-
-type Remote struct {
-    URL string `yaml:"url" validate:"required,url"`
-}
-
-func LoadConfig(path string) (*Config, error) {
-    // ... load YAML ...
-
-    validate := validator.New()
-    if err := validate.Struct(&cfg); err != nil {
-        return nil, &ConfigError{
-            Path:    path,
-            Message: "invalid configuration",
-            Err:     err,
-        }
-    }
-
-    return &cfg, nil
-}
-```
-
-**Effort:** 3 hours
-**Impact:** High - Catches config errors early with clear messages
+See `config-management-plan-progress.md` for details.
 
 ---
 
@@ -2344,19 +2266,19 @@ func TestMergebackWorkflow_RequiresTargetBranch(t *testing.T) {
 
 ### C. Comparison with Best Practices
 
-| Feature | GBM | git-wt | gh-dash | Recommendation |
-|---------|-----|--------|---------|----------------|
+| Feature | GBM | git-wt | gh-dash | Status |
+|---------|-----|--------|---------|--------|
 | stdout/stderr separation | ✅ | ✅ | ✅ | Keep |
 | Shell integration | ✅ | ✅ | ❌ | Keep |
-| Configuration validation | ❌ | ❌ | ✅ | Add |
-| Standard CLI flags | ⚠️ Partial | ✅ | ✅ | Add missing |
-| Color TTY detection | ❌ | ✅ | ✅ | Add |
-| --json output | ❌ | ✅ | ✅ | Add |
-| Unit test coverage | ~10% | ~40% | ~60% | Increase |
-| Table-driven tests | ❌ | ✅ | ✅ | Add |
-| FSM testing | ❌ | N/A | ✅ | Add |
-| Component architecture | ❌ | N/A | ✅ | Consider |
-| Task-based async | ❌ | N/A | ✅ | Consider |
+| Configuration validation | ✅ | ❌ | ✅ | ✅ DONE |
+| Standard CLI flags | ⚠️ Partial | ✅ | ✅ | In progress |
+| Color TTY detection | ❌ | ✅ | ✅ | Planned |
+| --json output | ❌ | ✅ | ✅ | Planned |
+| Unit test coverage | ~10% | ~40% | ~60% | Planned |
+| Table-driven tests | ❌ | ✅ | ✅ | Planned |
+| FSM testing | ❌ | N/A | ✅ | Planned |
+| Component architecture | ❌ | N/A | ✅ | Future |
+| Task-based async | ❌ | N/A | ✅ | Future |
 
 ---
 

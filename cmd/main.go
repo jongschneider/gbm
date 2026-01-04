@@ -10,7 +10,7 @@ func main() {
 	defer service.CloseLogFile()
 
 	if err := service.Execute(); err != nil {
-		service.PrintError(err)
+		service.PrintError("%v\n", err)
 		os.Exit(1)
 	}
 }

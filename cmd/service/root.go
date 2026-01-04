@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -12,6 +11,9 @@ var (
 )
 
 func newRootCommand() *cobra.Command {
+	// Create flags struct to bind command-line flags
+	var flags CLIFlags
+
 	rootCmd := &cobra.Command{
 		Use:   "gbm2",
 		Short: "Git Branch Manager - Manage Git worktrees based on .gbm/config.yaml",
@@ -21,9 +23,18 @@ and worktrees based on configuration defined in .gbm/config.yaml.
 The tool synchronizes local worktrees with branch definitions and provides
 notifications when configurations drift out of sync.`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// Initialize logging or other common setup here if needed
+			// Make flags available to all subcommands
+			SetGlobalFlags(&flags)
 		},
 	}
+
+	// Register persistent flags (available to all subcommands)
+	rootCmd.PersistentFlags().BoolVarP(&flags.JSON, "json", "j", false, "Output in JSON format")
+	rootCmd.PersistentFlags().BoolVar(&flags.NoColor, "no-color", false, "Disable colored output (also respects NO_COLOR environment variable)")
+	rootCmd.PersistentFlags().BoolVarP(&flags.Quiet, "quiet", "q", false, "Suppress non-essential messages (errors still shown)")
+	rootCmd.PersistentFlags().BoolVar(&flags.NoInput, "no-input", false, "Disable interactive prompts (uses defaults)")
+	rootCmd.PersistentFlags().BoolVar(&flags.DryRun, "dry-run", false, "Preview operations without executing them")
+	rootCmd.PersistentFlags().BoolVarP(&flags.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	// Create service with git and config
 	svc := NewService()
@@ -51,12 +62,5 @@ func Execute() error {
 func CloseLogFile() {
 	if logFile != nil {
 		_ = logFile.Close()
-	}
-}
-
-// PrintError prints an error message to stderr
-func PrintError(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 }

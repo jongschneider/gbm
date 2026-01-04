@@ -6,8 +6,7 @@ import (
 
 func newCloneCommand(svc *Service) *cobra.Command {
 	var (
-		name   string
-		dryRun bool
+		name string
 	)
 
 	cmd := &cobra.Command{
@@ -26,11 +25,9 @@ If name is not provided, extracts the repository name from the URL.`,
 				name = args[1]
 			}
 
-			return svc.Git.Clone(repoURL, name, dryRun)
+			return svc.Git.Clone(repoURL, name, ShouldUseDryRun())
 		},
 	}
-
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print commands without executing them")
 
 	return cmd
 }
