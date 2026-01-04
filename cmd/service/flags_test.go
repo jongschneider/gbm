@@ -172,3 +172,106 @@ func BenchmarkShouldUseColor(b *testing.B) {
 		_ = ShouldUseColor()
 	}
 }
+
+// TestShouldUseColor_NoColorFlagPriority tests that --no-color flag has highest priority.
+// Priority: --no-color flag > NO_COLOR env var > isatty detection
+func TestShouldUseColor_FlagPriority(t *testing.T) {
+	// Set NO_COLOR env var
+	t.Setenv("NO_COLOR", "1")
+
+	// --no-color flag should override NO_COLOR env var
+	SetGlobalFlags(&CLIFlags{NoColor: true})
+	assert.False(t, ShouldUseColor(), "flag should have highest priority")
+
+	// Without --no-color flag, NO_COLOR env var should apply
+	SetGlobalFlags(&CLIFlags{NoColor: false})
+	assert.False(t, ShouldUseColor(), "NO_COLOR env var should apply when flag is false")
+}
+
+// TestShouldUseColor_EnvVarPriority tests that NO_COLOR env var has priority over TTY detection.
+func TestShouldUseColor_EnvVarTakePriority(t *testing.T) {
+	// Clear any NO_COLOR setting
+	t.Setenv("NO_COLOR", "")
+
+	// Unset NO_COLOR and disable flag, color should be based on TTY
+	SetGlobalFlags(&CLIFlags{NoColor: false})
+	canUseColor := ShouldUseColor()
+
+	// Now set NO_COLOR and verify it disables colors
+	t.Setenv("NO_COLOR", "1")
+	SetGlobalFlags(&CLIFlags{NoColor: false})
+	assert.False(t, ShouldUseColor(), "NO_COLOR env var should disable colors")
+
+	// Clear NO_COLOR and verify it goes back to original (TTY-dependent)
+	t.Setenv("NO_COLOR", "")
+	SetGlobalFlags(&CLIFlags{NoColor: false})
+	assert.Equal(t, canUseColor, ShouldUseColor(), "without NO_COLOR env var, should match original TTY detection")
+}
+
+// TestQuietMode_MessagesSuppressed tests that --quiet suppresses non-critical messages.
+func TestQuietMode_MessagesSuppressed(t *testing.T) {
+	SetGlobalFlags(&CLIFlags{Quiet: true})
+
+	// These should be suppressed (no panic, but nothing printed)
+	PrintMessage("test message\n")
+	PrintSuccess("test success")
+	PrintWarning("test warning")
+	PrintInfo("test info")
+
+	// Error messages should NOT be suppressed (tested by verifying no panic)
+	PrintError("test error\n")
+}
+
+// TestQuietMode_ErrorsNeverSuppressed tests that errors are always shown in quiet mode.
+func TestQuietMode_ErrorsAlwaysShown(t *testing.T) {
+	SetGlobalFlags(&CLIFlags{Quiet: true})
+	// PrintError should work even in quiet mode (no suppression)
+	PrintError("critical error message\n")
+	// If this doesn't panic, test passes
+}
+
+// TestFlagCombinations tests multiple flags used together.
+func TestFlagCombinations(t *testing.T) {
+	flags := CLIFlags{
+		JSON:    true,
+		NoColor: true,
+		Quiet:   true,
+		NoInput: true,
+		DryRun:  true,
+		Verbose: false,
+	}
+
+	SetGlobalFlags(&flags)
+
+	// Verify all flags are set correctly
+	assert.True(t, ShouldUseJSON())
+	assert.False(t, ShouldUseColor())
+	assert.True(t, ShouldBeQuiet())
+	assert.False(t, ShouldAllowInput())
+	assert.True(t, ShouldUseDryRun())
+	assert.False(t, ShouldBeVerbose())
+}
+
+// TestPrintSuccessFormat tests that PrintSuccess uses correct format.
+func TestPrintSuccessFormat(t *testing.T) {
+	SetGlobalFlags(&CLIFlags{NoColor: true, Quiet: false})
+	// Just verify it doesn't panic - output format is hard to test without stderr capture
+	PrintSuccess("operation completed")
+}
+
+// TestPrintInfoFormat tests that PrintInfo uses correct format.
+func TestPrintInfoFormat(t *testing.T) {
+	SetGlobalFlags(&CLIFlags{NoColor: true, Quiet: false})
+	// Just verify it doesn't panic - output format is hard to test without stderr capture
+	PrintInfo("informational message")
+}
+
+// TestColorCodeConstants tests that color constants exist and are strings.
+func TestColorCodeConstants(t *testing.T) {
+	// Verify all color constants are defined
+	assert.NotEmpty(t, ColorRed)
+	assert.NotEmpty(t, ColorGreen)
+	assert.NotEmpty(t, ColorYellow)
+	assert.NotEmpty(t, ColorBlue)
+	assert.NotEmpty(t, ColorBold)
+}

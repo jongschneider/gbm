@@ -154,11 +154,11 @@ Examples:
 			worktreeName := args[0]
 			// Copy files from source worktrees based on config rules
 			if err := svc.CopyFilesToWorktree(worktreeName); err != nil {
-				fmt.Printf("Warning: failed to copy files to worktree: %v\n", err)
+				PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
 			}
 			// Create JIRA markdown if applicable
 			if err := svc.CreateJiraMarkdownFile(worktreeName); err != nil {
-				fmt.Printf("Warning: failed to create JIRA markdown: %v\n", err)
+				PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
 			}
 			return nil
 		},
@@ -336,7 +336,7 @@ Examples:
 				if err := os.Chdir(repoRoot); err != nil {
 					return fmt.Errorf("failed to change directory to repo root: %w", err)
 				}
-				PrintMessage("Switching to repository root before removing current worktree...\n")
+				PrintInfo("Switching to repository root before removing current worktree")
 			}
 
 			// Remove the worktree (this validates it exists and returns its info)
@@ -363,7 +363,7 @@ Examples:
 
 			response = strings.TrimSpace(strings.ToLower(response))
 			if response != "y" && response != "yes" {
-				fmt.Printf("Branch '%s' was not deleted.\n", branchName)
+				PrintMessage("Branch '%s' was not deleted.\n", branchName)
 				return nil
 			}
 
@@ -371,7 +371,7 @@ Examples:
 			if err := svc.Git.DeleteBranch(branchName, force, ShouldUseDryRun()); err != nil {
 				return fmt.Errorf("failed to delete branch: %w", err)
 			}
-			PrintMessage("Branch '%s' deleted successfully.\n", branchName)
+			PrintSuccess(fmt.Sprintf("Branch '%s' deleted successfully", branchName))
 
 			return nil
 		},
@@ -551,7 +551,7 @@ Examples:
 					return ErrNoPreviousWorktree
 				}
 				worktreeName = state.PreviousWorktree
-				fmt.Fprintf(os.Stderr, "Switching to previous worktree: %s\n", worktreeName)
+				PrintMessage("Switching to previous worktree: %s\n", worktreeName)
 			}
 
 			// List all worktrees to find the target
@@ -590,7 +590,7 @@ Examples:
 			fmt.Println(targetWorktree.Path)
 
 			// Always output message to stderr (human-readable)
-			fmt.Fprintf(os.Stderr, "✓ Switched to worktree '%s'\n", worktreeName)
+			PrintSuccess(fmt.Sprintf("Switched to worktree '%s'", worktreeName))
 			return nil
 		},
 	}
@@ -640,7 +640,7 @@ func handlePushCurrent(svc *Service) error {
 		return fmt.Errorf("not currently in a worktree. Use 'gbm wt push <worktree-name>' to push a specific worktree")
 	}
 
-	fmt.Printf("💡 Pushing current worktree '%s'...\n", worktreeName)
+	PrintInfo(fmt.Sprintf("Pushing current worktree '%s'", worktreeName))
 
 	// Get the worktree path
 	worktrees, err := svc.Git.ListWorktrees(false)
@@ -671,7 +671,7 @@ func handlePushNamed(svc *Service, worktreeName string) error {
 				return fmt.Errorf("cannot push bare repository")
 			}
 
-			fmt.Printf("💡 Pushing worktree '%s'...\n", worktreeName)
+			PrintInfo(fmt.Sprintf("Pushing worktree '%s'", worktreeName))
 			return svc.Git.PushWorktree(wt.Path, false)
 		}
 	}
@@ -680,7 +680,7 @@ func handlePushNamed(svc *Service, worktreeName string) error {
 }
 
 func handlePullAll(svc *Service) error {
-	fmt.Println("Pulling all worktrees...")
+	PrintInfo("Pulling all worktrees")
 
 	worktrees, err := svc.Git.ListWorktrees(false)
 	if err != nil {
@@ -694,13 +694,13 @@ func handlePullAll(svc *Service) error {
 			continue
 		}
 
-		fmt.Printf("Pulling worktree '%s'...\n", wt.Name)
+		PrintMessage("Pulling worktree '%s'...\n", wt.Name)
 		if err := svc.Git.PullWorktree(wt.Path, false); err != nil {
-			fmt.Printf("Failed to pull worktree '%s': %v\n", wt.Name, err)
+			PrintError("failed to pull worktree '%s': %v\n", wt.Name, err)
 			hasErrors = true
 			continue
 		}
-		fmt.Printf("Successfully pulled worktree '%s'\n", wt.Name)
+		PrintSuccess(fmt.Sprintf("Successfully pulled worktree '%s'", wt.Name))
 	}
 
 	if hasErrors {
@@ -727,7 +727,7 @@ func handlePullCurrent(svc *Service) error {
 		return fmt.Errorf("not currently in a worktree. Use 'gbm wt pull <worktree-name>' to pull a specific worktree")
 	}
 
-	fmt.Printf("Pulling current worktree '%s'...\n", worktreeName)
+	PrintMessage("Pulling current worktree '%s'...\n", worktreeName)
 
 	// Get the worktree path
 	worktrees, err := svc.Git.ListWorktrees(false)
@@ -758,7 +758,7 @@ func handlePullNamed(svc *Service, worktreeName string) error {
 				return fmt.Errorf("cannot pull bare repository")
 			}
 
-			fmt.Printf("Pulling worktree '%s'...\n", worktreeName)
+			PrintMessage("Pulling worktree '%s'...\n", worktreeName)
 			return svc.Git.PullWorktree(wt.Path, false)
 		}
 	}

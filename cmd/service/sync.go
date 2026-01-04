@@ -51,9 +51,7 @@ Destructive operations (removing/recreating worktrees) will prompt for
 confirmation unless --force is specified.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Fetch from remote first to ensure we have latest refs
-			if !ShouldUseDryRun() {
-				PrintMessage("Fetching from remote...\n")
-			}
+			PrintMessage("Fetching from remote...\n")
 			if err := svc.Git.Fetch(ShouldUseDryRun()); err != nil {
 				return fmt.Errorf("failed to fetch from remote: %w", err)
 			}
@@ -71,7 +69,7 @@ confirmation unless --force is specified.`,
 
 			// Check if everything is in sync
 			if status.InSync {
-				PrintMessage("All worktrees are in sync with config.yaml\n")
+				PrintSuccess("All worktrees are in sync with config.yaml")
 				return nil
 			}
 
@@ -224,8 +222,8 @@ func performSync(
 		message := fmt.Sprintf("Move worktree '%s' to '%s' (branch: %s)?", move.OldName, move.NewName, move.Branch)
 
 		if !dryRun && confirmFunc != nil && !confirmFunc(message) {
-			fmt.Printf("Skipped moving worktree '%s'\n", move.OldName)
-			fmt.Printf("  → The ad-hoc worktree '%s' will remain, and '%s' will not be created\n", move.OldName, move.NewName)
+			PrintMessage("Skipped moving worktree '%s'\n", move.OldName)
+			PrintInfo(fmt.Sprintf("The ad-hoc worktree '%s' will remain, and '%s' will not be created", move.OldName, move.NewName))
 			continue
 		}
 
@@ -239,7 +237,7 @@ func performSync(
 			return fmt.Errorf("failed to move worktree '%s' to '%s': %w", move.OldName, move.NewName, err)
 		}
 
-		fmt.Printf("Moved worktree '%s' → '%s' (branch: %s)\n", move.OldName, move.NewName, move.Branch)
+		PrintSuccess(fmt.Sprintf("Moved worktree '%s' → '%s' (branch: %s)", move.OldName, move.NewName, move.Branch))
 	}
 
 	// Handle missing worktrees (create them)
@@ -265,7 +263,7 @@ func performSync(
 			return fmt.Errorf("failed to create worktree '%s': %w", name, err)
 		}
 
-		fmt.Printf("Created worktree '%s' for branch '%s'\n", name, configEntry.Branch)
+		PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", name, configEntry.Branch))
 	}
 
 	// Handle branch changes (destructive - requires confirmation)
@@ -274,7 +272,7 @@ func performSync(
 			name, change.CurrentBranch, change.DesiredBranch)
 
 		if !dryRun && confirmFunc != nil && !confirmFunc(message) {
-			fmt.Printf("Skipped updating worktree '%s'\n", name)
+			PrintMessage("Skipped updating worktree '%s'\n", name)
 			continue
 		}
 
@@ -302,20 +300,19 @@ func performSync(
 			}
 		}
 
-		fmt.Printf("Updated worktree '%s' to branch '%s'\n", name, configEntry.Branch)
+		PrintSuccess(fmt.Sprintf("Updated worktree '%s' to branch '%s'", name, configEntry.Branch))
 	}
 
 	return nil
 }
 
 func showSyncStatus(svc *Service, status *SyncStatus) error {
-	fmt.Println("[DRY RUN] Showing what would be changed:")
-	fmt.Println()
+	PrintInfo("[DRY RUN] Showing what would be changed")
 
 	config := svc.GetConfig()
 
 	if len(status.WorktreeMoves) > 0 {
-		fmt.Println("Worktree renames/moves (will prompt for confirmation):")
+		PrintInfo("Worktree renames/moves (will prompt for confirmation):")
 		for _, move := range status.WorktreeMoves {
 			fmt.Printf("  ↔ %s → %s (branch: %s)\n", move.OldName, move.NewName, move.Branch)
 		}
@@ -323,7 +320,7 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 	}
 
 	if len(status.MissingWorktrees) > 0 {
-		fmt.Println("Missing worktrees (will be created):")
+		PrintInfo("Missing worktrees (will be created):")
 		for _, name := range status.MissingWorktrees {
 			branch := config.Worktrees[name].Branch
 			fmt.Printf("  + %s (branch: %s)\n", name, branch)
@@ -332,7 +329,7 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 	}
 
 	if len(status.BranchChanges) > 0 {
-		fmt.Println("Branch changes needed (will remove and recreate):")
+		PrintInfo("Branch changes needed (will remove and recreate):")
 		for name, change := range status.BranchChanges {
 			fmt.Printf("  ~ %s: %s → %s\n", name, change.CurrentBranch, change.DesiredBranch)
 		}
@@ -341,7 +338,7 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 
 	// Always show ad-hoc worktrees if present (informational only)
 	if len(status.OrphanedWorktrees) > 0 {
-		fmt.Println("Ad-hoc worktrees (not tracked in config):")
+		PrintInfo("Ad-hoc worktrees (not tracked in config):")
 		for name, branch := range status.OrphanedWorktrees {
 			fmt.Printf("  • %s (branch: %s)\n", name, branch)
 		}
@@ -350,7 +347,7 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 
 	// Check if config-tracked worktrees are in sync
 	if status.InSync {
-		fmt.Println("✓ All tracked worktrees are in sync with config")
+		PrintSuccess("All tracked worktrees are in sync with config")
 		return nil
 	}
 
