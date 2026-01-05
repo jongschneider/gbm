@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"gbm/internal/git"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 // FSMModel is a Bubble Tea model that wraps the FSM and coordinates state transitions
@@ -397,8 +400,34 @@ func formatWorktreeSuccessMessage(wt *git.Worktree) string {
 
 // RunWorktreeAddTUI runs the worktree add workflow with a single Bubble Tea program
 func RunWorktreeAddTUI(ctx context.Context, fsm *WorktreeAddFSM) error {
+	// Open /dev/tty for TUI rendering
+	// This ensures the TUI works correctly in various terminal contexts (pipes, shell integration, etc.)
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+	}
+	defer func() {
+		_ = tty.Close()
+	}()
+
+	// Explicitly detect and set color profile for the tty output
+	// This ensures lipgloss renders with colors even though we're using a custom file handle
+	renderer := lipgloss.NewRenderer(tty,
+		termenv.WithColorCache(true),
+		termenv.WithTTY(true),
+		termenv.WithProfile(termenv.TrueColor),
+	)
+	lipgloss.SetDefaultRenderer(renderer)
+
 	model := NewFSMModel(ctx, fsm)
-	program := tea.NewProgram(model, tea.WithAltScreen())
+
+	// TUI renders to /dev/tty, leaving stdout clean
+	// Use WithInput/WithOutput to explicitly direct I/O to /dev/tty
+	program := tea.NewProgram(model,
+		tea.WithInput(tty),
+		tea.WithOutput(tty),
+		tea.WithAltScreen(),
+	)
 	finalModel, err := program.Run()
 
 	if err != nil {
