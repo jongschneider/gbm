@@ -814,3 +814,168 @@ func TestE2E_JSON_ListStructure(t *testing.T) {
 	// Should have "main" worktree from setup
 	assert.Contains(t, stdout, "\"name\":\"main\"")
 }
+
+// ==================== No-Input Mode Tests ====================
+// Tests for --no-input flag behavior
+
+// TestE2E_NoInput_WorktreeAddTUI tests that TUI mode fails with --no-input
+func TestE2E_NoInput_WorktreeAddTUI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Try to run worktree add with no args (TUI mode) and --no-input
+	_, stderr, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "worktree", "add")
+	require.Error(t, err, "TUI mode should fail with --no-input")
+
+	// Verify error message explains the issue
+	assert.Contains(t, stderr, "TUI mode requires interactive input",
+		"error should explain TUI requires interactive input")
+	assert.Contains(t, stderr, "gbm worktree add <name> <branch>",
+		"error should suggest non-interactive alternative")
+}
+
+// TestE2E_NoInput_WorktreeAddTUI_JSON tests that TUI mode fails with --no-input in JSON mode
+func TestE2E_NoInput_WorktreeAddTUI_JSON(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Try to run worktree add with no args (TUI mode), --no-input, and --json
+	// In JSON mode, errors are returned as JSON output (success:false) but may not return shell error
+	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "--no-input", "worktree", "add")
+
+	// Verify JSON error output indicates failure
+	assert.Contains(t, stdout, "\"success\":false", "JSON output should indicate failure")
+	assert.Contains(t, stdout, "TUI mode requires interactive input", "JSON output should explain TUI requires input")
+}
+
+// TestE2E_NoInput_WorktreeList tests that TUI list fails with --no-input (text mode)
+func TestE2E_NoInput_WorktreeList(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Try to run worktree list with --no-input (TUI table mode)
+	_, stderr, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "worktree", "list")
+	require.Error(t, err, "TUI list should fail with --no-input")
+
+	// Verify error message explains alternatives
+	assert.Contains(t, stderr, "TUI requires interactive input",
+		"error should explain TUI requires input")
+	assert.Contains(t, stderr, "--json",
+		"error should suggest JSON as alternative")
+}
+
+// TestE2E_NoInput_WorktreeListJSON tests that JSON list works with --no-input
+func TestE2E_NoInput_WorktreeListJSON(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// JSON mode should work fine with --no-input (no TUI)
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--json", "--no-input", "worktree", "list")
+	require.NoError(t, err, "JSON worktree list should succeed with --no-input")
+
+	// Verify valid JSON output
+	assert.Contains(t, stdout, "\"success\":true")
+	assert.Contains(t, stdout, "\"worktrees\":")
+}
+
+// TestE2E_NoInput_WorktreeAddCLI tests that CLI mode works with --no-input
+func TestE2E_NoInput_WorktreeAddCLI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// CLI mode (with args) should work with --no-input
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "worktree", "add", "no-input-test", "no-input-test", "-b")
+	require.NoError(t, err, "CLI worktree add should succeed with --no-input")
+
+	// Verify worktree was created
+	expectedPath := filepath.Join(repo.Root, "worktrees", "no-input-test")
+	assert.Contains(t, stdout, expectedPath, "stdout should contain worktree path")
+	assert.DirExists(t, expectedPath, "worktree should be created")
+
+	// Verify success message in stderr
+	assert.Contains(t, stderr, "Created worktree")
+}
+
+// TestE2E_NoInput_BranchNotExist tests that non-existent branch fails gracefully with --no-input
+func TestE2E_NoInput_BranchNotExist(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Try to create worktree for non-existent branch without -b flag
+	// Normally this would prompt, but with --no-input it should fail
+	_, stderr, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "worktree", "add", "wt-test", "nonexistent-branch")
+	require.Error(t, err, "should fail for non-existent branch without -b with --no-input")
+
+	// Verify error message indicates failure (git worktree add fails)
+	assert.NotEmpty(t, stderr, "stderr should contain error message")
+	// The error may be from git directly or our custom message
+	assert.True(t,
+		strings.Contains(stderr, "failed") || strings.Contains(stderr, "Error") || strings.Contains(stderr, "does not exist"),
+		"error should indicate failure, got: %q", stderr)
+}
+
+// TestE2E_NoInput_Switch tests that switch command works with --no-input
+func TestE2E_NoInput_Switch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Create a worktree first
+	_, err := runGBM(t, binPath, repo.Root, "wt", "add", "switch-test", "switch-test", "-b")
+	require.NoError(t, err)
+
+	// Switch with --no-input should work (no TUI)
+	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "worktree", "switch", "switch-test")
+	require.NoError(t, err, "switch should work with --no-input")
+
+	expectedPath := filepath.Join(repo.Root, "worktrees", "switch-test")
+	assert.Contains(t, stdout, expectedPath, "stdout should contain worktree path")
+}
+
+// TestE2E_NoInput_FlagCombinations tests --no-input with other flags
+func TestE2E_NoInput_FlagCombinations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test")
+	}
+
+	repo, binPath := setupGBMRepo(t)
+
+	// Test --no-input with --quiet
+	stdout, stderr, err := runGBMStdout(t, binPath, repo.Root, "--no-input", "--quiet", "worktree", "add", "combo-test", "combo-test", "-b")
+	require.NoError(t, err, "should work with --no-input --quiet")
+
+	expectedPath := filepath.Join(repo.Root, "worktrees", "combo-test")
+	assert.Contains(t, stdout, expectedPath, "stdout should have path")
+	assert.Empty(t, stderr, "stderr should be empty in quiet mode")
+
+	// Test --no-input with --json
+	stdout, _, err = runGBMStdout(t, binPath, repo.Root, "--no-input", "--json", "worktree", "switch", "combo-test")
+	require.NoError(t, err, "should work with --no-input --json")
+	assert.Contains(t, stdout, "\"success\":true")
+
+	// Test all three flags together
+	stdout, stderr, err = runGBMStdout(t, binPath, repo.Root, "--no-input", "--json", "--quiet", "worktree", "switch", "main")
+	require.NoError(t, err, "should work with --no-input --json --quiet")
+	assert.Contains(t, stdout, "\"success\":true")
+	assert.Empty(t, stderr, "stderr should be empty")
+}

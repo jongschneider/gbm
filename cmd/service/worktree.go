@@ -71,6 +71,13 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// If no args provided, launch TUI mode
 			if len(args) == 0 {
+				// TUI mode requires interactive input
+				if !ShouldAllowInput() {
+					if ShouldUseJSON() {
+						return HandleError("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
+					}
+					return fmt.Errorf("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
+				}
 				return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
 			}
 
@@ -342,6 +349,11 @@ Examples:
 				return OutputJSONArray(response)
 			}
 
+			// TUI table requires interactive input
+			if !ShouldAllowInput() {
+				return fmt.Errorf("TUI requires interactive input. Use 'gbm --json worktree list' for non-interactive output, or 'gbm worktree switch <name>' to switch directly")
+			}
+
 			// Display using bubbletea table
 			return runWorktreeTable(sortedWorktrees, trackedBranches, currentWorktree, svc)
 		},
@@ -425,6 +437,12 @@ Examples:
 			}
 
 			branchName := removedWorktree.Branch
+
+			// Handle no-input mode: use default (don't delete branch)
+			if !ShouldAllowInput() {
+				PrintMessage("Branch '%s' was not deleted (--no-input mode uses default: keep branch).\n", branchName)
+				return nil
+			}
 
 			// Prompt to delete the branch
 			fmt.Printf("Delete branch '%s' associated with this worktree? (y/N): ", branchName)
