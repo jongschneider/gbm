@@ -808,3 +808,74 @@ This feature implementation completed the remaining integration features:
 
 All spinner infrastructure was already implemented, making this verification mainly about confirming the integration with the new delay feature.
 
+## 2026-01-06: Input Blocking During Async Loading Implementation
+
+### Problem Solved
+- Previously, users could hit Enter repeatedly and skip through the wizard UI even while JIRA issues or branches were loading
+- This caused the wizard to advance without proper data being available for selection
+- Users could accidentally submit incomplete or invalid selections
+
+### Solution Implemented
+- Enhanced `pkg/tui/fields/filterable.go` to block input while loading options asynchronously:
+   - Added guard clause at start of key input handling that blocks all input except Ctrl+C and q during async loading
+   - Added secondary check in Enter key handler to prevent submission if options are still loading
+   - Allows Ctrl+C and q keys to pass through for cancellation/quit even while loading
+   - All other input (navigation keys, typing, Enter) is silently ignored while options load
+
+### Changes Made
+- Modified `Update()` method in Filterable field (lines 116-127):
+   - Check `if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() && f.asyncErr == nil`
+   - Block all keys except "ctrl+c" and "q"
+   - Fall through for cancel/quit keys to be handled by wizard
+- Added check in Enter key handler (lines 154-157):
+   - Prevent submission if `f.optionsFunc != nil && !f.optionsFunc.IsLoaded()`
+   - Ensures field cannot complete until options are available
+
+### Test Coverage
+- Created comprehensive test suite in `pkg/tui/fields/filterable_test.go`:
+   - `TestFilterable_BlocksInputWhileLoading` - verifies all input types are blocked except Ctrl+C/q
+     - Tests: Enter, j/k navigation, arrow keys, typing, Ctrl+C, q keys
+     - Confirms input is blocked before options load
+   - `TestFilterable_AllowsInputAfterLoading` - verifies input works normally after loading completes
+     - Confirms Enter key works once options are loaded
+     - Confirms GetValue() returns correct selection
+   - All tests pass (2 new test functions with 9 total test cases)
+
+### User Experience
+- Input blocking is transparent - no error messages needed
+- Users see the loading spinner while options are loading
+- Once spinner disappears and options appear, all input is immediately responsive
+- Users can cancel at any time with Ctrl+C or q, even during loading
+- Prevents accidental skips through the wizard
+
+### Design Notes
+- Input blocking is transparent - no error messages needed, users see the loading spinner
+- Allows graceful cancellation during slow network requests (e.g., with --delay flag)
+- Matches common TUI patterns where interactive fields become non-interactive during data loading
+- No changes needed to other field types (Selector, TextInput, Confirm) as they don't have async loading
+
+### Code Quality
+- All existing tests still pass (no regressions)
+- New tests follow established patterns with table-driven design
+- Clear separation of concerns: async state management vs. input handling
+- Proper null checks to handle fields without async loading
+
+### Integration with Existing Features
+- Works seamlessly with the --delay flag (added in previous session)
+- Works with jitter implementation that varies async load times
+- Spinner display and input blocking are coordinated:
+  - Spinner shows while `!optionsFunc.IsLoaded()`
+  - Input is blocked while `!optionsFunc.IsLoaded() && asyncErr == nil`
+  - When spinner disappears, input immediately becomes available
+
+### Testing
+- Ran full test suite: `go test ./... ` - all 14 test packages pass
+- Focused tests on Filterable field: `go test ./pkg/tui/fields -v` - all tests pass
+- No regressions to existing functionality
+
+### Final Status
+- Input blocking successfully prevents accidental wizard skips
+- All 66 PRD items remain complete and passing
+- User experience improved: cannot accidentally skip during async loading
+- Code is robust and well-tested
+

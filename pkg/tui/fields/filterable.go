@@ -113,6 +113,16 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		return f, cmd
 	}
 
+	// Block all input except cancel/quit while loading options
+	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() && f.asyncErr == nil {
+		// Only allow cancel (Ctrl+C) or quit (q) keys while loading
+		if keyMsg.String() != "ctrl+c" && keyMsg.String() != "q" {
+			// Ignore all other input while loading
+			return f, nil
+		}
+		// Fall through to let ctrl+c and q be handled normally (likely by wizard)
+	}
+
 	switch keyMsg.String() {
 	// Navigation: up arrow, k, and ctrl+k
 	case "up", "k", "ctrl+k":
@@ -136,6 +146,11 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 	// Confirm selection
 	case "enter":
+		// Require at least one option to be loaded and available before allowing submission
+		if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+			// Still loading, don't allow submission
+			return f, nil
+		}
 		// If list has items and one is selected, use that
 		if len(f.filtered) > 0 && f.cursor >= 0 && f.cursor < len(f.filtered) {
 			f.selected = f.filtered[f.cursor].Value

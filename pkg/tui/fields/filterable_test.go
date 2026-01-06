@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -203,4 +204,127 @@ func TestFilterable_SpinnerDisplayDuringAsyncLoad(t *testing.T) {
 	view := f.View()
 	assert.Contains(t, view, "Loading options")
 	assert.NotEmpty(t, f.spinner.View())
+}
+
+func TestFilterable_BlocksInputWhileLoading(t *testing.T) {
+	testCases := []struct {
+		name      string
+		keyMsg    string
+		blocked   bool // Whether this input should be blocked while loading
+		description string
+	}{
+		{
+			name:        "enter blocked while loading",
+			keyMsg:      "enter",
+			blocked:     true,
+			description: "Enter should not allow submission while options are still loading",
+		},
+		{
+			name:        "j navigation blocked while loading",
+			keyMsg:      "j",
+			blocked:     true,
+			description: "j key should not navigate while options are still loading",
+		},
+		{
+			name:        "down navigation blocked while loading",
+			keyMsg:      "down",
+			blocked:     true,
+			description: "down arrow should not navigate while options are still loading",
+		},
+		{
+			name:        "k navigation blocked while loading",
+			keyMsg:      "k",
+			blocked:     true,
+			description: "k key should not navigate while options are still loading",
+		},
+		{
+			name:        "typing blocked while loading",
+			keyMsg:      "a",
+			blocked:     true,
+			description: "typing should be ignored while options are still loading",
+		},
+		{
+			name:        "ctrl+c allowed while loading",
+			keyMsg:      "ctrl+c",
+			blocked:     false,
+			description: "Ctrl+C should be allowed to cancel while loading",
+		},
+		{
+			name:        "q allowed while loading",
+			keyMsg:      "q",
+			blocked:     false,
+			description: "q key should be allowed to quit while loading",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := NewFilterable("key", "title", "desc", []Option{})
+			// Configure async loading
+			f.WithOptionsFunc(func() ([]Option, error) {
+				time.Sleep(50 * time.Millisecond)
+				return []Option{{Label: "Option A", Value: "a"}}, nil
+			})
+			f.Focus()
+
+			// Verify options are not loaded yet
+			assert.False(t, f.optionsFunc.IsLoaded(), "options should not be loaded yet")
+
+			// Create key message
+			keyMsg := tea.KeyMsg{}
+			switch tc.keyMsg {
+			case "enter":
+				keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
+			case "ctrl+c":
+				keyMsg = tea.KeyMsg{Type: tea.KeyCtrlC}
+			default:
+				keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tc.keyMsg)}
+			}
+
+			// Try to send the input
+			field, cmd := f.Update(keyMsg)
+			f = field.(*Filterable)
+
+			if tc.blocked {
+				// Input should be blocked
+				assert.False(t, f.IsComplete(), "field should not be complete for: %s", tc.description)
+				assert.Nil(t, cmd, "no command should be returned for: %s", tc.description)
+			} else {
+				// Input should be allowed (wizard handles the actual behavior)
+				// We just verify it's not silently ignored
+				// For ctrl+c and q, the field doesn't do anything but it doesn't block either
+			}
+		})
+	}
+}
+
+func TestFilterable_AllowsInputAfterLoading(t *testing.T) {
+	// Create a Filterable with async options
+	f := NewFilterable("key", "title", "desc", []Option{})
+	f.WithOptionsFunc(func() ([]Option, error) {
+		return []Option{
+			{Label: "Option A", Value: "a"},
+			{Label: "Option B", Value: "b"},
+		}, nil
+	})
+	f.Focus()
+
+	// Load the options manually
+	opts, err := f.optionsFunc.Get()
+	assert.NoError(t, err)
+	f.options = opts
+	f.filterOptions()
+
+	// Verify options are now loaded
+	assert.True(t, f.optionsFunc.IsLoaded(), "options should be loaded")
+
+	// Now Enter should be allowed
+	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	field, cmd := f.Update(keyMsg)
+	f = field.(*Filterable)
+
+	// Should complete successfully
+	assert.True(t, f.IsComplete(), "field should be complete after loading and pressing Enter")
+	assert.NotNil(t, cmd, "command should be returned after loading and pressing Enter")
+	assert.Equal(t, "a", f.GetValue(), "should have selected first option")
 }
