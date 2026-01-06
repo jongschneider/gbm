@@ -49,6 +49,28 @@ func generateBranchNameHotfix(issueKey, summary string) string {
 	return fmt.Sprintf("hotfix/%s-%s", issueKey, slug)
 }
 
+// createBaseFieldWithBranches creates a Filterable field with synchronously loaded branches.
+// Branches are loaded immediately and not with async, since they're local and fast.
+func createBaseFieldWithBranches(ctx *tui.Context) tui.Field {
+	options := []fields.Option{}
+	if ctx.GitService != nil {
+		if branches, err := ctx.GitService.ListBranches(); err == nil {
+			for _, branch := range branches {
+				options = append(options, fields.Option{
+					Label: branch,
+					Value: branch,
+				})
+			}
+		}
+	}
+	return fields.NewFilterable(
+		"base_branch",
+		"Select Base Branch",
+		"Choose the branch to base this feature on",
+		options,
+	)
+}
+
 // FeatureWorkflow creates and returns a Wizard configured for creating feature branches.
 // Steps:
 // 1. Filterable for JIRA issue selection or custom worktree name
@@ -98,29 +120,8 @@ func FeatureWorkflow(ctx *tui.Context) *tui.Wizard {
 
 		// Step 3: Base branch selection (skipped if branch name already exists)
 		{
-			Name: "base_branch",
-			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
-				"Choose the branch to base this feature on",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
+			Name:  "base_branch",
+			Field: createBaseFieldWithBranches(ctx),
 
 			// Skip this step if the branch name already exists
 			Skip: func(state *tui.WorkflowState) bool {
@@ -222,29 +223,8 @@ func HotfixWorkflow(ctx *tui.Context) *tui.Wizard {
 
 		// Step 2: Base branch selection (mandatory - NOT skipped)
 		{
-			Name: "base_branch",
-			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
-				"Choose the production or release branch to base this hotfix on",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
+			Name:  "base_branch",
+			Field: createBaseFieldWithBranches(ctx),
 			// No Skip function - base branch is always required for hotfixes
 		},
 
