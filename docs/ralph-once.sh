@@ -12,4 +12,4 @@ Use this to leave a note for the next person working in the code base.
 ONLY WORK ON A SINGLE FEATURE.
 If while implementing the feature you notice the PRD is complete output <promise>COMPLETE</promise>.'
 
-claude --dangerously-skip-permissions -p "$prompt"
+claude --dangerously-skip-permissions "$prompt"
