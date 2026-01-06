@@ -22,3 +22,30 @@
   - Wizard container (item 2) + Step struct (item 6) - enables multi-step form orchestration
   - Selector field (items 7-11) - first concrete field implementation
 - The Wizard depends on Step, so implement them together in wizard.go
+
+## 2026-01-06: Wizard and Step Implementation
+
+### Completed
+- Created `pkg/tui/wizard.go` with:
+  - `Step` struct with Name, Field, and Skip function fields
+  - `Wizard` struct that orchestrates multi-step form flows
+  - `NewWizard()` constructor accepting steps and context
+  - `Init()` that finds first non-skipped step and focuses it
+  - `Update()` that handles Ctrl+C (cancel), ESC (back), window resize, and delegates to current field
+  - `View()` that renders only the current step
+  - `IsComplete()`, `IsCancelled()`, `State()`, `Context()` accessor methods
+  - `handleNext()` and `handleBack()` for step navigation with skip logic
+  - `findNextStep()` and `findPrevStep()` helpers for skip-aware navigation
+  - `storeFieldValue()` to persist field values to WorkflowState
+
+### PRD Items Completed
+- Item 2: Wizard container (infrastructure) - passes: true
+- Item 6: Step struct (infrastructure) - passes: true
+
+### Notes for Next Developer
+- All infrastructure is now complete (Field, Theme, Context, WorkflowState, Wizard, Step)
+- Next priority should be implementing the Selector field (items 7-11)
+  - This is the first concrete field implementation
+  - Required for the workflow type selection step
+- After Selector, implement Filterable (items 12-17) for JIRA/branch selection
+- The wizard navigation features (items 28-35) are mostly implemented but need testing with real fields

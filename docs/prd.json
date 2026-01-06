@@ -24,7 +24,7 @@
       "Implement View that renders only current step",
       "Verify: Wizard compiles and can hold Steps"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "infrastructure",
@@ -73,7 +73,7 @@
       "Add Skip func(*WorkflowState) bool field (can be nil)",
       "Verify: Step can be created with and without Skip function"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-selector",
