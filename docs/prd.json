@@ -576,7 +576,7 @@
       "Step 5: Confirm",
       "Verify: Run hotfix workflow, base branch step appears BEFORE branch name"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
@@ -587,7 +587,7 @@
       "Apply prefix to both JIRA-selected and custom names",
       "Verify: Select JIRA issue, WorktreeName is 'HOTFIX_' + key"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
@@ -598,7 +598,7 @@
       "Same slug generation logic as feature workflow",
       "Verify: Select JIRA issue in hotfix flow, branch name starts with hotfix/"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
@@ -609,7 +609,7 @@
       "User must explicitly select a base branch",
       "Verify: Run hotfix workflow, base branch step always appears"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
@@ -620,7 +620,7 @@
       "Show worktree name (with HOTFIX_ prefix)",
       "Verify: Reach confirm step, see hotfix branch name, base branch, prefixed worktree name"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",

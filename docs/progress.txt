@@ -301,28 +301,28 @@
 
 ### Completed
 - Created `pkg/tui/workflows/workflows.go` package with:
-  - `FeatureWorkflow(ctx)` function that returns a configured Wizard with 4 steps:
-    1. Filterable field for JIRA issue selection or custom worktree name (with async JIRA loading)
-    2. TextInput field for branch name with validation
-    3. Filterable field for base branch selection (skipped if branch already exists)
-    4. Confirm field for final verification
-  - `ProcessFeatureWorkflow(wizard, ctx)` helper function to handle post-wizard processing:
-    - Looks up full JIRA issue details from selected issue key
-    - Generates sensible branch name: `feature/{issue-key}-{slugified-summary}`
-    - Stores issue key as worktree name
-    - Stores full JiraIssue struct for reference
-  - `generateBranchName(issueKey, summary)` function for feature branch naming
-  - `generateBranchNameHotfix(issueKey, summary)` function (prepared for HotfixWorkflow)
-  - `slugify(string)` utility for URL-friendly slugs (lowercase, spaces to hyphens, special chars removed)
-  - `validateBranchName(string)` validator that ensures non-empty, valid characters only
-  - Comprehensive test suite with 10 test cases:
-    - Slugify conversion with various inputs
-    - Branch name generation (feature and hotfix formats)
-    - Branch name validation (valid/invalid cases)
-    - FeatureWorkflow creation and initialization
-    - ProcessFeatureWorkflow with JIRA issue lookup and branch name generation
-    - Field implementation verification
-  - All tests pass (10/10)
+   - `FeatureWorkflow(ctx)` function that returns a configured Wizard with 4 steps:
+     1. Filterable field for JIRA issue selection or custom worktree name (with async JIRA loading)
+     2. TextInput field for branch name with validation
+     3. Filterable field for base branch selection (skipped if branch already exists)
+     4. Confirm field for final verification
+   - `ProcessFeatureWorkflow(wizard, ctx)` helper function to handle post-wizard processing:
+     - Looks up full JIRA issue details from selected issue key
+     - Generates sensible branch name: `feature/{issue-key}-{slugified-summary}`
+     - Stores issue key as worktree name
+     - Stores full JiraIssue struct for reference
+   - `generateBranchName(issueKey, summary)` function for feature branch naming
+   - `generateBranchNameHotfix(issueKey, summary)` function (prepared for HotfixWorkflow)
+   - `slugify(string)` utility for URL-friendly slugs (lowercase, spaces to hyphens, special chars removed)
+   - `validateBranchName(string)` validator that ensures non-empty, valid characters only
+   - Comprehensive test suite with 10 test cases:
+     - Slugify conversion with various inputs
+     - Branch name generation (feature and hotfix formats)
+     - Branch name validation (valid/invalid cases)
+     - FeatureWorkflow creation and initialization
+     - ProcessFeatureWorkflow with JIRA issue lookup and branch name generation
+     - Field implementation verification
+   - All tests pass (10/10)
 
 ### PRD Items Completed
 - Item 24: Feature workflow step sequence (workflow-feature) - passes: true
@@ -345,3 +345,51 @@
 - Add wizard navigation help text and polish (items 32-35 in wizard-navigation)
 - Create end-to-end tests combining workflows with wizard navigation
 - Integrate with actual CLI commands (gbm wt testadd, gbm wt feature, etc.)
+
+## 2026-01-06: Hotfix Workflow Implementation
+
+### Completed
+- Enhanced `pkg/tui/workflows/workflows.go` with HotfixWorkflow:
+   - `HotfixWorkflow(ctx)` function that returns a configured Wizard with 4 steps:
+     1. Filterable field for JIRA issue selection or custom worktree name (with async JIRA loading)
+     2. Filterable field for base branch selection (MANDATORY - NO skip logic)
+     3. TextInput field for branch name with validation and hotfix/ prefix hint
+     4. Confirm field for final verification
+   - `ProcessHotfixWorkflow(wizard, ctx)` helper function to handle post-wizard processing:
+     - Looks up full JIRA issue details from selected issue key
+     - Generates hotfix branch name: `hotfix/{issue-key}-{slugified-summary}`
+     - Stores issue key with "HOTFIX_" prefix as worktree name
+     - Stores full JiraIssue struct for reference
+   - Updated test suite with 4 new test cases:
+     - HotfixWorkflow creation and initialization
+     - ProcessHotfixWorkflow with JIRA issue lookup and branch name generation
+     - ProcessHotfixWorkflow with custom worktree name (non-JIRA format)
+     - All tests verify HOTFIX_ prefix is applied correctly
+   - All tests pass (14/14 total)
+
+### PRD Items Completed
+- Item 47: Hotfix workflow step sequence (workflow-hotfix) - passes: true
+- Item 48: Hotfix worktree prefix (workflow-hotfix) - passes: true
+- Item 49: Hotfix branch prefix (workflow-hotfix) - passes: true
+- Item 50: Hotfix mandatory base branch (workflow-hotfix) - passes: true
+- Item 51: Hotfix confirmation summary (workflow-hotfix) - passes: true
+
+### Key Differences from FeatureWorkflow
+- **Step Order**: Base branch selection (step 2) comes BEFORE branch name entry (step 3)
+- **Base Branch Mandatory**: No Skip function on base branch step - always shown
+- **Worktree Naming**: Prefix "HOTFIX_" is applied in ProcessHotfixWorkflow
+- **Branch Naming**: Uses "hotfix/" prefix instead of "feature/"
+- **Use Case**: Designed for production/release hotfixes where base branch choice is critical
+
+### Design Notes
+- Both FeatureWorkflow and HotfixWorkflow follow the same Wizard pattern and share utility functions
+- Step ordering differs intentionally: features default to main, hotfixes must explicitly choose base
+- HOTFIX_ prefix ensures hotfixes are visually distinct in worktree listings
+- All async loading, validation, and theming infrastructure works identically for both workflows
+
+### Next Steps for Developer
+- Implement integration/CLI layer with mock services for testing (items 52-56)
+- Create mock GitService implementing GitService interface
+- Create mock JiraService implementing JiraService interface
+- Add 'testadd' subcommand to 'gbm wt' command group for testing
+- Implement dry-run summary and cancellation handling

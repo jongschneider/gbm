@@ -252,6 +252,88 @@ func (m *mockJiraService) FetchIssues() ([]tui.JiraIssue, error) {
 	return m.issues, nil
 }
 
+func TestHotfixWorkflowCreation(t *testing.T) {
+	ctx := tui.NewContext()
+
+	wizard := HotfixWorkflow(ctx)
+
+	// Verify wizard was created
+	assert.NotNil(t, wizard)
+
+	// Verify wizard has expected state
+	assert.NotNil(t, wizard.State())
+
+	// Verify wizard can be initialized
+	initCmd := wizard.Init()
+	assert.NotNil(t, initCmd)
+}
+
+func TestProcessHotfixWorkflow(t *testing.T) {
+	testCases := []struct {
+		name               string
+		worktreeName       string
+		jiraIssues         []tui.JiraIssue
+		expectErr          bool
+		expectBranch       string
+		expectWorktreeName string
+	}{
+		{
+			name:         "JIRA issue found",
+			worktreeName: "PROJ-123",
+			jiraIssues: []tui.JiraIssue{
+				{Key: "PROJ-123", Summary: "Fix critical bug"},
+				{Key: "PROJ-124", Summary: "Add feature"},
+			},
+			expectErr:          false,
+			expectBranch:       "hotfix/PROJ-123-fix-critical-bug",
+			expectWorktreeName: "HOTFIX_PROJ-123",
+		},
+		{
+			name:         "JIRA issue not found",
+			worktreeName: "custom-name",
+			jiraIssues: []tui.JiraIssue{
+				{Key: "PROJ-123", Summary: "Fix bug"},
+			},
+			expectErr:          false,
+			expectBranch:       "",
+			expectWorktreeName: "HOTFIX_custom-name",
+		},
+		{
+			name:               "custom worktree name (non-JIRA format)",
+			worktreeName:       "my-hotfix",
+			jiraIssues:         []tui.JiraIssue{},
+			expectErr:          false,
+			expectBranch:       "",
+			expectWorktreeName: "HOTFIX_my-hotfix",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := tui.NewContext()
+
+			// Create a mock JIRA service
+			mockJiraService := &mockJiraService{
+				issues: tc.jiraIssues,
+			}
+			ctx.WithJiraService(mockJiraService)
+
+			wizard := HotfixWorkflow(ctx)
+			wizard.State().WorktreeName = tc.worktreeName
+
+			err := ProcessHotfixWorkflow(wizard, ctx)
+
+			if tc.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectBranch, wizard.State().BranchName)
+				assert.Equal(t, tc.expectWorktreeName, wizard.State().WorktreeName)
+			}
+		})
+	}
+}
+
 // Ensure field implementations
 func TestFieldImplementations(t *testing.T) {
 	// Test that we can create Filterable fields (used in FeatureWorkflow)

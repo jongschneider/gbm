@@ -33,6 +33,10 @@ testutil/             Test utilities
 
 **JIRA layer:** Fetch issues, generate branch names, format for display.
 
+## Code Quality
+
+**Guard clauses and early returns:** Use guard clauses to handle error cases and edge conditions early. Exit functions with early returns to reduce nesting and improve readability. Prefer short happy paths over deeply nested conditionals. Example: Check for invalid input first, then proceed with main logic instead of wrapping main logic in a conditional.
+
 ## Development Commands
 
 Use `just` (see `justfile`):

@@ -19,6 +19,12 @@
 - Inject dependencies through constructors
 - Keep interfaces focused following Interface Segregation Principle
 
+### Guard Clauses and Early Returns
+- Use guard clauses to handle error cases and edge conditions early
+- Exit functions with early returns to reduce nesting and improve readability
+- Prefer short happy paths over deeply nested conditionals
+- Example: Check for invalid input first, then proceed with main logic instead of wrapping main logic in a conditional
+
 ## Project Structure
 
 Follow standard Go layout:
