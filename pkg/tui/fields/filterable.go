@@ -170,30 +170,41 @@ func (f *Filterable) View() string {
 
 	b.WriteString("\n")
 
-	// Render text input
-	b.WriteString(f.textInput.View())
+	// Render text input with focus styling
+	inputView := f.textInput.View()
+	if f.focused {
+		inputView = styles.Input.Render(inputView)
+	}
+	b.WriteString(inputView)
 	b.WriteString("\n\n")
 
 	// Render filtered options or "No matches" message
 	if len(f.filtered) == 0 {
 		inputValue := strings.TrimSpace(f.textInput.Value())
 		if inputValue != "" {
-			b.WriteString(f.noMatchStyle.Render(fmt.Sprintf("No matches. Press Enter to use: %q", inputValue)))
+			b.WriteString(styles.Error.Render(fmt.Sprintf("No matches. Press Enter to use: %q", inputValue)))
 		} else {
-			b.WriteString(f.noMatchStyle.Render("No matches"))
+			b.WriteString(styles.Description.Render("No matches"))
 		}
 	} else {
 		// Render options
 		for i, opt := range f.filtered {
-			cursor := "  " // No cursor
+			cursor := "  " // No cursor for non-selected items
 			if i == f.cursor {
-				cursor = f.cursorStyle.Render("▸ ")
+				cursor = f.cursorStyle.Render("▸ ") // Highlighted cursor
 			}
 
 			line := fmt.Sprintf("%s%s", cursor, opt.Label)
+
+			// Apply input style to highlighted option
 			if i == f.cursor && f.focused {
 				line = styles.Input.Render(line)
+			} else if i == f.cursor && !f.focused {
+				// Blurred but still highlighted - use a muted version of input style
+				dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+				line = dimmedStyle.Render(line)
 			}
+
 			b.WriteString(line)
 			if i < len(f.filtered)-1 {
 				b.WriteString("\n")

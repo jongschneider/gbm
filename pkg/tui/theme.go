@@ -21,16 +21,18 @@ type Theme struct {
 func DefaultTheme() *Theme {
 	return &Theme{
 		Focused: FieldStyles{
-			Title:       lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
-			Description: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-			Input:       lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
-			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
+			// Bright, bold styles for focused fields
+			Title:       lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Underline(true),
+			Description: lipgloss.NewStyle().Foreground(lipgloss.Color("246")).Italic(true),
+			Input:       lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("238")).Bold(true),
+			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true),
 		},
 		Blurred: FieldStyles{
+			// Muted styles for blurred fields
 			Title:       lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-			Description: lipgloss.NewStyle().Foreground(lipgloss.Color("238")),
-			Input:       lipgloss.NewStyle().Foreground(lipgloss.Color("245")),
-			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
+			Description: lipgloss.NewStyle().Foreground(lipgloss.Color("235")),
+			Input:       lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
+			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("124")),
 		},
 	}
 }

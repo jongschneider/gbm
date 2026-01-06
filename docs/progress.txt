@@ -180,3 +180,37 @@
   - Need to verify step navigation, skip logic, and completion handling work end-to-end
 - After wizard navigation, implement the feature and hotfix workflow configurations (items 36-47)
 - Integration tests can now be created to validate full wizard flows with all field types
+
+## 2026-01-06: Theming Implementation
+
+### Completed
+- Enhanced `pkg/tui/theme.go` DefaultTheme() with:
+  - Bright, bold, underlined titles for focused fields (cyan #86)
+  - Italic descriptions for focused fields
+  - White bold text on dark background for focused input areas
+  - Bold red error styles
+  - Muted dimmed styles for blurred state
+  - All styles work on both light and dark terminal backgrounds
+- Updated all four field types to apply theming comprehensively:
+  - **Selector**: Titles underlined, options highlighted with Input style when focused
+  - **Filterable**: Text input styled with focus/blur states, "no matches" uses Error style
+  - **TextInput**: Input area rendered with focus styles, errors in Error style
+  - **Confirm**: Already had complete focus/blur styling for Yes/No buttons
+- All fields now properly distinguish focused vs blurred state visually
+- Cursor indicators and highlighting use theme-aware styling
+
+### PRD Items Completed
+- Item 39: Active field theming (theming) - passes: true
+- Item 40: Inactive field theming (theming) - passes: true
+- Item 41: Sensible default styles (theming) - passes: true
+
+### Notes for Next Developer
+- All theming infrastructure is now complete
+- Next priority should be implementing async loading features (items 36-38)
+  - This enables lazy-loading of JIRA issues without blocking the TUI
+  - Implements caching and invalidation for efficiency
+- After async, implement workflow configurations (items 42-51)
+  - FeatureWorkflow with sensible defaults and auto-generated branch names
+  - HotfixWorkflow with mandatory base branch selection
+- Then implement integration tests (items 52-55)
+- All field components now properly reflect their focus state for better UX

@@ -480,7 +480,7 @@
       "Cursor is visible in focused state",
       "Verify: Focus a field, confirm it appears bold/highlighted"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "theming",
@@ -491,7 +491,7 @@
       "Input area rendered with Blurred.Input style",
       "Verify: Blur a field, confirm it appears dimmed compared to focused"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "theming",
@@ -503,7 +503,7 @@
       "Colors should work on both light and dark terminal backgrounds",
       "Verify: Use DefaultTheme, run wizard, UI is readable and styled"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",

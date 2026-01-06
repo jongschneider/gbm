@@ -101,15 +101,22 @@ func (s *Selector) View() string {
 
 	// Render options
 	for i, opt := range s.options {
-		cursor := "  " // No cursor
+		cursor := "  " // No cursor for non-selected items
 		if i == s.cursor {
-			cursor = s.cursorStyle.Render("▸ ")
+			cursor = s.cursorStyle.Render("▸ ") // Highlighted cursor
 		}
 
 		line := fmt.Sprintf("%s%s", cursor, opt.Label)
+
+		// Apply input style to highlighted option
 		if i == s.cursor && s.focused {
 			line = styles.Input.Render(line)
+		} else if i == s.cursor && !s.focused {
+			// Blurred but still highlighted - use a muted version of input style
+			dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+			line = dimmedStyle.Render(line)
 		}
+
 		b.WriteString(line)
 		if i < len(s.options)-1 {
 			b.WriteString("\n")

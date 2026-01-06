@@ -135,8 +135,12 @@ func (t *TextInput) View() string {
 
 	b.WriteString("\n")
 
-	// Render text input
-	b.WriteString(t.textInput.View())
+	// Render text input with focus styling
+	inputView := t.textInput.View()
+	if t.focused {
+		inputView = styles.Input.Render(inputView)
+	}
+	b.WriteString(inputView)
 
 	// Render error if present
 	if t.err != nil {
