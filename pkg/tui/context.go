@@ -34,6 +34,7 @@ type Context struct {
 	State       *WorkflowState
 	GitService  GitService
 	JiraService JiraService
+	jiraIssues  []JiraIssue // Cached JIRA issues to avoid redundant fetches
 }
 
 // NewContext creates a new Context with default values.
@@ -67,4 +68,27 @@ func (c *Context) WithGitService(svc GitService) *Context {
 func (c *Context) WithJiraService(svc JiraService) *Context {
 	c.JiraService = svc
 	return c
+}
+
+// GetCachedJiraIssues returns cached JIRA issues, fetching them if needed.
+// This avoids redundant fetches during wizard transitions.
+func (c *Context) GetCachedJiraIssues() ([]JiraIssue, error) {
+	// Return cached issues if available
+	if len(c.jiraIssues) > 0 {
+		return c.jiraIssues, nil
+	}
+
+	// Fetch from service if not cached
+	if c.JiraService == nil {
+		return nil, nil
+	}
+
+	issues, err := c.JiraService.FetchIssues()
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the results
+	c.jiraIssues = issues
+	return issues, nil
 }
