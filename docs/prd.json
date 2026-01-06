@@ -11,7 +11,7 @@
       "Interface includes GetKey, GetValue accessor methods",
       "Verify: Code compiles with no errors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "infrastructure",
@@ -37,7 +37,7 @@
       "Add GitService and JiraService interface fields",
       "Verify: Context can be instantiated and fields accessed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "infrastructure",
@@ -49,7 +49,7 @@
       "Add JiraIssue pointer field (can be nil)",
       "Verify: WorkflowState can store and retrieve all workflow data"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "infrastructure",
@@ -61,7 +61,7 @@
       "Create DefaultTheme() function returning usable defaults",
       "Verify: DefaultTheme returns non-nil styles that render visibly"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "infrastructure",

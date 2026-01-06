@@ -1,1 +1,24 @@
 # Progress Log
+
+## 2026-01-06: Context and WorkflowState Implementation
+
+### Completed
+- Created `pkg/tui/context.go` with:
+  - `Context` struct with Width, Height, Theme, State, GitService, JiraService fields
+  - `WorkflowState` struct with WorkflowType, WorktreeName, BranchName, BaseBranch, JiraIssue fields
+  - `GitService` interface with BranchExists and ListBranches methods
+  - `JiraService` interface with FetchIssues method
+  - `JiraIssue` struct with Key and Summary fields
+  - `NewContext()` constructor with sensible defaults
+  - Fluent configuration methods: WithDimensions, WithTheme, WithGitService, WithJiraService
+
+### PRD Items Completed
+- Item 3: Context struct (infrastructure) - passes: true
+- Item 4: WorkflowState struct (infrastructure) - passes: true
+
+### Notes for Next Developer
+- Infrastructure foundation is now complete (Field, Theme, Context, WorkflowState)
+- Next priority should be either:
+  - Wizard container (item 2) + Step struct (item 6) - enables multi-step form orchestration
+  - Selector field (items 7-11) - first concrete field implementation
+- The Wizard depends on Step, so implement them together in wizard.go
