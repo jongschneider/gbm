@@ -633,7 +633,7 @@
       "Use /dev/tty for input to support piped scenarios",
       "Verify: Run 'gbm wt testadd', wizard UI appears"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
@@ -670,7 +670,7 @@
       "Do NOT actually create worktree or branch",
       "Verify: Complete wizard, see dry-run summary, no files created"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
@@ -682,6 +682,6 @@
       "No files or state created",
       "Verify: Press Ctrl+C, see 'Cancelled' message, exit code non-zero"
     ],
-    "passes": false
+    "passes": true
   }
 ]

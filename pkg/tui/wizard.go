@@ -59,7 +59,7 @@ func (w *Wizard) Init() tea.Cmd {
 }
 
 // Update handles messages and delegates to the current step's field.
-func (w *Wizard) Update(msg tea.Msg) (*Wizard, tea.Cmd) {
+func (w *Wizard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle global key events
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.Type {
@@ -68,7 +68,8 @@ func (w *Wizard) Update(msg tea.Msg) (*Wizard, tea.Cmd) {
 			return w, tea.Quit
 
 		case tea.KeyEsc:
-			return w.handleBack()
+			wizard, cmd := w.handleBack()
+			return wizard, cmd
 		}
 	}
 
@@ -87,9 +88,11 @@ func (w *Wizard) Update(msg tea.Msg) (*Wizard, tea.Cmd) {
 	// Handle step navigation messages
 	switch msg.(type) {
 	case NextStepMsg:
-		return w.handleNext()
+		wizard, cmd := w.handleNext()
+		return wizard, cmd
 	case PrevStepMsg:
-		return w.handleBack()
+		wizard, cmd := w.handleBack()
+		return wizard, cmd
 	case CancelMsg:
 		w.cancelled = true
 		return w, tea.Quit
