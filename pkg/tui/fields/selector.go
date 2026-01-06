@@ -62,15 +62,15 @@ func (s *Selector) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	// Navigation: up arrow and k
-	case "up", "k":
+	// Navigation: up arrow, k, and ctrl+k
+	case "up", "k", "ctrl+k":
 		s.cursor--
 		if s.cursor < 0 {
 			s.cursor = len(s.options) - 1 // Wrap to bottom
 		}
 
-	// Navigation: down arrow and j
-	case "down", "j":
+	// Navigation: down arrow, j, and ctrl+j
+	case "down", "j", "ctrl+j":
 		s.cursor++
 		if s.cursor >= len(s.options) {
 			s.cursor = 0 // Wrap to top

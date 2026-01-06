@@ -114,8 +114,8 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	// Navigation: up arrow and k
-	case "up", "k":
+	// Navigation: up arrow, k, and ctrl+k
+	case "up", "k", "ctrl+k":
 		if len(f.filtered) > 0 {
 			f.cursor--
 			if f.cursor < 0 {
@@ -124,8 +124,8 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		}
 		return f, nil
 
-	// Navigation: down arrow and j
-	case "down", "j":
+	// Navigation: down arrow, j, and ctrl+j
+	case "down", "j", "ctrl+j":
 		if len(f.filtered) > 0 {
 			f.cursor++
 			if f.cursor >= len(f.filtered) {

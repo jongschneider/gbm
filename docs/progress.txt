@@ -545,3 +545,44 @@
 - Entire wizard infrastructure tested end-to-end
 - Code is feature-complete and fully tested
 - Ready for production use or further enhancement
+
+## 2026-01-06: Ctrl+J/K Keyboard Shortcuts Implementation
+
+### Completed
+- Enhanced `pkg/tui/fields/selector.go` with Ctrl+J/K navigation:
+  - Added "ctrl+j" case to increment cursor through options (wrap to top)
+  - Added "ctrl+k" case to decrement cursor through options (wrap to bottom)
+  - Keyboard modifiers work alongside existing j/k vim keys and arrow keys
+  - All navigation options now available: arrows, vim keys (j/k), and modifiers (Ctrl+J/K)
+
+- Enhanced `pkg/tui/fields/filterable.go` with Ctrl+J/K navigation:
+  - Added "ctrl+j" case to increment cursor through filtered options (wrap to top)
+  - Added "ctrl+k" case to decrement cursor through filtered options (wrap to bottom)
+  - Text input maintains focus while using Ctrl+J/K modifiers
+  - Navigation respects filtered list (only moves through matches)
+  - All navigation options now available: arrows, vim keys (j/k), and modifiers (Ctrl+J/K)
+
+- All tests pass (0 failures)
+- Code compiles without errors
+- No regressions to existing functionality
+
+### PRD Items Completed
+- Item 51: Selector Ctrl+J/K navigation (field-selector) - passes: true
+- Item 52: Filterable Ctrl+J/K navigation (field-filterable) - passes: true
+
+### Design Notes
+- Ctrl+J/K modifiers reuse the same increment/decrement logic as j/k keys
+- This provides multiple input methods for accessibility (vim users, arrow key users, modifier users)
+- Text input focus is preserved in Filterable when using Ctrl modifiers
+- Wrapping behavior is consistent across all navigation methods
+
+### Remaining Items
+- 3 items still marked passes: false remain:
+  - Item 57: Feature workflow branch name pre-fill from JIRA issue
+  - Item 58: Feature workflow branch name pre-fill for custom names
+  - Item 59: Hotfix workflow branch name pre-fill from JIRA issue
+
+### Next Steps for Developer
+- Implement branch name pre-fill features for feature and hotfix workflows
+- These require passing branch name defaults from ProcessFeatureWorkflow/ProcessHotfixWorkflow to TextInput fields
+- Update TextInput to receive and apply WithDefault values from workflow context

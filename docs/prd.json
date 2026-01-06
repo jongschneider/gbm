@@ -695,7 +695,7 @@
       "Holding Ctrl+J/K repeats navigation (auto-repeat)",
       "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -709,7 +709,7 @@
       "Text input keeps focus (can continue typing while holding modifier)",
       "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
