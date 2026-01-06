@@ -49,3 +49,32 @@
   - Required for the workflow type selection step
 - After Selector, implement Filterable (items 12-17) for JIRA/branch selection
 - The wizard navigation features (items 28-35) are mostly implemented but need testing with real fields
+
+## 2026-01-06: Selector Field Implementation
+
+### Completed
+- Created `pkg/tui/fields/selector.go` with:
+  - `Option` struct with Label and Value fields
+  - `Selector` struct implementing the `Field` interface
+  - `NewSelector(key, title, options)` constructor
+  - View rendering with title, options list, and cursor indicator (▸)
+  - Navigation with up/down arrows and vim keys (j/k) with wrapping
+  - Enter key confirmation that sets complete flag and returns NextStepMsg
+  - Full Field interface implementation: Init, Update, View, Focus, Blur, IsComplete, IsCancelled, Error, Skip, WithTheme, WithWidth, WithHeight, GetKey, GetValue
+  - Compile-time interface verification via `var _ tui.Field = (*Selector)(nil)`
+  - Theme support with focused/blurred styling
+
+### PRD Items Completed
+- Item 7: Display options list (field-selector) - passes: true
+- Item 8: Arrow key navigation (field-selector) - passes: true
+- Item 9: Vim key navigation (field-selector) - passes: true
+- Item 10: Enter key confirmation (field-selector) - passes: true
+- Item 11: Field interface implementation (field-selector) - passes: true
+
+### Notes for Next Developer
+- Selector field is complete and ready for use in wizards
+- Next priority should be implementing the Filterable field (items 12-17)
+  - This is needed for JIRA issue selection and branch selection
+  - Similar to Selector but with text input for filtering
+- After Filterable, implement TextInput (items 18-22) for branch name entry
+- Then Confirm (items 23-27) for final confirmation step
