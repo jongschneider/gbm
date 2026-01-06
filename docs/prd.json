@@ -148,7 +148,7 @@
       "View renders options list below input",
       "Verify: Run filterable and see input field above list of options"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -161,7 +161,7 @@
       "Clear filter shows all options again",
       "Verify: Type partial text, see list shrink to matches; clear input, see all options"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -173,7 +173,7 @@
       "Text input keeps focus (can continue typing)",
       "Verify: Filter to subset, use arrows to navigate through filtered results"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -185,7 +185,7 @@
       "Return nextStepMsg command",
       "Verify: Navigate to item, press Enter, confirm GetValue() returns item's value"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -197,7 +197,7 @@
       "Return nextStepMsg command",
       "Verify: Type custom text not in list, press Enter, confirm GetValue() returns typed text"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-filterable",
@@ -208,7 +208,7 @@
       "Implement IsComplete(), GetValue(), WithTheme()",
       "Verify: Filterable satisfies Field interface (compiler check)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-textinput",

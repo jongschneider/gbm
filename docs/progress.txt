@@ -78,3 +78,36 @@
   - Similar to Selector but with text input for filtering
 - After Filterable, implement TextInput (items 18-22) for branch name entry
 - Then Confirm (items 23-27) for final confirmation step
+
+## 2026-01-06: Filterable Field Implementation
+
+### Completed
+- Created `pkg/tui/fields/filterable.go` with:
+  - `Filterable` struct implementing the `Field` interface
+  - `NewFilterable(key, title, description, options)` constructor
+  - View rendering with title, description, text input with placeholder, and options list
+  - Case-insensitive filtering as the user types (matches both label and value)
+  - "No matches" message when filter returns empty, with option to use custom value
+  - Navigation with up/down arrows and vim keys (j/k) with wrapping through filtered items
+  - Enter key confirmation that uses selected list item OR custom text input
+  - Full Field interface implementation: Init, Update, View, Focus, Blur, IsComplete, IsCancelled, Error, Skip, WithTheme, WithWidth, WithHeight, GetKey, GetValue
+  - Compile-time interface verification via `var _ tui.Field = (*Filterable)(nil)`
+  - Uses bubbles/textinput for the text input component
+  - Theme support with focused/blurred styling
+
+### PRD Items Completed
+- Item 12: Display text input above list (field-filterable) - passes: true
+- Item 13: Filter as you type (field-filterable) - passes: true
+- Item 14: Navigate filtered results (field-filterable) - passes: true
+- Item 15: Select list item with Enter (field-filterable) - passes: true
+- Item 16: Enter custom value with Enter (field-filterable) - passes: true
+- Item 17: Field interface implementation (field-filterable) - passes: true
+
+### Notes for Next Developer
+- Filterable field is complete and ready for use in wizards (JIRA issue selection, branch selection)
+- Reuses the `Option` struct from selector.go (Label/Value pair)
+- Next priority should be implementing the TextInput field (items 18-22)
+  - This is needed for branch name entry with optional default values
+  - Can use bubbles/textinput as the underlying component
+- After TextInput, implement Confirm (items 23-27) for final confirmation step
+- Once all fields are complete, the wizard navigation tests can be validated end-to-end
