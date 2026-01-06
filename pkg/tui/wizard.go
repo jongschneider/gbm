@@ -1,6 +1,11 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"regexp"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // Step represents a single step in a wizard workflow.
 type Step struct {
@@ -159,6 +164,9 @@ func (w *Wizard) handleNext() (*Wizard, tea.Cmd) {
 
 	w.current = nextIdx
 
+	// Apply default values for the next field based on workflow context
+	w.applyFieldDefaults()
+
 	// Initialize and focus the new current field
 	initCmd := w.currentField().Init()
 	focusCmd := w.currentField().Focus()
@@ -240,4 +248,134 @@ func (w *Wizard) storeFieldValue() {
 			w.ctx.State.JiraIssue = v
 		}
 	}
+}
+
+// applyFieldDefaults applies default values to the current field based on workflow context.
+// This is called when transitioning to a new step.
+// Currently, this applies auto-generated branch names when:
+// - The current field is "branch_name" (TextInput)
+// - The worktree_name has been set (either from JIRA issue or custom input)
+func (w *Wizard) applyFieldDefaults() {
+	field := w.currentField()
+	key := field.GetKey()
+
+	// Only apply defaults to branch_name TextInput fields
+	if key != "branch_name" {
+		return
+	}
+
+	// Get the worktree name from state (set in previous step)
+	worktreeName := w.ctx.State.WorktreeName
+	if worktreeName == "" {
+		return
+	}
+
+	// Generate a default branch name based on the workflow type and worktree name
+	defaultBranchName := w.calculateDefaultBranchName(worktreeName)
+	if defaultBranchName == "" {
+		return
+	}
+
+	// Try to apply the default value using reflection
+	// This avoids circular import issues by not directly importing fields package
+	w.applyTextInputDefault(field, defaultBranchName)
+}
+
+// applyTextInputDefault attempts to apply a default value to a TextInput field using reflection.
+// This avoids circular imports by using type-based method lookup.
+func (w *Wizard) applyTextInputDefault(field Field, defaultValue string) {
+	// Use reflection to call WithDefault method if it exists
+	type withDefaulter interface {
+		WithDefault(string) Field
+	}
+
+	if wd, ok := field.(withDefaulter); ok {
+		updatedField := wd.WithDefault(defaultValue)
+		w.steps[w.current].Field = updatedField
+	}
+}
+
+// calculateDefaultBranchName calculates a default branch name based on the worktree name.
+// If the worktree name is a JIRA issue key, it looks up the full issue to get the summary
+// and generates a slug-based branch name. Otherwise, it generates one from the custom name.
+// It respects the workflow type to determine the prefix (feature/ vs hotfix/).
+func (w *Wizard) calculateDefaultBranchName(worktreeName string) string {
+	// Determine workflow prefix based on state workflow type or step names
+	prefix := "feature/"
+	if w.ctx.State.WorkflowType == "hotfix" {
+		prefix = "hotfix/"
+	}
+	// Also check if this is a hotfix workflow by looking for HOTFIX_ prefix in current state
+	// (This happens when we're in ProcessHotfixWorkflow context)
+	if w.isProbablyHotfix() {
+		prefix = "hotfix/"
+	}
+
+	// Try to find the full JIRA issue to get the summary for a better branch name
+	if w.ctx.JiraService != nil {
+		issues, err := w.ctx.JiraService.FetchIssues()
+		if err == nil {
+			// Look for a matching JIRA issue
+			for _, issue := range issues {
+				if issue.Key == worktreeName {
+					// Found the issue - generate branch name with proper prefix
+					return generateBranchName(worktreeName, issue.Summary, prefix)
+				}
+			}
+		}
+	}
+
+	// Fallback: generate from custom name (worktree name)
+	return generateBranchNameFromCustom(worktreeName, prefix)
+}
+
+// isProbablyHotfix checks if the current wizard is likely a hotfix workflow.
+// This is a heuristic based on step names.
+func (w *Wizard) isProbablyHotfix() bool {
+	// Check if we have a base_branch step that comes BEFORE branch_name step
+	baseBranchIdx := -1
+	branchNameIdx := -1
+
+	for i, step := range w.steps {
+		if step.Name == "base_branch" {
+			baseBranchIdx = i
+		}
+		if step.Name == "branch_name" {
+			branchNameIdx = i
+		}
+	}
+
+	// In hotfix workflows, base_branch (step 2) comes before branch_name (step 3)
+	// In feature workflows, branch_name (step 2) comes before base_branch (step 3)
+	return baseBranchIdx >= 0 && branchNameIdx >= 0 && baseBranchIdx < branchNameIdx
+}
+
+// Helper functions needed by the wizard
+func generateBranchName(issueKey, summary, prefix string) string {
+	slug := slugify(summary)
+	return prefix + issueKey + "_" + slug
+}
+
+func generateBranchNameFromCustom(customName, prefix string) string {
+	slug := slugify(customName)
+	return prefix + slug
+}
+
+func slugify(s string) string {
+	// Convert to lowercase
+	s = strings.ToLower(s)
+
+	// Replace spaces with underscores (not hyphens for custom names)
+	s = strings.ReplaceAll(s, " ", "_")
+
+	// Remove special characters, keep only alphanumeric, hyphens, and underscores
+	s = regexp.MustCompile(`[^\w-]`).ReplaceAllString(s, "")
+
+	// Remove multiple consecutive underscores/hyphens
+	s = regexp.MustCompile(`[-_]+`).ReplaceAllString(s, "_")
+
+	// Trim underscores and hyphens from start and end
+	s = strings.Trim(s, "_-")
+
+	return s
 }

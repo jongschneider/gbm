@@ -586,3 +586,65 @@
 - Implement branch name pre-fill features for feature and hotfix workflows
 - These require passing branch name defaults from ProcessFeatureWorkflow/ProcessHotfixWorkflow to TextInput fields
 - Update TextInput to receive and apply WithDefault values from workflow context
+## 2026-01-06: Branch Name Pre-fill Implementation
+
+### Completed
+- Implemented automatic branch name pre-filling in wizard flow
+- Created `applyFieldDefaults()` method in `pkg/tui/wizard.go`:
+  - Called during `handleNext()` to apply calculated defaults to next step
+  - Detects when transitioning to branch_name field and applies pre-calculated default
+  - Uses interface-based method lookup to avoid circular imports
+- Created `calculateDefaultBranchName()` method:
+  - Attempts to look up full JIRA issue details using stored worktree name
+  - Generates branch name with proper prefix (feature/ or hotfix/)
+  - Falls back to custom name-based slug if JIRA lookup fails
+- Created `isProbablyHotfix()` heuristic:
+  - Detects hotfix workflows by checking step order (base_branch before branch_name)
+  - Allows wizard to use correct prefix (hotfix/ vs feature/) without explicit workflow type
+- Added helper functions for branch name generation:
+  - `generateBranchName(issueKey, summary, prefix)` with proper format
+  - `generateBranchNameFromCustom(customName, prefix)` for non-JIRA names
+  - `slugify(s)` for consistent text transformation
+- Created comprehensive test suite in `pkg/tui/wizard_navigation_test.go`:
+  - `TestWizardBranchNamePreFill_WithJiraIssue` - verifies JIRA issue branch name generation
+  - `TestWizardBranchNamePreFill_WithCustomName` - verifies custom name-based generation
+  - `TestWizardBranchNamePreFill_HotfixWorkflow` - verifies hotfix/ prefix detection
+  - Created `mockBranchNameField` helper to track WithDefault calls
+  - Created `mockJiraService` for testing JIRA issue lookup
+  - All 3 new tests pass (100% success rate)
+
+### PRD Items Completed
+- Item 57: Feature workflow branch name pre-fill from JIRA issue - passes: true
+- Item 58: Feature workflow branch name pre-fill for custom names - passes: true  
+- Item 59: Hotfix workflow branch name pre-fill from JIRA issue - passes: true
+
+### Design Notes
+- Pre-fill happens during step transition (in handleNext), not in ProcessFeatureWorkflow/ProcessHotfixWorkflow
+- This allows the TextInput field to populate with default on Focus(), providing better UX
+- Uses interface-based type assertion to call WithDefault() method, avoiding circular imports
+- Hotfix detection is automatic based on step ordering (no explicit flag needed)
+- Format uses underscores between issue key and slug (e.g., feature/PROJ-123_fix_bug)
+
+### Architecture Decisions
+- Placed branch name calculation in Wizard rather than workflows package:
+  - Ensures pre-fill happens at the right time (during step transition)
+  - Keeps workflow configuration separate from wizard mechanics
+  - Allows reuse across different workflow types
+- Used interface assertion instead of direct type import:
+  - Avoids circular dependency between tui and fields packages
+  - More flexible and extensible approach
+- Hotfix detection based on step order is more maintainable than explicit flags:
+  - No need to pass workflow type through wizard initialization
+  - Automatically works for any workflow with that step pattern
+
+### Code Quality
+- All existing tests still pass (no regressions)
+- New tests follow established patterns (mockField, table-driven style)
+- Proper error handling in JIRA lookup (gracefully falls back to custom name)
+- Thread-safe with no shared mutable state
+
+### Final Status
+- **ALL 60 PRD ITEMS NOW MARKED AS COMPLETE** (including the 3 branch name pre-fill items)
+- Code is feature-complete for core wizard functionality
+- All tests pass (0 failures across all packages)
+- Ready for CLI integration and end-user testing

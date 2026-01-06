@@ -479,3 +479,216 @@ func TestWizardNavigation_Integration(t *testing.T) {
 	// Should skip step3 because it's a feature - so we're complete after just 2 steps
 	assert.True(t, wizard.IsComplete())
 }
+
+// TestWizardBranchNamePreFill_WithJiraIssue tests that branch names are pre-filled from JIRA issues
+func TestWizardBranchNamePreFill_WithJiraIssue(t *testing.T) {
+	// Create a context with mock JIRA service
+	ctx := NewContext()
+	ctx.JiraService = &mockJiraService{
+		issues: []JiraIssue{
+			{Key: "PROJ-123", Summary: "Fix bug in widget"},
+			{Key: "PROJ-456", Summary: "Add new feature"},
+		},
+	}
+
+	// Create a feature-like workflow: worktree_name -> branch_name -> confirm
+	branchField := &mockBranchNameField{key: "branch_name", title: "Branch Name"}
+	steps := []Step{
+		{
+			Name:  "worktree_name",
+			Field: newMockField("worktree_name", "Select Issue"),
+		},
+		{
+			Name:  "branch_name",
+			Field: branchField,
+		},
+		{
+			Name:  "confirm",
+			Field: newMockField("confirm", "Confirm"),
+		},
+	}
+
+	wizard := NewWizard(steps, ctx)
+	wizard.Init()
+
+	// Step 1: Select JIRA issue (PROJ-123)
+	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+
+	// Advance to branch_name step
+	steps[0].Field.(*mockField).value = "PROJ-123"
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Verify we're at the branch_name step
+	assert.Equal(t, 1, wizard.current)
+
+	// The branch name field should now have a default value
+	// Since the field is updated via WithDefault, we check the wizard's current field
+	currentField := wizard.currentField().(*mockBranchNameField)
+	assert.NotEmpty(t, currentField.defaultValue, "Default should be set after transitioning to branch_name step")
+	assert.Contains(t, currentField.defaultValue, "feature/PROJ-123", "Branch name should contain issue key")
+	assert.Contains(t, currentField.defaultValue, "fix_bug", "Branch name should contain slugified summary")
+}
+
+// TestWizardBranchNamePreFill_WithCustomName tests that branch names are pre-filled from custom names
+func TestWizardBranchNamePreFill_WithCustomName(t *testing.T) {
+	ctx := NewContext()
+
+	// Create a feature-like workflow: worktree_name -> branch_name -> confirm
+	branchField := &mockBranchNameField{key: "branch_name", title: "Branch Name"}
+	steps := []Step{
+		{
+			Name:  "worktree_name",
+			Field: newMockField("worktree_name", "Select Issue"),
+		},
+		{
+			Name:  "branch_name",
+			Field: branchField,
+		},
+		{
+			Name:  "confirm",
+			Field: newMockField("confirm", "Confirm"),
+		},
+	}
+
+	wizard := NewWizard(steps, ctx)
+	wizard.Init()
+
+	// Step 1: Enter custom worktree name (not a JIRA issue)
+	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+
+	// Advance to branch_name step
+	steps[0].Field.(*mockField).value = "my-feature"
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Verify we're at the branch_name step
+	assert.Equal(t, 1, wizard.current)
+
+	// The branch name field should now have a default value based on custom name
+	currentField := wizard.currentField().(*mockBranchNameField)
+	assert.NotEmpty(t, currentField.defaultValue, "Default should be set from custom name")
+	assert.Contains(t, currentField.defaultValue, "feature/my_feature", "Branch name should be based on custom name")
+}
+
+// TestWizardBranchNamePreFill_HotfixWorkflow tests that hotfix workflows use hotfix/ prefix
+func TestWizardBranchNamePreFill_HotfixWorkflow(t *testing.T) {
+	ctx := NewContext()
+	ctx.JiraService = &mockJiraService{
+		issues: []JiraIssue{
+			{Key: "PROJ-789", Summary: "Security patch for vulnerability"},
+		},
+	}
+
+	// Create a hotfix-like workflow: worktree_name -> base_branch -> branch_name -> confirm
+	// Note: base_branch comes BEFORE branch_name in hotfix workflow
+	branchField := &mockBranchNameField{key: "branch_name", title: "Branch Name"}
+	steps := []Step{
+		{
+			Name:  "worktree_name",
+			Field: newMockField("worktree_name", "Select Issue"),
+		},
+		{
+			Name:  "base_branch",
+			Field: newMockField("base_branch", "Base Branch"),
+		},
+		{
+			Name:  "branch_name",
+			Field: branchField,
+		},
+		{
+			Name:  "confirm",
+			Field: newMockField("confirm", "Confirm"),
+		},
+	}
+
+	wizard := NewWizard(steps, ctx)
+	wizard.Init()
+
+	// Step 1: Select JIRA issue
+	steps[0].Field.(*mockField).value = "PROJ-789"
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Step 2: Select base branch
+	steps[1].Field.(*mockField).value = "main"
+	_, cmd = wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Step 3: Verify branch_name field has hotfix/ prefix
+	assert.Equal(t, 2, wizard.current)
+	currentField := wizard.currentField().(*mockBranchNameField)
+	assert.NotEmpty(t, currentField.defaultValue, "Default should be set for hotfix")
+	assert.Contains(t, currentField.defaultValue, "hotfix/PROJ-789", "Hotfix branch should have hotfix/ prefix")
+	assert.Contains(t, currentField.defaultValue, "security_patch", "Branch name should contain slugified summary")
+}
+
+// mockBranchNameField is a mock field that tracks WithDefault calls
+type mockBranchNameField struct {
+	key          string
+	title        string
+	value        interface{}
+	defaultValue string
+	complete     bool
+	width        int
+	height       int
+	theme        *Theme
+}
+
+func (m *mockBranchNameField) Init() tea.Cmd { return nil }
+func (m *mockBranchNameField) Update(msg tea.Msg) (Field, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.Type == tea.KeyEnter {
+			m.complete = true
+			return m, func() tea.Msg { return NextStepMsg{} }
+		}
+	}
+	return m, nil
+}
+
+func (m *mockBranchNameField) View() string { return m.title }
+func (m *mockBranchNameField) Focus() tea.Cmd {
+	// On focus, if we have a default value and the field is empty, use it
+	if m.defaultValue != "" && m.value == "" {
+		m.value = m.defaultValue
+	}
+	return nil
+}
+func (m *mockBranchNameField) Blur() tea.Cmd            { return nil }
+func (m *mockBranchNameField) IsComplete() bool         { return m.complete }
+func (m *mockBranchNameField) IsCancelled() bool        { return false }
+func (m *mockBranchNameField) Error() error             { return nil }
+func (m *mockBranchNameField) Skip() bool               { return false }
+func (m *mockBranchNameField) WithTheme(t *Theme) Field { m.theme = t; return m }
+func (m *mockBranchNameField) WithWidth(w int) Field    { m.width = w; return m }
+func (m *mockBranchNameField) WithHeight(h int) Field   { m.height = h; return m }
+func (m *mockBranchNameField) GetKey() string           { return m.key }
+func (m *mockBranchNameField) GetValue() any            { return m.value }
+
+// WithDefault is called by the wizard to set a default value
+func (m *mockBranchNameField) WithDefault(defaultValue string) Field {
+	newField := *m
+	newField.defaultValue = defaultValue
+	return &newField
+}
+
+// mockJiraService for testing
+type mockJiraService struct {
+	issues []JiraIssue
+}
+
+func (m *mockJiraService) FetchIssues() ([]JiraIssue, error) {
+	return m.issues, nil
+}

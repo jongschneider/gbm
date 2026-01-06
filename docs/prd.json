@@ -722,7 +722,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Select JIRA issue (e.g., INGSVC-6468 - Add auth), branch field shows feature/INGSVC-6468_add_authentication_middleware"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
@@ -735,7 +735,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Enter custom worktree name (e.g., 'my-feature'), branch field shows feature/my_feature"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
@@ -748,7 +748,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Select JIRA issue (e.g., INGSVC-6468 - Add auth), branch field shows hotfix/INGSVC-6468_add_authentication_middleware"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",
