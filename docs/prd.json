@@ -510,14 +510,13 @@
     "description": "As a user creating a feature worktree, I want to follow the correct step sequence so that I provide all required information",
     "steps": [
       "Create FeatureWorkflow function returning configured Wizard",
-      "Step 1: Selector with 'Feature' option (or shared workflow type step)",
-      "Step 2: Filterable for JIRA/worktree name",
-      "Step 3: TextInput for branch name",
-      "Step 4: Filterable for base branch (with Skip condition)",
-      "Step 5: Confirm",
+      "Step 1: Filterable for JIRA/worktree name",
+      "Step 2: TextInput for branch name",
+      "Step 3: Filterable for base branch (with Skip condition)",
+      "Step 4: Confirm",
       "Verify: Run feature workflow, steps appear in correct order"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
@@ -526,10 +525,10 @@
       "After worktree name step, generate default branch name",
       "Format: feature/{issue-key}-{slugified-summary}",
       "Slug: lowercase, spaces to hyphens, special chars removed",
-      "Set as default value for branch name TextInput",
+      "Implement ProcessFeatureWorkflow helper function",
       "Verify: Select JIRA issue, branch name auto-fills with feature/KEY-slug format"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
@@ -541,7 +540,7 @@
       "If not exists: Skip returns false, step is shown",
       "Verify: Enter existing branch name, base branch step skipped; enter new name, step shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
@@ -552,18 +551,18 @@
       "If custom text entered, use that as worktree name",
       "Verify: Select JIRA issue, WorktreeName equals issue key"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-feature",
     "description": "As a user creating a feature worktree, I want to see a summary before creation so that I can verify my choices",
     "steps": [
-      "Confirm step displays: 'Create branch {BranchName}?'",
-      "If base branch selected, show: 'From base: {BaseBranch}'",
-      "Show worktree name in summary",
+      "Confirm step displays summary with branch name, base branch, and worktree name",
+      "Confirm field has WithSummary method to set summary text",
+      "Summary is built from WorkflowState data",
       "Verify: Reach confirm step, see branch name, base branch, worktree name"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-hotfix",

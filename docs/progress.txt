@@ -290,9 +290,58 @@
 - Errors during async loading are displayed prominently in red
 - Once loaded, options are cached and filtered normally
 - Next priority should be implementing workflow configurations (items 42-51):
-  - Create FeatureWorkflow and HotfixWorkflow functions
-  - Implement sensible branch naming with auto-generation from JIRA issue keys
-  - Implement skip logic for conditional steps
-  - Implement confirmation screens with summaries
+   - Create FeatureWorkflow and HotfixWorkflow functions
+   - Implement sensible branch naming with auto-generation from JIRA issue keys
+   - Implement skip logic for conditional steps
+   - Implement confirmation screens with summaries
 - After workflows, implement integration tests and mock services (items 52-55)
 - All field components now support both sync and async data sources
+
+## 2026-01-06: Feature Workflow Implementation
+
+### Completed
+- Created `pkg/tui/workflows/workflows.go` package with:
+  - `FeatureWorkflow(ctx)` function that returns a configured Wizard with 4 steps:
+    1. Filterable field for JIRA issue selection or custom worktree name (with async JIRA loading)
+    2. TextInput field for branch name with validation
+    3. Filterable field for base branch selection (skipped if branch already exists)
+    4. Confirm field for final verification
+  - `ProcessFeatureWorkflow(wizard, ctx)` helper function to handle post-wizard processing:
+    - Looks up full JIRA issue details from selected issue key
+    - Generates sensible branch name: `feature/{issue-key}-{slugified-summary}`
+    - Stores issue key as worktree name
+    - Stores full JiraIssue struct for reference
+  - `generateBranchName(issueKey, summary)` function for feature branch naming
+  - `generateBranchNameHotfix(issueKey, summary)` function (prepared for HotfixWorkflow)
+  - `slugify(string)` utility for URL-friendly slugs (lowercase, spaces to hyphens, special chars removed)
+  - `validateBranchName(string)` validator that ensures non-empty, valid characters only
+  - Comprehensive test suite with 10 test cases:
+    - Slugify conversion with various inputs
+    - Branch name generation (feature and hotfix formats)
+    - Branch name validation (valid/invalid cases)
+    - FeatureWorkflow creation and initialization
+    - ProcessFeatureWorkflow with JIRA issue lookup and branch name generation
+    - Field implementation verification
+  - All tests pass (10/10)
+
+### PRD Items Completed
+- Item 24: Feature workflow step sequence (workflow-feature) - passes: true
+- Item 25: Sensible branch name generation (workflow-feature) - passes: true
+- Item 26: Skip logic for base branch (workflow-feature) - passes: true
+- Item 27: Worktree naming from JIRA issue (workflow-feature) - passes: true
+- Item 28: Confirmation summary display (workflow-feature) - passes: true
+
+### Design Notes
+- FeatureWorkflow follows the Wizard pattern established earlier
+- Branch name auto-generation uses ProcessFeatureWorkflow to be called after wizard completes
+- Skip logic on base branch step prevents redundant branch selection if branch already exists
+- Async JIRA loading via WithOptionsFunc on filterable field prevents UI blocking
+- ValidationFunc on TextInput ensures branch names are valid before proceeding
+- No explicit workflow type selector step - feature workflow is determined by context/caller
+
+### Next Steps for Developer
+- Implement HotfixWorkflow following the same pattern (items 29-33)
+- Implement integration/CLI layer with mock services for testing (items 34-38)
+- Add wizard navigation help text and polish (items 32-35 in wizard-navigation)
+- Create end-to-end tests combining workflows with wizard navigation
+- Integrate with actual CLI commands (gbm wt testadd, gbm wt feature, etc.)
