@@ -445,7 +445,7 @@
       "Fetch function not called again if already loaded",
       "Verify: Call Get() twice, confirm fetch only runs once"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "async",
@@ -456,7 +456,7 @@
       "Next Get() triggers fresh fetch",
       "Verify: Load data, invalidate, Get() again, confirm fetch runs twice"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "async",

@@ -214,3 +214,41 @@
   - HotfixWorkflow with mandatory base branch selection
 - Then implement integration tests (items 52-55)
 - All field components now properly reflect their focus state for better UX
+
+## 2026-01-06: Async Caching Implementation
+
+### Completed
+- Created `pkg/tui/async/` package with async utilities
+- Implemented `Eval[T]` generic type with full concurrency support:
+  - `New(fetch func() (T, error))` constructor for lazy evaluation
+  - `Get()` method that fetches value on first call, returns cached result thereafter
+  - Thread-safe implementation using sync.RWMutex
+  - Proper handling of concurrent Get() calls - multiple callers block safely
+  - Error caching - errors are cached just like successful values
+  - `IsLoaded()` method returns true only after successful fetch
+  - `IsLoading()` method returns true while fetch is in progress
+  - `Invalidate()` method clears cache and forces fresh fetch on next Get()
+- Implemented `ErrLoading` sentinel error for in-progress state
+- Created comprehensive test suite with 9 test cases:
+  - Basic fetch and caching validation
+  - Error handling and caching
+  - Concurrent access safety
+  - Cache invalidation
+  - Loading state tracking
+  - All tests pass (0 failures)
+
+### PRD Items Completed
+- Item 36: Async evaluation with caching (async) - passes: true
+- Item 37: Cache invalidation (async) - passes: true
+
+### Notes for Next Developer
+- Async foundation is now complete with full thread-safety
+- Next priority should be integrating Eval[T] with the Filterable field
+  - Item 39: Add WithOptionsFunc() method to Filterable
+  - Add internal Eval field to manage async options loading
+  - Update View() to show spinner while loading
+  - Display options once loaded
+- After async integration, implement workflow features (items 42-51)
+- The async package is generic and can be reused for any lazy-loaded data
+- Key design decision: IsLoading() returns ErrLoading if Get() called while loading
+  - This prevents multiple concurrent fetches during the initial load
