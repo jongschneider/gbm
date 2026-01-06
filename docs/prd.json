@@ -761,7 +761,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Enter custom worktree name (e.g., 'my-hotfix'), branch field shows hotfix/my_hotfix"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
