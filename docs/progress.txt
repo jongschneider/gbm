@@ -252,3 +252,47 @@
 - The async package is generic and can be reused for any lazy-loaded data
 - Key design decision: IsLoading() returns ErrLoading if Get() called while loading
   - This prevents multiple concurrent fetches during the initial load
+
+## 2026-01-06: Filterable Async Options Integration
+
+### Completed
+- Enhanced `pkg/tui/fields/filterable.go` to support async options loading:
+  - Added `optionsFunc *async.Eval[[]Option]` field to store async evaluation
+  - Added `spinner spinner.Model` field for loading indicator
+  - Added `asyncErr error` field to track and display async errors
+  - Implemented `WithOptionsFunc(fetch func() ([]Option, error))` method for configuration
+  - Updated `Init()` to use spinner.Model initialization
+  - Enhanced `Update()` to:
+    - Handle `spinner.TickMsg` for spinner animation
+    - Auto-start async loading when field is focused
+    - Batch spinner ticks with text input blink in Focus()
+    - Manage concurrent Get() calls safely
+  - Enhanced `View()` to:
+    - Show spinner with "Loading options..." message while fetching
+    - Display async errors with context
+    - Fall back to normal list rendering once loaded
+  - Updated `Focus()` to return `tea.Batch(textinput.Blink, f.spinner.Tick)` when using async
+- Created comprehensive test suite with 5 test cases:
+  - Async options loading success and error handling
+  - WithOptionsFunc configuration and chaining
+  - Async options with filtering and caching behavior
+  - Spinner initialization verification
+  - Async error display in View()
+  - All tests pass (6 new tests, 0 failures)
+
+### PRD Items Completed
+- Item 39: Filterable to support async options (async) - passes: true
+
+### Notes for Next Developer
+- Async options integration is complete and fully tested
+- Filterable field can now load JIRA issues dynamically without blocking the TUI
+- Spinner animates while loading, showing progress to the user
+- Errors during async loading are displayed prominently in red
+- Once loaded, options are cached and filtered normally
+- Next priority should be implementing workflow configurations (items 42-51):
+  - Create FeatureWorkflow and HotfixWorkflow functions
+  - Implement sensible branch naming with auto-generation from JIRA issue keys
+  - Implement skip logic for conditional steps
+  - Implement confirmation screens with summaries
+- After workflows, implement integration tests and mock services (items 52-55)
+- All field components now support both sync and async data sources

@@ -468,7 +468,7 @@
       "When loaded, display options in list",
       "Verify: Create Filterable with async options, see spinner then options"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "theming",

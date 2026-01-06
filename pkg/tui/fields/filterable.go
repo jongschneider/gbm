@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"gbm/pkg/tui"
+	"gbm/pkg/tui/async"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -31,6 +33,11 @@ type Filterable struct {
 	height       int
 	cursorStyle  lipgloss.Style
 	noMatchStyle lipgloss.Style
+
+	// Async options support
+	optionsFunc *async.Eval[[]Option]
+	spinner     spinner.Model
+	asyncErr    error
 }
 
 // NewFilterable creates a new Filterable field with the given title, description, and options.
@@ -55,7 +62,15 @@ func NewFilterable(key, title, description string, options []Option) *Filterable
 		theme:        tui.DefaultTheme(),
 		cursorStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
 		noMatchStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true),
+		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
+}
+
+// WithOptionsFunc configures Filterable to load options asynchronously.
+// The provided function will be called to fetch options, with results cached.
+func (f *Filterable) WithOptionsFunc(fetch func() ([]Option, error)) *Filterable {
+	f.optionsFunc = async.New(fetch)
+	return f
 }
 
 // Init implements Field.Init.
@@ -65,6 +80,26 @@ func (f *Filterable) Init() tea.Cmd {
 
 // Update implements Field.Update.
 func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
+	// Handle spinner tick for async loading
+	if _, ok := msg.(spinner.TickMsg); ok {
+		f.spinner, _ = f.spinner.Update(msg)
+		// Try to load options if using async
+		if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() && !f.optionsFunc.IsLoading() {
+			// Start loading in background
+			return f, func() tea.Msg {
+				opts, err := f.optionsFunc.Get()
+				if err != nil && err != async.ErrLoading {
+					f.asyncErr = err
+					return nil
+				}
+				f.options = opts
+				f.filterOptions()
+				return nil
+			}
+		}
+		return f, f.spinner.Tick
+	}
+
 	if !f.focused {
 		return f, nil
 	}
@@ -178,6 +213,18 @@ func (f *Filterable) View() string {
 	b.WriteString(inputView)
 	b.WriteString("\n\n")
 
+	// If loading options asynchronously, show spinner
+	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+		b.WriteString(fmt.Sprintf("%s Loading options...", f.spinner.View()))
+		return b.String()
+	}
+
+	// Show any async error
+	if f.asyncErr != nil {
+		b.WriteString(styles.Error.Render(fmt.Sprintf("Error loading options: %v", f.asyncErr)))
+		return b.String()
+	}
+
 	// Render filtered options or "No matches" message
 	if len(f.filtered) == 0 {
 		inputValue := strings.TrimSpace(f.textInput.Value())
@@ -219,6 +266,15 @@ func (f *Filterable) View() string {
 func (f *Filterable) Focus() tea.Cmd {
 	f.focused = true
 	f.textInput.Focus()
+
+	// If using async options, start loading
+	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+		return tea.Batch(
+			textinput.Blink,
+			f.spinner.Tick,
+		)
+	}
+
 	return textinput.Blink
 }
 
