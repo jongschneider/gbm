@@ -48,7 +48,7 @@ func NewTextInput(key, title, description string) *TextInput {
 }
 
 // WithDefault sets the default value that is pre-filled when the field is focused.
-func (t *TextInput) WithDefault(value string) *TextInput {
+func (t *TextInput) WithDefault(value string) tui.Field {
 	t.defaultValue = value
 	return t
 }

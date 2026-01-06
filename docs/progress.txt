@@ -650,3 +650,59 @@
 - All tests pass (0 failures across all packages)
 - Remaining 4 items are optional CLI enhancements (--delay flag with jitter and spinner display)
 - Ready for CLI integration and end-user testing
+
+## 2026-01-06: Bug Fix - TextInput.WithDefault Return Type
+
+### Issue Found
+- Branch name pre-fill was not working in the wizard flow
+- When user selected a JIRA issue and moved to the branch name field, no default value was displayed
+- The text input appeared empty instead of showing the pre-filled branch name
+
+### Root Cause
+- TextInput.WithDefault() was defined as returning `*TextInput` instead of `tui.Field`
+- The `applyTextInputDefault()` method in wizard.go used type assertion on an interface expecting `WithDefault(string) Field`
+- Type assertions failed because Go's type system doesn't recognize `*TextInput` as implementing an interface that returns `Field`
+- The default value was never applied to the field
+
+### Fix Applied
+- Changed TextInput.WithDefault() signature from `func(t *TextInput) WithDefault(value string) *TextInput` to `func(t *TextInput) WithDefault(value string) tui.Field`
+- This allows the type assertion in `applyTextInputDefault()` to succeed
+- The field is now correctly updated with the default value before Focus() is called
+
+### Verification
+- Tested with `gbm2 worktree testadd` command
+- JIRA issue selection now shows pre-filled branch name: `feature/INGSVC-6468_add_authentication_middleware`
+- Custom worktree name shows pre-filled branch name: `feature/my_custom_feature`
+- All existing tests pass (0 failures)
+- No regressions in other field types or workflow functionality
+
+### PRD Items Now Working
+- Item 57: Feature workflow branch name pre-fill from JIRA issue - now working
+- Item 58: Feature workflow branch name pre-fill for custom names - now working
+- Item 59: Hotfix workflow branch name pre-fill from JIRA issue - now working
+- Item 60: Hotfix workflow branch name pre-fill for custom names - now working
+
+## 2026-01-06: Design Analysis - Builder vs Interface Methods
+
+### Analysis of Return Type Pattern
+- Investigated whether other `With*` methods should return `tui.Field` for consistency
+- Found that the current pattern is intentional and correct:
+  - **Builder methods** (used only during construction): Return concrete types (`*TextInput`, `*Confirm`, etc.)
+    - Examples: `WithValidator`, `WithPlaceholder`, `WithSummary`, `WithOptionsFunc`
+    - Enables fluent method chaining during field construction
+    - Only called during workflow setup in a single chain
+  - **Interface methods** (called dynamically by the wizard): Return `tui.Field`
+    - Examples: `WithTheme`, `WithWidth`, `WithHeight`, `WithDefault`
+    - Allows polymorphic method calls on the `Field` interface
+    - Called at runtime by the wizard's dynamic step navigation logic
+
+### Why This Pattern Works
+- Method chaining during construction requires concrete return types
+- Dynamic method calls at runtime require interface return types
+- The `WithDefault` method was unique: defined as builder but called dynamically by wizard
+- Solution: Only `WithDefault` needed to return `tui.Field`, not the other builder methods
+
+### Code Quality
+- No changes needed to other methods
+- Current design is sound and maintainable
+- Clear separation between builder API and interface API
