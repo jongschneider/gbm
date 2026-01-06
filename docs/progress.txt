@@ -111,3 +111,38 @@
   - Can use bubbles/textinput as the underlying component
 - After TextInput, implement Confirm (items 23-27) for final confirmation step
 - Once all fields are complete, the wizard navigation tests can be validated end-to-end
+
+## 2026-01-06: TextInput Field Implementation
+
+### Completed
+- Created `pkg/tui/fields/textinput.go` with:
+  - `TextInput` struct implementing the `Field` interface
+  - `NewTextInput(key, title, description)` constructor
+  - `WithDefault(string)` configuration method for pre-filled values
+  - `WithValidator(ValidatorFunc)` configuration method for input validation
+  - `WithPlaceholder(string)` configuration method for custom placeholder text
+  - View rendering with title, description, text input with visible cursor
+  - On Focus, populates input with default value and positions cursor at end
+  - Enter key submits: runs validator if configured, shows error if invalid, completes if valid
+  - Clears validation error when user starts typing
+  - Full Field interface implementation: Init, Update, View, Focus, Blur, IsComplete, IsCancelled, Error, Skip, WithTheme, WithWidth, WithHeight, GetKey, GetValue
+  - Compile-time interface verification via `var _ tui.Field = (*TextInput)(nil)`
+  - Uses bubbles/textinput for the text input component (handles character input, backspace, cursor movement)
+  - Theme support with focused/blurred styling and error display
+
+### PRD Items Completed
+- Item 18: Display editable text field (field-textinput) - passes: true
+- Item 19: Type and edit text (field-textinput) - passes: true
+- Item 20: Pre-filled default value (field-textinput) - passes: true
+- Item 21: Submit with Enter (field-textinput) - passes: true
+- Item 22: Field interface implementation (field-textinput) - passes: true
+
+### Notes for Next Developer
+- TextInput field is complete and ready for use in wizards (branch name entry)
+- Uses `ValidatorFunc` type for custom validation: `func(string) error`
+- Default value is populated on Focus() only if input is empty (allows editing previous values)
+- Next priority should be implementing the Confirm field (items 23-27)
+  - This is needed for the final confirmation step in workflows
+  - Should display Yes/No buttons with summary text
+- After Confirm, implement wizard navigation features (items 28-35)
+- Once all fields are complete, the wizard can be tested end-to-end with full workflows

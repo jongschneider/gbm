@@ -221,7 +221,7 @@
       "View shows current text content",
       "Verify: Run textinput and see title with editable input area"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-textinput",
@@ -233,7 +233,7 @@
       "Display updates immediately on each keystroke",
       "Verify: Type text, use backspace, move cursor with arrows, see changes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-textinput",
@@ -245,7 +245,7 @@
       "User can edit, clear, or accept default",
       "Verify: Create with default, focus field, see default text, edit it"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-textinput",
@@ -257,7 +257,7 @@
       "If invalid, set error and remain on field",
       "Verify: Enter submits; with validator, invalid input shows error"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-textinput",
@@ -268,7 +268,7 @@
       "Implement IsComplete(), GetValue(), WithTheme()",
       "Verify: TextInput satisfies Field interface (compiler check)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-confirm",
