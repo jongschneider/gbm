@@ -312,9 +312,8 @@ func (w *Wizard) calculateDefaultBranchName(worktreeName string) string {
 	}
 
 	// Try to find the full JIRA issue to get the summary for a better branch name
-	// Use cached issues to avoid redundant fetches with delays
 	if w.ctx.JiraService != nil {
-		issues, err := w.ctx.GetCachedJiraIssues()
+		issues, err := w.ctx.JiraService.FetchIssues()
 		if err == nil {
 			// Look for a matching JIRA issue
 			for _, issue := range issues {
