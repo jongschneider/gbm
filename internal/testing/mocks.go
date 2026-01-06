@@ -87,8 +87,10 @@ func (m *MockGitService) BranchExists(name string) (bool, error) {
 
 // MockJiraService implements tui.JiraService for testing.
 type MockJiraService struct {
-	issues []tui.JiraIssue
-	delay  time.Duration
+	issues       []tui.JiraIssue
+	delay        time.Duration
+	cached       bool            // Whether we've already fetched and cached the results
+	cachedIssues []tui.JiraIssue // Cached copy of issues to return on subsequent calls
 }
 
 // NewMockJiraService creates a new MockJiraService with default issues.
@@ -121,11 +123,27 @@ func (m *MockJiraService) WithIssues(issues []tui.JiraIssue) *MockJiraService {
 }
 
 // FetchIssues returns the list of issues with optional delay and jitter.
+// On first call, applies delay/jitter and caches results. On subsequent calls,
+// returns cached results instantly.
 func (m *MockJiraService) FetchIssues() ([]tui.JiraIssue, error) {
+	// If already cached, return instantly without delay
+	if m.cached {
+		result := make([]tui.JiraIssue, len(m.cachedIssues))
+		copy(result, m.cachedIssues)
+		return result, nil
+	}
+
+	// First call: apply delay and jitter
 	if m.delay > 0 {
 		actualDelay := applyJitter(m.delay)
 		time.Sleep(actualDelay)
 	}
+
+	// Cache the results for future calls
+	m.cached = true
+	m.cachedIssues = make([]tui.JiraIssue, len(m.issues))
+	copy(m.cachedIssues, m.issues)
+
 	// Return a copy to prevent external modifications
 	result := make([]tui.JiraIssue, len(m.issues))
 	copy(result, m.issues)
