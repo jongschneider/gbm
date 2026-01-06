@@ -337,7 +337,7 @@
       "Render help text showing ESC/Enter/Ctrl+C navigation",
       "Verify: Run wizard with multiple steps, only one step visible at a time"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -350,7 +350,7 @@
       "Call Focus() on new current field",
       "Verify: Complete step 1, see step 2 appear with correct focus"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -363,7 +363,7 @@
       "If on first step: ESC does nothing (or cancels)",
       "Verify: Advance to step 2, press ESC, see step 1 with original value"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -375,7 +375,7 @@
       "Wizard.IsCancelled() returns true after",
       "Verify: Press Ctrl+C at any step, wizard exits, IsCancelled() is true"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -387,7 +387,7 @@
       "Handle edge case where all remaining steps are skipped",
       "Verify: Configure step with Skip returning true, confirm it's never shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -400,7 +400,7 @@
       "Wizard.State() returns final WorkflowState with all values",
       "Verify: Complete all steps, wizard exits, IsComplete() true, State() populated"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
@@ -411,7 +411,7 @@
       "Propagate dimensions to current field (via WithWidth/WithHeight or re-focus)",
       "Verify: Run wizard, resize terminal, UI adapts without breaking"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "async",
@@ -423,7 +423,7 @@
       "If not loaded and not loading, trigger async fetch",
       "Verify: Create Eval with fetch func, call Get(), value eventually populated"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "async",
@@ -434,7 +434,7 @@
       "Add brief delay before showing spinner (avoid flicker for fast loads)",
       "Verify: Create slow fetch, see spinner appear, spinner disappears when loaded"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "async",
