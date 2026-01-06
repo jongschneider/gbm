@@ -3,10 +3,23 @@ package testing
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"gbm/pkg/tui"
 )
+
+// applyJitter adds random jitter to a duration (±25% of the base delay).
+func applyJitter(baseDuration time.Duration) time.Duration {
+	if baseDuration <= 0 {
+		return baseDuration
+	}
+	// Calculate jitter as ±25% of base
+	jitterAmount := int64(float64(baseDuration) * 0.25)
+	// Random jitter between -25% and +25%
+	randomJitter := rand.Int63n(jitterAmount*2+1) - jitterAmount
+	return time.Duration(int64(baseDuration) + randomJitter)
+}
 
 // MockGitService implements tui.GitService for testing.
 type MockGitService struct {
@@ -54,18 +67,20 @@ func (m *MockGitService) WithBranchExists(fn func(string) bool) *MockGitService 
 	return m
 }
 
-// ListBranches returns the list of branches with optional delay.
+// ListBranches returns the list of branches with optional delay and jitter.
 func (m *MockGitService) ListBranches() ([]string, error) {
 	if m.delay > 0 {
-		time.Sleep(m.delay)
+		actualDelay := applyJitter(m.delay)
+		time.Sleep(actualDelay)
 	}
 	return m.branches, nil
 }
 
-// BranchExists checks if a branch exists.
+// BranchExists checks if a branch exists with optional delay and jitter.
 func (m *MockGitService) BranchExists(name string) (bool, error) {
 	if m.delay > 0 {
-		time.Sleep(m.delay)
+		actualDelay := applyJitter(m.delay)
+		time.Sleep(actualDelay)
 	}
 	return m.existsFunc(name), nil
 }
@@ -105,10 +120,11 @@ func (m *MockJiraService) WithIssues(issues []tui.JiraIssue) *MockJiraService {
 	return m
 }
 
-// FetchIssues returns the list of issues with optional delay.
+// FetchIssues returns the list of issues with optional delay and jitter.
 func (m *MockJiraService) FetchIssues() ([]tui.JiraIssue, error) {
 	if m.delay > 0 {
-		time.Sleep(m.delay)
+		actualDelay := applyJitter(m.delay)
+		time.Sleep(actualDelay)
 	}
 	// Return a copy to prevent external modifications
 	result := make([]tui.JiraIssue, len(m.issues))

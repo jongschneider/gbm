@@ -774,7 +774,7 @@
       "Pass delay value to both MockGitService and MockJiraService",
       "Verify: Run 'gbm wt testadd --delay 1000', services add ~1000ms delay"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
@@ -786,7 +786,7 @@
       "Both MockGitService and MockJiraService apply independent jitter",
       "Verify: Run command multiple times with --delay 1000, observe varying load times (not exactly 1000ms)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",

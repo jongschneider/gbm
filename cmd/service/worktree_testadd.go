@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"gbm/internal/testing"
 	"gbm/pkg/tui"
@@ -13,6 +14,8 @@ import (
 )
 
 func newWorktreeTestaddCommand(svc *Service) *cobra.Command {
+	var delayMs int
+
 	cmd := &cobra.Command{
 		Use:   "testadd",
 		Short: "Test the wizard UI with mock data",
@@ -28,16 +31,23 @@ The wizard will display:
 
 No actual worktrees or branches are created.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWorktreeTestaddCommand(cmd)
+			return runWorktreeTestaddCommand(cmd, delayMs)
 		},
 	}
+
+	cmd.Flags().IntVar(&delayMs, "delay", 0, "simulate network latency in milliseconds (0-5000)")
 
 	return cmd
 }
 
 // runWorktreeTestaddCommand runs the test wizard with mock services.
-func runWorktreeTestaddCommand(cmd *cobra.Command) error {
-	// Create mock services
+func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int) error {
+	// Validate delay flag
+	if delayMs < 0 || delayMs > 5000 {
+		return fmt.Errorf("delay must be between 0 and 5000 milliseconds")
+	}
+
+	// Create mock services with delay if specified
 	mockGit := testing.NewMockGitService().
 		WithBranches([]string{
 			"main",
@@ -48,8 +58,14 @@ func runWorktreeTestaddCommand(cmd *cobra.Command) error {
 			"release/v1.0",
 			"release/v2.0",
 		})
+	if delayMs > 0 {
+		mockGit = mockGit.WithDelay(time.Duration(delayMs) * time.Millisecond)
+	}
 
 	mockJira := testing.NewMockJiraService()
+	if delayMs > 0 {
+		mockJira = mockJira.WithDelay(time.Duration(delayMs) * time.Millisecond)
+	}
 
 	// Create context with mock services
 	ctx := tui.NewContext().
