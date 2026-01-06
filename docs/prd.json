@@ -645,7 +645,7 @@
       "Issues have realistic keys and summaries",
       "Verify: Wizard shows fake JIRA issues in filterable list"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",
@@ -657,7 +657,7 @@
       "BranchExists returns configurable result (default false)",
       "Verify: Wizard shows fake branches in base branch selector"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "integration",

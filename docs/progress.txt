@@ -393,3 +393,52 @@
 - Create mock JiraService implementing JiraService interface
 - Add 'testadd' subcommand to 'gbm wt' command group for testing
 - Implement dry-run summary and cancellation handling
+
+## 2026-01-06: Mock Services Implementation
+
+### Completed
+- Created `internal/testing/mocks.go` with:
+   - `MockGitService` implementing tui.GitService interface
+     - NewMockGitService() with default branches (main, master, develop, staging, production-*, release/*)
+     - WithDelay(duration) for simulating network latency
+     - WithBranches([]string) for custom branch lists
+     - WithBranchExists(fn) for configurable branch existence checking
+     - ListBranches() returns realistic branch list
+     - BranchExists(name) defaults to false (configurable)
+   - `MockJiraService` implementing tui.JiraService interface
+     - NewMockJiraService() with 8 default realistic INGSVC issues
+     - WithDelay(duration) for simulating network latency
+     - WithIssues([]JiraIssue) for custom issue lists
+     - FetchIssues() returns copy of issues (prevents external modification)
+   - `ErrorMockGitService` that always returns an error
+   - `ErrorMockJiraService` that always returns an error
+   - All mocks support fluent builder pattern for easy test configuration
+   - All mocks implement interface verification at compile time
+
+### Test Coverage
+- Created `internal/testing/mocks_test.go` with comprehensive test suite:
+   - MockGitService tests (default branches, custom branches, delay)
+   - MockGitService BranchExists tests (default behavior, custom function)
+   - MockJiraService tests (default issues, custom issues, delay)
+   - Copy protection test (verifies FetchIssues returns independent copy)
+   - ErrorMock service tests (both Git and JIRA)
+   - Interface implementation verification
+   - All tests pass (9/9)
+
+### PRD Items Completed
+- Item 53: Mock JIRA service (integration) - passes: true
+- Item 54: Mock Git service (integration) - passes: true
+
+### Design Notes
+- Both mocks follow the same builder pattern with fluent API (WithDelay, WithBranches, etc.)
+- Delay simulation is useful for testing UI feedback and spinner behavior
+- FetchIssues returns a copy to prevent test pollution (external modification doesn't affect service state)
+- Error mocks allow testing error handling paths in workflows
+- Default data is realistic (actual JIRA project prefix, real branch conventions)
+- All mocks are thread-safe (no shared state between calls)
+
+### Next Steps for Developer
+- Implement 'testadd' CLI command using these mocks
+- Implement dry-run summary output to stderr
+- Implement cancellation message handling
+- Create end-to-end integration tests with these mocks
