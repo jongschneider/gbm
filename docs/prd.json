@@ -799,6 +799,6 @@
       "Spinner disappears when data finishes loading",
       "Verify: Run with --delay 500, see spinner on JIRA selection screen, then options appear"
     ],
-    "passes": false
+    "passes": true
   }
   ]

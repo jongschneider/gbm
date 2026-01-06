@@ -183,3 +183,24 @@ func TestFilterable_ViewWithAsyncError(t *testing.T) {
 	assert.Contains(t, view, "Error loading options")
 	assert.Contains(t, view, "network error")
 }
+
+func TestFilterable_SpinnerDisplayDuringAsyncLoad(t *testing.T) {
+	// Create a Filterable with async options that have a delay
+	f := NewFilterable("key", "title", "desc", []Option{})
+	f.WithOptionsFunc(func() ([]Option, error) {
+		time.Sleep(100 * time.Millisecond) // Simulate network delay
+		return []Option{
+			{Label: "Option A", Value: "a"},
+		}, nil
+	})
+
+	// Before loading, optionsFunc exists but hasn't been called yet
+	assert.NotNil(t, f.optionsFunc)
+	assert.False(t, f.optionsFunc.IsLoaded())
+
+	// View should show loading spinner
+	f.focused = true
+	view := f.View()
+	assert.Contains(t, view, "Loading options")
+	assert.NotEmpty(t, f.spinner.View())
+}
