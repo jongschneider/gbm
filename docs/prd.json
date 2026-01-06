@@ -683,5 +683,122 @@
       "Verify: Press Ctrl+C, see 'Cancelled' message, exit code non-zero"
     ],
     "passes": true
+  },
+  {
+    "category": "field-selector",
+    "description": "As a user, I want to navigate options with Ctrl+J and Ctrl+K keys so that I can browse choices with keyboard modifiers",
+    "steps": [
+      "Handle tea.KeyMsg for 'ctrl+j' (or 'ctrl+down') in Update",
+      "Handle tea.KeyMsg for 'ctrl+k' (or 'ctrl+up') in Update",
+      "Ctrl+K decrements selection index (wrap to bottom at top)",
+      "Ctrl+J increments selection index (wrap to top at bottom)",
+      "Holding Ctrl+J/K repeats navigation (auto-repeat)",
+      "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
+    ],
+    "passes": false
+  },
+  {
+    "category": "field-filterable",
+    "description": "As a user, I want to navigate filtered options with Ctrl+J and Ctrl+K keys so that I can browse choices with keyboard modifiers",
+    "steps": [
+      "Handle tea.KeyMsg for 'ctrl+j' (or 'ctrl+down') in Update",
+      "Handle tea.KeyMsg for 'ctrl+k' (or 'ctrl+up') in Update",
+      "Ctrl+K decrements selection index through filtered list (wrap to bottom at top)",
+      "Ctrl+J increments selection index through filtered list (wrap to top at bottom)",
+      "Holding Ctrl+J/K repeats navigation (auto-repeat) through filtered items only",
+      "Text input keeps focus (can continue typing while holding modifier)",
+      "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-feature",
+    "description": "As a user creating a feature worktree, I want the branch name pre-filled from JIRA issue so that I don't have to retype it",
+    "steps": [
+      "After JIRA issue selected on step 1, calculate default branch name",
+      "Format: feature/{issue-key}_{slugified-summary} (underscore between key and slug)",
+      "On step 2 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Select JIRA issue (e.g., INGSVC-6468 - Add auth), branch field shows feature/INGSVC-6468_add_authentication_middleware"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-feature",
+    "description": "As a user creating a feature worktree with a custom name, I want a sensible branch name generated so that I have a starting point",
+    "steps": [
+      "When custom text entered on step 1 (not a JIRA issue), use it as basis for branch name",
+      "Format: feature/{slugified-custom-name}",
+      "On step 2 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Enter custom worktree name (e.g., 'my-feature'), branch field shows feature/my_feature"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-hotfix",
+    "description": "As a user creating a hotfix worktree, I want the branch name pre-filled from JIRA issue so that I don't have to retype it",
+    "steps": [
+      "After JIRA issue selected on step 2, calculate default branch name",
+      "Format: hotfix/{issue-key}_{slugified-summary} (underscore between key and slug)",
+      "On step 4 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Select JIRA issue (e.g., INGSVC-6468 - Add auth), branch field shows hotfix/INGSVC-6468_add_authentication_middleware"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-hotfix",
+    "description": "As a user creating a hotfix worktree with a custom name, I want a sensible branch name generated so that I have a starting point",
+    "steps": [
+      "When custom text entered on step 2 (not a JIRA issue), use it as basis for branch name",
+      "Format: hotfix/{slugified-custom-name}",
+      "On step 4 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Enter custom worktree name (e.g., 'my-hotfix'), branch field shows hotfix/my_hotfix"
+    ],
+    "passes": false
+  },
+  {
+    "category": "integration",
+    "description": "As a developer, I want to add a --delay flag to testadd so that I can simulate network latency when testing the wizard",
+    "steps": [
+      "Add --delay int flag to testadd command (value in milliseconds)",
+      "Flag is optional with default value of 0 (no delay)",
+      "Validate delay is between 0 and 5000 milliseconds (inclusive)",
+      "Return error if delay is outside valid range with helpful message",
+      "Pass delay value to both MockGitService and MockJiraService",
+      "Verify: Run 'gbm wt testadd --delay 1000', services add ~1000ms delay"
+    ],
+    "passes": false
+  },
+  {
+    "category": "integration",
+    "description": "As a developer, I want delays to vary so that testing feels more realistic with jitter",
+    "steps": [
+      "When delay is specified, apply random jitter (±25% of specified delay)",
+      "Calculate jitter: actual_delay = delay ± rand(0, delay*0.25)",
+      "Jitter creates variability (e.g., --delay 1000 results in 750-1250ms)",
+      "Both MockGitService and MockJiraService apply independent jitter",
+      "Verify: Run command multiple times with --delay 1000, observe varying load times (not exactly 1000ms)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "integration",
+    "description": "As a developer, I want loading spinners to appear for all delays so that I can verify async feedback UI works",
+    "steps": [
+      "Spinner displays for any non-zero delay (including very small delays)",
+      "Filterable field shows spinner while JIRA issues loading (if delay > 0)",
+      "Filterable field shows spinner while base branch list loading (if delay > 0)",
+      "Spinner animates smoothly and rotates through frames",
+      "Spinner disappears when data finishes loading",
+      "Verify: Run with --delay 500, see spinner on JIRA selection screen, then options appear"
+    ],
+    "passes": false
   }
-]
+  ]
