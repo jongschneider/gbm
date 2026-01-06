@@ -282,7 +282,7 @@
       "View highlights current selection",
       "Verify: Run confirm and see question with Yes/No buttons"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-confirm",
@@ -293,7 +293,7 @@
       "Visual highlight moves between Yes and No",
       "Verify: Press left/right arrows and see highlight move"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-confirm",
@@ -304,7 +304,7 @@
       "Shortcuts work regardless of current highlight position",
       "Verify: Press 'y' and confirm completes with true; press 'n' completes with false"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-confirm",
@@ -315,7 +315,7 @@
       "If No selected: set complete=true, value=false, return cancelMsg or appropriate signal",
       "Verify: Select Yes and Enter proceeds; select No and Enter cancels wizard"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "field-confirm",
@@ -326,7 +326,7 @@
       "Implement WithTheme()",
       "Verify: Confirm satisfies Field interface (compiler check)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "wizard-navigation",
