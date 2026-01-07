@@ -800,5 +800,285 @@
       "Verify: Run with --delay 500, see spinner on JIRA selection screen, then options appear"
     ],
     "passes": true
+  },
+  {
+    "category": "workflow-type-selector",
+    "description": "As a user, I want to select a workflow type so that I can choose the right process for my task",
+    "steps": [
+      "Create initial Selector field with four workflow options: Feature, Bug, Hotfix, Merge",
+      "Selector displays title: 'Select Workflow Type'",
+      "Each option renders on its own line with cursor indicator",
+      "Navigate with arrow keys and vim keys (j/k) to move between options",
+      "Enter key selects the highlighted option and advances to next step",
+      "Verify: Run wizard, see workflow type selector with all four options selectable"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-type-selector",
+    "description": "As a user, I want to navigate away from workflow type selector so that I can change my selection",
+    "steps": [
+      "ESC key on workflow type selector returns to same selector (no previous step)",
+      "Ctrl+C on any step cancels entire wizard",
+      "Back navigation should stay on selector (first step)",
+      "Verify: Press ESC on workflow selector, nothing happens; press Ctrl+C, wizard cancels"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-type-selector",
+    "description": "As a user, I want to navigate workflow types with Ctrl+J and Ctrl+K keys so that I can browse options with keyboard modifiers",
+    "steps": [
+      "Handle tea.KeyMsg for 'ctrl+j' (or 'ctrl+down') in Update",
+      "Handle tea.KeyMsg for 'ctrl+k' (or 'ctrl+up') in Update",
+      "Ctrl+K decrements selection index (wrap to bottom at top)",
+      "Ctrl+J increments selection index (wrap to top at bottom)",
+      "Holding Ctrl+J/K repeats navigation (auto-repeat)",
+      "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to implement the workflow type selector field so that users can choose between Feature, Bug, Hotfix, and Merge workflows",
+    "steps": [
+      "Create pkg/tui/workflows/workflows_selector.go with SelectWorkflowType() function",
+      "Function creates Selector field with 4 options: Feature, Bug, Hotfix, Merge",
+      "Selector uses key 'workflow_type' and title 'Select Workflow Type'",
+      "Returns configured Selector implementing Field interface",
+      "Add unit tests verifying selector creation and option values",
+      "Verify: Selector displays all 4 options and can be navigated"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to create a workflow router so that the wizard can load the correct workflow based on user selection",
+    "steps": [
+      "Create pkg/tui/workflows/router.go with GetWorkflowSteps(workflowType, ctx) function",
+      "Router accepts workflow type string and Context",
+      "Returns []Step slice for that workflow type",
+      "Handles: 'feature', 'bug', 'hotfix', 'merge' types",
+      "Returns error for unknown workflow type",
+      "Add unit tests for each workflow type routing",
+      "Verify: Router returns correct step sequence for each type"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to implement BugWorkflow so that users can create bug fix branches",
+    "steps": [
+      "Create pkg/tui/workflows/bug.go with BugWorkflow(ctx) function",
+      "BugWorkflow has identical step sequence to FeatureWorkflow",
+      "Step 1: JIRA/worktree name selector (Filterable with async loading)",
+      "Step 2: Branch name input (TextInput with default)",
+      "Step 3: Base branch selector (Filterable with Skip logic)",
+      "Step 4: Confirmation (Confirm field)",
+      "Create ProcessBugWorkflow(wizard, ctx) helper for post-wizard processing",
+      "ProcessBugWorkflow sets branch name with bug/ prefix",
+      "Add unit tests for workflow creation and processing",
+      "Verify: BugWorkflow creates all 4 steps with correct defaults"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to implement MergeWorkflow so that users can merge branches",
+    "steps": [
+      "Create pkg/tui/workflows/merge.go with MergeWorkflow(ctx) function",
+      "Step 1: Source branch selector (Filterable, no async, static list from GitService)",
+      "Step 2: Target branch selector (Filterable, no async, static list from GitService)",
+      "Step 3 & 4: Auto-generate and display worktree/branch names (skip actual input)",
+      "Step 5: Confirmation (Confirm field)",
+      "Create ProcessMergeWorkflow(wizard, ctx) helper for post-wizard processing",
+      "ProcessMergeWorkflow sets worktree name with MERGE_ prefix and branch name with merge/ prefix",
+      "Add unit tests for workflow creation and processing",
+      "Verify: MergeWorkflow creates 5 steps with correct naming"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to create a config adapter so that cmd/service.Config implements tui.RepoConfig interface",
+    "steps": [
+      "Create cmd/service/tui_config_adapter.go with ConfigAdapter struct",
+      "ConfigAdapter wraps cmd/service.Config",
+      "Implement tui.RepoConfig interface: GetWorktrees() map[string]tui.WorktreeConfig",
+      "Create WorktreeConfigAdapter wrapping cmd/service.WorktreeConfig",
+      "Implement tui.WorktreeConfig interface: GetBranch() and GetMergeInto()",
+      "Add unit tests for adapter implementation",
+      "Verify: Adapter correctly exposes config data through interfaces"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to implement merge target suggestion so that MergeWorkflow suggests configured merge targets",
+    "steps": [
+      "Create pkg/tui/workflows/merge_suggestion.go with SuggestMergeTarget(ctx, sourceBranch) function",
+      "Function looks up sourceBranch in ctx.Config.GetWorktrees()",
+      "If worktree found with matching branch, return its GetMergeInto() value",
+      "If not found or no merge_into configured, return empty string",
+      "Create SortTargetBranchOptions(branches, suggested) []Option helper",
+      "If suggested branch exists, place it at top with '(suggested from config)' label",
+      "Otherwise return branches in normal order (excluding source)",
+      "Add unit tests for suggestion logic and branch sorting",
+      "Verify: Merge workflow shows suggested branch first when configured"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to update testadd command to support workflow selection so that users can test all workflow types",
+    "steps": [
+      "Update cmd/service/worktree_testadd.go to create workflow selector as first step",
+      "Create initial Wizard with SelectWorkflowType() as only step",
+      "On completion, use GetWorkflowSteps(selectedType, ctx) to get workflow steps",
+      "Create new Wizard with workflow-specific steps and same context/state",
+      "Launch second Wizard for actual workflow",
+      "Reuse same Context and WorkflowState across both wizards",
+      "Test can now test Feature, Bug, Hotfix, and Merge workflows",
+      "Add --workflow flag to skip selector and test specific type (optional)",
+      "Verify: 'gbm wt testadd' shows type selector, then appropriate workflow"
+    ],
+    "passes": false
+  },
+  {
+    "category": "implementation",
+    "description": "As a developer, I want to pass Config to testadd Context so that merge suggestion logic can access repository configuration",
+    "steps": [
+      "Update cmd/service/worktree_testadd.go to load Config from service",
+      "Create ConfigAdapter wrapping service.Config",
+      "Pass adapter to Context.WithConfig(adapter) when creating Context",
+      "For testing without real config, create MockRepoConfig for mock scenario",
+      "MockRepoConfig can be configured with test worktrees and merge_into values",
+      "Update testadd help text to mention merge_into configuration",
+      "Add unit test verifying Config is accessible in workflows",
+      "Verify: merge workflow can look up merge_into from config"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-bug",
+    "description": "As a user creating a bug fix worktree, I want to follow the feature workflow with bug prefix so that bug fixes follow the same process",
+    "steps": [
+      "Create BugWorkflow function returning configured Wizard",
+      "BugWorkflow has identical step sequence to FeatureWorkflow",
+      "Step 1: Filterable for JIRA/worktree name (with async JIRA loading)",
+      "Step 2: TextInput for branch name with validation",
+      "Step 3: Filterable for base branch (with Skip condition)",
+      "Step 4: Confirm",
+      "Verify: Run bug workflow, steps appear in same order as feature"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-bug",
+    "description": "As a user creating a bug fix worktree, I want the branch name prefixed with bug/ so that bug branches are visually distinct",
+    "steps": [
+      "ProcessBugWorkflow generates default branch name with bug/ prefix",
+      "Format: bug/{issue-key}_{slugified-summary} (underscore between key and slug)",
+      "Use same slug generation logic as feature workflow",
+      "Verify: Select JIRA issue in bug flow, branch name starts with bug/"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-bug",
+    "description": "As a user creating a bug fix worktree, I want the branch name pre-filled from JIRA issue so that I don't have to retype it",
+    "steps": [
+      "After JIRA issue selected on step 1, calculate default branch name",
+      "Format: bug/{issue-key}_{slugified-summary} (underscore between key and slug)",
+      "On step 2 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Select JIRA issue, branch field shows bug/INGSVC-6468_fix_something"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-bug",
+    "description": "As a user creating a bug fix worktree with a custom name, I want a sensible branch name generated so that I have a starting point",
+    "steps": [
+      "When custom text entered on step 1 (not a JIRA issue), use it as basis for branch name",
+      "Format: bug/{slugified-custom-name}",
+      "On step 2 (TextInput), use calculated name as WithDefault value",
+      "Branch name field focuses with pre-filled text (cursor at end)",
+      "User can accept or edit the pre-filled branch name",
+      "Verify: Enter custom name (e.g., 'fix-crash'), branch field shows bug/fix_crash"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a user merging branches, I want to follow a clear step sequence so that I can merge with confidence",
+    "steps": [
+      "Create MergeWorkflow function returning configured Wizard",
+      "Step 1: Filterable for source branch (branch to merge FROM)",
+      "Step 2: Filterable for target branch (branch to merge INTO)",
+      "Step 3: Auto-generate worktree name: MERGE_{source-to-target}",
+      "Step 4: Auto-generate branch name: merge/{source-to-target}",
+      "Step 5: Confirm with merge details",
+      "Verify: Run merge workflow, steps appear in correct order with branch selection"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a user merging branches, I want the worktree prefixed with MERGE_ so that merge operations are visually distinct",
+    "steps": [
+      "After source and target branch selected, prepend 'MERGE_'",
+      "Example: source 'feature-x', target 'main' → 'MERGE_feature-x-to-main'",
+      "Store prefix worktree name in WorkflowState.WorktreeName",
+      "Verify: Select source and target branches, worktree name shows MERGE_ prefix"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a user merging branches, I want the merge branch prefixed with merge/ so that merge branches follow naming convention",
+    "steps": [
+      "Generate default branch name with merge/ prefix",
+      "Format: merge/{source-to-target}",
+      "Example: merge/feature-x-to-main",
+      "Verify: Select source and target branches, branch name starts with merge/"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a user merging branches, I want to see source and target before confirming so that I verify the correct branches are selected",
+    "steps": [
+      "Confirm step displays: 'Merge {SourceBranch} into {TargetBranch}?'",
+      "Show auto-generated worktree name (MERGE_*)",
+      "Show auto-generated branch name (merge/*)",
+      "Verify: Reach confirm step, see source branch, target branch, and auto-generated names"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a TUI developer, I want merge workflow to skip JIRA steps so that branch-to-branch merges don't require issue selection",
+    "steps": [
+      "MergeWorkflow has no JIRA-related steps (Filterable with async loading)",
+      "Both source and target branch steps use static ListBranches (no async)",
+      "WorkflowState.JiraIssue remains nil for merge workflows",
+      "Verify: Run merge workflow, no async loading spinners appear for branch selection"
+    ],
+    "passes": false
+  },
+  {
+    "category": "workflow-merge",
+    "description": "As a user merging branches, I want the target branch suggested from config so that I don't have to search",
+    "steps": [
+      "Add Config field to Context struct for accessing repository configuration",
+      "After source branch selected, look up merge_into from config.Worktrees[source].MergeInto",
+      "If merge_into is configured for source branch, move that option to top of target branch list",
+      "Add label '(suggested from config)' to the suggested branch option",
+      "If merge_into is not configured, show target branches in normal order (exclude source)",
+      "Verify: Configure merge_into in config.yaml, select matching source branch, see suggestion at top"
+    ],
+    "passes": false
   }
-  ]
+   ]

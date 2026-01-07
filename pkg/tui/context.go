@@ -11,6 +11,17 @@ type JiraService interface {
 	FetchIssues() ([]JiraIssue, error)
 }
 
+// WorktreeConfig defines a worktree configuration with optional merge target.
+type WorktreeConfig interface {
+	GetBranch() string
+	GetMergeInto() string
+}
+
+// RepoConfig defines the repository configuration needed by the TUI.
+type RepoConfig interface {
+	GetWorktrees() map[string]WorktreeConfig
+}
+
 // JiraIssue represents a JIRA issue for display in the TUI.
 type JiraIssue struct {
 	Key     string
@@ -34,6 +45,7 @@ type Context struct {
 	State       *WorkflowState
 	GitService  GitService
 	JiraService JiraService
+	Config      RepoConfig
 }
 
 // NewContext creates a new Context with default values.
@@ -66,5 +78,11 @@ func (c *Context) WithGitService(svc GitService) *Context {
 // WithJiraService sets the JIRA service and returns the Context.
 func (c *Context) WithJiraService(svc JiraService) *Context {
 	c.JiraService = svc
+	return c
+}
+
+// WithConfig sets the repository configuration and returns the Context.
+func (c *Context) WithConfig(cfg RepoConfig) *Context {
+	c.Config = cfg
 	return c
 }
