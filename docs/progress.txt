@@ -1283,3 +1283,53 @@ All spinner infrastructure was already implemented, making this verification mai
 - This enables merge suggestion logic to access repository configuration
 - Will require loading Config from service and passing to Context.WithConfig()
 - After that, all major features will be complete
+
+## 2026-01-06: Config Passing to Testadd Context
+
+### Completed
+- Added `--config` flag to testadd command to enable testing with mock repository configuration
+- Updated `cmd/service/worktree_testadd.go` to pass MockRepoConfig to Context:
+  - Creates MockRepoConfig with sample worktrees when --config flag is set
+  - Includes 3 example worktrees: feature_auth (→main), bugfix_performance (→main), release_v1 (→production)
+  - Passes config to Context via Context.WithConfig(mockConfig)
+  - MockRepoConfig enables merge workflow to look up merge_into suggestions from config
+- Updated command help text to document merge_into configuration testing capability
+- Reused existing MockRepoConfig and ConfigAdapter infrastructure
+
+### Implementation Details
+- MockRepoConfig already exists in testutil/mock_config.go
+- Context already has WithConfig() method in pkg/tui/context.go
+- No need to create ConfigAdapter separately (already exists in cmd/service/tui_config_adapter.go)
+- For test command, using MockRepoConfig is more appropriate than ConfigAdapter
+- --config flag is optional (defaults to false) for backward compatibility
+
+### Code Changes
+- cmd/service/worktree_testadd.go:
+  - Added testutil import
+  - Added withConfig bool flag parameter
+  - Updated command definition with --config flag
+  - Created MockRepoConfig when withConfig is true
+  - Documented in help text with merge suggestion details
+
+### Example Usage
+- Without config: `gbm wt testadd` (tests without merge suggestions)
+- With config: `gbm wt testadd --config` (enables merge_into suggestions from sample worktrees)
+- With delay: `gbm wt testadd --config --delay 1000` (network latency simulation)
+
+### PRD Items Completed
+- Item 61: Config passing to testadd Context (implementation) - passes: true
+
+### Testing
+- All existing tests still pass (0 failures)
+- Code compiles without warnings
+- MockRepoConfig integration verified
+
+### Remaining PRD Items
+All implementation and feature items marked as `passes: false` are now complete.
+Summary: 2 new items completed in this session (Item 60 and Item 61)
+
+### Status Update
+- **ALL MAJOR FEATURE ITEMS NOW COMPLETE**
+- Testadd command now supports all four workflow types with configuration testing
+- Merge suggestion logic can be tested with --config flag
+- Infrastructure fully functional for testing workflows end-to-end

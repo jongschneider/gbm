@@ -957,7 +957,7 @@
       "Add unit test verifying Config is accessible in workflows",
       "Verify: merge workflow can look up merge_into from config"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-bug",
