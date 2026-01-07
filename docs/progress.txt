@@ -996,3 +996,48 @@ All spinner infrastructure was already implemented, making this verification mai
 - Router infrastructure is complete and tested
 - Multiple workflows (feature, bug, hotfix, merge) fully implemented
 - Ready for integration with testadd command and config adapter
+
+## 2026-01-06: Config Adapter Implementation
+
+### Completed
+- Created `cmd/service/tui_config_adapter.go` with:
+  - `ConfigAdapter` struct wrapping `cmd/service.Config`
+  - `NewConfigAdapter(cfg *Config)` constructor
+  - `GetWorktrees()` method returning map of WorktreeConfig adapters
+  - Full `tui.RepoConfig` interface implementation
+  - `WorktreeConfigAdapter` struct wrapping `cmd/service.WorktreeConfig`
+  - `NewWorktreeConfigAdapter(cfg *WorktreeConfig)` constructor
+  - `GetBranch()` method returning branch name
+  - `GetMergeInto()` method returning merge target branch
+  - Full `tui.WorktreeConfig` interface implementation
+  - `MockRepoConfig` struct for testing without real config files
+  - `NewMockRepoConfig()` constructor with fluent `WithWorktree(name, branch, mergeInto)` builder
+- Created `cmd/service/tui_config_adapter_test.go` with comprehensive test suite:
+  - `TestConfigAdapter_GetWorktrees` - nil config, empty worktrees, multiple worktrees
+  - `TestWorktreeConfigAdapter_GetBranch` - nil config, with branch, empty branch
+  - `TestWorktreeConfigAdapter_GetMergeInto` - nil config, with merge_into, empty merge_into
+  - `TestMockRepoConfig` - new mock is empty, WithWorktree adds configuration
+  - `TestConfigAdapter_ImplementsInterface` - compile-time interface verification
+  - All 9 tests pass (100% success rate)
+
+### PRD Items Completed
+- Item 60: Config adapter implementation (implementation) - passes: true
+
+### Design Notes
+- Adapters use the existing service.Config and service.WorktreeConfig types
+- No changes needed to service.go or existing code
+- MockRepoConfig enables testing workflows without filesystem config files
+- Adapters are lightweight wrappers providing interface conversion
+- Config field already added to Context struct in previous implementation
+
+### Key Implementation Details
+- ConfigAdapter handles nil Config gracefully (returns empty map)
+- WorktreeConfigAdapter handles nil config gracefully (returns empty strings)
+- MockRepoConfig uses fluent builder pattern matching other mocks
+- All interfaces properly implemented with compile-time verification
+
+### Next Steps for Developer
+- Implement merge target suggestion logic (item 61)
+- Update testadd command to use ConfigAdapter
+- Implement Bug workflow features (items 63-66)
+- Implement Merge workflow features (items 64-71)
