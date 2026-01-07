@@ -14,6 +14,98 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// testaddWrapperModel manages the testadd flow with multiple wizards.
+// It seamlessly transitions between:
+// 1. Type selector stage - user chooses Feature/Bug/Hotfix/Merge
+// 2. Workflow stage - workflow-specific steps for the selected type
+//
+// The model handles back navigation from workflow→type_selector and
+// forward navigation from type_selector→workflow without program restart.
+type testaddWrapperModel struct {
+	stage         string // "type_selection" or "workflow"
+	currentWizard *tui.Wizard
+	typeWizard    *tui.Wizard
+	stepsMap      map[string][]tui.Step
+	selectedType  string
+	ctx           *tui.Context
+}
+
+// newTestaddWrapperModel creates a new wrapper model with initialized fields.
+func newTestaddWrapperModel(ctx *tui.Context, stepsMap map[string][]tui.Step, typeWizard *tui.Wizard) *testaddWrapperModel {
+	return &testaddWrapperModel{
+		stage:         "type_selection",
+		currentWizard: typeWizard,
+		typeWizard:    typeWizard,
+		stepsMap:      stepsMap,
+		ctx:           ctx,
+	}
+}
+
+// Init initializes the type selector wizard.
+func (m *testaddWrapperModel) Init() tea.Cmd {
+	return m.currentWizard.Init()
+}
+
+// Update processes messages and delegates to currentWizard.
+// It handles transitions between stages based on wizard completion/cancellation.
+func (m *testaddWrapperModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle program exit on Ctrl+C at the root level
+	if km, ok := msg.(tea.KeyMsg); ok && km.Type == tea.KeyCtrlC {
+		return m, tea.Quit
+	}
+
+	// Update current wizard
+	updatedModel, cmd := m.currentWizard.Update(msg)
+	if w, ok := updatedModel.(*tui.Wizard); ok {
+		m.currentWizard = w
+	}
+
+	// Handle transitions based on stage and wizard state
+	switch m.stage {
+	case "type_selection":
+		// Check if type selector completed
+		if m.currentWizard.IsComplete() {
+			selectedType := m.currentWizard.State().WorkflowType
+			if selectedType != "" {
+				m.selectedType = selectedType
+
+				// Look up workflow steps for selected type
+				if steps, ok := m.stepsMap[selectedType]; ok {
+					// Create new wizard with workflow steps, preserving context
+					workflowWizard := tui.NewWizard(steps, m.ctx)
+					workflowWizard.State().WorkflowType = selectedType
+					m.currentWizard = workflowWizard
+					m.stage = "workflow"
+
+					// Initialize the workflow wizard
+					return m, m.currentWizard.Init()
+				}
+			}
+		}
+	case "workflow":
+		// Check if we received BackBoundaryMsg (ESC at first step)
+		if _, ok := msg.(tui.BackBoundaryMsg); ok {
+			// Return to type selector
+			m.stage = "type_selection"
+			m.currentWizard = m.typeWizard
+			// Reset type wizard state
+			m.typeWizard = tui.NewWizard([]tui.Step{{Name: "workflow_type_selector", Field: workflows.SelectWorkflowType()}}, m.ctx)
+			m.currentWizard = m.typeWizard
+
+			// Initialize the type wizard
+			return m, m.currentWizard.Init()
+		}
+	}
+
+	// Delegate all other messages
+	return m, cmd
+}
+
+// View delegates to currentWizard.View().
+func (m *testaddWrapperModel) View() string {
+	return m.currentWizard.View()
+}
+
 func newWorktreeTestaddCommand(svc *Service) *cobra.Command {
 	var delayMs int
 	var withConfig bool
@@ -53,9 +145,9 @@ No actual worktrees or branches are created (dry-run mode).`,
 }
 
 // runWorktreeTestaddCommand runs the test wizard with mock services.
-// This implements a two-wizard pattern:
-// 1. First wizard: SelectWorkflowType() - user chooses Feature/Bug/Hotfix/Merge
-// 2. Second wizard: GetWorkflowSteps(selectedType) - workflow-specific steps
+// Uses a single testaddWrapperModel to manage seamless transitions between:
+// 1. Type selector stage - user chooses Feature/Bug/Hotfix/Merge
+// 2. Workflow stage - workflow-specific steps for the selected type
 //
 // If withConfig is true, creates a MockRepoConfig with sample worktrees to test merge suggestions.
 func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool) error {
@@ -100,7 +192,17 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		ctx = ctx.WithConfig(mockConfig)
 	}
 
-	// Open input once - reuse for both wizards
+	// Build stepsMap: maps workflow type to its step configuration
+	stepsMap := make(map[string][]tui.Step)
+	for _, workflowType := range []string{"feature", "bug", "hotfix", "merge"} {
+		steps, err := workflows.GetWorkflowSteps(workflowType, ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get steps for workflow %s: %w", workflowType, err)
+		}
+		stepsMap[workflowType] = steps
+	}
+
+	// Open input for both wizards
 	input, err := os.Open("/dev/tty")
 	if err != nil {
 		return fmt.Errorf("failed to open /dev/tty: %w", err)
@@ -109,7 +211,7 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		_ = input.Close()
 	}()
 
-	// Step 1: Run the workflow type selector
+	// Create type selector wizard
 	typeSelector := workflows.SelectWorkflowType()
 	typeSelectorStep := tui.Step{
 		Name:  "workflow_type_selector",
@@ -117,70 +219,33 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 	}
 	typeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, ctx)
 
-	p := tea.NewProgram(typeWizard, tea.WithInput(input), tea.WithAltScreen())
+	// Create and run the wrapper model - single program for entire flow
+	wrapper := newTestaddWrapperModel(ctx, stepsMap, typeWizard)
+	p := tea.NewProgram(wrapper, tea.WithInput(input), tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
-		return fmt.Errorf("type selector error: %w", err)
+		return fmt.Errorf("testadd error: %w", err)
 	}
 
-	// Check if type selector was completed
-	if w, ok := finalModel.(*tui.Wizard); ok {
-		if w.IsCancelled() {
+	// Check the final state
+	if w, ok := finalModel.(*testaddWrapperModel); ok {
+		if w.currentWizard.IsCancelled() {
 			fmt.Fprintf(os.Stderr, "Cancelled\n")
 			return nil
 		}
 
-		if !w.IsComplete() {
-			return fmt.Errorf("type selector did not complete")
-		}
-
-		// Get the selected workflow type from the completed wizard state
-		selectedType := w.State().WorkflowType
-		if selectedType == "" {
-			return fmt.Errorf("no workflow type was selected")
-		}
-
-		// Step 2: Get the appropriate workflow steps and run the workflow
-		workflowSteps, err := workflows.GetWorkflowSteps(selectedType, ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get workflow steps for %s: %w", selectedType, err)
-		}
-
-		// Create a new wizard with the workflow-specific steps and the same context/state
-		// This reuses the state from the type selector, preserving any context
-		workflowWizard := tui.NewWizard(workflowSteps, ctx)
-		workflowWizard.State().WorkflowType = selectedType
-
-		// Run the workflow wizard
-		p2 := tea.NewProgram(workflowWizard, tea.WithInput(input), tea.WithAltScreen())
-		finalModel2, err := p2.Run()
-		if err != nil {
-			return fmt.Errorf("workflow error: %w", err)
-		}
-
-		// Check the result
-		if w2, ok := finalModel2.(*tui.Wizard); ok {
-			if w2.IsCancelled() {
-				fmt.Fprintf(os.Stderr, "Cancelled\n")
-				return nil
+		if w.currentWizard.IsComplete() {
+			// Print dry-run summary
+			state := w.currentWizard.State()
+			fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
+			fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
+			if state.BaseBranch != "" {
+				fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
 			}
-
-			if w2.IsComplete() {
-				// Print dry-run summary
-				state := w2.State()
-				fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
-				fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
-				if state.BaseBranch != "" {
-					fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
-				}
-				return nil
-			}
-
-			// Not complete and not cancelled (shouldn't happen)
-			return fmt.Errorf("wizard did not complete or cancel")
+			return nil
 		}
 
-		return fmt.Errorf("unexpected model type: %T", finalModel2)
+		return fmt.Errorf("wizard did not complete or cancel")
 	}
 
 	return fmt.Errorf("unexpected model type: %T", finalModel)
