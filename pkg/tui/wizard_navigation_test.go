@@ -635,6 +635,106 @@ func TestWizardBranchNamePreFill_HotfixWorkflow(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "security_patch", "Branch name should contain slugified summary")
 }
 
+// TestWizardBranchNamePreFill_BugWorkflow tests that bug workflows use bug/ prefix
+func TestWizardBranchNamePreFill_BugWorkflow(t *testing.T) {
+	ctx := NewContext()
+	ctx.JiraService = &mockJiraService{
+		issues: []JiraIssue{
+			{Key: "BUG-456", Summary: "Fix memory leak in database"},
+		},
+	}
+
+	// Create a bug-like workflow: worktree_name -> branch_name -> base_branch -> confirm
+	// Note: branch_name comes BEFORE base_branch (like feature, unlike hotfix)
+	branchField := &mockBranchNameField{key: "branch_name", title: "Branch Name"}
+	steps := []Step{
+		{
+			Name:  "worktree_name",
+			Field: newMockField("worktree_name", "Select Issue"),
+		},
+		{
+			Name:  "branch_name",
+			Field: branchField,
+		},
+		{
+			Name:  "base_branch",
+			Field: newMockField("base_branch", "Base Branch"),
+		},
+		{
+			Name:  "confirm",
+			Field: newMockField("confirm", "Confirm"),
+		},
+	}
+
+	wizard := NewWizard(steps, ctx)
+	// Set workflow type to "bug" to enable bug/ prefix
+	wizard.ctx.State.WorkflowType = "bug"
+	wizard.Init()
+
+	// Step 1: Select JIRA issue
+	steps[0].Field.(*mockField).value = "BUG-456"
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Step 2: Verify branch_name field has bug/ prefix
+	assert.Equal(t, 1, wizard.current)
+	currentField := wizard.currentField().(*mockBranchNameField)
+	assert.NotEmpty(t, currentField.defaultValue, "Default should be set for bug")
+	assert.Contains(t, currentField.defaultValue, "bug/BUG-456", "Bug branch should have bug/ prefix")
+	assert.Contains(t, currentField.defaultValue, "fix_memory_leak", "Branch name should contain slugified summary")
+}
+
+// TestWizardBranchNamePreFill_BugWorkflow_CustomName tests that bug workflows with custom names use bug/ prefix
+func TestWizardBranchNamePreFill_BugWorkflow_CustomName(t *testing.T) {
+	ctx := NewContext()
+
+	// Create a bug-like workflow: worktree_name -> branch_name -> base_branch -> confirm
+	branchField := &mockBranchNameField{key: "branch_name", title: "Branch Name"}
+	steps := []Step{
+		{
+			Name:  "worktree_name",
+			Field: newMockField("worktree_name", "Select Issue"),
+		},
+		{
+			Name:  "branch_name",
+			Field: branchField,
+		},
+		{
+			Name:  "base_branch",
+			Field: newMockField("base_branch", "Base Branch"),
+		},
+		{
+			Name:  "confirm",
+			Field: newMockField("confirm", "Confirm"),
+		},
+	}
+
+	wizard := NewWizard(steps, ctx)
+	// Set workflow type to "bug" to enable bug/ prefix
+	wizard.ctx.State.WorkflowType = "bug"
+	wizard.Init()
+
+	// Step 1: Enter custom bug name (not a JIRA issue)
+	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+
+	// Advance to branch_name step
+	steps[0].Field.(*mockField).value = "fix-crash"
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		msg := cmd()
+		wizard.Update(msg)
+	}
+
+	// Step 2: Verify branch_name field has bug/ prefix based on custom name
+	assert.Equal(t, 1, wizard.current)
+	currentField := wizard.currentField().(*mockBranchNameField)
+	assert.NotEmpty(t, currentField.defaultValue, "Default should be set from custom name")
+	assert.Contains(t, currentField.defaultValue, "bug/fix_crash", "Bug branch should be based on custom name with bug/ prefix")
+}
+
 // mockBranchNameField is a mock field that tracks WithDefault calls
 type mockBranchNameField struct {
 	key          string

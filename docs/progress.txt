@@ -1115,3 +1115,53 @@ All spinner infrastructure was already implemented, making this verification mai
 - Update testadd command to support workflow selection
 - Implement remaining workflow features
 - Test suggestion with real repository configuration
+
+## 2026-01-06: Bug Workflow Branch Name Pre-fill Implementation
+
+### Completed
+- Enhanced `pkg/tui/wizard.go` calculateDefaultBranchName() method:
+  - Added support for "bug/" prefix when WorkflowType is "bug"
+  - Uses switch statement for cleaner code (fixed staticcheck lint warning)
+  - Now recognizes three workflow types: feature, bug, hotfix
+  - Properly applies prefix based on workflow type before falling back to heuristics
+- Added comprehensive test suite in `pkg/tui/wizard_navigation_test.go`:
+  - `TestWizardBranchNamePreFill_BugWorkflow()` - verifies bug/ prefix for JIRA issues
+  - `TestWizardBranchNamePreFill_BugWorkflow_CustomName()` - verifies bug/ prefix for custom names
+  - Both tests verify complete branch name generation with proper slugification
+  - All tests pass (100% success rate)
+
+### PRD Items Completed
+- Item 963: Bug workflow step sequence (workflow-bug) - passes: true
+- Item 977: Bug branch prefix (workflow-bug) - passes: true
+- Item 988: Bug branch name pre-fill from JIRA issue (workflow-bug) - passes: true
+- Item 1001: Bug branch name pre-fill for custom names (workflow-bug) - passes: true
+
+### Key Implementation Details
+- Branch name pre-fill is handled by wizard's applyFieldDefaults() method
+- Works transparently with BugWorkflow and ProcessBugWorkflow
+- No changes needed to workflow definitions - infrastructure already in place
+- Uses same slug generation logic as feature and hotfix workflows
+- Follows identical pattern for custom names and JIRA issue summaries
+
+### Code Quality
+- All existing tests still pass (no regressions)
+- New tests follow established patterns (wizard_navigation_test.go)
+- Lint warnings fixed with switch statement
+- Comprehensive test coverage for both JIRA and custom name paths
+
+### Integration Points
+- BugWorkflow (already implemented) uses bug/ prefix via calculateDefaultBranchName()
+- ProcessBugWorkflow (already implemented) generates bug/ branch names correctly
+- TextInput field receives pre-filled default via WithDefault() interface
+- Works seamlessly with router.go's GetWorkflowSteps("bug", ctx)
+
+### Remaining PRD Items
+- 8 items still marked passes: false:
+  - Item 931: Update testadd for workflow selection (implementation)
+  - Item 949: Pass Config to testadd (implementation)
+  - Items 1013-1069: Merge workflow features (8 items)
+
+### Next Steps for Developer
+- Implement merge workflow features (source/target branch selection, worktree naming)
+- Add config suggestion logic to merge workflow
+- Update testadd command to support workflow type selection

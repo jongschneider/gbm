@@ -971,7 +971,7 @@
       "Step 4: Confirm",
       "Verify: Run bug workflow, steps appear in same order as feature"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-bug",
@@ -982,7 +982,7 @@
       "Use same slug generation logic as feature workflow",
       "Verify: Select JIRA issue in bug flow, branch name starts with bug/"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-bug",
@@ -995,7 +995,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Select JIRA issue, branch field shows bug/INGSVC-6468_fix_something"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-bug",
@@ -1008,7 +1008,7 @@
       "User can accept or edit the pre-filled branch name",
       "Verify: Enter custom name (e.g., 'fix-crash'), branch field shows bug/fix_crash"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",

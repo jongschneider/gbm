@@ -298,12 +298,15 @@ func (w *Wizard) applyTextInputDefault(field Field, defaultValue string) {
 // calculateDefaultBranchName calculates a default branch name based on the worktree name.
 // If the worktree name is a JIRA issue key, it looks up the full issue to get the summary
 // and generates a slug-based branch name. Otherwise, it generates one from the custom name.
-// It respects the workflow type to determine the prefix (feature/ vs hotfix/).
+// It respects the workflow type to determine the prefix (feature/, bug/, or hotfix/).
 func (w *Wizard) calculateDefaultBranchName(worktreeName string) string {
 	// Determine workflow prefix based on state workflow type or step names
 	prefix := "feature/"
-	if w.ctx.State.WorkflowType == "hotfix" {
+	switch w.ctx.State.WorkflowType {
+	case "hotfix":
 		prefix = "hotfix/"
+	case "bug":
+		prefix = "bug/"
 	}
 	// Also check if this is a hotfix workflow by looking for HOTFIX_ prefix in current state
 	// (This happens when we're in ProcessHotfixWorkflow context)
