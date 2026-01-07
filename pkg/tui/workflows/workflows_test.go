@@ -394,3 +394,115 @@ func TestSelectWorkflowType(t *testing.T) {
 		assert.Equal(t, "workflow_type", selector.GetKey())
 	})
 }
+
+// Router tests
+
+func TestGetWorkflowSteps_Feature(t *testing.T) {
+	ctx := tui.NewContext()
+	steps, err := GetWorkflowSteps("feature", ctx)
+
+	assert.NoError(t, err)
+	assert.Len(t, steps, 4)
+	assert.Equal(t, "worktree_name", steps[0].Name)
+	assert.Equal(t, "branch_name", steps[1].Name)
+	assert.Equal(t, "base_branch", steps[2].Name)
+	assert.Equal(t, "confirm", steps[3].Name)
+}
+
+func TestGetWorkflowSteps_Bug(t *testing.T) {
+	ctx := tui.NewContext()
+	steps, err := GetWorkflowSteps("bug", ctx)
+
+	assert.NoError(t, err)
+	assert.Len(t, steps, 4)
+	assert.Equal(t, "worktree_name", steps[0].Name)
+	assert.Equal(t, "branch_name", steps[1].Name)
+	assert.Equal(t, "base_branch", steps[2].Name)
+	assert.Equal(t, "confirm", steps[3].Name)
+}
+
+func TestGetWorkflowSteps_Hotfix(t *testing.T) {
+	ctx := tui.NewContext()
+	steps, err := GetWorkflowSteps("hotfix", ctx)
+
+	assert.NoError(t, err)
+	assert.Len(t, steps, 4)
+	assert.Equal(t, "worktree_name", steps[0].Name)
+	assert.Equal(t, "base_branch", steps[1].Name)
+	assert.Equal(t, "branch_name", steps[2].Name)
+	assert.Equal(t, "confirm", steps[3].Name)
+}
+
+func TestGetWorkflowSteps_Merge(t *testing.T) {
+	ctx := tui.NewContext()
+	steps, err := GetWorkflowSteps("merge", ctx)
+
+	assert.NoError(t, err)
+	assert.Len(t, steps, 3)
+	assert.Equal(t, "source_branch", steps[0].Name)
+	assert.Equal(t, "target_branch", steps[1].Name)
+	assert.Equal(t, "confirm", steps[2].Name)
+}
+
+func TestGetWorkflowSteps_Unknown(t *testing.T) {
+	ctx := tui.NewContext()
+	steps, err := GetWorkflowSteps("unknown", ctx)
+
+	assert.Error(t, err)
+	assert.Nil(t, steps)
+	assert.Equal(t, "unknown workflow type: unknown", err.Error())
+}
+
+func TestBugWorkflow_Creation(t *testing.T) {
+	ctx := tui.NewContext()
+	wizard := BugWorkflow(ctx)
+
+	assert.NotNil(t, wizard)
+	// Verify that the wizard can be used (it initializes correctly)
+	cmd := wizard.Init()
+	assert.NotNil(t, cmd)
+}
+
+func TestMergeWorkflow_Creation(t *testing.T) {
+	ctx := tui.NewContext()
+	wizard := MergeWorkflow(ctx)
+
+	assert.NotNil(t, wizard)
+	// Verify that the wizard can be used (it initializes correctly)
+	cmd := wizard.Init()
+	assert.NotNil(t, cmd)
+}
+
+func TestProcessBugWorkflow_WithIssue(t *testing.T) {
+	// Setup mock JIRA service
+	mockJira := &mockJiraService{
+		issues: []tui.JiraIssue{
+			{Key: "BUG-123", Summary: "Fix database connection"},
+		},
+	}
+
+	ctx := tui.NewContext().WithJiraService(mockJira)
+	wizard := BugWorkflow(ctx)
+	state := wizard.State()
+
+	// Simulate user selecting JIRA issue
+	state.WorktreeName = "BUG-123"
+	state.BranchName = ""
+
+	err := ProcessBugWorkflow(wizard, ctx)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "BUG-123", state.WorktreeName)
+	assert.Equal(t, "bug/BUG-123-fix-database-connection", state.BranchName)
+	assert.NotNil(t, state.JiraIssue)
+	assert.Equal(t, "BUG-123", state.JiraIssue.Key)
+}
+
+func TestProcessMergeWorkflow(t *testing.T) {
+	ctx := tui.NewContext()
+	wizard := MergeWorkflow(ctx)
+
+	err := ProcessMergeWorkflow(wizard, ctx)
+
+	assert.NoError(t, err)
+}

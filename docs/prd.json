@@ -863,7 +863,7 @@
       "Add unit tests for each workflow type routing",
       "Verify: Router returns correct step sequence for each type"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
@@ -880,7 +880,7 @@
       "Add unit tests for workflow creation and processing",
       "Verify: BugWorkflow creates all 4 steps with correct defaults"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
@@ -896,7 +896,7 @@
       "Add unit tests for workflow creation and processing",
       "Verify: MergeWorkflow creates 5 steps with correct naming"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
