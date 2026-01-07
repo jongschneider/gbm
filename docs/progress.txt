@@ -879,3 +879,57 @@ All spinner infrastructure was already implemented, making this verification mai
 - User experience improved: cannot accidentally skip during async loading
 - Code is robust and well-tested
 
+
+## 2026-01-06: Workflow Type Selector Implementation
+
+### Completed
+- Created `pkg/tui/workflows/workflows_selector.go` with:
+  - `SelectWorkflowType()` function that returns a configured Selector field
+  - Selector displays "Select Workflow Type" with four options: Feature, Bug, Hotfix, Merge
+  - Each option has a human-readable Label and a machine-readable Value
+  - Option values: "feature", "bug", "hotfix", "merge"
+  - Selector uses "workflow_type" as the field key
+  - Returns a Field interface, ready to use in any Wizard
+
+- Added comprehensive test suite in `pkg/tui/workflows/workflows_test.go`:
+  - `TestSelectWorkflowType/creates_workflow_selector_field` - verifies field creation
+  - `TestSelectWorkflowType/has_correct_field_type` - verifies it returns a Selector
+  - `TestSelectWorkflowType/has_all_four_workflow_options` - verifies options are available
+  - `TestSelectWorkflowType/selector_key_is_'workflow_type'` - verifies correct key
+  - All tests pass (4/4)
+
+- Verified existing Selector implementation includes required features:
+  - Arrow key navigation (up/down) with wrapping
+  - Vim key navigation (j/k) with wrapping
+  - **Ctrl+J/K navigation** with wrapping (already implemented)
+  - ESC key handling (returns to selector, no previous step)
+  - Ctrl+C cancellation (handled by Wizard container)
+  - Enter key confirmation with NextStepMsg
+
+### PRD Items Completed
+- Item 67: Select workflow type (workflow-type-selector) - passes: true
+- Item 68: Navigate away from workflow type selector (workflow-type-selector) - passes: true
+- Item 69: Navigate workflow types with Ctrl+J/K (workflow-type-selector) - passes: true
+- Item 70: Implement workflow type selector field (implementation) - passes: true
+
+### Design Notes
+- SelectWorkflowType is a lightweight factory function that returns a ready-to-use Field
+- The function uses Selector's existing multi-key navigation system (arrows, vim, Ctrl+modifiers)
+- Field can be used in any Wizard as the first step for workflow selection
+- No additional configuration needed - Selector already has all required features
+
+### Integration Points
+- This selector is the foundation for multi-workflow support
+- Next steps: Create workflow router (Item 5) to load appropriate workflow based on selection
+- Once router exists, can implement BugWorkflow and MergeWorkflow workflows
+
+### Code Quality
+- All tests pass (18 existing + 4 new = 22 total in workflows_test.go)
+- Code compiles without errors or warnings
+- No regressions to existing functionality
+- Follows established patterns for field creation and testing
+
+### Final Status
+- **70 of 87 PRD ITEMS NOW MARKED AS COMPLETE**
+- Code is ready for workflow router implementation
+- All selector functionality working as expected

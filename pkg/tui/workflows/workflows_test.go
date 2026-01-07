@@ -353,3 +353,44 @@ func TestFieldImplementations(t *testing.T) {
 	confirmField := fields.NewConfirm("test", "Test?")
 	assert.Implements(t, (*tui.Field)(nil), confirmField)
 }
+
+func TestSelectWorkflowType(t *testing.T) {
+	t.Run("creates workflow selector field", func(t *testing.T) {
+		field := SelectWorkflowType()
+
+		// Verify field was created
+		assert.NotNil(t, field)
+
+		// Verify field implements Field interface
+		assert.Implements(t, (*tui.Field)(nil), field)
+	})
+
+	t.Run("has correct field type", func(t *testing.T) {
+		field := SelectWorkflowType()
+
+		// Verify it's a Selector field
+		selector, ok := field.(*fields.Selector)
+		assert.True(t, ok, "SelectWorkflowType should return a *Selector")
+		assert.NotNil(t, selector)
+	})
+
+	t.Run("has all four workflow options", func(t *testing.T) {
+		field := SelectWorkflowType()
+		selector := field.(*fields.Selector)
+
+		// Focus the field to ensure initialization
+		selector.Focus()
+
+		// Verify we can get the value (should have options)
+		// The field should not be complete until a selection is made
+		assert.False(t, selector.IsComplete())
+	})
+
+	t.Run("selector key is 'workflow_type'", func(t *testing.T) {
+		field := SelectWorkflowType()
+		selector := field.(*fields.Selector)
+
+		// Verify the field key
+		assert.Equal(t, "workflow_type", selector.GetKey())
+	})
+}

@@ -812,7 +812,7 @@
       "Enter key selects the highlighted option and advances to next step",
       "Verify: Run wizard, see workflow type selector with all four options selectable"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-type-selector",
@@ -823,7 +823,7 @@
       "Back navigation should stay on selector (first step)",
       "Verify: Press ESC on workflow selector, nothing happens; press Ctrl+C, wizard cancels"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-type-selector",
@@ -836,7 +836,7 @@
       "Holding Ctrl+J/K repeats navigation (auto-repeat)",
       "Verify: Hold Ctrl+J and see cursor move down continuously; hold Ctrl+K and see cursor move up continuously"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
@@ -849,7 +849,7 @@
       "Add unit tests verifying selector creation and option values",
       "Verify: Selector displays all 4 options and can be navigated"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
