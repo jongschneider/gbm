@@ -1152,5 +1152,126 @@
       "Verify: Code compiles, all tests pass, keyboard navigation still works"
     ],
     "passes": true
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a wizard developer, I want BackBoundaryMsg signal so that wrapper models can respond when back is pressed at step 0",
+    "steps": [
+      "Define BackBoundaryMsg zero-field struct in pkg/tui/wizard.go",
+      "Update Wizard.handleBack() to return BackBoundaryMsg command when at step 0",
+      "Existing back navigation (step N > 0) behavior unchanged",
+      "Create unit test for BackBoundaryMsg emission at step 0",
+      "Create unit test that ESC at step N (N > 0) still moves back normally",
+      "Verify: All existing wizard tests pass without modification"
+    ],
+    "passes": true
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a testadd user, I want a wrapper model so that I can seamlessly switch between type selector and workflow without program restart",
+    "steps": [
+      "Create testaddWrapperModel struct in cmd/service/worktree_testadd.go",
+      "Add fields: stage (string), currentWizard (*tui.Wizard), typeWizard (*tui.Wizard), stepsMap (map), selectedType (string), ctx (*tui.Context)",
+      "Implement Bubble Tea interface: Init(), Update(), View()",
+      "Init() returns command to initialize typeWizard with focus",
+      "View() delegates to currentWizard.View()",
+      "Update() processes messages and delegates to currentWizard.Update()",
+      "Verify: Model compiles and satisfies tea.Model interface"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a maintainer, I want workflow steps organized in a map so that transitions are clean and extensible",
+    "steps": [
+      "Create stepsMap in runWorktreeTestaddCommand() with entries: 'feature', 'bug', 'hotfix', 'merge'",
+      "Each entry calls appropriate workflow function (e.g., workflows.FeatureWorkflow(ctx))",
+      "Pass stepsMap to testaddWrapperModel constructor",
+      "Verify: Map builds without error and contains correct workflow steps for each type"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a testadd user, I want automatic type-to-workflow transition so that I see the appropriate steps without flicker",
+    "steps": [
+      "In testaddWrapperModel.Update(), detect typeWizard completion (IsComplete() == true)",
+      "Extract selected workflow type from typeWizard state",
+      "Look up steps from stepsMap using selected type",
+      "Create new workflow wizard with those steps",
+      "Swap currentWizard pointer to new workflow wizard",
+      "Change stage to 'workflow'",
+      "Return Init() command for workflow wizard",
+      "Verify: No flicker between type selection and workflow steps in manual testing"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a testadd user, I want back navigation from workflow to type selector so that I can change my workflow choice",
+    "steps": [
+      "In testaddWrapperModel.Update(), listen for BackBoundaryMsg from currentWizard",
+      "When BackBoundaryMsg received: change stage to 'type_selection'",
+      "Swap currentWizard pointer back to typeWizard",
+      "Reset typeWizard cursor/state to show clean type selector",
+      "Continue control flow (no program exit)",
+      "Verify: ESC at first workflow step returns to type selector",
+      "Verify: Can select different workflow type and proceed normally"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a user, I want clean unified testadd command so that the implementation is simple and maintainable",
+    "steps": [
+      "Remove all dual-program logic from runWorktreeTestaddCommand() (~80 lines)",
+      "Build stepsMap (feature, bug, hotfix, merge workflows)",
+      "Create single typeWizard for type selection",
+      "Create testaddWrapperModel with initialized fields",
+      "Create single tea.NewProgram(wrapper) and run once",
+      "Handle result: cancelled (exit 1, message to stderr), completed (dry-run summary to stderr)",
+      "Verify: Command is ~60 lines and clearer to follow",
+      "Verify: All existing CLI behavior preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a test writer, I want isolated unit tests so that BackBoundaryMsg signaling works correctly",
+    "steps": [
+      "Create TestBackBoundaryMsg_EmitAtStep0 in pkg/tui/wizard_test.go",
+      "Test: Press ESC at step 0 returns BackBoundaryMsg command",
+      "Create TestBackBoundaryMsg_NoEmitAtStepN test",
+      "Test: Press ESC at step N (N > 0) moves back normally (no message)",
+      "Verify: Message is returned as command function result",
+      "Verify: Test coverage > 85% for modified Wizard code",
+      "Verify: All existing wizard tests still pass"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As QA, I want integration tests so that the complete testadd flow works without flicker and back navigation is smooth",
+    "steps": [
+      "Create test scenario: Select Feature → Enter values → Complete (verify no flicker, worktree created summary)",
+      "Create test scenario: Select Bug → ESC at step 1 → Back to type selector → Select Hotfix (verify both workflows work)",
+      "Create test scenario: Type selector → ESC → No movement (already at start)",
+      "Add all scenarios to e2e_test.go or new testadd_integration_test.go",
+      "Run integration tests with manual visual verification (zero screen flicker)",
+      "Verify: All test scenarios pass"
+    ],
+    "passes": false
+  },
+  {
+    "category": "testadd-refactor",
+    "description": "As a future developer, I want clear documentation so that I can replicate this pattern for other multi-wizard flows",
+    "steps": [
+      "Add code comments explaining testaddWrapperModel purpose and stage transitions",
+      "Document BackBoundaryMsg behavior in wizard.go",
+      "Add inline example: map-based approach, stage swapping, message handling",
+      "Update README or add comment showing how to extend for other commands",
+      "Verify: Pattern is understandable from reading testadd implementation alone"
+    ],
+    "passes": false
   }
 ]

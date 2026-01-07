@@ -7,6 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// BackBoundaryMsg signals that back was pressed at step 0 (the first step).
+// This allows wrapper models to detect when the user attempts to go back beyond the start.
+type BackBoundaryMsg struct{}
+
 // Step represents a single step in a wizard workflow.
 type Step struct {
 	// Name identifies the step for debugging and logging.
@@ -174,10 +178,11 @@ func (w *Wizard) handleNext() (*Wizard, tea.Cmd) {
 }
 
 // handleBack goes back to the previous non-skipped step.
+// If already at step 0, returns BackBoundaryMsg to signal that the user attempted to go back beyond the start.
 func (w *Wizard) handleBack() (*Wizard, tea.Cmd) {
 	if w.current == 0 {
-		// Already at first step, do nothing or cancel
-		return w, nil
+		// Already at first step, signal back boundary
+		return w, func() tea.Msg { return BackBoundaryMsg{} }
 	}
 
 	// Blur current field

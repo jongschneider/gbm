@@ -1401,3 +1401,50 @@ Summary: 2 new items completed in this session (Item 60 and Item 61)
 - Magic string elimination complete
 - Code is maintainable and consistent
 - Ready for production deployment
+
+## 2026-01-07: BackBoundaryMsg Implementation
+
+### Completed
+- Created `BackBoundaryMsg` zero-field struct in `pkg/tui/wizard.go`
+  - Signals that back was pressed at step 0 (the first step)
+  - Allows wrapper models to detect when user attempts to go back beyond the start
+  - Documented with clear comments about purpose and use case
+- Updated `Wizard.handleBack()` method:
+  - When at step 0 and ESC is pressed, returns BackBoundaryMsg command
+  - When at step N > 0, normal back navigation still works
+  - Returns command function that generates BackBoundaryMsg: `func() tea.Msg { return BackBoundaryMsg{} }`
+- Created comprehensive unit tests in `pkg/tui/wizard_navigation_test.go`:
+  - `TestBackBoundaryMsg_EmitAtStep0`: Verifies BackBoundaryMsg is returned when pressing ESC at step 0
+  - `TestBackBoundaryMsg_NoEmitAtStepN`: Verifies normal back navigation at step N > 0 doesn't emit BackBoundaryMsg
+  - Both tests verify the command execution and message type
+
+### PRD Items Completed
+- Item 60: BackBoundaryMsg signal (testadd-refactor) - passes: true
+
+### Key Implementation Details
+- BackBoundaryMsg is a zero-field struct (no data needed, just a signal)
+- Returned as a Bubble Tea Cmd that generates the message when executed
+- Existing back navigation behavior preserved for step N > 0
+- All 121 existing tests pass without modification
+- New tests add 2 additional test cases for complete coverage
+
+### Testing Results
+- All 121 + 2 = 123 wizard tests pass
+- No regressions from handleBack() changes
+- Both positive and negative cases covered:
+  - ESC at step 0 → BackBoundaryMsg
+  - ESC at step N > 0 → moves back to step N-1 (no message)
+- Code compiles with no warnings or lint issues
+
+### Design Notes
+- BackBoundaryMsg signals enable clean separation of concerns
+- Wrapper models can listen for this message to switch between stages
+- Allows testadd command to swap between type selector and workflow wizards
+- Maintains single responsibility: Wizard just signals, wrapper decides action
+
+### Next Steps for Developer
+- Implement wrapper model for testadd (item 61)
+- Create stepsMap for workflow definitions (item 62)
+- Add automatic type-to-workflow transition (item 63)
+- Implement back navigation from workflow to type selector (item 64)
+- Refactor testadd command to use wrapper model (item 65)

@@ -792,3 +792,61 @@ type mockJiraService struct {
 func (m *mockJiraService) FetchIssues() ([]JiraIssue, error) {
 	return m.issues, nil
 }
+
+// TestBackBoundaryMsg_EmitAtStep0 verifies that BackBoundaryMsg is returned when pressing ESC at step 0
+func TestBackBoundaryMsg_EmitAtStep0(t *testing.T) {
+	step1 := Step{
+		Name:  "Step 1",
+		Field: newMockField("test1", "First step"),
+	}
+	step2 := Step{
+		Name:  "Step 2",
+		Field: newMockField("test2", "Second step"),
+	}
+
+	wizard := NewWizard([]Step{step1, step2}, NewContext())
+	wizard.Init()
+
+	// At step 0, pressing ESC should return BackBoundaryMsg
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.NotNil(t, cmd, "Expected command to be returned")
+
+	// Execute the command and verify it returns BackBoundaryMsg
+	if cmd != nil {
+		msg := cmd()
+		_, isBackBoundaryMsg := msg.(BackBoundaryMsg)
+		assert.True(t, isBackBoundaryMsg, "Expected BackBoundaryMsg from ESC at step 0")
+	}
+}
+
+// TestBackBoundaryMsg_NoEmitAtStepN verifies that normal back navigation works at step N > 0
+func TestBackBoundaryMsg_NoEmitAtStepN(t *testing.T) {
+	step1 := Step{
+		Name:  "Step 1",
+		Field: newMockField("test1", "First step"),
+	}
+	step2 := Step{
+		Name:  "Step 2",
+		Field: newMockField("test2", "Second step"),
+	}
+
+	wizard := NewWizard([]Step{step1, step2}, NewContext())
+	wizard.Init()
+
+	// Advance to step 2
+	wizard.Update(NextStepMsg{})
+	assert.Equal(t, 1, wizard.current, "Should be at step 1 (second step)")
+
+	// Pressing ESC at step > 0 should go back, not emit BackBoundaryMsg
+	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// The cmd should exist but not return a BackBoundaryMsg when executed
+	if cmd != nil {
+		msg := cmd()
+		_, isBackBoundaryMsg := msg.(BackBoundaryMsg)
+		assert.False(t, isBackBoundaryMsg, "Should not emit BackBoundaryMsg when going back from step N > 0")
+	}
+
+	// Should now be back at step 0
+	assert.Equal(t, 0, wizard.current, "Should be back at step 0 after ESC")
+}
