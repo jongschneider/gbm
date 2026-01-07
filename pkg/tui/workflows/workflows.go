@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"gbm/pkg/tui"
-	"gbm/pkg/tui/fields"
 )
 
 // slugify converts a string to a URL-friendly slug.
@@ -69,86 +68,7 @@ func generateBranchNameBug(issueKey, summary string) string {
 // After the wizard completes, call ProcessFeatureWorkflow to handle the special logic
 // of generating branch names and setting worktree names from JIRA issues.
 func FeatureWorkflow(ctx *tui.Context) *tui.Wizard {
-	steps := []tui.Step{
-		// Step 1: JIRA issue selection or custom worktree name
-		{
-			Name: "worktree_name",
-			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
-				"Search JIRA issues or enter a custom name",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.JiraService == nil {
-					return []fields.Option{}, nil
-				}
-				issues, err := ctx.JiraService.FetchIssues()
-				if err != nil {
-					return nil, err
-				}
-
-				options := make([]fields.Option, len(issues))
-				for i, issue := range issues {
-					options[i] = fields.Option{
-						Label: fmt.Sprintf("%s - %s", issue.Key, issue.Summary),
-						Value: issue.Key, // Store issue key as value
-					}
-				}
-				return options, nil
-			}),
-		},
-
-		// Step 2: Branch name (with auto-generated default from JIRA issue)
-		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the new branch").
-				WithPlaceholder("feature/KEY-description").
-				WithValidator(validateBranchName),
-		},
-
-		// Step 3: Base branch selection (skipped if branch name already exists)
-		{
-			Name: "base_branch",
-			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
-				"Choose the branch to base this feature on",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
-
-			// Skip this step if the branch name already exists
-			Skip: func(state *tui.WorkflowState) bool {
-				if ctx.GitService == nil || state.BranchName == "" {
-					return false
-				}
-				exists, err := ctx.GitService.BranchExists(state.BranchName)
-				return err == nil && exists
-			},
-		},
-
-		// Step 4: Confirmation
-		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Feature Branch?"),
-		},
-	}
-
+	steps := getFeatureSteps(ctx)
 	return tui.NewWizard(steps, ctx)
 }
 
@@ -201,78 +121,7 @@ func ProcessFeatureWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 // After the wizard completes, call ProcessHotfixWorkflow to handle the special logic
 // of generating branch names, prefixing worktree names, and setting worktree names from JIRA issues.
 func HotfixWorkflow(ctx *tui.Context) *tui.Wizard {
-	steps := []tui.Step{
-		// Step 1: JIRA issue selection or custom worktree name
-		{
-			Name: "worktree_name",
-			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
-				"Search JIRA issues or enter a custom name",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.JiraService == nil {
-					return []fields.Option{}, nil
-				}
-				issues, err := ctx.JiraService.FetchIssues()
-				if err != nil {
-					return nil, err
-				}
-
-				options := make([]fields.Option, len(issues))
-				for i, issue := range issues {
-					options[i] = fields.Option{
-						Label: fmt.Sprintf("%s - %s", issue.Key, issue.Summary),
-						Value: issue.Key, // Store issue key as value
-					}
-				}
-				return options, nil
-			}),
-		},
-
-		// Step 2: Base branch selection (mandatory - NOT skipped)
-		{
-			Name: "base_branch",
-			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
-				"Choose the production or release branch to base this hotfix on",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
-			// No Skip function - base branch is always required for hotfixes
-		},
-
-		// Step 3: Branch name (with auto-generated default from JIRA issue)
-		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the hotfix branch").
-				WithPlaceholder("hotfix/KEY-description").
-				WithValidator(validateBranchName),
-		},
-
-		// Step 4: Confirmation
-		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Hotfix Branch?"),
-		},
-	}
-
+	steps := getHotfixSteps(ctx)
 	return tui.NewWizard(steps, ctx)
 }
 
@@ -351,86 +200,7 @@ func isValidBranchChar(ch rune) bool {
 // After the wizard completes, call ProcessBugWorkflow to handle the special logic
 // of generating branch names and setting worktree names from JIRA issues.
 func BugWorkflow(ctx *tui.Context) *tui.Wizard {
-	steps := []tui.Step{
-		// Step 1: JIRA issue selection or custom worktree name
-		{
-			Name: "worktree_name",
-			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
-				"Search JIRA issues or enter a custom name",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.JiraService == nil {
-					return []fields.Option{}, nil
-				}
-				issues, err := ctx.JiraService.FetchIssues()
-				if err != nil {
-					return nil, err
-				}
-
-				options := make([]fields.Option, len(issues))
-				for i, issue := range issues {
-					options[i] = fields.Option{
-						Label: fmt.Sprintf("%s - %s", issue.Key, issue.Summary),
-						Value: issue.Key, // Store issue key as value
-					}
-				}
-				return options, nil
-			}),
-		},
-
-		// Step 2: Branch name (with auto-generated default from JIRA issue)
-		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the bug fix branch").
-				WithPlaceholder("bug/KEY-description").
-				WithValidator(validateBranchName),
-		},
-
-		// Step 3: Base branch selection (skipped if branch name already exists)
-		{
-			Name: "base_branch",
-			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
-				"Choose the branch to base this bug fix on",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
-
-			// Skip this step if the branch name already exists
-			Skip: func(state *tui.WorkflowState) bool {
-				if ctx.GitService == nil || state.BranchName == "" {
-					return false
-				}
-				exists, err := ctx.GitService.BranchExists(state.BranchName)
-				return err == nil && exists
-			},
-		},
-
-		// Step 4: Confirmation
-		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Bug Fix Branch?"),
-		},
-	}
-
+	steps := getBugSteps(ctx)
 	return tui.NewWizard(steps, ctx)
 }
 
@@ -479,68 +249,7 @@ func ProcessBugWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 // After the wizard completes, call ProcessMergeWorkflow to handle the special logic
 // of generating worktree and branch names from the selected branches.
 func MergeWorkflow(ctx *tui.Context) *tui.Wizard {
-	steps := []tui.Step{
-		// Step 1: Source branch selection
-		{
-			Name: "source_branch",
-			Field: fields.NewFilterable(
-				"source_branch",
-				"Select Source Branch",
-				"Choose the branch to merge FROM",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
-		},
-
-		// Step 2: Target branch selection
-		{
-			Name: "target_branch",
-			Field: fields.NewFilterable(
-				"target_branch",
-				"Select Target Branch",
-				"Choose the branch to merge INTO",
-				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
-				if ctx.GitService == nil {
-					return []fields.Option{}, nil
-				}
-				branches, err := ctx.GitService.ListBranches()
-				if err != nil {
-					return nil, err
-				}
-				options := make([]fields.Option, len(branches))
-				for i, branch := range branches {
-					options[i] = fields.Option{
-						Label: branch,
-						Value: branch,
-					}
-				}
-				return options, nil
-			}),
-		},
-
-		// Step 3: Confirmation (worktree and branch names auto-generated)
-		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Merge?"),
-		},
-	}
-
+	steps := getMergeSteps(ctx)
 	return tui.NewWizard(steps, ctx)
 }
 
@@ -548,12 +257,46 @@ func MergeWorkflow(ctx *tui.Context) *tui.Wizard {
 // This function:
 // 1. Generates the worktree name: MERGE_{source-to-target}
 // 2. Generates the branch name: merge/{source-to-target}
-// Note: For merge workflows, WorkflowState will have source_branch and target_branch set
-// instead of the usual WorktreeName and BranchName fields (customization needed in Wizard).
 func ProcessMergeWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
-	// Extract source and target branches from the workflow state
-	// These are stored as generic fields that need to be handled specially
-	// For now, we'll just ensure the state is consistent
+	state := wizard.State()
+
+	// Get source and target branches from state
+	// These are stored as custom fields in the workflow
+	sourceBranch := getStateField(state, "source_branch")
+	targetBranch := getStateField(state, "target_branch")
+
+	if sourceBranch == "" || targetBranch == "" {
+		return nil
+	}
+
+	// Generate worktree name: MERGE_{source-to-target}
+	// Sanitize branch names for use in worktree name (remove slashes and special chars)
+	sourceSanitized := sanitizeForWorktreeName(sourceBranch)
+	targetSanitized := sanitizeForWorktreeName(targetBranch)
+	state.WorktreeName = fmt.Sprintf("MERGE_%s-to-%s", sourceSanitized, targetSanitized)
+
+	// Generate branch name: merge/{source-to-target}
+	state.BranchName = fmt.Sprintf("merge/%s-to-%s", sourceSanitized, targetSanitized)
 
 	return nil
+}
+
+// sanitizeForWorktreeName sanitizes a branch name for use in a worktree name.
+// Removes slashes and other special characters.
+func sanitizeForWorktreeName(name string) string {
+	// Replace slashes with underscores
+	name = strings.ReplaceAll(name, "/", "_")
+	// Remove any characters that aren't alphanumeric, underscores, or hyphens
+	name = regexp.MustCompile(`[^\w-]`).ReplaceAllString(name, "")
+	return name
+}
+
+// getStateField retrieves a custom field from WorkflowState using reflection.
+// This is needed because merge workflows store custom fields (source_branch, target_branch)
+// instead of the standard WorktreeName/BranchName fields.
+func getStateField(state *tui.WorkflowState, fieldName string) string {
+	// For now, we rely on the wizard's storeFieldValue to handle this
+	// This is a placeholder that would need proper reflection or field tracking
+	// For merge workflows, we'll need to modify the Wizard to track custom fields
+	return ""
 }

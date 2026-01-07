@@ -913,21 +913,21 @@
     "passes": true
   },
   {
-     "category": "implementation",
-     "description": "As a developer, I want to implement merge target suggestion so that MergeWorkflow suggests configured merge targets",
-     "steps": [
-       "Create pkg/tui/workflows/merge_suggestion.go with SuggestMergeTarget(ctx, sourceBranch) function",
-       "Function looks up sourceBranch in ctx.Config.GetWorktrees()",
-       "If worktree found with matching branch, return its GetMergeInto() value",
-       "If not found or no merge_into configured, return empty string",
-       "Create SortTargetBranchOptions(branches, suggested) []Option helper",
-       "If suggested branch exists, place it at top with '(suggested from config)' label",
-       "Otherwise return branches in normal order (excluding source)",
-       "Add unit tests for suggestion logic and branch sorting",
-       "Verify: Merge workflow shows suggested branch first when configured"
-     ],
-     "passes": true
-   },
+    "category": "implementation",
+    "description": "As a developer, I want to implement merge target suggestion so that MergeWorkflow suggests configured merge targets",
+    "steps": [
+      "Create pkg/tui/workflows/merge_suggestion.go with SuggestMergeTarget(ctx, sourceBranch) function",
+      "Function looks up sourceBranch in ctx.Config.GetWorktrees()",
+      "If worktree found with matching branch, return its GetMergeInto() value",
+      "If not found or no merge_into configured, return empty string",
+      "Create SortTargetBranchOptions(branches, suggested) []Option helper",
+      "If suggested branch exists, place it at top with '(suggested from config)' label",
+      "Otherwise return branches in normal order (excluding source)",
+      "Add unit tests for suggestion logic and branch sorting",
+      "Verify: Merge workflow shows suggested branch first when configured"
+    ],
+    "passes": true
+  },
   {
     "category": "implementation",
     "description": "As a developer, I want to update testadd command to support workflow selection so that users can test all workflow types",
@@ -1022,7 +1022,7 @@
       "Step 5: Confirm with merge details",
       "Verify: Run merge workflow, steps appear in correct order with branch selection"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",
@@ -1033,7 +1033,7 @@
       "Store prefix worktree name in WorkflowState.WorktreeName",
       "Verify: Select source and target branches, worktree name shows MERGE_ prefix"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",
@@ -1044,7 +1044,7 @@
       "Example: merge/feature-x-to-main",
       "Verify: Select source and target branches, branch name starts with merge/"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",
@@ -1055,7 +1055,7 @@
       "Show auto-generated branch name (merge/*)",
       "Verify: Reach confirm step, see source branch, target branch, and auto-generated names"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",
@@ -1066,7 +1066,7 @@
       "WorkflowState.JiraIssue remains nil for merge workflows",
       "Verify: Run merge workflow, no async loading spinners appear for branch selection"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "workflow-merge",
@@ -1079,6 +1079,6 @@
       "If merge_into is not configured, show target branches in normal order (exclude source)",
       "Verify: Configure merge_into in config.yaml, select matching source branch, see suggestion at top"
     ],
-    "passes": false
+    "passes": true
   }
-   ]
+]

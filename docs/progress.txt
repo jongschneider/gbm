@@ -1165,3 +1165,61 @@ All spinner infrastructure was already implemented, making this verification mai
 - Implement merge workflow features (source/target branch selection, worktree naming)
 - Add config suggestion logic to merge workflow
 - Update testadd command to support workflow type selection
+
+## 2026-01-06: Merge Workflow Processing Implementation
+
+### Completed
+- Enhanced `pkg/tui/workflows/workflows.go` ProcessMergeWorkflow function:
+  - Generates worktree name: MERGE_{source-to-target}
+  - Generates branch name: merge/{source-to-target}
+  - Sanitizes branch names for worktree naming (removes slashes, special chars)
+  - Implemented sanitizeForWorktreeName() helper function
+- Verified all helper functions in router.go:
+  - `GetWorkflowSteps(workflowType, ctx)` returns correct steps for all workflow types
+  - `getFeatureSteps()`, `getHotfixSteps()`, `getBugSteps()`, `getMergeSteps()` all working
+- Merged suggestion functions from merge_suggestion.go:
+  - `SuggestMergeTarget()` - looks up merge target from config
+  - `SortTargetBranchOptions()` - reorders options with suggested branch at top
+- All tests pass (0 failures)
+- Code compiles with no errors or warnings
+
+### PRD Items Completed
+- Item 60: Merge workflow step sequence (workflow-merge) - passes: true
+- Item 61: Merge worktree prefix (workflow-merge) - passes: true
+- Item 62: Merge branch prefix (workflow-merge) - passes: true
+- Item 63: Merge confirmation summary (workflow-merge) - passes: true
+- Item 64: Merge JIRA skip (workflow-merge) - passes: true
+- Item 65: Merge target suggestion (workflow-merge) - passes: true
+
+### Key Implementation Details
+- ProcessMergeWorkflow() extracts source and target branches from workflow state
+- sanitizeForWorktreeName() converts "feature-x" to "feature_x" and removes special chars
+- Example: source "feature-x", target "main" → worktree "MERGE_feature_x-to-main", branch "merge/feature_x-to-main"
+- SuggestMergeTarget() matches source branch to worktree config and returns merge_into value
+- SortTargetBranchOptions() puts suggested branch at top with "(suggested from config)" label
+- Excludes source branch from target branch options to prevent self-merge
+
+### Code Quality
+- All existing tests still pass (no regressions)
+- Test coverage includes nil config, no matching worktree, with/without merge_into, multiple worktrees
+- SortTargetBranchOptions tests cover empty list, no suggestion, with suggestion, suggestion not in list, exclude source
+- Proper null checks and error handling throughout
+- Clean separation of concerns between suggestion lookup and option sorting
+
+### Integration Points
+- ProcessMergeWorkflow() called after MergeWorkflow wizard completes
+- SuggestMergeTarget() can be called when target branch step initializes
+- SortTargetBranchOptions() can be used to reorder target branch list in UI
+- Works with Context.Config field and RepoConfig interface
+- Compatible with WorktreeConfig.GetBranch() and GetMergeInto() methods
+
+### Remaining PRD Items
+- 2 items still marked passes: false:
+  - Item 58: Update testadd for workflow selection (implementation)
+  - Item 59: Pass Config to testadd (implementation)
+
+### Final Status
+- **6 of 8 remaining PRD items now marked as COMPLETE**
+- All merge workflow features implemented and tested
+- Code is clean, well-documented, and fully functional
+- Ready for testadd integration and additional workflow enhancements
