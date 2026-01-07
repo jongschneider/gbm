@@ -1223,3 +1223,63 @@ All spinner infrastructure was already implemented, making this verification mai
 - All merge workflow features implemented and tested
 - Code is clean, well-documented, and fully functional
 - Ready for testadd integration and additional workflow enhancements
+
+## 2026-01-06: Workflow Type Selector Integration
+
+### Completed
+- Enhanced `cmd/service/worktree_testadd.go` to implement two-wizard pattern:
+  - First Wizard: SelectWorkflowType() selector lets user choose Feature/Bug/Hotfix/Merge
+  - Second Wizard: GetWorkflowSteps() returns workflow-specific steps
+  - Reuses same Context and WorkflowState across both wizards
+  - Opens /dev/tty once and shares it between wizards
+  - Properly validates workflow selection before proceeding
+  - Handles cancellation from either wizard gracefully
+- Updated command help text to document two-step workflow selection process
+- Updated command documentation to explain Feature/Bug/Hotfix/Merge differences
+
+### Implementation Details
+- First wizard creates single Step with SelectWorkflowType() field (key: "workflow_type")
+- Wizard.storeFieldValue() already handles "workflow_type" case (stores to State.WorkflowType)
+- After first wizard completes, extracts selectedType from w.State().WorkflowType
+- Validates selectedType is not empty before proceeding
+- Creates second wizard with GetWorkflowSteps(selectedType, ctx)
+- Passes same context and sets WorkflowState.WorkflowType for second wizard
+- Both wizards share the same input stream (/dev/tty)
+- Dry-run summary output works for both workflows
+
+### Code Flow
+1. Create mock Git and JIRA services
+2. Create Context with mock services
+3. Launch typeWizard with SelectWorkflowType()
+4. If cancelled or incomplete, exit
+5. Extract workflow type from completed wizard state
+6. Get workflow-specific steps using GetWorkflowSteps()
+7. Launch workflowWizard with workflow-specific steps
+8. If cancelled or incomplete, exit
+9. Print dry-run summary to stderr
+
+### PRD Items Completed
+- Item 60: Workflow selector with dynamic step selection (implementation) - passes: true
+
+### Key Design Decisions
+- Two separate Wizard instances (vs one large wizard with conditional steps)
+- Reuse same Context and input stream for efficiency
+- Validate workflow selection type to fail fast on invalid selection
+- Share WorkflowState across both wizards (enables passing context forward)
+- Print errors to stderr (preserves stdout for machine-readable output)
+
+### Testing
+- All existing tests still pass (0 failures)
+- Code compiles without warnings
+- Command documentation updated to reflect new capabilities
+- Verified workflow type is properly stored and retrieved from state
+
+### Remaining PRD Items
+- 1 item still marked passes: false:
+  - Item 61: Pass Config to testadd Context (implementation)
+
+### Next Steps for Developer
+- Implement Config passing to testadd Context (Item 61)
+- This enables merge suggestion logic to access repository configuration
+- Will require loading Config from service and passing to Context.WithConfig()
+- After that, all major features will be complete

@@ -942,7 +942,7 @@
       "Add --workflow flag to skip selector and test specific type (optional)",
       "Verify: 'gbm wt testadd' shows type selector, then appropriate workflow"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "implementation",
