@@ -86,7 +86,7 @@ func (t *TextInput) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "enter":
+	case KeyEnter:
 		// Get trimmed value
 		value := strings.TrimSpace(t.textInput.Value())
 

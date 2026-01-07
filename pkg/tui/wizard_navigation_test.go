@@ -442,18 +442,18 @@ func TestWizardNavigation_WindowResizeUpdatesContext(t *testing.T) {
 func TestWizardNavigation_Integration(t *testing.T) {
 	step1 := Step{
 		Name:  "Workflow Type",
-		Field: newMockField("workflow_type", "Choose type"),
+		Field: newMockField(FieldKeyWorkflowType, "Choose type"),
 	}
 	step2 := Step{
 		Name:  "Branch Name",
-		Field: newMockField("branch_name", "Branch"),
+		Field: newMockField(FieldKeyBranchName, "Branch"),
 	}
 	step3 := Step{
 		Name:  "Base Branch (conditional)",
-		Field: newMockField("base_branch", "Base"),
+		Field: newMockField(FieldKeyBaseBranch, "Base"),
 		Skip: func(state *WorkflowState) bool {
 			// Skip if workflow type is feature
-			return state.WorkflowType == "feature"
+			return state.WorkflowType == WorkflowTypeFeature
 		},
 	}
 
@@ -463,14 +463,14 @@ func TestWizardNavigation_Integration(t *testing.T) {
 
 	// Set workflow type to "feature"
 	field1 := step1.Field.(*mockField)
-	field1.value = "feature"
+	field1.value = WorkflowTypeFeature
 
 	// Select "feature" and advance
 	_, cmd := wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	msg := cmd()
 	wizard.Update(msg)
 	assert.Equal(t, 1, wizard.current)
-	assert.Equal(t, "feature", ctx.State.WorkflowType)
+	assert.Equal(t, WorkflowTypeFeature, ctx.State.WorkflowType)
 
 	// Select branch and advance
 	_, cmd = wizard.Update(tea.KeyMsg{Type: tea.KeyEnter})

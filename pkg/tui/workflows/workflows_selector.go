@@ -11,13 +11,13 @@ import (
 // Returns a configured Selector implementing the Field interface.
 func SelectWorkflowType() tui.Field {
 	return fields.NewSelector(
-		"workflow_type",
+		tui.FieldKeyWorkflowType,
 		"Select Workflow Type",
 		[]fields.Option{
-			{Label: "Feature", Value: "feature"},
-			{Label: "Bug", Value: "bug"},
-			{Label: "Hotfix", Value: "hotfix"},
-			{Label: "Merge", Value: "merge"},
+			{Label: "Feature", Value: tui.WorkflowTypeFeature},
+			{Label: "Bug", Value: tui.WorkflowTypeBug},
+			{Label: "Hotfix", Value: tui.WorkflowTypeHotfix},
+			{Label: "Merge", Value: tui.WorkflowTypeMerge},
 		},
 	)
 }

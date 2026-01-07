@@ -7,15 +7,38 @@ import (
 	"gbm/pkg/tui/fields"
 )
 
+// Convenience aliases for workflow types
+const (
+	workflowTypeFeature = tui.WorkflowTypeFeature
+	workflowTypeBug     = tui.WorkflowTypeBug
+	workflowTypeHotfix  = tui.WorkflowTypeHotfix
+	workflowTypeMerge   = tui.WorkflowTypeMerge
+)
+
+// Convenience aliases for field keys
+const (
+	fieldKeyWorktreeName = tui.FieldKeyWorktreeName
+	fieldKeyBranchName   = tui.FieldKeyBranchName
+	fieldKeyBaseBranch   = tui.FieldKeyBaseBranch
+	fieldKeyConfirm      = tui.FieldKeyConfirm
+)
+
+// Convenience aliases for field labels
+const (
+	labelWorktreeSelection = fields.LabelWorktreeSelection
+	labelBranchName        = fields.LabelBranchName
+	labelBaseBranch        = fields.LabelBaseBranch
+)
+
 // getFeatureSteps returns the steps for a feature workflow.
 func getFeatureSteps(ctx *tui.Context) []tui.Step {
 	return []tui.Step{
 		// Step 1: JIRA issue selection or custom worktree name
 		{
-			Name: "worktree_name",
+			Name: fieldKeyWorktreeName,
 			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
+				fieldKeyWorktreeName,
+				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -40,18 +63,18 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 2: Branch name (with auto-generated default from JIRA issue)
 		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the new branch").
-				WithPlaceholder("feature/KEY-description").
+			Name: fieldKeyBranchName,
+			Field: fields.NewTextInput(fieldKeyBranchName, labelBranchName, "Name for the new branch").
+				WithPlaceholder(tui.BranchPrefixFeature + "KEY-description").
 				WithValidator(validateBranchName),
 		},
 
 		// Step 3: Base branch selection (skipped if branch name already exists)
 		{
-			Name: "base_branch",
+			Name: fieldKeyBaseBranch,
 			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
+				fieldKeyBaseBranch,
+				labelBaseBranch,
 				"Choose the branch to base this feature on",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -84,8 +107,8 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 4: Confirmation
 		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Feature Branch?"),
+			Name:  fieldKeyConfirm,
+			Field: fields.NewConfirm(fieldKeyConfirm, "Create Feature Branch?"),
 		},
 	}
 }
@@ -96,10 +119,10 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 	return []tui.Step{
 		// Step 1: JIRA issue selection or custom worktree name
 		{
-			Name: "worktree_name",
+			Name: fieldKeyWorktreeName,
 			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
+				fieldKeyWorktreeName,
+				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -124,18 +147,18 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 2: Branch name (with auto-generated default from JIRA issue)
 		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the bug fix branch").
-				WithPlaceholder("bug/KEY-description").
+			Name: fieldKeyBranchName,
+			Field: fields.NewTextInput(fieldKeyBranchName, labelBranchName, "Name for the bug fix branch").
+				WithPlaceholder(tui.BranchPrefixBug + "KEY-description").
 				WithValidator(validateBranchName),
 		},
 
 		// Step 3: Base branch selection (skipped if branch name already exists)
 		{
-			Name: "base_branch",
+			Name: fieldKeyBaseBranch,
 			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
+				fieldKeyBaseBranch,
+				labelBaseBranch,
 				"Choose the branch to base this bug fix on",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -168,8 +191,8 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 4: Confirmation
 		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Bug Fix Branch?"),
+			Name:  fieldKeyConfirm,
+			Field: fields.NewConfirm(fieldKeyConfirm, "Create Bug Fix Branch?"),
 		},
 	}
 }
@@ -179,10 +202,10 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 	return []tui.Step{
 		// Step 1: JIRA issue selection or custom worktree name
 		{
-			Name: "worktree_name",
+			Name: fieldKeyWorktreeName,
 			Field: fields.NewFilterable(
-				"worktree_name",
-				"Select JIRA Issue or Enter Worktree Name",
+				fieldKeyWorktreeName,
+				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -207,10 +230,10 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 2: Base branch selection (mandatory - NOT skipped)
 		{
-			Name: "base_branch",
+			Name: fieldKeyBaseBranch,
 			Field: fields.NewFilterable(
-				"base_branch",
-				"Select Base Branch",
+				fieldKeyBaseBranch,
+				labelBaseBranch,
 				"Choose the production or release branch to base this hotfix on",
 				[]fields.Option{},
 			).WithOptionsFunc(func() ([]fields.Option, error) {
@@ -234,16 +257,16 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 
 		// Step 3: Branch name (with auto-generated default from JIRA issue)
 		{
-			Name: "branch_name",
-			Field: fields.NewTextInput("branch_name", "Enter Branch Name", "Name for the hotfix branch").
-				WithPlaceholder("hotfix/KEY-description").
+			Name: fieldKeyBranchName,
+			Field: fields.NewTextInput(fieldKeyBranchName, labelBranchName, "Name for the hotfix branch").
+				WithPlaceholder(tui.BranchPrefixHotfix + "KEY-description").
 				WithValidator(validateBranchName),
 		},
 
 		// Step 4: Confirmation
 		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Hotfix Branch?"),
+			Name:  fieldKeyConfirm,
+			Field: fields.NewConfirm(fieldKeyConfirm, "Create Hotfix Branch?"),
 		},
 	}
 }
@@ -318,13 +341,13 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 // Returns an error for unknown workflow types.
 func GetWorkflowSteps(workflowType string, ctx *tui.Context) ([]tui.Step, error) {
 	switch workflowType {
-	case "feature":
+	case workflowTypeFeature:
 		return getFeatureSteps(ctx), nil
-	case "bug":
+	case workflowTypeBug:
 		return getBugSteps(ctx), nil
-	case "hotfix":
+	case workflowTypeHotfix:
 		return getHotfixSteps(ctx), nil
-	case "merge":
+	case workflowTypeMerge:
 		return getMergeSteps(ctx), nil
 	default:
 		return nil, fmt.Errorf("unknown workflow type: %s", workflowType)

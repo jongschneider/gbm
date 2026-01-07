@@ -81,7 +81,7 @@ func (c *Confirm) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		return c, func() tea.Msg { return tui.CancelMsg{} }
 
 	// Confirm selection with Enter
-	case "enter":
+	case KeyEnter:
 		c.value = c.selected
 		c.complete = true
 		if c.selected {

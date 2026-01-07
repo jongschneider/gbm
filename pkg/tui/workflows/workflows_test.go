@@ -392,7 +392,7 @@ func TestSelectWorkflowType(t *testing.T) {
 		selector := field.(*fields.Selector)
 
 		// Verify the field key
-		assert.Equal(t, "workflow_type", selector.GetKey())
+		assert.Equal(t, tui.FieldKeyWorkflowType, selector.GetKey())
 	})
 }
 
@@ -400,49 +400,49 @@ func TestSelectWorkflowType(t *testing.T) {
 
 func TestGetWorkflowSteps_Feature(t *testing.T) {
 	ctx := tui.NewContext()
-	steps, err := GetWorkflowSteps("feature", ctx)
+	steps, err := GetWorkflowSteps(tui.WorkflowTypeFeature, ctx)
 
 	assert.NoError(t, err)
 	assert.Len(t, steps, 4)
-	assert.Equal(t, "worktree_name", steps[0].Name)
-	assert.Equal(t, "branch_name", steps[1].Name)
-	assert.Equal(t, "base_branch", steps[2].Name)
-	assert.Equal(t, "confirm", steps[3].Name)
+	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
+	assert.Equal(t, tui.FieldKeyBranchName, steps[1].Name)
+	assert.Equal(t, tui.FieldKeyBaseBranch, steps[2].Name)
+	assert.Equal(t, tui.FieldKeyConfirm, steps[3].Name)
 }
 
 func TestGetWorkflowSteps_Bug(t *testing.T) {
 	ctx := tui.NewContext()
-	steps, err := GetWorkflowSteps("bug", ctx)
+	steps, err := GetWorkflowSteps(tui.WorkflowTypeBug, ctx)
 
 	assert.NoError(t, err)
 	assert.Len(t, steps, 4)
-	assert.Equal(t, "worktree_name", steps[0].Name)
-	assert.Equal(t, "branch_name", steps[1].Name)
-	assert.Equal(t, "base_branch", steps[2].Name)
-	assert.Equal(t, "confirm", steps[3].Name)
+	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
+	assert.Equal(t, tui.FieldKeyBranchName, steps[1].Name)
+	assert.Equal(t, tui.FieldKeyBaseBranch, steps[2].Name)
+	assert.Equal(t, tui.FieldKeyConfirm, steps[3].Name)
 }
 
 func TestGetWorkflowSteps_Hotfix(t *testing.T) {
 	ctx := tui.NewContext()
-	steps, err := GetWorkflowSteps("hotfix", ctx)
+	steps, err := GetWorkflowSteps(tui.WorkflowTypeHotfix, ctx)
 
 	assert.NoError(t, err)
 	assert.Len(t, steps, 4)
-	assert.Equal(t, "worktree_name", steps[0].Name)
-	assert.Equal(t, "base_branch", steps[1].Name)
-	assert.Equal(t, "branch_name", steps[2].Name)
-	assert.Equal(t, "confirm", steps[3].Name)
+	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
+	assert.Equal(t, tui.FieldKeyBaseBranch, steps[1].Name)
+	assert.Equal(t, tui.FieldKeyBranchName, steps[2].Name)
+	assert.Equal(t, tui.FieldKeyConfirm, steps[3].Name)
 }
 
 func TestGetWorkflowSteps_Merge(t *testing.T) {
 	ctx := tui.NewContext()
-	steps, err := GetWorkflowSteps("merge", ctx)
+	steps, err := GetWorkflowSteps(tui.WorkflowTypeMerge, ctx)
 
 	assert.NoError(t, err)
 	assert.Len(t, steps, 3)
 	assert.Equal(t, "source_branch", steps[0].Name)
 	assert.Equal(t, "target_branch", steps[1].Name)
-	assert.Equal(t, "confirm", steps[2].Name)
+	assert.Equal(t, tui.FieldKeyConfirm, steps[2].Name)
 }
 
 func TestGetWorkflowSteps_Unknown(t *testing.T) {

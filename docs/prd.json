@@ -1080,5 +1080,77 @@
       "Verify: Configure merge_into in config.yaml, select matching source branch, see suggestion at top"
     ],
     "passes": true
+  },
+  {
+    "category": "refactor-constants",
+    "description": "As a code maintainer, I want workflow type magic strings extracted into constants so that values are centralized and maintainable",
+    "steps": [
+      "Create pkg/tui/constants.go file",
+      "Define WorkflowTypeFeature = \"feature\" constant",
+      "Define WorkflowTypeBug = \"bug\" constant",
+      "Define WorkflowTypeHotfix = \"hotfix\" constant",
+      "Define WorkflowTypeMerge = \"merge\" constant",
+      "Verify: Code compiles, all tests pass, no functionality changes"
+    ],
+    "passes": true
+  },
+  {
+    "category": "refactor-constants",
+    "description": "As a code maintainer, I want field key magic strings extracted into constants so that keys are centralized and consistent",
+    "steps": [
+      "In pkg/tui/constants.go, define FieldKeyWorkflowType = \"workflow_type\" constant",
+      "Define FieldKeyWorktreeName = \"worktree_name\" constant",
+      "Define FieldKeyBranchName = \"branch_name\" constant",
+      "Define FieldKeyBaseBranch = \"base_branch\" constant",
+      "Define FieldKeyConfirm = \"confirm\" constant",
+      "Replace all hardcoded field key strings in wizard.go, workflows/router.go, and fields/*.go",
+      "Update all tests to use constants instead of literal strings",
+      "Verify: Code compiles, all tests pass, no functionality changes"
+    ],
+    "passes": true
+  },
+  {
+    "category": "refactor-constants",
+    "description": "As a code maintainer, I want branch prefix magic strings extracted into constants so that naming conventions are centralized",
+    "steps": [
+      "In pkg/tui/constants.go, define BranchPrefixFeature = \"feature/\" constant",
+      "Define BranchPrefixBug = \"bug/\" constant",
+      "Define BranchPrefixHotfix = \"hotfix/\" constant",
+      "Define BranchPrefixMerge = \"merge/\" constant",
+      "Replace all hardcoded branch prefix strings in wizard.go and workflows/workflows.go",
+      "Update all tests to use constants instead of literal strings",
+      "Verify: Code compiles, all tests pass, branch name generation works correctly"
+    ],
+    "passes": true
+  },
+  {
+    "category": "refactor-constants",
+    "description": "As a code maintainer, I want field label magic strings extracted into constants so that labels are consistent across workflows",
+    "steps": [
+      "Create pkg/tui/fields/constants.go file",
+      "Define LabelWorktreeSelection = \"Select JIRA Issue or Enter Worktree Name\" constant",
+      "Define LabelBranchName = \"Enter Branch Name\" constant",
+      "Define LabelBaseBranch = \"Select Base Branch\" constant",
+      "Replace all instances of these three labels in workflows/router.go",
+      "Update all tests to use constants instead of literal strings",
+      "Verify: Code compiles, all tests pass, label text displays correctly"
+    ],
+    "passes": true
+  },
+  {
+    "category": "refactor-constants",
+    "description": "As a code maintainer, I want keyboard mapping magic strings extracted into constants so that key handling is centralized",
+    "steps": [
+      "In pkg/tui/fields/constants.go, define KeyEnter = \"enter\" constant",
+      "Define KeyUp = \"up\" constant",
+      "Define KeyDown = \"down\" constant",
+      "Define KeyCtrlUp = \"ctrl+k\" constant",
+      "Define KeyCtrlDown = \"ctrl+j\" constant",
+      "Define KeyCtrlC = \"ctrl+c\" constant",
+      "Replace all hardcoded keyboard string comparisons in fields/*.go and wizard.go",
+      "Update all tests to use constants instead of literal strings",
+      "Verify: Code compiles, all tests pass, keyboard navigation still works"
+    ],
+    "passes": true
   }
 ]

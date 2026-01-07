@@ -208,9 +208,9 @@ func TestFilterable_SpinnerDisplayDuringAsyncLoad(t *testing.T) {
 
 func TestFilterable_BlocksInputWhileLoading(t *testing.T) {
 	testCases := []struct {
-		name      string
-		keyMsg    string
-		blocked   bool // Whether this input should be blocked while loading
+		name        string
+		keyMsg      string
+		blocked     bool // Whether this input should be blocked while loading
 		description string
 	}{
 		{
@@ -271,7 +271,7 @@ func TestFilterable_BlocksInputWhileLoading(t *testing.T) {
 			assert.False(t, f.optionsFunc.IsLoaded(), "options should not be loaded yet")
 
 			// Create key message
-			keyMsg := tea.KeyMsg{}
+			var keyMsg tea.KeyMsg
 			switch tc.keyMsg {
 			case "enter":
 				keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
@@ -289,11 +289,10 @@ func TestFilterable_BlocksInputWhileLoading(t *testing.T) {
 				// Input should be blocked
 				assert.False(t, f.IsComplete(), "field should not be complete for: %s", tc.description)
 				assert.Nil(t, cmd, "no command should be returned for: %s", tc.description)
-			} else {
-				// Input should be allowed (wizard handles the actual behavior)
-				// We just verify it's not silently ignored
-				// For ctrl+c and q, the field doesn't do anything but it doesn't block either
 			}
+			// Input should be allowed (wizard handles the actual behavior)
+			// We just verify it's not silently ignored
+			// For ctrl+c and q, the field doesn't do anything but it doesn't block either
 		})
 	}
 }

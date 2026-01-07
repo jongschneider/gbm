@@ -227,19 +227,19 @@ func (w *Wizard) storeFieldValue() {
 	value := field.GetValue()
 
 	switch key {
-	case "workflow_type":
+	case FieldKeyWorkflowType:
 		if v, ok := value.(string); ok {
 			w.ctx.State.WorkflowType = v
 		}
-	case "worktree_name":
+	case FieldKeyWorktreeName:
 		if v, ok := value.(string); ok {
 			w.ctx.State.WorktreeName = v
 		}
-	case "branch_name":
+	case FieldKeyBranchName:
 		if v, ok := value.(string); ok {
 			w.ctx.State.BranchName = v
 		}
-	case "base_branch":
+	case FieldKeyBaseBranch:
 		if v, ok := value.(string); ok {
 			w.ctx.State.BaseBranch = v
 		}
@@ -260,7 +260,7 @@ func (w *Wizard) applyFieldDefaults() {
 	key := field.GetKey()
 
 	// Only apply defaults to branch_name TextInput fields
-	if key != "branch_name" {
+	if key != FieldKeyBranchName {
 		return
 	}
 
@@ -301,17 +301,17 @@ func (w *Wizard) applyTextInputDefault(field Field, defaultValue string) {
 // It respects the workflow type to determine the prefix (feature/, bug/, or hotfix/).
 func (w *Wizard) calculateDefaultBranchName(worktreeName string) string {
 	// Determine workflow prefix based on state workflow type or step names
-	prefix := "feature/"
+	prefix := BranchPrefixFeature
 	switch w.ctx.State.WorkflowType {
-	case "hotfix":
-		prefix = "hotfix/"
-	case "bug":
-		prefix = "bug/"
+	case WorkflowTypeHotfix:
+		prefix = BranchPrefixHotfix
+	case WorkflowTypeBug:
+		prefix = BranchPrefixBug
 	}
 	// Also check if this is a hotfix workflow by looking for HOTFIX_ prefix in current state
 	// (This happens when we're in ProcessHotfixWorkflow context)
 	if w.isProbablyHotfix() {
-		prefix = "hotfix/"
+		prefix = BranchPrefixHotfix
 	}
 
 	// Try to find the full JIRA issue to get the summary for a better branch name
@@ -340,10 +340,10 @@ func (w *Wizard) isProbablyHotfix() bool {
 	branchNameIdx := -1
 
 	for i, step := range w.steps {
-		if step.Name == "base_branch" {
+		if step.Name == FieldKeyBaseBranch {
 			baseBranchIdx = i
 		}
-		if step.Name == "branch_name" {
+		if step.Name == FieldKeyBranchName {
 			branchNameIdx = i
 		}
 	}

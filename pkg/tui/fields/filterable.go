@@ -125,7 +125,7 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 	switch keyMsg.String() {
 	// Navigation: up arrow, k, and ctrl+k
-	case "up", "k", "ctrl+k":
+	case KeyUp, "k", KeyCtrlUp:
 		if len(f.filtered) > 0 {
 			f.cursor--
 			if f.cursor < 0 {
@@ -135,7 +135,7 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		return f, nil
 
 	// Navigation: down arrow, j, and ctrl+j
-	case "down", "j", "ctrl+j":
+	case KeyDown, "j", KeyCtrlDown:
 		if len(f.filtered) > 0 {
 			f.cursor++
 			if f.cursor >= len(f.filtered) {
@@ -145,7 +145,7 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		return f, nil
 
 	// Confirm selection
-	case "enter":
+	case KeyEnter:
 		// Require at least one option to be loaded and available before allowing submission
 		if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
 			// Still loading, don't allow submission
