@@ -22,7 +22,7 @@ import (
 // The model handles back navigation from workflow→type_selector and
 // forward navigation from type_selector→workflow without program restart.
 type testaddWrapperModel struct {
-	stage         string // "type_selection" or "workflow"
+	stage         string // StageTypeSelection or StageWorkflow
 	currentWizard *tui.Wizard
 	typeWizard    *tui.Wizard
 	stepsMap      map[string][]tui.Step
@@ -33,7 +33,7 @@ type testaddWrapperModel struct {
 // newTestaddWrapperModel creates a new wrapper model with initialized fields.
 func newTestaddWrapperModel(ctx *tui.Context, stepsMap map[string][]tui.Step, typeWizard *tui.Wizard) *testaddWrapperModel {
 	return &testaddWrapperModel{
-		stage:         "type_selection",
+		stage:         StageTypeSelection,
 		currentWizard: typeWizard,
 		typeWizard:    typeWizard,
 		stepsMap:      stepsMap,
@@ -62,7 +62,7 @@ func (m *testaddWrapperModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle transitions based on stage and wizard state
 	switch m.stage {
-	case "type_selection":
+	case StageTypeSelection:
 		// Check if type selector completed
 		if m.currentWizard.IsComplete() {
 			selectedType := m.currentWizard.State().WorkflowType
@@ -75,18 +75,18 @@ func (m *testaddWrapperModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					workflowWizard := tui.NewWizard(steps, m.ctx)
 					workflowWizard.State().WorkflowType = selectedType
 					m.currentWizard = workflowWizard
-					m.stage = "workflow"
+					m.stage = StageWorkflow
 
 					// Initialize the workflow wizard
 					return m, m.currentWizard.Init()
 				}
 			}
 		}
-	case "workflow":
+	case StageWorkflow:
 		// Check if we received BackBoundaryMsg (ESC at first step)
 		if _, ok := msg.(tui.BackBoundaryMsg); ok {
 			// Return to type selector
-			m.stage = "type_selection"
+			m.stage = StageTypeSelection
 			m.currentWizard = m.typeWizard
 			// Reset type wizard state
 			m.typeWizard = tui.NewWizard([]tui.Step{{Name: "workflow_type_selector", Field: workflows.SelectWorkflowType()}}, m.ctx)

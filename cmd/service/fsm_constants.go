@@ -91,3 +91,9 @@ const (
 	WorkflowTypeHotfix    = "hotfix"    // Hotfix workflow type
 	WorkflowTypeMergeback = "mergeback" // Mergeback workflow type
 )
+
+// Stage Constants - Testadd Wrapper Model
+const (
+	StageTypeSelection = "type_selection" // User is selecting workflow type
+	StageWorkflow      = "workflow"       // User is in workflow-specific steps
+)
