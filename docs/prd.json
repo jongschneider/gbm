@@ -913,21 +913,21 @@
     "passes": true
   },
   {
-    "category": "implementation",
-    "description": "As a developer, I want to implement merge target suggestion so that MergeWorkflow suggests configured merge targets",
-    "steps": [
-      "Create pkg/tui/workflows/merge_suggestion.go with SuggestMergeTarget(ctx, sourceBranch) function",
-      "Function looks up sourceBranch in ctx.Config.GetWorktrees()",
-      "If worktree found with matching branch, return its GetMergeInto() value",
-      "If not found or no merge_into configured, return empty string",
-      "Create SortTargetBranchOptions(branches, suggested) []Option helper",
-      "If suggested branch exists, place it at top with '(suggested from config)' label",
-      "Otherwise return branches in normal order (excluding source)",
-      "Add unit tests for suggestion logic and branch sorting",
-      "Verify: Merge workflow shows suggested branch first when configured"
-    ],
-    "passes": false
-  },
+     "category": "implementation",
+     "description": "As a developer, I want to implement merge target suggestion so that MergeWorkflow suggests configured merge targets",
+     "steps": [
+       "Create pkg/tui/workflows/merge_suggestion.go with SuggestMergeTarget(ctx, sourceBranch) function",
+       "Function looks up sourceBranch in ctx.Config.GetWorktrees()",
+       "If worktree found with matching branch, return its GetMergeInto() value",
+       "If not found or no merge_into configured, return empty string",
+       "Create SortTargetBranchOptions(branches, suggested) []Option helper",
+       "If suggested branch exists, place it at top with '(suggested from config)' label",
+       "Otherwise return branches in normal order (excluding source)",
+       "Add unit tests for suggestion logic and branch sorting",
+       "Verify: Merge workflow shows suggested branch first when configured"
+     ],
+     "passes": true
+   },
   {
     "category": "implementation",
     "description": "As a developer, I want to update testadd command to support workflow selection so that users can test all workflow types",

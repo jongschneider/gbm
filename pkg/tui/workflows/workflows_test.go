@@ -6,6 +6,7 @@ import (
 
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
+	"gbm/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -505,4 +506,167 @@ func TestProcessMergeWorkflow(t *testing.T) {
 	err := ProcessMergeWorkflow(wizard, ctx)
 
 	assert.NoError(t, err)
+}
+
+func TestSuggestMergeTarget(t *testing.T) {
+	type testCase struct {
+		name              string
+		config            tui.RepoConfig
+		sourceBranch      string
+		expectedSuggested string
+	}
+
+	testCases := []testCase{
+		{
+			name:              "nil_config",
+			config:            nil,
+			sourceBranch:      "feature/test",
+			expectedSuggested: "",
+		},
+		{
+			name:              "no_matching_worktree",
+			config:            testutil.NewMockRepoConfig().WithWorktree("wt1", "main", "develop"),
+			sourceBranch:      "feature/unknown",
+			expectedSuggested: "",
+		},
+		{
+			name:              "matching_worktree_with_merge_into",
+			config:            testutil.NewMockRepoConfig().WithWorktree("wt1", "feature/test", "main"),
+			sourceBranch:      "feature/test",
+			expectedSuggested: "main",
+		},
+		{
+			name:              "matching_worktree_without_merge_into",
+			config:            testutil.NewMockRepoConfig().WithWorktree("wt1", "feature/test", ""),
+			sourceBranch:      "feature/test",
+			expectedSuggested: "",
+		},
+		{
+			name: "multiple_worktrees_finds_correct_one",
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("wt1", "feature/one", "develop").
+				WithWorktree("wt2", "feature/two", "main").
+				WithWorktree("wt3", "feature/three", "staging"),
+			sourceBranch:      "feature/two",
+			expectedSuggested: "main",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := tui.NewContext().WithConfig(tc.config)
+			suggestion := SuggestMergeTarget(ctx, tc.sourceBranch)
+			assert.Equal(t, tc.expectedSuggested, suggestion)
+		})
+	}
+}
+
+func TestSortTargetBranchOptions(t *testing.T) {
+	type testCase struct {
+		name           string
+		branches       []fields.Option
+		suggested      string
+		sourceBranch   string
+		expectedLabels []string
+		expectedValues []string
+	}
+
+	testCases := []testCase{
+		{
+			name:           "empty_branches",
+			branches:       []fields.Option{},
+			suggested:      "main",
+			sourceBranch:   "feature/test",
+			expectedLabels: []string{},
+			expectedValues: []string{},
+		},
+		{
+			name: "no_suggestion",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/test", Value: "feature/test"},
+			},
+			suggested:      "",
+			sourceBranch:   "feature/test",
+			expectedLabels: []string{"main", "develop"},
+			expectedValues: []string{"main", "develop"},
+		},
+		{
+			name: "with_suggestion",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/test", Value: "feature/test"},
+			},
+			suggested:      "develop",
+			sourceBranch:   "feature/test",
+			expectedLabels: []string{"develop (suggested from config)", "main"},
+			expectedValues: []string{"develop", "main"},
+		},
+		{
+			name: "suggestion_at_top_when_found",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "staging", Value: "staging"},
+			},
+			suggested:      "main",
+			sourceBranch:   "feature/test",
+			expectedLabels: []string{"main (suggested from config)", "develop", "staging"},
+			expectedValues: []string{"main", "develop", "staging"},
+		},
+		{
+			name: "suggestion_not_in_list",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+			},
+			suggested:      "production",
+			sourceBranch:   "feature/test",
+			expectedLabels: []string{"main", "develop"},
+			expectedValues: []string{"main", "develop"},
+		},
+		{
+			name: "exclude_source_branch",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/test", Value: "feature/test"},
+			},
+			suggested:      "",
+			sourceBranch:   "develop",
+			expectedLabels: []string{"main", "feature/test"},
+			expectedValues: []string{"main", "feature/test"},
+		},
+		{
+			name: "suggestion_not_excluded_when_source",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/test", Value: "feature/test"},
+			},
+			suggested:      "develop",
+			sourceBranch:   "develop",
+			expectedLabels: []string{"develop (suggested from config)", "main", "feature/test"},
+			expectedValues: []string{"develop", "main", "feature/test"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := SortTargetBranchOptions(tc.branches, tc.suggested, tc.sourceBranch)
+
+			// Extract labels and values
+			labels := make([]string, len(result))
+			values := make([]string, len(result))
+			for i, opt := range result {
+				labels[i] = opt.Label
+				values[i] = opt.Value
+			}
+
+			assert.Equal(t, tc.expectedLabels, labels)
+			assert.Equal(t, tc.expectedValues, values)
+		})
+	}
 }

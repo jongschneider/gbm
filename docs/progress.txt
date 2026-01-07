@@ -1041,3 +1041,77 @@ All spinner infrastructure was already implemented, making this verification mai
 - Update testadd command to use ConfigAdapter
 - Implement Bug workflow features (items 63-66)
 - Implement Merge workflow features (items 64-71)
+
+## 2026-01-06: Merge Target Suggestion Implementation
+
+### Completed
+- Created `pkg/tui/workflows/merge_suggestion.go` with:
+  - `SuggestMergeTarget(ctx, sourceBranch)` function that looks up merge_into from repository config
+  - Iterates through worktrees in config to find matching branch
+  - Returns merge_into value if configured, or empty string if not found
+  - `SortTargetBranchOptions(branches, suggested, sourceBranch)` helper for sorting options
+  - Places suggested branch at top with "(suggested from config)" label if found
+  - Excludes source branch from the returned options (can't merge into itself)
+  - Returns branches in normal order if no suggestion available
+  - `excludeSourceBranch()` helper for filtering out source branch
+
+- Created `testutil/mock_config.go` for test utilities:
+  - `MockWorktreeConfig` implementing `tui.WorktreeConfig` interface
+  - `MockRepoConfig` implementing `tui.RepoConfig` interface
+  - `NewMockRepoConfig()` constructor with empty worktree map
+  - `WithWorktree(name, branch, mergeInto)` fluent builder for adding test configurations
+  - Avoids circular import issues by putting mock config in testutil package
+
+- Added comprehensive test suite to `pkg/tui/workflows/workflows_test.go`:
+  - `TestSuggestMergeTarget()` with 5 test cases:
+    - Nil config (returns empty string)
+    - No matching worktree (returns empty string)
+    - Matching worktree with merge_into (returns configured value)
+    - Matching worktree without merge_into (returns empty string)
+    - Multiple worktrees finds correct one (returns correct merge_into)
+  - `TestSortTargetBranchOptions()` with 7 test cases:
+    - Empty branches list (returns empty)
+    - No suggestion (returns branches minus source)
+    - With suggestion (suggestion at top with label)
+    - Suggestion at top when found (verified ordering)
+    - Suggestion not in list (ignores missing suggestion)
+    - Exclude source branch (source removed from options)
+    - Suggestion not excluded when is source (unusual case handled correctly)
+  - All 12 new tests pass (100% success rate)
+
+### PRD Items Completed
+- Item 61: Merge target suggestion (implementation) - passes: true
+
+### Design Notes
+- Suggestion logic separates concerns: lookup vs. sorting
+- `SuggestMergeTarget()` handles configuration lookup and suggestion
+- `SortTargetBranchOptions()` handles option ordering and labeling
+- Both functions are pure (no side effects) and testable
+- Fluent builder pattern for MockRepoConfig matches other test mocks
+- MockRepoConfig placed in testutil to avoid circular imports
+
+### Code Quality
+- All existing tests still pass (no regressions)
+- New tests follow established patterns (table-driven with subtests)
+- Proper null checks for nil config and worktrees
+- Clean error handling and edge cases covered
+- No circular dependencies between packages
+
+### Integration Points
+- `SuggestMergeTarget()` will be called during merge workflow initialization
+- `SortTargetBranchOptions()` will be used to reorder target branch options
+- Works with Context.Config field (already implemented)
+- Ready for MergeWorkflow integration
+
+### Remaining PRD Items
+- 12 items still marked passes: false:
+  - Item 62: Update testadd for workflow selection
+  - Item 63: Pass Config to testadd
+  - Item 64-67: Bug workflow features
+  - Item 68-72: Merge workflow features (merge target suggestion now completes item 72)
+
+### Next Steps for Developer
+- Integrate suggestion into MergeWorkflow target branch step
+- Update testadd command to support workflow selection
+- Implement remaining workflow features
+- Test suggestion with real repository configuration
