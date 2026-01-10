@@ -1,0 +1,60 @@
+# Progress Log for TUI Table Refactor
+
+## Project Context
+- Goal: Abstract worktree table to pkg/tui with consistent theming and async loading
+- Key patterns: Use existing Theme struct, async.Eval for lazy loading, bubbles/table for base
+- Branch: refactor/testls_rd2
+- Test command: `gbm2 wt testls` (like testadd, do not modify actual `gbm wt ls` yet)
+
+## Learnings
+- Theme already has Focused/Blurred FieldStyles - extend for TableStyles
+- async.Eval handles caching and loading state - wrap for cell-level spinners
+- Existing fields (Selector, TextInput) show how to use theme consistently
+- worktree_table.go currently blocks on git fetch before display - needs async refactor
+- testadd pattern: uses mock services, --delay flag for latency simulation, /dev/tty for TUI
+- testadd uses internal/testing for mock services (MockGitService, MockJiraService)
+- testutil has MockRepoConfig for config mocking
+
+## Testing Workflow (US-006, US-006a, US-006b, US-006c)
+To test the TUI manually:
+1. Run `just install` to build and install gbm2 to /usr/local/bin
+2. Use validate-tmux-session skill to create a tmux session
+3. In the tmux session, run: `gbm2 wt testls --delay 2000`
+
+### Validation Checklist:
+**Navigation & Footer (US-006a):**
+- [ ] Footer shows: ↑/↓ navigate, space/enter select, l pull, p push, d delete, q/esc quit
+- [ ] Footer hides 'p: push' when tracked worktree selected
+- [ ] Up/down navigation works, wraps at boundaries
+- [ ] q/esc quits, space/enter outputs path and quits
+
+**Pull/Push Operations (US-006b):**
+- [ ] 'l' shows "Pulling..." then "Successfully pulled" message
+- [ ] 'p' on ad-hoc shows "Pushing..." then "Successfully pushed" message
+- [ ] 'p' on tracked shows "Cannot push tracked worktree" error
+- [ ] Messages auto-dismiss after 3-5 seconds
+- [ ] Git status column updates after operations
+
+**Delete Confirmation (US-006c):**
+- [ ] 'd' shows "Delete worktree X? (y/n)" prompt
+- [ ] 'n' or 'esc' cancels and clears prompt
+- [ ] 'y' deletes, shows success, removes row from table
+- [ ] Success message auto-dismisses after 3-5 seconds
+
+## Mock Services Needed for testls
+
+Existing mocks in internal/testing/mocks.go:
+- MockGitService (for tui.GitService - branches)
+- MockJiraService (for tui.JiraService - issues)
+
+New mock needed for table operations (MockTableGitService):
+- ListWorktrees() - returns mock worktree data
+- GetBranchStatus(path string) - async, returns ahead/behind/uptodate with delay
+- PullWorktree(path string) - simulates pull with delay
+- PushWorktree(path string) - simulates push with delay
+- RemoveWorktree(name string) - simulates delete with delay
+
+Mock should:
+- Support configurable delay via WithDelay()
+- Add jitter for realistic async behavior (use existing applyJitter)
+- Return mix of statuses: ✓ (up-to-date), ↑ N (ahead), ↓ N (behind), ↕ (diverged), ? (no remote)

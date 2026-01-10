@@ -10,10 +10,19 @@ type FieldStyles struct {
 	Error       lipgloss.Style
 }
 
+// TableStyles contains lipgloss styles for rendering table components.
+type TableStyles struct {
+	Header   lipgloss.Style
+	Selected lipgloss.Style
+	Cell     lipgloss.Style
+	Border   lipgloss.Style
+}
+
 // Theme contains visual styles for TUI components.
 type Theme struct {
 	Focused FieldStyles
 	Blurred FieldStyles
+	Table   TableStyles
 }
 
 // DefaultTheme returns a Theme with sensible default styles that work
@@ -33,6 +42,16 @@ func DefaultTheme() *Theme {
 			Description: lipgloss.NewStyle().Foreground(lipgloss.Color("235")),
 			Input:       lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
 			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("124")),
+		},
+		Table: TableStyles{
+			// Header style: bold with cyan color matching focused title
+			Header: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")),
+			// Selected row: highlighted background with bright text
+			Selected: lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("238")).Bold(true),
+			// Normal cell: muted foreground
+			Cell: lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
+			// Border style: subtle gray
+			Border: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		},
 	}
 }
