@@ -164,8 +164,15 @@ func (t *Table) Init() tea.Cmd {
 func (t *Table) SetAsyncCell(rowIdx int, colIdx int, cell *async.Cell[string]) {
 	// Ensure AsyncRow exists
 	if _, ok := t.asyncRows[rowIdx]; !ok {
-		// Create new AsyncRow with empty static cells
-		t.asyncRows[rowIdx] = NewAsyncRow()
+		// Create new AsyncRow and populate with existing static cells from table row
+		asyncRow := NewAsyncRow()
+		if rowIdx < len(t.rows) {
+			// Copy all existing cells from the table row as static cells
+			for i, cellVal := range t.rows[rowIdx] {
+				asyncRow.staticCells[i] = cellVal
+			}
+		}
+		t.asyncRows[rowIdx] = asyncRow
 	}
 	t.asyncRows[rowIdx].WithAsyncCell(colIdx, cell)
 
@@ -206,7 +213,7 @@ func (t *Table) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the table (required by tea.Model interface).
 func (t *Table) View() string {
-	return t.model.View()
+	return t.theme.Table.Base.Render(t.model.View())
 }
 
 // SetRows updates the table rows dynamically.

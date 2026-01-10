@@ -16,6 +16,7 @@ type TableStyles struct {
 	Selected lipgloss.Style
 	Cell     lipgloss.Style
 	Border   lipgloss.Style
+	Base     lipgloss.Style // Base style with borders for entire table
 }
 
 // Theme contains visual styles for TUI components.
@@ -44,14 +45,18 @@ func DefaultTheme() *Theme {
 			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("124")),
 		},
 		Table: TableStyles{
-			// Header style: bold with cyan color matching focused title
-			Header: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")),
-			// Selected row: highlighted background with bright text
-			Selected: lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("238")).Bold(true),
-			// Normal cell: muted foreground
-			Cell: lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
+			// Header style: cyan text (matching old ls command)
+			Header: lipgloss.NewStyle().Foreground(lipgloss.Color("51")),
+			// Selected row: bright magenta background (matching old ls command)
+			Selected: lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("201")).Bold(true),
+			// Normal cell: white text for visibility
+			Cell: lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
 			// Border style: subtle gray
 			Border: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+			// Base style: border around entire table (matching old ls command)
+			Base: lipgloss.NewStyle().
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.Color("240")),
 		},
 	}
 }

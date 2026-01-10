@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"gbm/pkg/tui"
 	"gbm/pkg/tui/async"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -16,26 +15,32 @@ import (
 
 // testlsModel manages the async table display for testing the Table component.
 type testlsModel struct {
-	table       *tui.Table
-	ctx         *tui.Context
-	delay       time.Duration
-	confirmed   bool
-	selectedRow int
+	table           table.Model
+	worktrees       []mockWorktree
+	trackedBranches map[string]bool
+	delay           time.Duration
+	selectedRow     int
+	// Async cell tracking
+	asyncStatuses map[int]*async.Cell[string] // Row index -> async cell for git status
 }
 
-// Init initializes the table model.
-func (m *testlsModel) Init() tea.Cmd {
-	// Start async loads for git status cells
-	cmds := []tea.Cmd{}
-	for i := 0; i < len(mockWorktrees); i++ {
-		// Column 3 is git status - async load it
-		rowIdx := i
-		colIdx := 3
+type mockWorktree struct {
+	Name   string
+	Branch string
+	Path   string
+}
 
-		// Create an async cell that fetches git status with delay
+// Init initializes the table model and starts async loads.
+func (m *testlsModel) Init() tea.Cmd {
+	cmds := []tea.Cmd{m.tickCmd()}
+
+	// Start async git status loads for each worktree
+	for i := range m.worktrees {
+		rowIdx := i
+		// Create async cell for git status
 		eval := async.New(func() (string, error) {
 			mockGitService := &MockTableGitService{delay: m.delay}
-			status, err := mockGitService.GetBranchStatus(mockWorktrees[rowIdx].Path)
+			status, err := mockGitService.GetBranchStatus(m.worktrees[rowIdx].Path)
 			if err != nil {
 				return "error", err
 			}
@@ -43,24 +48,41 @@ func (m *testlsModel) Init() tea.Cmd {
 		})
 
 		cell := async.NewCell(eval)
-		m.table.SetAsyncCell(rowIdx, colIdx, cell)
+		m.asyncStatuses[rowIdx] = cell
 
-		// StartLoading() returns a Cmd that fetches the value
+		// Start loading
 		cmd := cell.StartLoading()
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 	}
 
-	if len(cmds) > 0 {
-		return tea.Batch(cmds...)
-	}
-	return nil
+	return tea.Batch(cmds...)
 }
+
+// tickCmd returns a command that sends tick messages for animation
+func (m *testlsModel) tickCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return tickMsg{}
+	})
+}
+
+type tickMsg struct{}
 
 // Update handles input and state changes.
 func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	consumeKey := false
+
 	switch msg := msg.(type) {
+	case tickMsg:
+		// Tick all async cells to advance spinner animation
+		for _, asyncCell := range m.asyncStatuses {
+			asyncCell.Tick()
+		}
+		// Schedule the next tick
+		cmds = append(cmds, m.tickCmd())
+		
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc":
@@ -70,40 +92,84 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedRow--
 				m.table.SetCursor(m.selectedRow)
 			}
+			consumeKey = true
 		case "down":
-			if m.selectedRow < len(mockWorktrees)-1 {
+			if m.selectedRow < len(m.worktrees)-1 {
 				m.selectedRow++
 				m.table.SetCursor(m.selectedRow)
 			}
+			consumeKey = true
 		case "enter", " ":
 			// Output selected worktree path and quit
-			fmt.Printf("%s\n", mockWorktrees[m.selectedRow].Path)
+			fmt.Printf("%s\n", m.worktrees[m.selectedRow].Path)
 			return m, tea.Quit
 		case "l": // Pull
-			// Simulate pull operation
-			selectedName := mockWorktrees[m.selectedRow].Name
-			// For now, just show it was pulled (mock doesn't actually do anything)
+			selectedName := m.worktrees[m.selectedRow].Name
 			fmt.Fprintf(os.Stderr, "Would pull: %s\n", selectedName)
+			consumeKey = true
 		case "p": // Push
-			// Only allowed for ad-hoc worktrees
 			kind := "ad hoc"
-			if trackedBranches[mockWorktrees[m.selectedRow].Branch] {
+			if m.trackedBranches[m.worktrees[m.selectedRow].Branch] {
 				kind = "tracked"
 			}
 			if kind == "tracked" {
 				fmt.Fprintf(os.Stderr, "Cannot push tracked worktree\n")
 			} else {
-				fmt.Fprintf(os.Stderr, "Would push: %s\n", mockWorktrees[m.selectedRow].Name)
+				fmt.Fprintf(os.Stderr, "Would push: %s\n", m.worktrees[m.selectedRow].Name)
 			}
+			consumeKey = true
 		case "d": // Delete
-			fmt.Fprintf(os.Stderr, "Would delete: %s\n", mockWorktrees[m.selectedRow].Name)
+			fmt.Fprintf(os.Stderr, "Would delete: %s\n", m.worktrees[m.selectedRow].Name)
+			consumeKey = true
 		}
 	}
 
-	// Delegate to table
-	_, cmd := m.table.Update(msg)
-	m.selectedRow = m.table.Cursor()
-	return m, cmd
+	// Update table based on current async cell states
+	m.updateTableRows()
+
+	// Delegate to table (unless we consumed the key)
+	if !consumeKey {
+		tableModel, tableCmd := m.table.Update(msg)
+		m.table = tableModel
+		m.selectedRow = m.table.Cursor()
+
+		if tableCmd != nil {
+			cmds = append(cmds, tableCmd)
+		}
+	}
+
+	if len(cmds) == 0 {
+		return m, nil
+	}
+	if len(cmds) == 1 {
+		return m, cmds[0]
+	}
+	return m, tea.Batch(cmds...)
+}
+
+// updateTableRows refreshes table rows with current async cell values
+func (m *testlsModel) updateTableRows() {
+	rows := []table.Row{}
+	for i, wt := range m.worktrees {
+		kind := "ad hoc"
+		if m.trackedBranches[wt.Branch] {
+			kind = "tracked"
+		}
+
+		// Get git status: spinner or loaded value
+		gitStatus := "—"
+		if asyncCell, ok := m.asyncStatuses[i]; ok {
+			gitStatus = asyncCell.View()
+		}
+
+		rows = append(rows, table.Row{
+			wt.Name,
+			wt.Branch,
+			kind,
+			gitStatus,
+		})
+	}
+	m.table.SetRows(rows)
 }
 
 // View renders the table with footer help text.
@@ -114,13 +180,13 @@ func (m *testlsModel) View() string {
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 
 	// Determine if selected worktree is tracked
-	istracked := false
-	if m.selectedRow < len(mockWorktrees) {
-		istracked = trackedBranches[mockWorktrees[m.selectedRow].Branch]
+	isTracked := false
+	if m.selectedRow < len(m.worktrees) {
+		isTracked = m.trackedBranches[m.worktrees[m.selectedRow].Branch]
 	}
 
 	help := "\n↑/↓: navigate • space/enter: select • l: pull"
-	if !istracked {
+	if !isTracked {
 		help += " • p: push"
 	}
 	help += " • d: delete • q/esc: quit\n"
@@ -147,11 +213,7 @@ func (m *MockTableGitService) GetBranchStatus(path string) (string, error) {
 
 // Mock data for testing
 var (
-	mockWorktrees = []struct {
-		Name   string
-		Branch string
-		Path   string
-	}{
+	mockWorktrees = []mockWorktree{
 		{"main", "main", "/tmp/git-repo"},
 		{"feature/auth", "feature/auth", "/tmp/feature-auth"},
 		{"bugfix/login", "bugfix/login", "/tmp/bugfix-login"},
@@ -190,38 +252,54 @@ func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
 
 // runTestLS executes the testls command.
 func runTestLS(delay time.Duration) error {
-	// Create TUI context
-	ctx := tui.NewContext()
-
-	// Build table with mock data
-	columns := []tui.Column{
-		{Title: "Name", Width: 20},
-		{Title: "Branch", Width: 25},
+	// Build table with mock data - matching original worktree_table.go styling
+	columns := []table.Column{
+		{Title: "Name", Width: 30},
+		{Title: "Branch", Width: 50},
 		{Title: "Kind", Width: 10},
 		{Title: "Git Status", Width: 15},
 	}
 
-	tableRows := make([]table.Row, len(mockWorktrees))
-	for i, wt := range mockWorktrees {
+	// Create initial rows with placeholder for git status
+	rows := []table.Row{}
+	for _, wt := range mockWorktrees {
 		kind := "ad hoc"
 		if trackedBranches[wt.Branch] {
 			kind = "tracked"
 		}
-		tableRows[i] = table.Row{wt.Name, wt.Branch, kind, ""}
+		rows = append(rows, table.Row{wt.Name, wt.Branch, kind, "—"})
 	}
 
-	table := tui.NewTable(ctx).
-		WithColumns(columns).
-		WithRows(tableRows).
-		WithHeight(min(len(tableRows)+1, 26)).
-		Build()
+	// Create table with same styling as original worktree table
+	height := min(len(rows)+1, 26)
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(height),
+	)
+
+	// Apply original worktree table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	t.SetStyles(s)
 
 	// Create model
 	model := &testlsModel{
-		table:   table,
-		ctx:     ctx,
-		delay:   delay,
-		selectedRow: 0,
+		table:           t,
+		worktrees:       mockWorktrees,
+		trackedBranches: trackedBranches,
+		delay:           delay,
+		selectedRow:     0,
+		asyncStatuses:   make(map[int]*async.Cell[string]),
 	}
 
 	// Open input for TUI

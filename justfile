@@ -109,7 +109,7 @@ install:
     set -euo pipefail
     echo "Building and installing gbm2..."
     go build -o gbm2 ./cmd || exit 1
-    mv gbm2 /usr/local/bin/gbm2
+    sudo mv gbm2 /usr/local/bin/gbm2
     echo "✓ Installation successful: /usr/local/bin/gbm2"
     echo "✓ You can now run 'gbm2' from anywhere"
 
