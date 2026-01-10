@@ -74,3 +74,19 @@ Mock should:
   - Color palette is consistent: cyan (#86) for focused/highlighted, gray (#238) for backgrounds, muted grays for normal elements
   - FieldStyles pattern can be extended for other component-specific styles
 ---
+
+## 2026-01-10 - US-002
+- Implemented Cell[T] type in pkg/tui/async/cell.go
+- Cell wraps Eval[T] and manages spinner animation state
+- View() returns spinner (animated via tickCount) while loading, else stringified value
+- StartLoading() returns tea.Cmd that triggers async fetch via Eval.Get()
+- Tick() updates spinner frame every 4 ticks for smooth animation
+- IsLoading()/IsLoaded() check Eval state after StartLoading() is called
+- stringifyValue() handles string types and Stringer interface for display
+- All async tests pass, code builds successfully
+- **Learnings for future iterations:**
+  - Cell needs to track isStarted to know if fetch has been initiated
+  - StartLoading() returns nil if already started to prevent duplicate fetches
+  - Spinner animation syncs with Tick() calls (4 ticks per frame = 4 updates per frame)
+  - Must handle generic type T by returning empty string if type isn't string or Stringer
+---
