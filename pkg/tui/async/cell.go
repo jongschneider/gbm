@@ -1,26 +1,23 @@
 package async
 
 import (
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-// spinnerFrames provides simple animation frames for loading spinner.
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 // Cell[T] represents a table cell that may be loading async data.
 // It wraps an Eval[T] and adds spinner state for visual feedback during loading.
 type Cell[T any] struct {
-	eval          *Eval[T]
-	spinnerIndex  int
-	tickCount     uint64 // tracks ticks to update spinner
-	startLoading  func() tea.Cmd
-	isStarted     bool   // tracks if StartLoading() was called
+	eval      *Eval[T]
+	spinner   spinner.Model
+	isStarted bool // tracks if StartLoading() was called
 }
 
 // New creates a new Cell with an Eval that fetches data asynchronously.
 func NewCell[T any](eval *Eval[T]) *Cell[T] {
 	return &Cell[T]{
-		eval: eval,
+		eval:    eval,
+		spinner: spinner.New(spinner.WithSpinner(spinner.Line)),
 	}
 }
 
@@ -29,7 +26,7 @@ func NewCell[T any](eval *Eval[T]) *Cell[T] {
 func (c *Cell[T]) View() string {
 	if !c.eval.IsLoaded() && c.isStarted {
 		// Still loading - show spinner
-		return spinnerFrames[c.spinnerIndex%len(spinnerFrames)]
+		return c.spinner.View()
 	}
 
 	if c.eval.IsLoaded() {
@@ -66,11 +63,8 @@ func (c *Cell[T]) StartLoading() tea.Cmd {
 // Tick updates the spinner animation frame.
 // Call this from Update() on each tick to animate the spinner.
 func (c *Cell[T]) Tick() {
-	c.tickCount++
-	// Update spinner every 4 ticks for reasonable animation speed
-	if c.tickCount%4 == 0 {
-		c.spinnerIndex++
-	}
+	// Update spinner with tick message
+	c.spinner, _ = c.spinner.Update(spinner.Tick())
 }
 
 // IsLoading returns true if the async fetch is still in progress.

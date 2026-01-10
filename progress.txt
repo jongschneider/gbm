@@ -90,3 +90,20 @@ Mock should:
   - Spinner animation syncs with Tick() calls (4 ticks per frame = 4 updates per frame)
   - Must handle generic type T by returning empty string if type isn't string or Stringer
 ---
+
+## 2026-01-10 - US-003
+- Implemented Table component in pkg/tui/table.go
+- Table wraps bubbles/table.Model with builder pattern for fluent API
+- NewTable(ctx) creates instance with default height=10, focused=true
+- WithColumns/WithRows/WithHeight/WithFocused use builder pattern, return *Table
+- Build() method finalizes config and applies theme (must call before Init/Update/View)
+- applyTheme() directly assigns Theme.Table styles to table.Styles (not Style() method)
+- Implements tea.Model: Init() returns nil, Update/View delegate to model
+- Exports Cursor(), SetRows(), SetCursor(), SetHeight() for controller integration
+- Code builds, ready for async row support
+- **Learnings for future iterations:**
+  - bubbles/table uses constructor options (WithColumns, WithRows, etc), not chainable methods
+  - Must call Build() after setting options to create the actual table.Model
+  - Theme styles directly assign to table.Styles fields (Header, Selected, Cell)
+  - Need to store columns/rows/height/focused in Table struct until Build() is called
+---
