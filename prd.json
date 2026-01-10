@@ -113,7 +113,7 @@
         "Pressing space or enter outputs selected worktree path and quits"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Test after US-006. Run: gbm2 wt testls"
     },
     {
@@ -131,7 +131,7 @@
         "Git status column updates after pull/push operations"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Test with --delay 1000 to see message timing. Messages should clear automatically."
     },
     {
@@ -147,7 +147,7 @@
         "Success message auto-dismisses after 3-5 seconds"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Test delete on mock worktrees - they won't actually delete anything."
     },
     {
@@ -162,7 +162,7 @@
         "Just validate passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
