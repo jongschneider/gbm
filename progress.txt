@@ -58,3 +58,19 @@ Mock should:
 - Support configurable delay via WithDelay()
 - Add jitter for realistic async behavior (use existing applyJitter)
 - Return mix of statuses: ✓ (up-to-date), ↑ N (ahead), ↓ N (behind), ↕ (diverged), ? (no remote)
+
+---
+
+## 2026-01-10 - US-001
+- Implemented TableStyles struct in pkg/tui/theme.go
+- Added Header, Selected, Cell, Border styles to TableStyles
+- Integrated TableStyles into Theme struct
+- Updated DefaultTheme() with consistent color palette:
+  - Header: bold cyan (#86) matching focused title
+  - Selected: bright text (#255) on gray background (#238) matching focused input
+  - Cell: muted gray (#252) for normal cells
+  - Border: subtle gray (#240) matching blurred title
+- **Learnings for future iterations:**
+  - Color palette is consistent: cyan (#86) for focused/highlighted, gray (#238) for backgrounds, muted grays for normal elements
+  - FieldStyles pattern can be extended for other component-specific styles
+---
