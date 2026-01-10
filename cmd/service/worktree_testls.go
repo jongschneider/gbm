@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -105,9 +106,27 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View renders the table.
+// View renders the table with footer help text.
 func (m *testlsModel) View() string {
-	return m.table.View()
+	output := m.table.View()
+
+	// Show help text (conditionally show push option for ad-hoc worktrees)
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+
+	// Determine if selected worktree is tracked
+	istracked := false
+	if m.selectedRow < len(mockWorktrees) {
+		istracked = trackedBranches[mockWorktrees[m.selectedRow].Branch]
+	}
+
+	help := "\n↑/↓: navigate • space/enter: select • l: pull"
+	if !istracked {
+		help += " • p: push"
+	}
+	help += " • d: delete • q/esc: quit\n"
+
+	output += helpStyle.Render(help)
+	return output
 }
 
 // MockTableGitService provides mock git operations for testing.

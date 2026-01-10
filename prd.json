@@ -96,7 +96,7 @@
         "Use validate-tmux-session skill to manually test all functionality"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Follow same pattern as worktree_testadd.go. Build with 'just install' before tmux testing."
     },
     {

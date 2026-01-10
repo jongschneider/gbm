@@ -140,3 +140,25 @@ Mock should:
   - Helper types like Column improve usability for developers
   - SetAsyncCell integrates async loading into table operations naturally
 ---
+
+## 2026-01-10 - US-006
+- Created cmd/service/worktree_testls.go with testls command
+- testlsModel manages async table display with mock worktree data
+- MockTableGitService provides configurable-delay git status simulation
+- 8 sample worktrees: mix of feature, bugfix, wip, hotfix, release, experiment, archived
+- trackedBranches map controls push/pull availability (main, develop, release tracked)
+- Init() starts async loads for git status column (column 3) with configurable delay
+- Update() handles navigation (↑/↓), selection (space/enter), and operations (l/p/d)
+- View() renders table + footer with conditionally-shown help text
+- Footer hides 'p: push' option for tracked worktrees, shows for ad-hoc
+- Registered in worktree.go as newWorktreeTestlsCommand(svc)
+- just build succeeds, binary created
+- gbm wt testls --help shows correct flags and description
+- Ready for manual tmux validation of navigation, footer, operations
+- **Learnings for future iterations:**
+  - testlsModel wraps Table and adds footer help text in View()
+  - Footer text updates dynamically based on selected row (tracked vs ad-hoc)
+  - AsyncRow.GetCell() returns current spinner or loaded value automatically
+  - Table.Update() ticks all async cells every frame for spinner animation
+  - MockTableGitService delays simulate network latency for testing
+---
