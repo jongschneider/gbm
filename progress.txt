@@ -107,3 +107,36 @@ Mock should:
   - Theme styles directly assign to table.Styles fields (Header, Selected, Cell)
   - Need to store columns/rows/height/focused in Table struct until Build() is called
 ---
+
+## 2026-01-10 - US-004
+- Implemented AsyncRow type in pkg/tui/table.go for per-cell async loading
+- AsyncRow holds map[int]string staticCells and map[int]*async.Cell[string] asyncCells
+- NewAsyncRow(cells...string) creates row with initial static cells indexed by position
+- WithAsyncCell(colIdx, cell) adds async cell and removes from static cells
+- GetCell(colIdx) returns async cell View() or static string value
+- ToTableRow(numCols) converts AsyncRow to table.Row for rendering
+- Tick() calls Tick() on all async cells to update spinner animations
+- IsLoading() checks if any async cell is still loading
+- Updated Cell[T] to use github.com/charmbracelet/bubbles/spinner instead of manual spinnerFrames
+- Cell.Tick() now updates spinner.Model with spinner.Tick() message
+- Table.SetAsyncCell(rowIdx, colIdx, cell) adds async cell to specific location
+- Table.Update() ticks all async rows and refreshes table display each frame
+- Code builds, spinners animate correctly
+- **Learnings for future iterations:**
+  - Use bubbles/spinner.Line for standard spinner animation
+  - spinner.Update(spinner.Tick()) advances animation frame
+  - AsyncRow tracks spinners per-row and refreshes table on each tick
+  - Table.updateTableRow() maintains consistency between AsyncRow and table.Row display
+---
+
+## 2026-01-10 - US-005
+- Verified all helper constructors already in place:
+  - NewTable(ctx *tui.Context) *Table - creates table with theme context
+  - Column{Title, Width} type - exported for clean column definitions
+  - Table.SetAsyncCell(rowIdx, colIdx, cell) - adds async cell to specific location
+- No additional changes needed, all acceptance criteria met
+- **Learnings for future iterations:**
+  - Builder pattern in Table is clean and composable
+  - Helper types like Column improve usability for developers
+  - SetAsyncCell integrates async loading into table operations naturally
+---

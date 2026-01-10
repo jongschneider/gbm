@@ -28,6 +28,7 @@ func newWorktreeCommand(svc *Service) *cobra.Command {
 	cmd.AddCommand(newWorktreePushCommand(svc))
 	cmd.AddCommand(newWorktreePullCommand(svc))
 	cmd.AddCommand(newWorktreeTestaddCommand(svc))
+	cmd.AddCommand(newWorktreeTestlsCommand(svc))
 
 	return cmd
 }
