@@ -112,7 +112,18 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateColumns(msg.Width)
 
 	case async.CellLoadedMsg:
-		// A cell finished loading - refresh the table display
+		// A cell finished loading - update operation state with result if it's an operation cell
+		// Check all operation cells to find which one loaded
+		for rowIdx, cell := range m.asyncOperations {
+			if cell.IsLoaded() {
+				if opState, ok := m.operationStates[rowIdx]; ok && opState.operation != "" && opState.result == "" {
+					// This is an operation cell that just finished - update with result
+					opState.result = cell.View()
+					opState.clearAt = time.Now().Add(2 * time.Second)
+					m.operationStates[rowIdx] = opState
+				}
+			}
+		}
 		m.updateTableRows()
 
 	case tickMsg:
@@ -226,6 +237,11 @@ func (m *testlsModel) updateTableRows() {
 			gitStatus = asyncCell.View()
 		}
 
+		// Append operation result if present
+		if opState, ok := m.operationStates[i]; ok && opState.result != "" {
+			gitStatus = gitStatus + " [" + opState.result + "]"
+		}
+
 		rows = append(rows, table.Row{
 			wt.Name,
 			wt.Branch,
@@ -292,8 +308,16 @@ func (m *testlsModel) View() string {
 	if !isTracked {
 		help += " • p: push"
 	}
-	help += " • d: delete • q/esc: quit\n"
+	help += " • d: delete • q/esc: quit"
 
+	// Show operation info if one is in progress
+	if cursor < len(m.worktrees) {
+		if opState, ok := m.operationStates[cursor]; ok && opState.operation != "" {
+			help += "\n[" + opState.operation + " in progress]"
+		}
+	}
+
+	help += "\n"
 	output += helpStyle.Render(help)
 	return output
 }
