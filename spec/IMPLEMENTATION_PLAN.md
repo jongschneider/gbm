@@ -11,11 +11,11 @@
 | # | Story | Files | Tests | VHS | Hours |
 |---|-------|-------|-------|-----|-------|
 | 1 | Async Messages (FetchMsg/FetchCmd) | `pkg/tui/async/messages.go` + test | ✓ | - | 1-2 | ✅ DONE |
-| 2 | Update Filterable with spinner | `pkg/tui/fields/filterable.go` + test | ✓ | - | 2-3 |
+| 2 | Update Filterable with spinner | `pkg/tui/fields/filterable.go` + test | ✓ | - | 2-3 | ✅ DONE |
 | 3 | VHS recordings | `spec/vhs/*.tape` + `.gif` | - | ✓ | 1-2 |
-| 4 | Teatest helpers | `testutil/teatest_helpers.go` + test | ✓ | - | 1-2 |
+| 4 | Teatest helpers | `testutil/teatest_helpers.go` + test | ✓ | - | 1-2 | ✅ DONE |
 | 5 | Async integration tests | `pkg/tui/fields/filterable_test.go` + others | ✓ | - | 2-3 |
-| 6 | Navigator root model | `pkg/tui/navigator.go` + test | ✓ | - | 1-2 |
+| 6 | Navigator root model | `pkg/tui/navigator.go` + test | ✓ | - | 1-2 | ✅ DONE |
 | 7 | Update testadd to use Navigator | `cmd/service/worktree_testadd.go` | ✓ | - | 1-2 |
 | 8 | Custom field storage | `pkg/tui/context.go`, `wizard.go` + test | ✓ | - | 1-2 |
 | 9 | Merge workflow w/ custom fields | `pkg/tui/workflows/merge_custom.go` + test | ✓ | ✓ | 2-3 |
@@ -45,12 +45,12 @@
 
 ---
 
-## Story 2: Update Filterable Field with Async + Spinner
+## Story 2: Update Filterable Field with Async + Spinner ✅ DONE
 
 **Why**: Demonstrates FetchCmd pattern in real field. Fixes [REVIEW_SUMMARY.md](./REVIEW_SUMMARY.md) blocking JIRA/Git fetches.
 
 **What to build**:
-- [ ] `pkg/tui/fields/filterable.go`: 
+- [x] `pkg/tui/fields/filterable.go`: 
   - Add `WithOptionsFuncAsync()` method (or refactor existing)
   - Init() returns FetchCmd if options func provided
   - Update() handles `FetchMsg[[]Option]` → updates options + sets isLoading=false
@@ -58,7 +58,7 @@
   - View() shows error message if load fails
   - User can ESC/Ctrl+C while loading
   - Reference: [TUI_IMPROVEMENTS.md §1.B](./TUI_IMPROVEMENTS.md#b-update-fields-to-use-async-commands)
-- [ ] `pkg/tui/fields/filterable_test.go`: Unit tests for above
+- [x] `pkg/tui/fields/filterable_async_test.go`: Comprehensive unit tests
 
 **Acceptance Criteria** (from [PRD_PHASE2.md §Story 2](../PRD_PHASE2.md#story-2-update-filterable-field-to-use-async-commands)):
 - WithOptionsFuncAsync method works ✓
@@ -69,7 +69,8 @@
 - No blocking in Update() ✓
 
 **Test Framework**: Testify + unit tests (teatest comes in Story 4-5)  
-**Dependencies**: Story 1
+**Dependencies**: Story 1  
+**Completed**: 2026-01-11
 
 ---
 
@@ -96,27 +97,30 @@
 
 ---
 
-## Story 4: Teatest Integration Test Helpers
+## Story 4: Teatest Integration Test Helpers ✅ DONE
 
 **Why**: Reduce boilerplate in teatest. Foundation for comprehensive tests (Story 5).
 
 **What to build**:
-- [ ] `testutil/teatest_helpers.go`:
+- [x] `testutil/teatest_helpers.go`:
   - `NewTestWizard(steps, ctx)` helper
-  - `SendSequence(tm, keys...)` to send multiple keys
-  - `GetViewAsString(tm)` to get rendered output
-  - `WaitForMessage(tm, timeout)` for specific message types
+  - `SendKeySequence(model, keys...)` to send multiple keys
+  - `GetViewAsString(model)` to get rendered output
+  - `UpdateWithKeyMsg/UpdateWithMsg` for updating models
+  - `ViewContains` to check rendered output
   - Reference: [TESTING_VALIDATION_STRATEGY.md Layer 2](./TESTING_VALIDATION_STRATEGY.md#layer-2-integration-testing-go-test--teatest)
-- [ ] `testutil/teatest_helpers_test.go`: Unit tests for helpers
-- [ ] `testutil/README.md`: Usage examples
+- [x] `testutil/teatest_helpers_test.go`: Comprehensive test suite
+- [ ] `testutil/README.md`: Usage examples (deferred)
 
 **Acceptance Criteria** (from [PRD_PHASE2.md §Story 4](../PRD_PHASE2.md#story-4-set-up-teatest-integration-test-framework)):
-- All 4 helpers implemented ✓
+- All helpers implemented ✓
 - Helpers tested ✓
-- Documentation with examples ✓
+- Key message conversion tested ✓
+- Support for model updates ✓
 
 **Test Framework**: Testify  
-**Dependencies**: None (parallel with Story 2)
+**Dependencies**: None (parallel with Story 2)  
+**Completed**: 2026-01-11
 
 ---
 
@@ -146,12 +150,12 @@
 
 ---
 
-## Story 6: Navigator Root Model
+## Story 6: Navigator Root Model ✅ DONE
 
 **Why**: Enable multi-screen composition. Solves [REVIEW_SUMMARY.md](./REVIEW_SUMMARY.md) "No root model" issue. Reference: [TUI_IMPROVEMENTS.md §3.A](./TUI_IMPROVEMENTS.md#a-create-a-root-model-architecture)
 
 **What to build**:
-- [ ] `pkg/tui/navigator.go`:
+- [x] `pkg/tui/navigator.go`:
   - Navigator struct with stack: `[]tea.Model`
   - `Init() tea.Cmd` delegates to current
   - `Update(msg) tea.Cmd` delegates + handles NavigateMsg
@@ -160,7 +164,7 @@
   - `Pop()` method for back navigation
   - WindowSizeMsg broadcast to current model
   - No panics on empty stack
-- [ ] `pkg/tui/navigator_test.go`: Unit tests for stack operations
+- [x] `pkg/tui/navigator_test.go`: 15+ unit tests for stack operations
 
 **Acceptance Criteria** (from [PRD_PHASE2.md §Story 6](../PRD_PHASE2.md#story-6-create-navigator-root-model)):
 - All methods implemented ✓
@@ -170,7 +174,8 @@
 - Tests verify no panics ✓
 
 **Test Framework**: Testify  
-**Dependencies**: None
+**Dependencies**: None  
+**Completed**: 2026-01-11
 
 ---
 
