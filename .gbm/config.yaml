@@ -1,0 +1,4 @@
+default_branch: main
+worktrees_dir: worktrees
+jira:
+    me: jonathan.schneider@thetalake.com

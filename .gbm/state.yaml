@@ -1,0 +1,64 @@
+jira:
+    issues:
+        - type: Bug
+          key: INGSVC-6468
+          summary: 'EMAIL: ical extra text time parsing'
+          status: Open
+        - type: Story
+          key: INGSVC-6457
+          summary: 'New Integration - Facebook Business Pages '
+          status: In Dev.
+        - type: Task
+          key: INGSVC-6446
+          summary: Microsoft Copilot - Update the media type to AI Interaction
+          status: Resolved
+        - type: Task
+          key: INGSVC-6375
+          summary: Wells Fargo [Prod9-cid-2] Conversation name edits are not being recorded.
+          status: Open
+        - type: Task
+          key: INGSVC-6360
+          summary: Whiteboard Processor - Isn't using the Elasticsearch additional config passed in the PipelineQueueMessage
+          status: Resolved
+        - type: Story
+          key: INGSVC-6277
+          summary: 'Microsoft 365 Copilot : Capture File Used in Copilot for SharePoint Prompt'
+          status: Open
+        - type: Bug
+          key: INGSVC-6099
+          summary: MS Teams - Malformed chat.json ( Incorrect attachment association)
+          status: Open
+        - type: Bug
+          key: INGSVC-6054
+          summary: 'MSTEAMS: set BADAUTH correctly'
+          status: Open
+        - type: Task
+          key: INGSVC-5993
+          summary: 'MS Teams: Investigate handling of Graph API `UnknownError` 400 Responses'
+          status: Open
+        - type: Bug
+          key: INGSVC-5958
+          summary: 'ZOOM_WHITEBOARDS: Fail with status BADCONFIG'
+          status: Open
+        - type: Bug
+          key: INGSVC-5889
+          summary: 'MSTEAMS: When we fail to convert an attachment, we skip it'
+          status: Resolved
+        - type: Bug
+          key: INGSVC-5820
+          summary: 'MSTeams: replace wkhtmltopdf rendering with chromedp'
+          status: Resolved
+        - type: Story
+          key: INGSVC-5739
+          summary: New Integration - Refinitiv LSEG Messenger API
+          status: Open
+        - type: Task
+          key: INGSVC-5693
+          summary: Convert MsTeams to the ChatUploader
+          status: Open
+        - type: Bug
+          key: INGSVC-5070
+          summary: zip processor should look up api keys from queue message instead of joining datums onto api key
+          status: Open
+    timestamp: 2026-01-11T00:35:54.392124-05:00
+current_worktree: break_up_worktree_files
