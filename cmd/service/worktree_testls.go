@@ -65,7 +65,7 @@ func (m *testlsModel) Init() tea.Cmd {
 
 // tickCmd returns a command that sends tick messages for animation
 func (m *testlsModel) tickCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	return tea.Every(time.Millisecond*100, func(t time.Time) tea.Msg {
 		return tickMsg{}
 	})
 }
