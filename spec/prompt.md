@@ -1,7 +1,7 @@
 study @spec/README.md
 study @spec/IMPLEMENTATION_PLAN.md and pick the most important thing to do.
 
-IMPROTANT:
+IMPORTANT:
 - use just validate for testing/linting/validation
 - Update the implementation plan when the task is done.
 - use conventional commits

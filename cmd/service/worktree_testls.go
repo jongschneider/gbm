@@ -2,10 +2,12 @@ package service
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"gbm/pkg/tui/async"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,7 +22,16 @@ type testlsModel struct {
 	trackedBranches map[string]bool
 	delay           time.Duration
 	// Async cell tracking
-	asyncStatuses map[int]*async.Cell[string] // Row index -> async cell for git status
+	asyncStatuses   map[int]*async.Cell[string]      // Row index -> async cell for git status
+	asyncOperations map[int]*async.Cell[string]      // Row index -> async cell for pull/push/delete operations
+	operationStates map[int]operationState            // Row index -> current operation state
+	messageDump     io.Writer                         // Debug: dump all messages
+}
+
+type operationState struct {
+	inProgress bool
+	operation  string // "pull", "push", "delete", ""
+	result     string // Result message or error
 }
 
 type mockWorktree struct {

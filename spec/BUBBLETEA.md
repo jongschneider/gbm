@@ -236,7 +236,7 @@ func someCommand() tea.Msg {
 
 **Note:** [Open issue](https://github.com/charmbracelet/bubbletea/issues/234) for Bubble Tea to auto-recover.
 
-## 8. Test with `teatest`
+## 8. Test with `teatest` ("/Users/jschneider/code/scratch/gbm/worktrees/with_bubbletea_docs/deps/x/exp/teatest")
 
 Use Charm's `teatest` framework for end-to-end testing of TUI behavior.
 
