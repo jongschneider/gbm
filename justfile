@@ -183,3 +183,19 @@ show-changed:
         echo "No Go files changed"
     fi
 
+# Record VHS demo videos
+vhs-record:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Recording VHS demo videos..."
+    mkdir -p spec/vhs
+    cd spec/vhs
+    for tape in *.tape; do
+        if [ -f "$tape" ]; then
+            echo "Recording $tape..."
+            vhs < "$tape" || echo "Warning: Failed to record $tape"
+        fi
+    done
+    echo "✓ VHS recordings complete"
+    ls -lah *.gif 2>/dev/null || echo "No GIFs generated"
+
