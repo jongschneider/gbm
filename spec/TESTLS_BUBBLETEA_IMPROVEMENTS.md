@@ -122,8 +122,8 @@ Apply BUBBLETEA.md principles to `worktree_testls.go`:
 ---
 
 ## Implementation Order
-1. US-1 (message dumping) — enables debugging for all subsequent work
-2. US-2 (operation state types) — foundation
+1. ✅ US-1 (message dumping) — enables debugging for all subsequent work
+2. ⏳ US-2 (operation state types) — foundation
 3. US-3 (async operation cells) — async infrastructure
 4. US-4 (trigger operations) — core feature
 5. US-5 (display results) — UI feedback

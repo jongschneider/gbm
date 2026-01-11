@@ -28,9 +28,9 @@ type testlsModel struct {
 }
 
 type operationState struct {
-	inProgress bool   //nolint:unused // used in future steps
-	operation  string //nolint:unused // used in future steps - "pull", "push", "delete", ""
-	result     string //nolint:unused // used in future steps - Result message or error
+	operation string    //nolint:unused // used in future steps - "pull", "push", "delete", ""
+	result    string    //nolint:unused // used in future steps - Result message; empty = not started/cleared
+	clearAt   time.Time //nolint:unused // used in future steps - When to clear result (after 2 seconds)
 }
 
 type mockWorktree struct {
