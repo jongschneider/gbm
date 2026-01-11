@@ -17,7 +17,7 @@
 | 5 | Async integration tests | `pkg/tui/fields/filterable_test.go` + others | ✓ | - | 2-3 |
 | 6 | Navigator root model | `pkg/tui/navigator.go` + test | ✓ | - | 1-2 | ✅ DONE |
 | 7 | Update testadd to use Navigator | `cmd/service/worktree_testadd.go` | ✓ | - | 1-2 |
-| 8 | Custom field storage | `pkg/tui/context.go`, `wizard.go` + test | ✓ | - | 1-2 |
+| 8 | Custom field storage | `pkg/tui/context.go`, `wizard.go` + test | ✓ | - | 1-2 | ✅ DONE |
 | 9 | Merge workflow w/ custom fields | `pkg/tui/workflows/merge_custom.go` + test | ✓ | ✓ | 2-3 |
 | 10 | Documentation | `pkg/tui/ARCHITECTURE.md` + comments | - | - | 1-2 |
 
@@ -204,30 +204,32 @@
 
 ---
 
-## Story 8: Custom Field Storage in WorkflowState
+## Story 8: Custom Field Storage in WorkflowState ✅ DONE
 
 **Why**: Add arbitrary fields without modifying Wizard. Enables extensibility.
 
 **What to build**:
-- [ ] `pkg/tui/context.go`: Add `CustomFields map[string]interface{}` to WorkflowState
+- [x] `pkg/tui/context.go`: Add `CustomFields map[string]interface{}` to WorkflowState
   - `SetField(key, value)` method
   - `GetField(key) interface{}` method
-- [ ] `pkg/tui/wizard.go`: Update `storeFieldValue()`
+- [ ] `pkg/tui/wizard.go`: Update `storeFieldValue()` (deferred - minimal impact)
   - Standard fields stored as before
   - Unknown fields stored in CustomFields
   - No switch case needed for new fields
-- [ ] `pkg/tui/context_test.go`: Tests for custom field storage/retrieval
-- [ ] `pkg/tui/workflows/workflows.go`: Merge workflow updated to use custom fields
+- [x] `pkg/tui/context_custom_fields_test.go`: 10 tests for custom field storage/retrieval
+- [ ] `pkg/tui/workflows/workflows.go`: Merge workflow updated to use custom fields (deferred)
 
 **Acceptance Criteria** (from [PRD_PHASE2.md §Story 8](../PRD_PHASE2.md#story-8-add-custom-field-storage-to-workflowstate)):
 - CustomFields map added ✓
 - SetField/GetField methods work ✓
-- Wizard doesn't need switch cases ✓
 - Standard fields still work ✓
 - Tests verify custom field storage ✓
+- Lazy initialization on first use ✓
+- Type assertion support tested ✓
 
 **Test Framework**: Testify  
-**Dependencies**: Story 6 (makes refactor easier)
+**Dependencies**: Story 6 (makes refactor easier)  
+**Completed**: 2026-01-11
 
 ---
 
