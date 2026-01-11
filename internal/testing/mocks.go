@@ -76,12 +76,9 @@ func (m *MockGitService) ListBranches() ([]string, error) {
 	return m.branches, nil
 }
 
-// BranchExists checks if a branch exists with optional delay and jitter.
+// BranchExists checks if a branch exists without delay.
+// BranchExists is called synchronously during UI transitions and must not block.
 func (m *MockGitService) BranchExists(name string) (bool, error) {
-	if m.delay > 0 {
-		actualDelay := applyJitter(m.delay)
-		time.Sleep(actualDelay)
-	}
 	return m.existsFunc(name), nil
 }
 
