@@ -95,6 +95,8 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, asyncCell := range m.asyncStatuses {
 			asyncCell.Tick()
 		}
+		// Refresh display to show new spinner frame
+		m.updateTableRows()
 		// Schedule the next tick
 		cmds = append(cmds, m.tickCmd())
 
