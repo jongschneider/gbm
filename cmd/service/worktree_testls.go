@@ -22,6 +22,12 @@ type testlsModel struct {
 	selectedRow     int
 	// Async cell tracking
 	asyncStatuses map[int]*async.Cell[string] // Row index -> async cell for git status
+	// Terminal size tracking
+	windowWidth      int
+	windowHeight     int
+	pendingWidth     int         // Pending width from resize event
+	pendingHeight    int         // Pending height from resize event
+	resizeDebounce   *time.Timer // Debounce timer for resize events
 }
 
 type mockWorktree struct {
@@ -69,12 +75,50 @@ func (m *testlsModel) tickCmd() tea.Cmd {
 
 type tickMsg struct{}
 
+type resizeDebounceMsg struct{}
+
 // Update handles input and state changes.
 func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	consumeKey := false
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Store pending dimensions (don't apply yet)
+		m.pendingWidth = msg.Width
+		m.pendingHeight = msg.Height
+		
+		// Reset debounce timer
+		if m.resizeDebounce != nil {
+			m.resizeDebounce.Stop()
+		}
+		// Fire debounce after 150ms of no resize events
+		m.resizeDebounce = time.AfterFunc(150*time.Millisecond, func() {
+			// This will be handled in the next tick by sending resizeDebounceMsg
+		})
+		cmds = append(cmds, func() tea.Msg {
+			<-time.After(150 * time.Millisecond)
+			return resizeDebounceMsg{}
+		})
+		
+	case resizeDebounceMsg:
+		// Apply pending dimensions only after debounce fires
+		if m.pendingWidth > 0 && m.pendingHeight > 0 {
+			m.windowWidth = m.pendingWidth
+			m.windowHeight = m.pendingHeight
+			m.pendingWidth = 0
+			m.pendingHeight = 0
+			
+			m.recalculateColumns()
+			// Update table height
+			height := min(len(m.worktrees)+1, m.windowHeight-4)
+			if height > 0 {
+				m.table.SetHeight(height)
+			}
+			// Clear screen to clean up any artifacts from intermediate resizes
+			cmds = append(cmds, func() tea.Msg { return tea.ClearScreen() })
+		}
+		
 	case tickMsg:
 		// Tick all async cells to advance spinner animation
 		for _, asyncCell := range m.asyncStatuses {
@@ -145,6 +189,34 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmds[0]
 	}
 	return m, tea.Batch(cmds...)
+}
+
+// recalculateColumns computes dynamic column widths based on terminal width
+func (m *testlsModel) recalculateColumns() {
+	if m.windowWidth <= 0 {
+		return
+	}
+	
+	// Reserve space for borders and padding (~4 chars)
+	availableWidth := m.windowWidth - 4
+	if availableWidth < 60 {
+		availableWidth = 60 // Minimum acceptable width
+	}
+	
+	// Distribute width: Name (30%), Branch (45%), Kind (10%), GitStatus (15%)
+	nameWidth := max(15, availableWidth*30/100)
+	branchWidth := max(25, availableWidth*45/100)
+	kindWidth := max(8, availableWidth*10/100)
+	gitStatusWidth := max(12, availableWidth*15/100)
+	
+	columns := []table.Column{
+		{Title: "Name", Width: nameWidth},
+		{Title: "Branch", Width: branchWidth},
+		{Title: "Kind", Width: kindWidth},
+		{Title: "Git Status", Width: gitStatusWidth},
+	}
+	
+	m.table.SetColumns(columns)
 }
 
 // updateTableRows refreshes table rows with current async cell values
@@ -300,6 +372,11 @@ func runTestLS(delay time.Duration) error {
 		delay:           delay,
 		selectedRow:     0,
 		asyncStatuses:   make(map[int]*async.Cell[string]),
+		windowWidth:     80, // Default, will be updated by WindowSizeMsg
+		windowHeight:    24,
+		pendingWidth:    0,
+		pendingHeight:   0,
+		resizeDebounce:  nil,
 	}
 
 	// Open input for TUI
