@@ -30,9 +30,9 @@ func NewNavigateMsg(target tea.Model) NavigateMsg {
 //	    log.Fatal(err)
 //	}
 type Navigator struct {
-	stack     []tea.Model
-	width     int
-	height    int
+	stack  []tea.Model
+	width  int
+	height int
 }
 
 // NewNavigator creates a new Navigator with the given initial model.
@@ -130,13 +130,19 @@ func (n *Navigator) Depth() int {
 	return len(n.stack)
 }
 
-// current returns the current model on top of the stack.
-// Assumes the stack is not empty.
-func (n *Navigator) current() tea.Model {
+// Current returns the current model on top of the stack.
+// Returns nil if the stack is empty.
+func (n *Navigator) Current() tea.Model {
 	if len(n.stack) == 0 {
 		return nil
 	}
 	return n.stack[len(n.stack)-1]
+}
+
+// current returns the current model on top of the stack.
+// Assumes the stack is not empty. (private helper)
+func (n *Navigator) current() tea.Model {
+	return n.Current()
 }
 
 // push adds a model to the stack (private method).

@@ -14,98 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// testaddWrapperModel manages the testadd flow with multiple wizards.
-// It seamlessly transitions between:
-// 1. Type selector stage - user chooses Feature/Bug/Hotfix/Merge
-// 2. Workflow stage - workflow-specific steps for the selected type
-//
-// The model handles back navigation from workflow→type_selector and
-// forward navigation from type_selector→workflow without program restart.
-type testaddWrapperModel struct {
-	stage         string // StageTypeSelection or StageWorkflow
-	currentWizard *tui.Wizard
-	typeWizard    *tui.Wizard
-	stepsMap      map[string][]tui.Step
-	selectedType  string
-	ctx           *tui.Context
-}
-
-// newTestaddWrapperModel creates a new wrapper model with initialized fields.
-func newTestaddWrapperModel(ctx *tui.Context, stepsMap map[string][]tui.Step, typeWizard *tui.Wizard) *testaddWrapperModel {
-	return &testaddWrapperModel{
-		stage:         StageTypeSelection,
-		currentWizard: typeWizard,
-		typeWizard:    typeWizard,
-		stepsMap:      stepsMap,
-		ctx:           ctx,
-	}
-}
-
-// Init initializes the type selector wizard.
-func (m *testaddWrapperModel) Init() tea.Cmd {
-	return m.currentWizard.Init()
-}
-
-// Update processes messages and delegates to currentWizard.
-// It handles transitions between stages based on wizard completion/cancellation.
-func (m *testaddWrapperModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle program exit on Ctrl+C at the root level
-	if km, ok := msg.(tea.KeyMsg); ok && km.Type == tea.KeyCtrlC {
-		return m, tea.Quit
-	}
-
-	// Update current wizard
-	updatedModel, cmd := m.currentWizard.Update(msg)
-	if w, ok := updatedModel.(*tui.Wizard); ok {
-		m.currentWizard = w
-	}
-
-	// Handle transitions based on stage and wizard state
-	switch m.stage {
-	case StageTypeSelection:
-		// Check if type selector completed
-		if m.currentWizard.IsComplete() {
-			selectedType := m.currentWizard.State().WorkflowType
-			if selectedType != "" {
-				m.selectedType = selectedType
-
-				// Look up workflow steps for selected type
-				if steps, ok := m.stepsMap[selectedType]; ok {
-					// Create new wizard with workflow steps, preserving context
-					workflowWizard := tui.NewWizard(steps, m.ctx)
-					workflowWizard.State().WorkflowType = selectedType
-					m.currentWizard = workflowWizard
-					m.stage = StageWorkflow
-
-					// Initialize the workflow wizard
-					return m, m.currentWizard.Init()
-				}
-			}
-		}
-	case StageWorkflow:
-		// Check if we received BackBoundaryMsg (ESC at first step)
-		if _, ok := msg.(tui.BackBoundaryMsg); ok {
-			// Return to type selector
-			m.stage = StageTypeSelection
-			m.currentWizard = m.typeWizard
-			// Reset type wizard state
-			m.typeWizard = tui.NewWizard([]tui.Step{{Name: "workflow_type_selector", Field: workflows.SelectWorkflowType()}}, m.ctx)
-			m.currentWizard = m.typeWizard
-
-			// Initialize the type wizard
-			return m, m.currentWizard.Init()
-		}
-	}
-
-	// Delegate all other messages
-	return m, cmd
-}
-
-// View delegates to currentWizard.View().
-func (m *testaddWrapperModel) View() string {
-	return m.currentWizard.View()
-}
-
 func newWorktreeTestaddCommand(svc *Service) *cobra.Command {
 	var delayMs int
 	var withConfig bool
@@ -144,10 +52,95 @@ No actual worktrees or branches are created (dry-run mode).`,
 	return cmd
 }
 
-// runWorktreeTestaddCommand runs the test wizard with mock services.
-// Uses a single testaddWrapperModel to manage seamless transitions between:
-// 1. Type selector stage - user chooses Feature/Bug/Hotfix/Merge
-// 2. Workflow stage - workflow-specific steps for the selected type
+// testaddNavigatorAdapter wraps testadd workflow to work with Navigator.
+// It handles type selection and workflow progression via the Navigator stack.
+type testaddNavigatorAdapter struct {
+	nav      *tui.Navigator
+	stepsMap map[string][]tui.Step
+	ctx      *tui.Context
+}
+
+// newTestaddNavigatorAdapter creates a new adapter with Navigator initialized with type selector.
+func newTestaddNavigatorAdapter(ctx *tui.Context, stepsMap map[string][]tui.Step) *testaddNavigatorAdapter {
+	typeSelector := workflows.SelectWorkflowType()
+	typeSelectorStep := tui.Step{
+		Name:  "workflow_type_selector",
+		Field: typeSelector,
+	}
+	typeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, ctx)
+
+	return &testaddNavigatorAdapter{
+		nav:      tui.NewNavigator(typeWizard),
+		stepsMap: stepsMap,
+		ctx:      ctx,
+	}
+}
+
+// Init delegates to Navigator.
+func (a *testaddNavigatorAdapter) Init() tea.Cmd {
+	return a.nav.Init()
+}
+
+// Update handles type selection completion and workflow transitions.
+func (a *testaddNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle Ctrl+C to quit
+	if km, ok := msg.(tea.KeyMsg); ok && km.Type == tea.KeyCtrlC {
+		return a, tea.Quit
+	}
+
+	// Get current model before update
+	currentModel := a.nav.Current()
+	var cmd tea.Cmd
+
+	// Update through Navigator
+	_, cmd = a.nav.Update(msg)
+
+	// Check if type selector just completed
+	if typeWiz, ok := currentModel.(*tui.Wizard); ok && typeWiz.IsComplete() {
+		selectedType := typeWiz.State().WorkflowType
+		if selectedType != "" && selectedType != "unknown" {
+			// Look up workflow steps for selected type
+			if steps, ok := a.stepsMap[selectedType]; ok {
+				// Create new workflow wizard preserving context and selected type
+				workflowWizard := tui.NewWizard(steps, a.ctx)
+				workflowWizard.State().WorkflowType = selectedType
+
+				// Push workflow wizard onto Navigator stack
+				a.nav.Push(workflowWizard)
+				// Return init command for the new wizard
+				return a, workflowWizard.Init()
+			}
+		}
+	}
+
+	// Check for back navigation from workflow (ESC at first step)
+	if _, ok := msg.(tui.BackBoundaryMsg); ok && a.nav.Depth() > 1 {
+		// Pop workflow wizard, return to type selector
+		a.nav.Pop()
+		// Reset type selector
+		typeSelector := workflows.SelectWorkflowType()
+		typeSelectorStep := tui.Step{
+			Name:  "workflow_type_selector",
+			Field: typeSelector,
+		}
+		newTypeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, a.ctx)
+		a.nav.Pop() // Remove old type selector
+		a.nav.Push(newTypeWizard)
+		return a, newTypeWizard.Init()
+	}
+
+	return a, cmd
+}
+
+// View delegates to Navigator.
+func (a *testaddNavigatorAdapter) View() string {
+	return a.nav.View()
+}
+
+// runWorktreeTestaddCommand runs the test wizard with mock services using Navigator.
+// Uses Navigator to manage seamless transitions between:
+// 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
+// 2. Workflow screen - workflow-specific steps for the selected type
 //
 // If withConfig is true, creates a MockRepoConfig with sample worktrees to test merge suggestions.
 func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool) error {
@@ -202,7 +195,7 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		stepsMap[workflowType] = steps
 	}
 
-	// Open input for both wizards
+	// Open input for the program
 	input, err := os.Open("/dev/tty")
 	if err != nil {
 		return fmt.Errorf("failed to open /dev/tty: %w", err)
@@ -211,41 +204,37 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		_ = input.Close()
 	}()
 
-	// Create type selector wizard
-	typeSelector := workflows.SelectWorkflowType()
-	typeSelectorStep := tui.Step{
-		Name:  "workflow_type_selector",
-		Field: typeSelector,
-	}
-	typeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, ctx)
-
-	// Create and run the wrapper model - single program for entire flow
-	wrapper := newTestaddWrapperModel(ctx, stepsMap, typeWizard)
-	p := tea.NewProgram(wrapper, tea.WithInput(input), tea.WithAltScreen())
+	// Create Navigator adapter and run the program
+	adapter := newTestaddNavigatorAdapter(ctx, stepsMap)
+	p := tea.NewProgram(adapter, tea.WithInput(input), tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("testadd error: %w", err)
 	}
 
-	// Check the final state
-	if w, ok := finalModel.(*testaddWrapperModel); ok {
-		if w.currentWizard.IsCancelled() {
-			fmt.Fprintf(os.Stderr, "Cancelled\n")
-			return nil
-		}
+	// Check the final state - extract wizard from adapter
+	if adapter, ok := finalModel.(*testaddNavigatorAdapter); ok {
+		if currentModel := adapter.nav.Current(); currentModel != nil {
+			if w, ok := currentModel.(*tui.Wizard); ok {
+				if w.IsCancelled() {
+					fmt.Fprintf(os.Stderr, "Cancelled\n")
+					return nil
+				}
 
-		if w.currentWizard.IsComplete() {
-			// Print dry-run summary
-			state := w.currentWizard.State()
-			fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
-			fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
-			if state.BaseBranch != "" {
-				fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
+				if w.IsComplete() {
+					// Print dry-run summary
+					state := w.State()
+					fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
+					fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
+					if state.BaseBranch != "" {
+						fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
+					}
+					return nil
+				}
+
+				return fmt.Errorf("wizard did not complete or cancel")
 			}
-			return nil
 		}
-
-		return fmt.Errorf("wizard did not complete or cancel")
 	}
 
 	return fmt.Errorf("unexpected model type: %T", finalModel)
