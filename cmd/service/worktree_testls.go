@@ -65,6 +65,13 @@ func (m *testlsModel) Init() tea.Cmd {
 		cell := async.NewCell(eval)
 		m.asyncStatuses[rowIdx] = cell
 
+		// Create placeholder async cell for operations (not started yet)
+		opEval := async.New(func() (string, error) {
+			return "", nil
+		})
+		opCell := async.NewCell(opEval)
+		m.asyncOperations[rowIdx] = opCell
+
 		// Start loading
 		cmd := cell.StartLoading()
 		if cmd != nil {
@@ -106,6 +113,10 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		// Tick all async cells to advance spinner animation
 		for _, asyncCell := range m.asyncStatuses {
+			asyncCell.Tick()
+		}
+		// Tick operation cells too
+		for _, asyncCell := range m.asyncOperations {
 			asyncCell.Tick()
 		}
 		// Refresh display to show new spinner frame
