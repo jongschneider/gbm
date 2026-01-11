@@ -77,7 +77,6 @@ type tickMsg struct{}
 // Update handles input and state changes.
 func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	consumeKey := false
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -103,18 +102,6 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "esc":
 			return m, tea.Quit
-		case "up":
-			cursor := m.table.Cursor()
-			if cursor > 0 {
-				m.table.SetCursor(cursor - 1)
-			}
-			consumeKey = true
-		case "down":
-			cursor := m.table.Cursor()
-			if cursor < len(m.worktrees)-1 {
-				m.table.SetCursor(cursor + 1)
-			}
-			consumeKey = true
 		case "enter", " ":
 			// Output selected worktree path and quit
 			fmt.Printf("%s\n", m.worktrees[m.table.Cursor()].Path)
@@ -122,7 +109,6 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "l": // Pull
 			selectedName := m.worktrees[m.table.Cursor()].Name
 			fmt.Fprintf(os.Stderr, "Would pull: %s\n", selectedName)
-			consumeKey = true
 		case "p": // Push
 			kind := "ad hoc"
 			if m.trackedBranches[m.worktrees[m.table.Cursor()].Branch] {
@@ -133,21 +119,17 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				fmt.Fprintf(os.Stderr, "Would push: %s\n", m.worktrees[m.table.Cursor()].Name)
 			}
-			consumeKey = true
 		case "d": // Delete
 			fmt.Fprintf(os.Stderr, "Would delete: %s\n", m.worktrees[m.table.Cursor()].Name)
-			consumeKey = true
 		}
 	}
 
-	// Delegate to table (unless we consumed the key)
-	if !consumeKey {
-		tableModel, tableCmd := m.table.Update(msg)
-		m.table = tableModel
+	// Always delegate to table for standard navigation
+	tableModel, tableCmd := m.table.Update(msg)
+	m.table = tableModel
 
-		if tableCmd != nil {
-			cmds = append(cmds, tableCmd)
-		}
+	if tableCmd != nil {
+		cmds = append(cmds, tableCmd)
 	}
 
 	if len(cmds) == 0 {
