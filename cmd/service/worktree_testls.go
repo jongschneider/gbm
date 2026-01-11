@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"gbm/pkg/tui/async"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,16 +21,16 @@ type testlsModel struct {
 	trackedBranches map[string]bool
 	delay           time.Duration
 	// Async cell tracking
-	asyncStatuses   map[int]*async.Cell[string]      // Row index -> async cell for git status
-	asyncOperations map[int]*async.Cell[string]      // Row index -> async cell for pull/push/delete operations
-	operationStates map[int]operationState            // Row index -> current operation state
-	messageDump     io.Writer                         // Debug: dump all messages
+	asyncStatuses   map[int]*async.Cell[string] // Row index -> async cell for git status
+	asyncOperations map[int]*async.Cell[string] // Row index -> async cell for pull/push/delete operations
+	operationStates map[int]operationState      // Row index -> current operation state
+	messageDump     io.Writer                   // Debug: dump all messages
 }
 
 type operationState struct {
-	inProgress bool
-	operation  string // "pull", "push", "delete", ""
-	result     string // Result message or error
+	inProgress bool   //nolint:unused // used in future steps
+	operation  string //nolint:unused // used in future steps - "pull", "push", "delete", ""
+	result     string //nolint:unused // used in future steps - Result message or error
 }
 
 type mockWorktree struct {
@@ -88,6 +87,11 @@ type tickMsg struct{}
 // Update handles input and state changes.
 func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+
+	// Dump message for debugging if messageDump is set
+	if m.messageDump != nil {
+		_, _ = fmt.Fprintf(m.messageDump, "[%s] %T\n", time.Now().Format("15:04:05.000"), msg)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -236,7 +240,7 @@ func (m *MockTableGitService) GetBranchStatus(path string) (string, error) {
 	statuses := []string{"✓", "↑ 3", "↓ 2", "↕ 1↑2", "?"}
 	hash := 0
 	for _, c := range path {
-		hash = (hash * 31 + int(c)) % len(statuses)
+		hash = (hash*31 + int(c)) % len(statuses)
 	}
 	return statuses[hash], nil
 }
@@ -256,8 +260,8 @@ var (
 
 	// Tracked branches (cannot be pushed)
 	trackedBranches = map[string]bool{
-		"main":        true,
-		"develop":     true,
+		"main":         true,
+		"develop":      true,
 		"release/v1.0": true,
 	}
 )
@@ -312,6 +316,19 @@ func runTestLS(delay time.Duration) error {
 		Bold(false)
 	t.SetStyles(s)
 
+	// Open debug log file if DEBUG=1
+	var messageDump io.Writer
+	if os.Getenv("DEBUG") == "1" {
+		debugFile, err := os.Create("messages.log")
+		if err != nil {
+			return fmt.Errorf("failed to create debug log: %w", err)
+		}
+		defer func() {
+			_ = debugFile.Close()
+		}()
+		messageDump = debugFile
+	}
+
 	// Create model
 	model := &testlsModel{
 		table:           t,
@@ -319,6 +336,9 @@ func runTestLS(delay time.Duration) error {
 		trackedBranches: trackedBranches,
 		delay:           delay,
 		asyncStatuses:   make(map[int]*async.Cell[string]),
+		asyncOperations: make(map[int]*async.Cell[string]),
+		operationStates: make(map[int]operationState),
+		messageDump:     messageDump,
 	}
 
 	// Open input for TUI

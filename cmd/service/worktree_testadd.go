@@ -184,7 +184,9 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 	if err != nil {
 		return fmt.Errorf("failed to open /dev/tty: %w", err)
 	}
-	defer input.Close()
+	defer func() {
+		_ = input.Close()
+	}()
 
 	// Run the adapter program
 	adapter := newTestaddNavigatorAdapter(ctx, stepsMap)

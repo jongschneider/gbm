@@ -1,5 +1,5 @@
 study @spec/README.md
-study @spec/IMPLEMENTATION_PLAN.md and pick the most important thing to do.
+study @spec/TESTLS_BUBBLETEA_IMPROVEMENTS.md and pick the most important thing to do.
 
 IMPORTANT:
 - use just validate for testing/linting/validation
