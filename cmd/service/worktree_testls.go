@@ -91,6 +91,11 @@ func (m *testlsModel) tickCmd() tea.Cmd {
 
 type tickMsg struct{}
 
+type operationTriggeredMsg struct { //nolint:unused // used in future steps
+	rowIdx    int
+	operation string
+}
+
 // Update handles input and state changes.
 func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -133,20 +138,35 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Printf("%s\n", m.worktrees[m.table.Cursor()].Path)
 			return m, tea.Quit
 		case "l": // Pull
-			selectedName := m.worktrees[m.table.Cursor()].Name
-			fmt.Fprintf(os.Stderr, "Would pull: %s\n", selectedName)
-		case "p": // Push
-			kind := "ad hoc"
-			if m.trackedBranches[m.worktrees[m.table.Cursor()].Branch] {
-				kind = "tracked"
+			rowIdx := m.table.Cursor()
+			if rowIdx < len(m.worktrees) {
+				cmd := m.triggerOperation(rowIdx, "pull")
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
 			}
-			if kind == "tracked" {
-				fmt.Fprintf(os.Stderr, "Cannot push tracked worktree\n")
-			} else {
-				fmt.Fprintf(os.Stderr, "Would push: %s\n", m.worktrees[m.table.Cursor()].Name)
+		case "p": // Push
+			rowIdx := m.table.Cursor()
+			if rowIdx < len(m.worktrees) {
+				kind := "ad hoc"
+				if m.trackedBranches[m.worktrees[rowIdx].Branch] {
+					kind = "tracked"
+				}
+				if kind != "tracked" {
+					cmd := m.triggerOperation(rowIdx, "push")
+					if cmd != nil {
+						cmds = append(cmds, cmd)
+					}
+				}
 			}
 		case "d": // Delete
-			fmt.Fprintf(os.Stderr, "Would delete: %s\n", m.worktrees[m.table.Cursor()].Name)
+			rowIdx := m.table.Cursor()
+			if rowIdx < len(m.worktrees) {
+				cmd := m.triggerOperation(rowIdx, "delete")
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
 		}
 	}
 
@@ -216,6 +236,44 @@ func (m *testlsModel) updateTableRows() {
 	m.table.SetRows(rows)
 }
 
+// triggerOperation starts an async operation for the given row.
+func (m *testlsModel) triggerOperation(rowIdx int, op string) tea.Cmd {
+	var opFunc func(path string) (string, error)
+	mockGitService := &MockTableGitService{delay: m.delay}
+
+	switch op {
+	case "pull":
+		opFunc = mockGitService.Pull
+	case "push":
+		opFunc = mockGitService.Push
+	case "delete":
+		opFunc = mockGitService.Delete
+	default:
+		return nil
+	}
+
+	// Create async cell for operation
+	eval := async.New(func() (string, error) {
+		if rowIdx >= len(m.worktrees) {
+			return "", fmt.Errorf("invalid row index")
+		}
+		return opFunc(m.worktrees[rowIdx].Path)
+	})
+
+	cell := async.NewCell(eval)
+	m.asyncOperations[rowIdx] = cell
+
+	// Update operation state
+	m.operationStates[rowIdx] = operationState{
+		operation: op,
+		result:    "",
+		clearAt:   time.Time{},
+	}
+
+	// Start loading and return cmd
+	return cell.StartLoading()
+}
+
 // View renders the table with footer help text.
 func (m *testlsModel) View() string {
 	output := m.table.View()
@@ -254,6 +312,24 @@ func (m *MockTableGitService) GetBranchStatus(path string) (string, error) {
 		hash = (hash*31 + int(c)) % len(statuses)
 	}
 	return statuses[hash], nil
+}
+
+// Pull simulates a git pull operation.
+func (m *MockTableGitService) Pull(path string) (string, error) {
+	time.Sleep(m.delay)
+	return "✓ pulled", nil
+}
+
+// Push simulates a git push operation.
+func (m *MockTableGitService) Push(path string) (string, error) {
+	time.Sleep(m.delay)
+	return "✓ pushed", nil
+}
+
+// Delete simulates a worktree delete operation.
+func (m *MockTableGitService) Delete(path string) (string, error) {
+	time.Sleep(m.delay)
+	return "✓ deleted", nil
 }
 
 // Mock data for testing
