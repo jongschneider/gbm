@@ -89,11 +89,22 @@ func (m *testlsModel) tickCmd() tea.Cmd {
 	})
 }
 
+// clearOperationCmd returns a command that clears an operation after the specified delay
+func clearOperationCmd(rowIdx int, delay time.Duration) tea.Cmd {
+	return tea.Tick(delay, func(t time.Time) tea.Msg {
+		return clearOperationMsg{rowIdx: rowIdx}
+	})
+}
+
 type tickMsg struct{}
 
 type operationTriggeredMsg struct { //nolint:unused // used in future steps
 	rowIdx    int
 	operation string
+}
+
+type clearOperationMsg struct {
+	rowIdx int
 }
 
 // Update handles input and state changes.
@@ -121,10 +132,22 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					opState.result = cell.View()
 					opState.clearAt = time.Now().Add(2 * time.Second)
 					m.operationStates[rowIdx] = opState
+					// Schedule the clear operation
+					cmds = append(cmds, clearOperationCmd(rowIdx, 2*time.Second))
 				}
 			}
 		}
 		m.updateTableRows()
+
+	case clearOperationMsg:
+		// Clear the operation state for this row
+		if opState, ok := m.operationStates[msg.rowIdx]; ok {
+			opState.operation = ""
+			opState.result = ""
+			opState.clearAt = time.Time{}
+			m.operationStates[msg.rowIdx] = opState
+			m.updateTableRows()
+		}
 
 	case tickMsg:
 		// Tick all async cells to advance spinner animation
