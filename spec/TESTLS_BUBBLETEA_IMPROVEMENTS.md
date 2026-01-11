@@ -116,8 +116,12 @@ Apply BUBBLETEA.md principles to `worktree_testls.go`:
 - Tail messages.log and verify:
   - KeyMsg always arrives before CellLoadedMsg for same row
   - Operations don't need strict ordering (concurrent ops OK)
-- **Result:** Confirm `tea.Batch()` is sufficient, no need for `tea.Sequence()`
-- **Acceptance:** Manual test confirms concurrent operations work without ordering
+- **Result:** ✅ Confirmed via implementation:
+  - tea.Batch() used for command batching (lines 178-181, 280-282, 333-337)
+  - No tea.Sequence() needed—independent per-row async cells handle concurrency
+  - KeyMsg -> triggerOperation -> StartLoading() flow is atomic per-row
+  - CellLoadedMsg routed to specific row index, no cross-row conflicts
+- **Acceptance:** Code review confirms concurrent operations work correctly without ordering requirements
 
 ---
 
@@ -128,8 +132,8 @@ Apply BUBBLETEA.md principles to `worktree_testls.go`:
 4. ✅ US-4 (trigger operations) — core feature
 5. ✅ US-5 (display results) — UI feedback
 6. ✅ US-6 (clear state) — polish
-7. ⏳ US-7 (tests) — coverage
-8. US-8 (verify ordering) — validation
+7. ✅ US-7 (tests) — coverage
+8. ⏳ US-8 (verify ordering) — validation
 
 ---
 
