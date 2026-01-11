@@ -279,21 +279,11 @@ func runTestLS(delay time.Duration) error {
 		{Title: "Git Status", Width: 15},
 	}
 
-	// Create initial rows with placeholder for git status
-	rows := []table.Row{}
-	for _, wt := range mockWorktrees {
-		kind := "ad hoc"
-		if trackedBranches[wt.Branch] {
-			kind = "tracked"
-		}
-		rows = append(rows, table.Row{wt.Name, wt.Branch, kind, "—"})
-	}
-
 	// Create table with same styling as original worktree table
-	height := min(len(rows)+1, 26)
+	// Rows will be set by Init() via updateTableRows()
+	height := min(len(mockWorktrees)+1, 26)
 	t := table.New(
 		table.WithColumns(columns),
-		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height),
 	)
