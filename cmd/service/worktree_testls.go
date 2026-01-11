@@ -132,6 +132,42 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					opState.result = cell.View()
 					opState.clearAt = time.Now().Add(2 * time.Second)
 					m.operationStates[rowIdx] = opState
+					
+					// Handle delete: remove worktree from shared state
+					if opState.operation == "delete" && rowIdx < len(m.worktrees) {
+						m.worktrees = append(m.worktrees[:rowIdx], m.worktrees[rowIdx+1:]...)
+						
+						// Clear operation state after delete since row is gone
+						delete(m.operationStates, rowIdx)
+						delete(m.asyncOperations, rowIdx)
+						
+						// Reindex all maps for rows > rowIdx
+						for i := rowIdx + 1; i < len(m.worktrees)+1; i++ {
+							if state, ok := m.operationStates[i]; ok {
+								m.operationStates[i-1] = state
+								delete(m.operationStates, i)
+							}
+							if cell, ok := m.asyncOperations[i]; ok {
+								m.asyncOperations[i-1] = cell
+								delete(m.asyncOperations, i)
+							}
+							if status, ok := m.asyncStatuses[i]; ok {
+								m.asyncStatuses[i-1] = status
+								delete(m.asyncStatuses, i)
+							}
+						}
+						
+						// Adjust cursor: move up by 1 if we deleted the last row, stay otherwise
+						newCursor := rowIdx
+						if rowIdx >= len(m.worktrees) && len(m.worktrees) > 0 {
+							newCursor = len(m.worktrees) - 1
+						}
+						m.table.SetCursor(newCursor)
+						
+						m.updateTableRows()
+						return m, tea.Batch(cmds...)
+					}
+					
 					// Schedule the clear operation
 					cmds = append(cmds, clearOperationCmd(rowIdx, 2*time.Second))
 				}
@@ -179,6 +215,12 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, cmd)
 				}
 			}
+			// Delegate to table for navigation
+			tableModel, tableCmd := m.table.Update(msg)
+			m.table = tableModel
+			if tableCmd != nil {
+				cmds = append(cmds, tableCmd)
+			}
 		case "p": // Push
 			rowIdx := m.table.Cursor()
 			if rowIdx < len(m.worktrees) {
@@ -193,7 +235,13 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case "d": // Delete
+			// Delegate to table for navigation
+			tableModel, tableCmd := m.table.Update(msg)
+			m.table = tableModel
+			if tableCmd != nil {
+				cmds = append(cmds, tableCmd)
+			}
+		case "d": // Delete - don't pass to table, maintain cursor position
 			rowIdx := m.table.Cursor()
 			if rowIdx < len(m.worktrees) {
 				cmd := m.triggerOperation(rowIdx, "delete")
@@ -201,15 +249,23 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, cmd)
 				}
 			}
+			// Skip table.Update for delete - we handle cursor ourselves
+		default:
+			// For all other keys, delegate to table for navigation
+			tableModel, tableCmd := m.table.Update(msg)
+			m.table = tableModel
+			if tableCmd != nil {
+				cmds = append(cmds, tableCmd)
+			}
 		}
-	}
+	default:
+		// For non-KeyMsg, always delegate to table
+		tableModel, tableCmd := m.table.Update(msg)
+		m.table = tableModel
 
-	// Always delegate to table for standard navigation
-	tableModel, tableCmd := m.table.Update(msg)
-	m.table = tableModel
-
-	if tableCmd != nil {
-		cmds = append(cmds, tableCmd)
+		if tableCmd != nil {
+			cmds = append(cmds, tableCmd)
+		}
 	}
 
 	if len(cmds) == 0 {
