@@ -88,48 +88,68 @@ func (a *testaddNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Quit
 	}
 
-	// Get current model before update
-	currentModel := a.nav.Current()
-	var cmd tea.Cmd
-
-	// Update through Navigator
-	_, cmd = a.nav.Update(msg)
-
-	// Check if type selector just completed
-	if typeWiz, ok := currentModel.(*tui.Wizard); ok && typeWiz.IsComplete() {
-		selectedType := typeWiz.State().WorkflowType
-		if selectedType != "" && selectedType != "unknown" {
-			// Look up workflow steps for selected type
-			if steps, ok := a.stepsMap[selectedType]; ok {
-				// Create new workflow wizard preserving context and selected type
-				workflowWizard := tui.NewWizard(steps, a.ctx)
-				workflowWizard.State().WorkflowType = selectedType
-
-				// Push workflow wizard onto Navigator stack
-				a.nav.Push(workflowWizard)
-				// Return init command for the new wizard
-				return a, workflowWizard.Init()
-			}
-		}
-	}
-
-	// Check for back navigation from workflow (ESC at first step)
+	// Handle back navigation from workflow
 	if _, ok := msg.(tui.BackBoundaryMsg); ok && a.nav.Depth() > 1 {
-		// Pop workflow wizard, return to type selector
 		a.nav.Pop()
-		// Reset type selector
-		typeSelector := workflows.SelectWorkflowType()
-		typeSelectorStep := tui.Step{
-			Name:  "workflow_type_selector",
-			Field: typeSelector,
-		}
-		newTypeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, a.ctx)
-		a.nav.Pop() // Remove old type selector
+		newTypeWizard := a.createTypeWizard()
+		a.nav.Pop()
 		a.nav.Push(newTypeWizard)
 		return a, newTypeWizard.Init()
 	}
 
+	// Update through Navigator
+	_, cmd := a.nav.Update(msg)
+	currentModel := a.nav.Current()
+
+	// Handle type selector completion
+	if a.nav.Depth() == 1 {
+		if wiz, ok := currentModel.(*tui.Wizard); ok && wiz.IsComplete() {
+			cmd = a.transitionToWorkflow(wiz)
+			if cmd != nil {
+				return a, cmd
+			}
+		}
+	}
+
+	// Handle workflow completion or workflow complete message
+	if a.nav.Depth() > 1 {
+		if wiz, ok := currentModel.(*tui.Wizard); ok && wiz.IsComplete() {
+			return a, tea.Quit
+		}
+		if _, ok := msg.(tui.WorkflowCompleteMsg); ok {
+			return a, tea.Quit
+		}
+	}
+
 	return a, cmd
+}
+
+// transitionToWorkflow creates and pushes workflow wizard for selected type.
+func (a *testaddNavigatorAdapter) transitionToWorkflow(typeWiz *tui.Wizard) tea.Cmd {
+	selectedType := typeWiz.State().WorkflowType
+	if selectedType == "" || selectedType == "unknown" {
+		return nil
+	}
+
+	steps, ok := a.stepsMap[selectedType]
+	if !ok {
+		return nil
+	}
+
+	workflowWizard := tui.NewWizard(steps, a.ctx)
+	workflowWizard.State().WorkflowType = selectedType
+	a.nav.Push(workflowWizard)
+	return workflowWizard.Init()
+}
+
+// createTypeWizard creates a fresh type selector wizard.
+func (a *testaddNavigatorAdapter) createTypeWizard() *tui.Wizard {
+	typeSelector := workflows.SelectWorkflowType()
+	typeSelectorStep := tui.Step{
+		Name:  "workflow_type_selector",
+		Field: typeSelector,
+	}
+	return tui.NewWizard([]tui.Step{typeSelectorStep}, a.ctx)
 }
 
 // View delegates to Navigator.
@@ -141,15 +161,46 @@ func (a *testaddNavigatorAdapter) View() string {
 // Uses Navigator to manage seamless transitions between:
 // 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
 // 2. Workflow screen - workflow-specific steps for the selected type
-//
-// If withConfig is true, creates a MockRepoConfig with sample worktrees to test merge suggestions.
 func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool) error {
 	// Validate delay flag
 	if delayMs < 0 || delayMs > 5000 {
 		return fmt.Errorf("delay must be between 0 and 5000 milliseconds")
 	}
 
-	// Create mock services with delay if specified
+	// Build context with mock services
+	ctx, err := buildTestContext(delayMs, withConfig)
+	if err != nil {
+		return err
+	}
+
+	// Build stepsMap for all workflow types
+	stepsMap, err := buildStepsMap(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Open input and run program
+	input, err := os.Open("/dev/tty")
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w", err)
+	}
+	defer input.Close()
+
+	// Run the adapter program
+	adapter := newTestaddNavigatorAdapter(ctx, stepsMap)
+	p := tea.NewProgram(adapter, tea.WithInput(input), tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("testadd error: %w", err)
+	}
+
+	// Handle final state
+	return handleFinalState(finalModel)
+}
+
+// buildTestContext creates the TUI context with mock services.
+func buildTestContext(delayMs int, withConfig bool) (*tui.Context, error) {
+	// Create mock git service
 	mockGit := testing.NewMockGitService().
 		WithBranches([]string{
 			"main",
@@ -164,19 +215,20 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		mockGit = mockGit.WithDelay(time.Duration(delayMs) * time.Millisecond)
 	}
 
+	// Create mock jira service
 	mockJira := testing.NewMockJiraService()
 	if delayMs > 0 {
 		mockJira = mockJira.WithDelay(time.Duration(delayMs) * time.Millisecond)
 	}
 
-	// Create context with mock services and optional config
+	// Build context
 	ctx := tui.NewContext().
 		WithDimensions(100, 30).
 		WithTheme(tui.DefaultTheme()).
 		WithGitService(mockGit).
 		WithJiraService(mockJira)
 
-	// If --config flag is set, add a mock repository configuration for testing merge suggestions
+	// Add config if requested
 	if withConfig {
 		mockConfig := testutil.NewMockRepoConfig().
 			WithWorktree("feature_auth", "feature/auth", "main").
@@ -185,57 +237,51 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 		ctx = ctx.WithConfig(mockConfig)
 	}
 
-	// Build stepsMap: maps workflow type to its step configuration
+	return ctx, nil
+}
+
+// buildStepsMap creates workflow steps for each workflow type.
+func buildStepsMap(ctx *tui.Context) (map[string][]tui.Step, error) {
 	stepsMap := make(map[string][]tui.Step)
 	for _, workflowType := range []string{"feature", "bug", "hotfix", "merge"} {
 		steps, err := workflows.GetWorkflowSteps(workflowType, ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get steps for workflow %s: %w", workflowType, err)
+			return nil, fmt.Errorf("failed to get steps for workflow %s: %w", workflowType, err)
 		}
 		stepsMap[workflowType] = steps
 	}
+	return stepsMap, nil
+}
 
-	// Open input for the program
-	input, err := os.Open("/dev/tty")
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/tty: %w", err)
-	}
-	defer func() {
-		_ = input.Close()
-	}()
-
-	// Create Navigator adapter and run the program
-	adapter := newTestaddNavigatorAdapter(ctx, stepsMap)
-	p := tea.NewProgram(adapter, tea.WithInput(input), tea.WithAltScreen())
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("testadd error: %w", err)
+// handleFinalState processes the final wizard state and prints results.
+func handleFinalState(finalModel tea.Model) error {
+	adapter, ok := finalModel.(*testaddNavigatorAdapter)
+	if !ok {
+		return fmt.Errorf("unexpected model type: %T", finalModel)
 	}
 
-	// Check the final state - extract wizard from adapter
-	if adapter, ok := finalModel.(*testaddNavigatorAdapter); ok {
-		if currentModel := adapter.nav.Current(); currentModel != nil {
-			if w, ok := currentModel.(*tui.Wizard); ok {
-				if w.IsCancelled() {
-					fmt.Fprintf(os.Stderr, "Cancelled\n")
-					return nil
-				}
+	currentModel := adapter.nav.Current()
+	if currentModel == nil {
+		return fmt.Errorf("no wizard found")
+	}
 
-				if w.IsComplete() {
-					// Print dry-run summary
-					state := w.State()
-					fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
-					fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
-					if state.BaseBranch != "" {
-						fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
-					}
-					return nil
-				}
+	w, ok := currentModel.(*tui.Wizard)
+	if !ok {
+		return fmt.Errorf("unexpected wizard type: %T", currentModel)
+	}
 
-				return fmt.Errorf("wizard did not complete or cancel")
-			}
+	// Handle completion
+	if w.IsComplete() {
+		state := w.State()
+		fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
+		fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
+		if state.BaseBranch != "" {
+			fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
 		}
+		return nil
 	}
 
-	return fmt.Errorf("unexpected model type: %T", finalModel)
+	// Handle cancellation (including Ctrl+C)
+	fmt.Fprintf(os.Stderr, "Cancelled\n")
+	return nil
 }

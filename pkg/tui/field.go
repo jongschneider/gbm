@@ -39,3 +39,6 @@ type CancelMsg struct{}
 
 // PrevStepMsg signals that the user wants to go back to the previous step.
 type PrevStepMsg struct{}
+
+// WorkflowCompleteMsg signals that the wizard has completed all steps.
+type WorkflowCompleteMsg struct{}

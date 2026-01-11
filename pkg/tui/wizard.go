@@ -163,7 +163,7 @@ func (w *Wizard) handleNext() (*Wizard, tea.Cmd) {
 	if nextIdx >= len(w.steps) {
 		// All remaining steps skipped or done
 		w.complete = true
-		return w, tea.Batch(blurCmd, tea.Quit)
+		return w, tea.Batch(blurCmd, func() tea.Msg { return WorkflowCompleteMsg{} })
 	}
 
 	w.current = nextIdx
