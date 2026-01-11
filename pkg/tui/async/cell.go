@@ -53,9 +53,9 @@ func (c *Cell[T]) StartLoading() tea.Cmd {
 	return func() tea.Msg {
 		// Trigger the fetch by calling Get() which will block and execute the fetch function
 		value, err := c.eval.Get()
-		return cellLoadedMsg{
-			value: value,
-			err:   err,
+		return CellLoadedMsg{
+			Value: value,
+			Err:   err,
 		}
 	}
 }
@@ -92,8 +92,8 @@ func stringifyValue[T any](val T) string {
 	return ""
 }
 
-// cellLoadedMsg is an internal message indicating a cell has finished loading.
-type cellLoadedMsg struct {
-	value interface{}
-	err   error
+// CellLoadedMsg is a message indicating a cell has finished loading.
+type CellLoadedMsg struct {
+	Value interface{}
+	Err   error
 }

@@ -37,6 +37,9 @@ func (m *testlsModel) Init() tea.Cmd {
 	// Set initial column widths
 	m.updateColumns(m.table.Width())
 
+	// Set initial rows
+	m.updateTableRows()
+
 	// Start async git status loads for each worktree
 	for i := range m.worktrees {
 		rowIdx := i
@@ -82,7 +85,11 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.SetWidth(msg.Width)
 		m.table.SetHeight(msg.Height - 4)
 		m.updateColumns(msg.Width)
-		
+
+	case async.CellLoadedMsg:
+		// A cell finished loading - refresh the table display
+		m.updateTableRows()
+
 	case tickMsg:
 		// Tick all async cells to advance spinner animation
 		for _, asyncCell := range m.asyncStatuses {
@@ -90,7 +97,7 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Schedule the next tick
 		cmds = append(cmds, m.tickCmd())
-		
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc":
@@ -131,9 +138,6 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			consumeKey = true
 		}
 	}
-
-	// Update table based on current async cell states
-	m.updateTableRows()
 
 	// Delegate to table (unless we consumed the key)
 	if !consumeKey {
