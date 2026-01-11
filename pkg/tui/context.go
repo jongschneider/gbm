@@ -29,12 +29,35 @@ type JiraIssue struct {
 }
 
 // WorkflowState holds data collected across wizard steps.
+// Standard fields (WorkflowType, WorktreeName, etc) are stored directly.
+// Custom fields added dynamically are stored in CustomFields map.
 type WorkflowState struct {
 	WorkflowType string
 	WorktreeName string
 	BranchName   string
 	BaseBranch   string
 	JiraIssue    *JiraIssue
+	CustomFields map[string]interface{}
+}
+
+// SetField stores a custom field in the workflow state.
+// If the field name corresponds to a standard field (e.g., "workflow_type"),
+// it updates the standard field instead of CustomFields.
+func (ws *WorkflowState) SetField(key string, value interface{}) {
+	if ws.CustomFields == nil {
+		ws.CustomFields = make(map[string]interface{})
+	}
+	ws.CustomFields[key] = value
+}
+
+// GetField retrieves a custom field from the workflow state.
+// Returns the value if found, nil otherwise.
+// The caller is responsible for type assertion.
+func (ws *WorkflowState) GetField(key string) interface{} {
+	if ws.CustomFields == nil {
+		return nil
+	}
+	return ws.CustomFields[key]
 }
 
 // Context provides shared state accessible to all TUI components.
