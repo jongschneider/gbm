@@ -19,7 +19,6 @@ type testlsModel struct {
 	worktrees       []mockWorktree
 	trackedBranches map[string]bool
 	delay           time.Duration
-	selectedRow     int
 	// Async cell tracking
 	asyncStatuses map[int]*async.Cell[string] // Row index -> async cell for git status
 }
@@ -105,38 +104,38 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "esc":
 			return m, tea.Quit
 		case "up":
-			if m.selectedRow > 0 {
-				m.selectedRow--
-				m.table.SetCursor(m.selectedRow)
+			cursor := m.table.Cursor()
+			if cursor > 0 {
+				m.table.SetCursor(cursor - 1)
 			}
 			consumeKey = true
 		case "down":
-			if m.selectedRow < len(m.worktrees)-1 {
-				m.selectedRow++
-				m.table.SetCursor(m.selectedRow)
+			cursor := m.table.Cursor()
+			if cursor < len(m.worktrees)-1 {
+				m.table.SetCursor(cursor + 1)
 			}
 			consumeKey = true
 		case "enter", " ":
 			// Output selected worktree path and quit
-			fmt.Printf("%s\n", m.worktrees[m.selectedRow].Path)
+			fmt.Printf("%s\n", m.worktrees[m.table.Cursor()].Path)
 			return m, tea.Quit
 		case "l": // Pull
-			selectedName := m.worktrees[m.selectedRow].Name
+			selectedName := m.worktrees[m.table.Cursor()].Name
 			fmt.Fprintf(os.Stderr, "Would pull: %s\n", selectedName)
 			consumeKey = true
 		case "p": // Push
 			kind := "ad hoc"
-			if m.trackedBranches[m.worktrees[m.selectedRow].Branch] {
+			if m.trackedBranches[m.worktrees[m.table.Cursor()].Branch] {
 				kind = "tracked"
 			}
 			if kind == "tracked" {
 				fmt.Fprintf(os.Stderr, "Cannot push tracked worktree\n")
 			} else {
-				fmt.Fprintf(os.Stderr, "Would push: %s\n", m.worktrees[m.selectedRow].Name)
+				fmt.Fprintf(os.Stderr, "Would push: %s\n", m.worktrees[m.table.Cursor()].Name)
 			}
 			consumeKey = true
 		case "d": // Delete
-			fmt.Fprintf(os.Stderr, "Would delete: %s\n", m.worktrees[m.selectedRow].Name)
+			fmt.Fprintf(os.Stderr, "Would delete: %s\n", m.worktrees[m.table.Cursor()].Name)
 			consumeKey = true
 		}
 	}
@@ -145,7 +144,6 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !consumeKey {
 		tableModel, tableCmd := m.table.Update(msg)
 		m.table = tableModel
-		m.selectedRow = m.table.Cursor()
 
 		if tableCmd != nil {
 			cmds = append(cmds, tableCmd)
@@ -219,8 +217,9 @@ func (m *testlsModel) View() string {
 
 	// Determine if selected worktree is tracked
 	isTracked := false
-	if m.selectedRow < len(m.worktrees) {
-		isTracked = m.trackedBranches[m.worktrees[m.selectedRow].Branch]
+	cursor := m.table.Cursor()
+	if cursor < len(m.worktrees) {
+		isTracked = m.trackedBranches[m.worktrees[cursor].Branch]
 	}
 
 	help := "\n↑/↓: navigate • space/enter: select • l: pull"
@@ -336,7 +335,6 @@ func runTestLS(delay time.Duration) error {
 		worktrees:       mockWorktrees,
 		trackedBranches: trackedBranches,
 		delay:           delay,
-		selectedRow:     0,
 		asyncStatuses:   make(map[int]*async.Cell[string]),
 	}
 
