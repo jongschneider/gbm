@@ -1,8 +1,16 @@
 # Specification Directory
 
-This directory contains architectural patterns, best practices, and implementation guidelines for development on this project.
+Reference documentation, best practices, and implementation guidance.
 
-## Specifications
+## 🚀 Start Here
+
+### [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) ⭐
+**Condensed Phase 2 roadmap** — 10 stories, bullet points, citations to specs + code.  
+Read this if you want: Quick overview of what to build (15 min read)
+
+---
+
+## Detailed Specifications
 
 ### [BUBBLETEA.md](./BUBBLETEA.md)
 Comprehensive best practices for building Terminal User Interfaces (TUIs) with Bubble Tea. Covers event loop performance, debugging techniques, model architecture, layout patterns, testing strategies, and references to proven implementations.
