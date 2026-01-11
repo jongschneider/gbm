@@ -10,7 +10,7 @@
 
 | # | Story | Files | Tests | VHS | Hours |
 |---|-------|-------|-------|-----|-------|
-| 1 | Async Messages (FetchMsg/FetchCmd) | `pkg/tui/async/messages.go` + test | ✓ | - | 1-2 |
+| 1 | Async Messages (FetchMsg/FetchCmd) | `pkg/tui/async/messages.go` + test | ✓ | - | 1-2 | ✅ DONE |
 | 2 | Update Filterable with spinner | `pkg/tui/fields/filterable.go` + test | ✓ | - | 2-3 |
 | 3 | VHS recordings | `spec/vhs/*.tape` + `.gif` | - | ✓ | 1-2 |
 | 4 | Teatest helpers | `testutil/teatest_helpers.go` + test | ✓ | - | 1-2 |
@@ -23,15 +23,15 @@
 
 ---
 
-## Story 1: Async Messages (FetchMsg/FetchCmd)
+## Story 1: Async Messages (FetchMsg/FetchCmd) ✅ DONE
 
 **Why**: Foundation for non-blocking operations. Solves [BUBBLETEA.md §1](./BUBBLETEA.md#1-keep-the-event-loop-fast) blocking issue.
 
 **What to build**:
-- [ ] `pkg/tui/async/messages.go`: `FetchMsg[T]` struct + `FetchCmd[T]()` factory
+- [x] `pkg/tui/async/messages.go`: `FetchMsg[T]` struct + `FetchCmd[T]()` factory
   - Reference: [TUI_IMPROVEMENTS.md §1.A](./TUI_IMPROVEMENTS.md#a-convert-async-operations-to-commands)
-- [ ] `pkg/tui/async/messages_test.go`: Test successful/failed fetch, non-blocking behavior
-- [ ] No breaking changes to existing `Eval[T]`
+- [x] `pkg/tui/async/messages_test.go`: Test successful/failed fetch, non-blocking behavior
+- [x] No breaking changes to existing `Eval[T]`
 
 **Acceptance Criteria** (from [PRD_PHASE2.md §Story 1](../PRD_PHASE2.md#story-1-create-async-message-types-and-commands)):
 - FetchMsg has Value + Err fields ✓
@@ -40,7 +40,8 @@
 - No circular imports ✓
 
 **Test Framework**: Go testing + testify  
-**Dependencies**: None
+**Dependencies**: None  
+**Completed**: 2026-01-11
 
 ---
 

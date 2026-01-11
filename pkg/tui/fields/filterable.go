@@ -35,9 +35,10 @@ type Filterable struct {
 	noMatchStyle lipgloss.Style
 
 	// Async options support
-	optionsFunc *async.Eval[[]Option]
-	spinner     spinner.Model
-	asyncErr    error
+	optionsFetch func() ([]Option, error)
+	isLoading    bool
+	loadErr      error
+	spinner      spinner.Model
 }
 
 // NewFilterable creates a new Filterable field with the given title, description, and options.
@@ -66,38 +67,44 @@ func NewFilterable(key, title, description string, options []Option) *Filterable
 	}
 }
 
-// WithOptionsFunc configures Filterable to load options asynchronously.
-// The provided function will be called to fetch options, with results cached.
-func (f *Filterable) WithOptionsFunc(fetch func() ([]Option, error)) *Filterable {
-	f.optionsFunc = async.New(fetch)
+// WithOptionsFuncAsync configures Filterable to load options asynchronously using FetchCmd.
+// The provided function will be called to fetch options without blocking the event loop.
+func (f *Filterable) WithOptionsFuncAsync(fetch func() ([]Option, error)) *Filterable {
+	f.optionsFetch = fetch
 	return f
 }
 
 // Init implements Field.Init.
+// If async options are configured, returns a FetchCmd to load them without blocking.
 func (f *Filterable) Init() tea.Cmd {
+	if f.optionsFetch != nil {
+		f.isLoading = true
+		return async.FetchCmd(f.optionsFetch)
+	}
 	return textinput.Blink
 }
 
 // Update implements Field.Update.
 func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
-	// Handle spinner tick for async loading
+	// Handle FetchMsg for async option loading
+	if fetchMsg, ok := msg.(async.FetchMsg[[]Option]); ok {
+		f.isLoading = false
+		if fetchMsg.Err != nil {
+			f.loadErr = fetchMsg.Err
+			return f, nil
+		}
+		f.options = fetchMsg.Value
+		f.filterOptions()
+		return f, nil
+	}
+
+	// Handle spinner tick for visual feedback during loading
 	if _, ok := msg.(spinner.TickMsg); ok {
 		f.spinner, _ = f.spinner.Update(msg)
-		// Try to load options if using async
-		if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() && !f.optionsFunc.IsLoading() {
-			// Start loading in background
-			return f, func() tea.Msg {
-				opts, err := f.optionsFunc.Get()
-				if err != nil && err != async.ErrLoading {
-					f.asyncErr = err
-					return nil
-				}
-				f.options = opts
-				f.filterOptions()
-				return nil
-			}
+		if f.isLoading {
+			return f, f.spinner.Tick
 		}
-		return f, f.spinner.Tick
+		return f, nil
 	}
 
 	if !f.focused {
@@ -114,7 +121,7 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	}
 
 	// Block all input except cancel/quit while loading options
-	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() && f.asyncErr == nil {
+	if f.isLoading {
 		// Only allow cancel (Ctrl+C) or quit (q) keys while loading
 		if keyMsg.String() != "ctrl+c" && keyMsg.String() != "q" {
 			// Ignore all other input while loading
@@ -146,8 +153,8 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 	// Confirm selection
 	case KeyEnter:
-		// Require at least one option to be loaded and available before allowing submission
-		if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+		// Require options to be loaded before allowing submission
+		if f.isLoading {
 			// Still loading, don't allow submission
 			return f, nil
 		}
@@ -229,14 +236,14 @@ func (f *Filterable) View() string {
 	b.WriteString("\n\n")
 
 	// If loading options asynchronously, show spinner
-	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+	if f.isLoading {
 		b.WriteString(fmt.Sprintf("%s Loading options...", f.spinner.View()))
 		return b.String()
 	}
 
 	// Show any async error
-	if f.asyncErr != nil {
-		b.WriteString(styles.Error.Render(fmt.Sprintf("Error loading options: %v", f.asyncErr)))
+	if f.loadErr != nil {
+		b.WriteString(styles.Error.Render(fmt.Sprintf("Error loading options: %v", f.loadErr)))
 		return b.String()
 	}
 
@@ -282,8 +289,8 @@ func (f *Filterable) Focus() tea.Cmd {
 	f.focused = true
 	f.textInput.Focus()
 
-	// If using async options, start loading
-	if f.optionsFunc != nil && !f.optionsFunc.IsLoaded() {
+	// If currently loading options, show spinner
+	if f.isLoading {
 		return tea.Batch(
 			textinput.Blink,
 			f.spinner.Tick,

@@ -41,7 +41,7 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.JiraService == nil {
 					return []fields.Option{}, nil
 				}
@@ -77,7 +77,7 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 				labelBaseBranch,
 				"Choose the branch to base this feature on",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
@@ -125,7 +125,7 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.JiraService == nil {
 					return []fields.Option{}, nil
 				}
@@ -161,7 +161,7 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 				labelBaseBranch,
 				"Choose the branch to base this bug fix on",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
@@ -208,7 +208,7 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 				labelWorktreeSelection,
 				"Search JIRA issues or enter a custom name",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.JiraService == nil {
 					return []fields.Option{}, nil
 				}
@@ -236,7 +236,7 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 				labelBaseBranch,
 				"Choose the production or release branch to base this hotfix on",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
@@ -282,7 +282,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 				"Select Source Branch",
 				"Choose the branch to merge FROM",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
@@ -309,7 +309,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 				"Select Target Branch",
 				"Choose the branch to merge INTO",
 				[]fields.Option{},
-			).WithOptionsFunc(func() ([]fields.Option, error) {
+			).WithOptionsFuncAsync(func() ([]fields.Option, error) {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
