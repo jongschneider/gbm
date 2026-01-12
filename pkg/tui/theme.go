@@ -45,15 +45,22 @@ func DefaultTheme() *Theme {
 			Error:       lipgloss.NewStyle().Foreground(lipgloss.Color("124")),
 		},
 		Table: TableStyles{
-			// Header style: cyan text (matching old ls command)
-			Header: lipgloss.NewStyle().Foreground(lipgloss.Color("51")),
-			// Selected row: bright magenta background (matching old ls command)
-			Selected: lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("201")).Bold(true),
-			// Normal cell: white text for visibility
-			Cell: lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
+			// Header style: gray border bottom, not bold (matching DefaultTableStyles)
+			Header: lipgloss.NewStyle().
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.Color("240")).
+				BorderBottom(true).
+				Bold(false),
+			// Selected row: light yellow on purple (matching DefaultTableStyles)
+			Selected: lipgloss.NewStyle().
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("57")).
+				Bold(false),
+			// Normal cell: default styling
+			Cell: lipgloss.NewStyle(),
 			// Border style: subtle gray
 			Border: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-			// Base style: border around entire table (matching old ls command)
+			// Base style: border around entire table
 			Base: lipgloss.NewStyle().
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.Color("240")),
