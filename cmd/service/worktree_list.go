@@ -156,6 +156,23 @@ func newWorktreeTableTUI(
 
 // handleWorktreeTableTUI runs the TUI and handles the final output.
 func handleWorktreeTableTUI(svc WorktreeConfigService, gitOps WorktreeTableGitOps) error {
+	// Open /dev/tty for TUI rendering FIRST, before creating any models/styles
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+	}
+	defer func() {
+		_ = tty.Close()
+	}()
+
+	// Set up color renderer BEFORE creating the model, so styles are created with the correct renderer
+	renderer := lipgloss.NewRenderer(tty,
+		termenv.WithColorCache(true),
+		termenv.WithTTY(true),
+		termenv.WithProfile(termenv.TrueColor),
+	)
+	lipgloss.SetDefaultRenderer(renderer)
+
 	// Create model with mocked dependencies
 	m, err := newWorktreeTableTUI(svc, gitOps)
 	if err != nil {
@@ -166,22 +183,6 @@ func handleWorktreeTableTUI(svc WorktreeConfigService, gitOps WorktreeTableGitOp
 		fmt.Fprintln(os.Stderr, "No worktrees found")
 		return nil
 	}
-	// Open /dev/tty for TUI rendering
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
-	}
-	defer func() {
-		_ = tty.Close()
-	}()
-
-	// Set up color renderer
-	renderer := lipgloss.NewRenderer(tty,
-		termenv.WithColorCache(true),
-		termenv.WithTTY(true),
-		termenv.WithProfile(termenv.TrueColor),
-	)
-	lipgloss.SetDefaultRenderer(renderer)
 
 	// Run TUI
 	p := tea.NewProgram(m,
