@@ -89,12 +89,18 @@ func CalculateTableColumns(terminalWidth int) []table.Column {
 }
 
 // CalculateTableHeight returns the table height based on terminal height and row count.
-// Leaves room for help text and messages (4 lines).
+// The table height is set to show all available worktrees (rowCount).
+// The table library handles its own viewport rendering with header + data rows.
 func CalculateTableHeight(terminalHeight, rowCount int) int {
-	// Reserve space for help/status (4 lines) plus header (1 line), minimum 5
-	maxHeight := max(terminalHeight-5, 5)
-	// Show all rows up to max, plus 1 for header
-	return min(rowCount+1, maxHeight)
+	// Reserve space for header (1), message (1), help text (1), and padding (1)
+	reservedLines := 4
+	availableHeight := terminalHeight - reservedLines
+
+	// Use all available space or fit all rows, whichever is smaller
+	if rowCount+2 <= availableHeight {
+		return rowCount + 2 // 1 for header, 1 for border
+	}
+	return availableHeight
 }
 
 // SortWorktrees sorts worktrees by priority: current first, then tracked, then ad hoc.

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,10 +19,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// testlsGitOps defines the git operations needed by the testls TUI.
+// WorktreeConfigService defines the configuration service interface needed by the TUI.
+type WorktreeConfigService interface {
+	GetConfig() *Config
+}
+
+// WorktreeTableGitOps defines the git operations needed by the worktree table TUI.
 // This interface enables dependency injection and mock testing.
-type testlsGitOps interface {
+type WorktreeTableGitOps interface {
 	ListWorktrees(dryRun bool) ([]git.Worktree, error)
+	GetCurrentWorktree() (*git.Worktree, error)
 	GetBranchStatus(worktreePath string) (*git.BranchStatus, error)
 	RemoveWorktree(worktreeName string, force, dryRun bool) (*git.Worktree, error)
 	PullWorktree(worktreePath string, dryRun bool) error
@@ -48,7 +55,7 @@ type operationResultMsg struct {
 // clearMessageMsg is sent after a delay to clear the result message.
 type clearMessageMsg struct{}
 
-// testlsModel is the Bubble Tea model for the testls TUI.
+// testlsModel is the Bubble Tea model for the worktree table TUI.
 type testlsModel struct {
 	// Display components
 	ctx   *tui.Context
@@ -60,7 +67,7 @@ type testlsModel struct {
 	branchStatuses  map[string]*git.BranchStatus
 
 	// Dependencies
-	gitOps          testlsGitOps
+	gitOps          WorktreeTableGitOps
 	currentWorktree *git.Worktree
 
 	// State machine
@@ -81,7 +88,7 @@ func newTestlsModel(
 	trackedBranches map[string]bool,
 	branchStatuses map[string]*git.BranchStatus,
 	currentWorktree *git.Worktree,
-	gitOps testlsGitOps,
+	gitOps WorktreeTableGitOps,
 ) *testlsModel {
 	ctx := tui.NewContext()
 
@@ -100,11 +107,13 @@ func newTestlsModel(
 		{Title: "Status", Width: 15},
 	}
 
-	// Create table
+	// Create table with height for all rows (will be recalculated on WindowSizeMsg)
+	// Start with a reasonable default that fits all rows plus header
+	tableHeight := len(rows) + 1
 	tbl := tui.NewTable(ctx).
 		WithColumns(columns).
 		WithRows(rows).
-		WithHeight(min(len(rows)+1, 26)).
+		WithHeight(tableHeight).
 		WithFocused(true).
 		Build()
 
@@ -358,6 +367,9 @@ func (m *testlsModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 	}
 	m.table.SetRows(rows)
 
+	// Update table height to match new row count
+	m.table.SetHeight(CalculateTableHeight(m.ctx.Height, len(m.worktrees)))
+
 	// Adjust cursor if needed
 	if m.table.Cursor() >= len(m.worktrees) {
 		m.table.SetCursor(max(0, len(m.worktrees)-1))
@@ -474,56 +486,147 @@ func convertToTuiColumns(cols []table.Column) []tui.Column {
 	return result
 }
 
-// runTestlsTable runs the testls TUI.
-func runTestlsTable(worktrees []git.Worktree, trackedBranches map[string]bool, currentWorktree *git.Worktree, svc *Service) error {
-	// Open /dev/tty for TUI rendering
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+// mockWorktreeConfigService is a test mock for WorktreeConfigService.
+type mockWorktreeConfigService struct {
+	config *Config
+}
+
+func newMockWorktreeConfigService() *mockWorktreeConfigService {
+	return &mockWorktreeConfigService{
+		config: &Config{
+			DefaultBranch: "main",
+			WorktreesDir:  "worktrees",
+			Worktrees: map[string]WorktreeConfig{
+				"develop": {Branch: "develop"},
+				"staging": {Branch: "staging"},
+			},
+		},
 	}
-	defer func() {
-		_ = tty.Close()
-	}()
+}
 
-	// Set up color renderer
-	renderer := lipgloss.NewRenderer(tty,
-		termenv.WithColorCache(true),
-		termenv.WithTTY(true),
-		termenv.WithProfile(termenv.TrueColor),
-	)
-	lipgloss.SetDefaultRenderer(renderer)
+func (m *mockWorktreeConfigService) GetConfig() *Config {
+	return m.config
+}
 
-	// Fetch branch statuses concurrently
-	branchStatuses := fetchBranchStatuses(worktrees, svc.Git)
+// mockWorktreeTableGitOps is a test mock for WorktreeTableGitOps.
+type mockWorktreeTableGitOps struct {
+	worktrees []*git.Worktree
+	mu        sync.Mutex
+}
 
-	// Create model
-	m := newTestlsModel(worktrees, trackedBranches, branchStatuses, currentWorktree, svc.Git)
-
-	// Run TUI
-	p := tea.NewProgram(m,
-		tea.WithInput(tty),
-		tea.WithOutput(tty),
-		tea.WithAltScreen(),
-	)
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("error running TUI: %w", err)
+func newMockWorktreeTableGitOps() *mockWorktreeTableGitOps {
+	return &mockWorktreeTableGitOps{
+		worktrees: []*git.Worktree{
+			{
+				Name:   "main",
+				Path:   "/home/user/projects/main",
+				Branch: "main",
+				IsBare: false,
+			},
+			{
+				Name:   "develop",
+				Path:   "/home/user/projects/develop",
+				Branch: "develop",
+				IsBare: false,
+			},
+			{
+				Name:   "feature/foo",
+				Path:   "/home/user/projects/feature-foo",
+				Branch: "feature/foo",
+				IsBare: false,
+			},
+			{
+				Name:   "feature/bar",
+				Path:   "/home/user/projects/feature-bar",
+				Branch: "feature/bar",
+				IsBare: false,
+			},
+			{
+				Name:   "staging",
+				Path:   "/home/user/projects/staging",
+				Branch: "staging",
+				IsBare: false,
+			},
+		},
 	}
+}
 
-	// Output path to stdout if user selected a worktree
-	if model, ok := finalModel.(*testlsModel); ok {
-		if model.switchOutput != "" {
-			fmt.Println(model.switchOutput)
-			fmt.Fprintf(os.Stderr, "✓ Selected worktree: %s\n", filepath.Base(model.switchOutput))
+func (m *mockWorktreeTableGitOps) ListWorktrees(dryRun bool) ([]git.Worktree, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	result := make([]git.Worktree, len(m.worktrees))
+	for i, wt := range m.worktrees {
+		result[i] = *wt
+	}
+	return result, nil
+}
+
+func (m *mockWorktreeTableGitOps) GetCurrentWorktree() (*git.Worktree, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Return the first non-bare worktree as current
+	for _, wt := range m.worktrees {
+		if !wt.IsBare {
+			return wt, nil
 		}
 	}
+	return nil, fmt.Errorf("no current worktree")
+}
 
+func (m *mockWorktreeTableGitOps) GetBranchStatus(worktreePath string) (*git.BranchStatus, error) {
+	// Simulate delay to show status fetching
+	time.Sleep(time.Duration(rand.Intn(200)+100) * time.Millisecond)
+
+	// Generate random values
+	ahead := rand.Intn(5)            // 0-4 commits ahead
+	behind := rand.Intn(5)           // 0-4 commits behind
+	noRemote := rand.Float64() < 0.1 // 10% chance of no remote
+
+	// UpToDate only if no remote issues and both ahead/behind are 0
+	upToDate := !noRemote && ahead == 0 && behind == 0
+
+	return &git.BranchStatus{
+		Ahead:    ahead,
+		Behind:   behind,
+		UpToDate: upToDate,
+		NoRemote: noRemote,
+	}, nil
+}
+
+func (m *mockWorktreeTableGitOps) RemoveWorktree(worktreeName string, force, dryRun bool) (*git.Worktree, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Simulate delay to show spinner
+	time.Sleep(500 * time.Millisecond)
+
+	for i, wt := range m.worktrees {
+		if wt.Name == worktreeName {
+			// Remove from slice
+			removed := *wt
+			m.worktrees = append(m.worktrees[:i], m.worktrees[i+1:]...)
+			return &removed, nil
+		}
+	}
+	return nil, fmt.Errorf("worktree not found: %s", worktreeName)
+}
+
+func (m *mockWorktreeTableGitOps) PullWorktree(worktreePath string, dryRun bool) error {
+	// Simulate delay to show spinner
+	time.Sleep(400 * time.Millisecond)
+	return nil
+}
+
+func (m *mockWorktreeTableGitOps) PushWorktree(worktreePath string, dryRun bool) error {
+	// Simulate delay to show spinner
+	time.Sleep(400 * time.Millisecond)
 	return nil
 }
 
 // fetchBranchStatuses fetches branch statuses for all worktrees concurrently.
-func fetchBranchStatuses(worktrees []git.Worktree, gitSvc testlsGitOps) map[string]*git.BranchStatus {
+func fetchBranchStatuses(worktrees []git.Worktree, gitSvc WorktreeTableGitOps) map[string]*git.BranchStatus {
 	statuses := make(map[string]*git.BranchStatus)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -549,6 +652,79 @@ func fetchBranchStatuses(worktrees []git.Worktree, gitSvc testlsGitOps) map[stri
 	return statuses
 }
 
+// newWorktreeTableTUI creates a worktree table TUI model with injected dependencies.
+func newWorktreeTableTUI(
+	cfgSvc WorktreeConfigService,
+	gitOps WorktreeTableGitOps,
+) (*testlsModel, error) {
+	// Get worktrees
+	worktrees, err := gitOps.ListWorktrees(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	// Get tracked branches from config
+	config := cfgSvc.GetConfig()
+	trackedBranches := make(map[string]bool)
+	for _, wtConfig := range config.Worktrees {
+		trackedBranches[wtConfig.Branch] = true
+	}
+
+	// Get current worktree
+	currentWorktree, _ := gitOps.GetCurrentWorktree()
+
+	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
+	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
+
+	// Fetch branch statuses concurrently
+	branchStatuses := fetchBranchStatuses(sorted, gitOps)
+
+	// Create model
+	return newTestlsModel(sorted, trackedBranches, branchStatuses, currentWorktree, gitOps), nil
+}
+
+// handleWorktreeTableTUI runs the TUI and handles the final output.
+func handleWorktreeTableTUI(m *testlsModel) error {
+	// Open /dev/tty for TUI rendering
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+	}
+	defer func() {
+		_ = tty.Close()
+	}()
+
+	// Set up color renderer
+	renderer := lipgloss.NewRenderer(tty,
+		termenv.WithColorCache(true),
+		termenv.WithTTY(true),
+		termenv.WithProfile(termenv.TrueColor),
+	)
+	lipgloss.SetDefaultRenderer(renderer)
+
+	// Run TUI
+	p := tea.NewProgram(m,
+		tea.WithInput(tty),
+		tea.WithOutput(tty),
+		tea.WithAltScreen(),
+	)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("error running TUI: %w", err)
+	}
+
+	// Output path to stdout if user selected a worktree
+	if model, ok := finalModel.(*testlsModel); ok {
+		if model.switchOutput != "" {
+			fmt.Println(model.switchOutput)
+			fmt.Fprintf(os.Stderr, "✓ Selected worktree: %s\n", filepath.Base(model.switchOutput))
+		}
+	}
+
+	return nil
+}
+
 // newWorktreeTestlsCommand creates the testls subcommand.
 func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
 	return &cobra.Command{
@@ -556,31 +732,23 @@ func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
 		Short: "List worktrees with async operations (prototype)",
 		Long:  `Interactive TUI to list and manage worktrees with non-blocking async git operations.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get worktrees
-			worktrees, err := svc.Git.ListWorktrees(false)
+			// Use mock implementations for testing
+			mockCfg := newMockWorktreeConfigService()
+			mockGit := newMockWorktreeTableGitOps()
+
+			// Create model with mocked dependencies
+			m, err := newWorktreeTableTUI(mockCfg, mockGit)
 			if err != nil {
-				return fmt.Errorf("failed to list worktrees: %w", err)
+				return err
 			}
 
-			// Get tracked branches from config
-			config := svc.GetConfig()
-			trackedBranches := make(map[string]bool)
-			for _, wtConfig := range config.Worktrees {
-				trackedBranches[wtConfig.Branch] = true
-			}
-
-			// Get current worktree
-			currentWorktree, _ := svc.Git.GetCurrentWorktree()
-
-			// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
-			sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
-
-			if len(sorted) == 0 {
+			if len(m.worktrees) == 0 {
 				fmt.Fprintln(os.Stderr, "No worktrees found")
 				return nil
 			}
 
-			return runTestlsTable(sorted, trackedBranches, currentWorktree, svc)
+			// Run TUI and handle output
+			return handleWorktreeTableTUI(m)
 		},
 	}
 }
