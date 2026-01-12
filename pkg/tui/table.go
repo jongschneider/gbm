@@ -9,14 +9,14 @@ import (
 // Table is a reusable table component wrapping bubbles/table with theme support.
 // It applies consistent styling from the Theme and supports async cell rendering.
 type Table struct {
-	model      table.Model
-	ctx        *Context
-	theme      *Theme
-	columns    []table.Column
-	rows       []table.Row
-	asyncRows  map[int]*AsyncRow // Row index -> AsyncRow for tracking async cells
-	height     int
-	focused    bool
+	model     table.Model
+	ctx       *Context
+	theme     *Theme
+	columns   []table.Column
+	rows      []table.Row
+	asyncRows map[int]*AsyncRow // Row index -> AsyncRow for tracking async cells
+	height    int
+	focused   bool
 }
 
 // Column represents a table column definition.
@@ -28,9 +28,9 @@ type Column struct {
 // AsyncRow represents a table row with support for async cell loading.
 // It holds static string values and async cells that may be loading.
 type AsyncRow struct {
-	staticCells map[int]string                // Column index -> static cell value
-	asyncCells  map[int]*async.Cell[string]   // Column index -> async cell
-	tickCount   uint64                        // For syncing spinner animation
+	staticCells map[int]string              // Column index -> static cell value
+	asyncCells  map[int]*async.Cell[string] // Column index -> async cell
+	tickCount   uint64                      // For syncing spinner animation
 }
 
 // NewAsyncRow creates a new AsyncRow with initial static cells.
@@ -242,4 +242,18 @@ func (t *Table) SetCursor(pos int) {
 // SetHeight sets the visible height.
 func (t *Table) SetHeight(height int) {
 	t.model.SetHeight(height)
+}
+
+// SetColumns updates the table columns dynamically for responsive resizing.
+func (t *Table) SetColumns(columns []Column) {
+	t.columns = make([]table.Column, len(columns))
+	for i, c := range columns {
+		t.columns[i] = table.Column{Title: c.Title, Width: c.Width}
+	}
+	t.model.SetColumns(t.columns)
+}
+
+// Rows returns the current table rows.
+func (t *Table) Rows() []table.Row {
+	return t.model.Rows()
 }

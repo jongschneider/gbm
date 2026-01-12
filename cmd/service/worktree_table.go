@@ -19,6 +19,99 @@ var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240"))
 
+// FormatGitStatus formats a BranchStatus into a display string for the table.
+// Returns: ✓ (up to date), ↑ N (ahead), ↓ N (behind), ↕ N↑M↓ (diverged), ? (no remote), — (unknown).
+func FormatGitStatus(status *git.BranchStatus) string {
+	if status == nil {
+		return "—"
+	}
+	if status.NoRemote {
+		return "?"
+	}
+	if status.UpToDate {
+		return "✓"
+	}
+	if status.Ahead > 0 && status.Behind > 0 {
+		return fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
+	}
+	if status.Ahead > 0 {
+		return fmt.Sprintf("↑ %d", status.Ahead)
+	}
+	if status.Behind > 0 {
+		return fmt.Sprintf("↓ %d", status.Behind)
+	}
+	return "—"
+}
+
+// FormatWorktreeName formats a worktree name with a * prefix if it's the current worktree.
+func FormatWorktreeName(wt git.Worktree, currentWorktree *git.Worktree) string {
+	if currentWorktree != nil && wt.Name == currentWorktree.Name {
+		return "* " + wt.Name
+	}
+	return wt.Name
+}
+
+// FormatWorktreeKind returns "tracked" or "ad hoc" based on whether the branch is tracked.
+func FormatWorktreeKind(wt git.Worktree, trackedBranches map[string]bool) string {
+	if trackedBranches[wt.Branch] {
+		return "tracked"
+	}
+	return "ad hoc"
+}
+
+// BuildWorktreeRow creates a table row for a worktree using the shared formatting helpers.
+func BuildWorktreeRow(wt git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool, status *git.BranchStatus) table.Row {
+	return table.Row{
+		FormatWorktreeName(wt, currentWorktree),
+		wt.Branch,
+		FormatWorktreeKind(wt, trackedBranches),
+		FormatGitStatus(status),
+	}
+}
+
+// CalculateTableColumns returns responsive column widths based on terminal width.
+// Column ratios: Name 25% (min 15), Branch 45% (min 20), Kind 10% (min 8), Status 20% (min 10).
+func CalculateTableColumns(terminalWidth int) []table.Column {
+	// Account for table borders (~4 chars), minimum 60 chars
+	availableWidth := max(terminalWidth-4, 60)
+
+	nameWidth := max(availableWidth*25/100, 15)
+	branchWidth := max(availableWidth*45/100, 20)
+	kindWidth := max(availableWidth*10/100, 8)
+	statusWidth := max(availableWidth*20/100, 10)
+
+	return []table.Column{
+		{Title: "Name", Width: nameWidth},
+		{Title: "Branch", Width: branchWidth},
+		{Title: "Kind", Width: kindWidth},
+		{Title: "Git Status", Width: statusWidth},
+	}
+}
+
+// CalculateTableHeight returns the table height based on terminal height and row count.
+// Leaves room for help text and messages (4 lines).
+func CalculateTableHeight(terminalHeight, rowCount int) int {
+	// Reserve space for help/status (4 lines) plus header (1 line), minimum 5
+	maxHeight := max(terminalHeight-5, 5)
+	// Show all rows up to max, plus 1 for header
+	return min(rowCount+1, maxHeight)
+}
+
+// DefaultTableStyles returns the standard table styling.
+func DefaultTableStyles() table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	return s
+}
+
 type worktreeTableModel struct {
 	table            table.Model
 	worktrees        []git.Worktree
@@ -71,41 +164,11 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 	}
 	wg.Wait()
 
-	rows := []table.Row{}
+	// Build rows using shared helpers
+	rows := make([]table.Row, 0, len(worktrees))
 	for _, wt := range worktrees {
-		kind := "ad hoc"
-		if trackedBranches[wt.Branch] {
-			kind = "tracked"
-		}
-
-		// Get git status symbol
-		gitStatus := "—"
-		if status, ok := branchStatuses[wt.Name]; ok && status != nil {
-			if status.NoRemote {
-				gitStatus = "?"
-			} else if status.UpToDate {
-				gitStatus = "✓"
-			} else if status.Ahead > 0 && status.Behind > 0 {
-				gitStatus = fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
-			} else if status.Ahead > 0 {
-				gitStatus = fmt.Sprintf("↑ %d", status.Ahead)
-			} else if status.Behind > 0 {
-				gitStatus = fmt.Sprintf("↓ %d", status.Behind)
-			}
-		}
-
-		// Add * indicator if this is the current worktree
-		name := wt.Name
-		if currentWorktree != nil && wt.Name == currentWorktree.Name {
-			name = "* " + name
-		}
-
-		rows = append(rows, table.Row{
-			name,
-			wt.Branch,
-			kind,
-			gitStatus,
-		})
+		status := branchStatuses[wt.Name]
+		rows = append(rows, BuildWorktreeRow(wt, currentWorktree, trackedBranches, status))
 	}
 
 	// Calculate appropriate height (show all rows, or 25 max)
@@ -118,18 +181,7 @@ func newWorktreeTable(worktrees []git.Worktree, trackedBranches map[string]bool,
 		table.WithFocused(true),
 		table.WithHeight(height),
 	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
-	t.SetStyles(s)
+	t.SetStyles(DefaultTableStyles())
 
 	return worktreeTableModel{
 		table:           t,
@@ -204,21 +256,8 @@ func (m worktreeTableModel) refreshWorktreeStatus(index int) worktreeTableModel 
 		m.branchStatuses[wt.Name] = status
 	}
 
-	// Regenerate the git status string
-	gitStatus := "—"
-	if status != nil {
-		if status.NoRemote {
-			gitStatus = "?"
-		} else if status.UpToDate {
-			gitStatus = "✓"
-		} else if status.Ahead > 0 && status.Behind > 0 {
-			gitStatus = fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
-		} else if status.Ahead > 0 {
-			gitStatus = fmt.Sprintf("↑ %d", status.Ahead)
-		} else if status.Behind > 0 {
-			gitStatus = fmt.Sprintf("↓ %d", status.Behind)
-		}
-	}
+	// Regenerate the git status string using shared helper
+	gitStatus := FormatGitStatus(status)
 
 	// Update just this row in the table
 	rows := m.table.Rows()
