@@ -2,10 +2,6 @@ package service
 
 import (
 	"fmt"
-	"math/rand"
-	"os"
-	"path/filepath"
-	"sync"
 	"time"
 
 	"gbm/internal/git"
@@ -15,8 +11,6 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
-	"github.com/spf13/cobra"
 )
 
 // WorktreeConfigService defines the configuration service interface needed by the TUI.
@@ -55,8 +49,8 @@ type operationResultMsg struct {
 // clearMessageMsg is sent after a delay to clear the result message.
 type clearMessageMsg struct{}
 
-// testlsModel is the Bubble Tea model for the worktree table TUI.
-type testlsModel struct {
+// worktreeListModel is the Bubble Tea model for the worktree table TUI.
+type worktreeListModel struct {
 	// Display components
 	ctx   *tui.Context
 	table *tui.Table
@@ -82,14 +76,14 @@ type testlsModel struct {
 	switchOutput string // worktree path to output on exit
 }
 
-// newTestlsModel creates a new testlsModel with pre-fetched data.
-func newTestlsModel(
+// newWorktreeListModel creates a new testlsModel with pre-fetched data.
+func newWorktreeListModel(
 	worktrees []git.Worktree,
 	trackedBranches map[string]bool,
 	branchStatuses map[string]*git.BranchStatus,
 	currentWorktree *git.Worktree,
 	gitOps WorktreeTableGitOps,
-) *testlsModel {
+) *worktreeListModel {
 	ctx := tui.NewContext()
 
 	// Build rows using shared helpers
@@ -122,7 +116,7 @@ func newTestlsModel(
 	sp.Spinner = spinner.Line
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
-	return &testlsModel{
+	return &worktreeListModel{
 		ctx:             ctx,
 		table:           tbl,
 		worktrees:       worktrees,
@@ -136,12 +130,12 @@ func newTestlsModel(
 }
 
 // Init implements tea.Model.
-func (m *testlsModel) Init() tea.Cmd {
+func (m *worktreeListModel) Init() tea.Cmd {
 	return m.spinner.Tick
 }
 
 // Update implements tea.Model with the state machine.
-func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.ctx = m.ctx.WithDimensions(msg.Width, msg.Height)
@@ -177,7 +171,7 @@ func (m *testlsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsg processes key presses based on current state.
-func (m *testlsModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateIdle:
 		return m.handleIdleKeyMsg(msg)
@@ -195,7 +189,7 @@ func (m *testlsModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleIdleKeyMsg handles keys in idle state.
-func (m *testlsModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c", "esc":
 		return m, tea.Quit
@@ -240,7 +234,7 @@ func (m *testlsModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleConfirmingKeyMsg handles keys in confirmation state.
-func (m *testlsModel) handleConfirmingKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) handleConfirmingKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y", "Y":
 		return m.startOperation("delete")
@@ -254,7 +248,7 @@ func (m *testlsModel) handleConfirmingKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd
 }
 
 // startOperation initiates an async git operation.
-func (m *testlsModel) startOperation(opType string) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) startOperation(opType string) (tea.Model, tea.Cmd) {
 	cursor := m.table.Cursor()
 	if cursor < 0 || cursor >= len(m.worktrees) {
 		return m, nil
@@ -277,7 +271,7 @@ func (m *testlsModel) startOperation(opType string) (tea.Model, tea.Cmd) {
 }
 
 // createOperationCmd creates a tea.Cmd for the git operation.
-func (m *testlsModel) createOperationCmd(opType string, wt git.Worktree) tea.Cmd {
+func (m *worktreeListModel) createOperationCmd(opType string, wt git.Worktree) tea.Cmd {
 	return func() tea.Msg {
 		var err error
 		var newStatus *git.BranchStatus
@@ -307,7 +301,7 @@ func (m *testlsModel) createOperationCmd(opType string, wt git.Worktree) tea.Cmd
 }
 
 // handleOperationResult processes the result of an async operation.
-func (m *testlsModel) handleOperationResult(msg operationResultMsg) (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) handleOperationResult(msg operationResultMsg) (tea.Model, tea.Cmd) {
 	m.state = stateIdle
 	m.currentOp = ""
 
@@ -343,7 +337,7 @@ func (m *testlsModel) handleOperationResult(msg operationResultMsg) (tea.Model, 
 }
 
 // refreshAfterDelete reloads the worktree list after a delete.
-func (m *testlsModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
+func (m *worktreeListModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 	worktrees, err := m.gitOps.ListWorktrees(false)
 	if err != nil {
 		m.message = fmt.Sprintf("Error refreshing: %v", err)
@@ -379,7 +373,7 @@ func (m *testlsModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 }
 
 // updateOperatingRow updates the current row to show spinner.
-func (m *testlsModel) updateOperatingRow() {
+func (m *worktreeListModel) updateOperatingRow() {
 	if m.operationIndex >= len(m.worktrees) {
 		return
 	}
@@ -401,7 +395,7 @@ func (m *testlsModel) updateOperatingRow() {
 }
 
 // updateRow updates a specific row in the table.
-func (m *testlsModel) updateRow(index int, row table.Row) {
+func (m *worktreeListModel) updateRow(index int, row table.Row) {
 	rows := m.table.Rows()
 	if index < len(rows) {
 		rows[index] = row
@@ -410,7 +404,7 @@ func (m *testlsModel) updateRow(index int, row table.Row) {
 }
 
 // clampCursor ensures the table cursor stays within valid bounds.
-func (m *testlsModel) clampCursor() {
+func (m *worktreeListModel) clampCursor() {
 	if len(m.worktrees) == 0 {
 		return
 	}
@@ -423,14 +417,14 @@ func (m *testlsModel) clampCursor() {
 }
 
 // scheduleClearMessage returns a command to clear the message after 2 seconds.
-func (m *testlsModel) scheduleClearMessage() tea.Cmd {
+func (m *worktreeListModel) scheduleClearMessage() tea.Cmd {
 	return tea.Tick(2*time.Second, func(time.Time) tea.Msg {
 		return clearMessageMsg{}
 	})
 }
 
 // View implements tea.Model.
-func (m *testlsModel) View() string {
+func (m *worktreeListModel) View() string {
 	var output string
 
 	// Render table
@@ -484,271 +478,4 @@ func convertToTuiColumns(cols []table.Column) []tui.Column {
 		result[i] = tui.Column{Title: c.Title, Width: c.Width}
 	}
 	return result
-}
-
-// mockWorktreeConfigService is a test mock for WorktreeConfigService.
-type mockWorktreeConfigService struct {
-	config *Config
-}
-
-func newMockWorktreeConfigService() *mockWorktreeConfigService {
-	return &mockWorktreeConfigService{
-		config: &Config{
-			DefaultBranch: "main",
-			WorktreesDir:  "worktrees",
-			Worktrees: map[string]WorktreeConfig{
-				"develop": {Branch: "develop"},
-				"staging": {Branch: "staging"},
-			},
-		},
-	}
-}
-
-func (m *mockWorktreeConfigService) GetConfig() *Config {
-	return m.config
-}
-
-// mockWorktreeTableGitOps is a test mock for WorktreeTableGitOps.
-type mockWorktreeTableGitOps struct {
-	worktrees []*git.Worktree
-	mu        sync.Mutex
-}
-
-func newMockWorktreeTableGitOps() *mockWorktreeTableGitOps {
-	return &mockWorktreeTableGitOps{
-		worktrees: []*git.Worktree{
-			{
-				Name:   "main",
-				Path:   "/home/user/projects/main",
-				Branch: "main",
-				IsBare: false,
-			},
-			{
-				Name:   "develop",
-				Path:   "/home/user/projects/develop",
-				Branch: "develop",
-				IsBare: false,
-			},
-			{
-				Name:   "feature/foo",
-				Path:   "/home/user/projects/feature-foo",
-				Branch: "feature/foo",
-				IsBare: false,
-			},
-			{
-				Name:   "feature/bar",
-				Path:   "/home/user/projects/feature-bar",
-				Branch: "feature/bar",
-				IsBare: false,
-			},
-			{
-				Name:   "staging",
-				Path:   "/home/user/projects/staging",
-				Branch: "staging",
-				IsBare: false,
-			},
-		},
-	}
-}
-
-func (m *mockWorktreeTableGitOps) ListWorktrees(dryRun bool) ([]git.Worktree, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	result := make([]git.Worktree, len(m.worktrees))
-	for i, wt := range m.worktrees {
-		result[i] = *wt
-	}
-	return result, nil
-}
-
-func (m *mockWorktreeTableGitOps) GetCurrentWorktree() (*git.Worktree, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Return the first non-bare worktree as current
-	for _, wt := range m.worktrees {
-		if !wt.IsBare {
-			return wt, nil
-		}
-	}
-	return nil, fmt.Errorf("no current worktree")
-}
-
-func (m *mockWorktreeTableGitOps) GetBranchStatus(worktreePath string) (*git.BranchStatus, error) {
-	// Simulate delay to show status fetching
-	time.Sleep(time.Duration(rand.Intn(200)+100) * time.Millisecond)
-
-	// Generate random values
-	ahead := rand.Intn(5)            // 0-4 commits ahead
-	behind := rand.Intn(5)           // 0-4 commits behind
-	noRemote := rand.Float64() < 0.1 // 10% chance of no remote
-
-	// UpToDate only if no remote issues and both ahead/behind are 0
-	upToDate := !noRemote && ahead == 0 && behind == 0
-
-	return &git.BranchStatus{
-		Ahead:    ahead,
-		Behind:   behind,
-		UpToDate: upToDate,
-		NoRemote: noRemote,
-	}, nil
-}
-
-func (m *mockWorktreeTableGitOps) RemoveWorktree(worktreeName string, force, dryRun bool) (*git.Worktree, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Simulate delay to show spinner
-	time.Sleep(500 * time.Millisecond)
-
-	for i, wt := range m.worktrees {
-		if wt.Name == worktreeName {
-			// Remove from slice
-			removed := *wt
-			m.worktrees = append(m.worktrees[:i], m.worktrees[i+1:]...)
-			return &removed, nil
-		}
-	}
-	return nil, fmt.Errorf("worktree not found: %s", worktreeName)
-}
-
-func (m *mockWorktreeTableGitOps) PullWorktree(worktreePath string, dryRun bool) error {
-	// Simulate delay to show spinner
-	time.Sleep(400 * time.Millisecond)
-	return nil
-}
-
-func (m *mockWorktreeTableGitOps) PushWorktree(worktreePath string, dryRun bool) error {
-	// Simulate delay to show spinner
-	time.Sleep(400 * time.Millisecond)
-	return nil
-}
-
-// fetchBranchStatuses fetches branch statuses for all worktrees concurrently.
-func fetchBranchStatuses(worktrees []git.Worktree, gitSvc WorktreeTableGitOps) map[string]*git.BranchStatus {
-	statuses := make(map[string]*git.BranchStatus)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, wt := range worktrees {
-		if wt.IsBare {
-			continue
-		}
-
-		wg.Add(1)
-		go func(worktree git.Worktree) {
-			defer wg.Done()
-			status, err := gitSvc.GetBranchStatus(worktree.Path)
-			if err == nil && status != nil {
-				mu.Lock()
-				statuses[worktree.Name] = status
-				mu.Unlock()
-			}
-		}(wt)
-	}
-	wg.Wait()
-
-	return statuses
-}
-
-// newWorktreeTableTUI creates a worktree table TUI model with injected dependencies.
-func newWorktreeTableTUI(
-	cfgSvc WorktreeConfigService,
-	gitOps WorktreeTableGitOps,
-) (*testlsModel, error) {
-	// Get worktrees
-	worktrees, err := gitOps.ListWorktrees(false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list worktrees: %w", err)
-	}
-
-	// Get tracked branches from config
-	config := cfgSvc.GetConfig()
-	trackedBranches := make(map[string]bool)
-	for _, wtConfig := range config.Worktrees {
-		trackedBranches[wtConfig.Branch] = true
-	}
-
-	// Get current worktree
-	currentWorktree, _ := gitOps.GetCurrentWorktree()
-
-	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
-	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
-
-	// Fetch branch statuses concurrently
-	branchStatuses := fetchBranchStatuses(sorted, gitOps)
-
-	// Create model
-	return newTestlsModel(sorted, trackedBranches, branchStatuses, currentWorktree, gitOps), nil
-}
-
-// handleWorktreeTableTUI runs the TUI and handles the final output.
-func handleWorktreeTableTUI(m *testlsModel) error {
-	// Open /dev/tty for TUI rendering
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
-	}
-	defer func() {
-		_ = tty.Close()
-	}()
-
-	// Set up color renderer
-	renderer := lipgloss.NewRenderer(tty,
-		termenv.WithColorCache(true),
-		termenv.WithTTY(true),
-		termenv.WithProfile(termenv.TrueColor),
-	)
-	lipgloss.SetDefaultRenderer(renderer)
-
-	// Run TUI
-	p := tea.NewProgram(m,
-		tea.WithInput(tty),
-		tea.WithOutput(tty),
-		tea.WithAltScreen(),
-	)
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("error running TUI: %w", err)
-	}
-
-	// Output path to stdout if user selected a worktree
-	if model, ok := finalModel.(*testlsModel); ok {
-		if model.switchOutput != "" {
-			fmt.Println(model.switchOutput)
-			fmt.Fprintf(os.Stderr, "✓ Selected worktree: %s\n", filepath.Base(model.switchOutput))
-		}
-	}
-
-	return nil
-}
-
-// newWorktreeTestlsCommand creates the testls subcommand.
-func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
-	return &cobra.Command{
-		Use:   "testls",
-		Short: "List worktrees with async operations (prototype)",
-		Long:  `Interactive TUI to list and manage worktrees with non-blocking async git operations.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Use mock implementations for testing
-			mockCfg := newMockWorktreeConfigService()
-			mockGit := newMockWorktreeTableGitOps()
-
-			// Create model with mocked dependencies
-			m, err := newWorktreeTableTUI(mockCfg, mockGit)
-			if err != nil {
-				return err
-			}
-
-			if len(m.worktrees) == 0 {
-				fmt.Fprintln(os.Stderr, "No worktrees found")
-				return nil
-			}
-
-			// Run TUI and handle output
-			return handleWorktreeTableTUI(m)
-		},
-	}
 }
