@@ -1,6 +1,10 @@
 ---
 name: validate-tmux-session
-description: Creates a Tmux session in a temporary directory, displays the session name, proceeds with interactive commands. Use when you need to run commands and manually evaluate cli output.
+description: Creates a Tmux session in a directory, displays the session name, proceeds with interactive commands. Use when you need to run commands and manually evaluate cli output.
+args:
+  - name: directory
+    description: Optional directory to create the session in. If not provided, creates a temp directory.
+    required: false
 ---
 
 # Interactive Tmux Session Skill
@@ -9,7 +13,7 @@ Creates an interactive Tmux session for paired testing and demonstration.
 
 ## Usage Pattern
 
-1. Create a Tmux session in a temp directory
+1. Create a Tmux session in the specified directory (or temp directory if none provided)
 2. Print the session name for user to attach
 3. Execute commands in the session using `tmux send-keys` and `tmux capture-pane`
 
@@ -17,14 +21,29 @@ Creates an interactive Tmux session for paired testing and demonstration.
 
 ### 1. Create Session and Print Details
 
+**If a directory argument is provided:**
 ```bash
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR"
-git init -q
-tmux new-session -d -s "session_$(date +%s)" -c "$TMPDIR"
+WORKDIR="/path/to/directory"  # Replace with actual argument
+if [ ! -d "$WORKDIR" ]; then
+    echo "Error: Directory '$WORKDIR' does not exist"
+    exit 1
+fi
+cd "$WORKDIR"
+tmux new-session -d -s "session_$(date +%s)" -c "$WORKDIR"
 SESSION_NAME=$(tmux list-sessions | grep "session_" | cut -d: -f1 | tail -1)
 echo "Session: $SESSION_NAME"
-echo "Temp dir: $TMPDIR"
+echo "Working dir: $WORKDIR"
+```
+
+**If no directory argument is provided (default behavior):**
+```bash
+WORKDIR=$(mktemp -d)
+cd "$WORKDIR"
+git init -q
+tmux new-session -d -s "session_$(date +%s)" -c "$WORKDIR"
+SESSION_NAME=$(tmux list-sessions | grep "session_" | cut -d: -f1 | tail -1)
+echo "Session: $SESSION_NAME"
+echo "Temp dir: $WORKDIR"
 ```
 
 ### 2. Execute Commands in Session
@@ -49,13 +68,33 @@ tmux capture-pane -t "$SESSION_NAME" -p  # Capture and display
 
 ## Example: Full Workflow
 
+**With directory argument:**
 ```bash
-# 1. Setup
-TMPDIR=$(mktemp -d)
-tmux new-session -d -s "demo_$(date +%s)" -c "$TMPDIR"
+# 1. Setup with provided directory
+WORKDIR="/path/to/project"
+if [ ! -d "$WORKDIR" ]; then
+    echo "Error: Directory '$WORKDIR' does not exist"
+    exit 1
+fi
+tmux new-session -d -s "demo_$(date +%s)" -c "$WORKDIR"
 SESSION=$(tmux list-sessions | grep "demo_" | cut -d: -f1 | tail -1)
 echo "Session: $SESSION"
-echo "Dir: $TMPDIR"
+echo "Dir: $WORKDIR"
+
+# 2. Execute commands
+tmux send-keys -t "$SESSION" "echo 'Hello from Tmux!'" Enter
+sleep 2
+tmux capture-pane -t "$SESSION" -p
+```
+
+**Without directory argument (temp directory):**
+```bash
+# 1. Setup with temp directory
+WORKDIR=$(mktemp -d)
+tmux new-session -d -s "demo_$(date +%s)" -c "$WORKDIR"
+SESSION=$(tmux list-sessions | grep "demo_" | cut -d: -f1 | tail -1)
+echo "Session: $SESSION"
+echo "Dir: $WORKDIR"
 
 # 2. Execute commands
 tmux send-keys -t "$SESSION" "echo 'Hello from Tmux!'" Enter
