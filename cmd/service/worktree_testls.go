@@ -562,19 +562,6 @@ func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
 				return fmt.Errorf("failed to list worktrees: %w", err)
 			}
 
-			// Filter out bare worktrees and sort by priority
-			var filtered []git.Worktree
-			for _, wt := range worktrees {
-				if !wt.IsBare {
-					filtered = append(filtered, wt)
-				}
-			}
-
-			if len(filtered) == 0 {
-				fmt.Fprintln(os.Stderr, "No worktrees found")
-				return nil
-			}
-
 			// Get tracked branches from config
 			config := svc.GetConfig()
 			trackedBranches := make(map[string]bool)
@@ -585,7 +572,15 @@ func newWorktreeTestlsCommand(svc *Service) *cobra.Command {
 			// Get current worktree
 			currentWorktree, _ := svc.Git.GetCurrentWorktree()
 
-			return runTestlsTable(filtered, trackedBranches, currentWorktree, svc)
+			// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
+			sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
+
+			if len(sorted) == 0 {
+				fmt.Fprintln(os.Stderr, "No worktrees found")
+				return nil
+			}
+
+			return runTestlsTable(sorted, trackedBranches, currentWorktree, svc)
 		},
 	}
 }

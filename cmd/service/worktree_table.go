@@ -97,6 +97,33 @@ func CalculateTableHeight(terminalHeight, rowCount int) int {
 	return min(rowCount+1, maxHeight)
 }
 
+// SortWorktrees sorts worktrees by priority: current first, then tracked, then ad hoc.
+// Bare worktrees are excluded from the result.
+func SortWorktrees(worktrees []git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool) []git.Worktree {
+	var sorted []git.Worktree
+	var tracked []git.Worktree
+	var adHoc []git.Worktree
+
+	for _, wt := range worktrees {
+		if wt.IsBare {
+			continue
+		}
+		if currentWorktree != nil && wt.Name == currentWorktree.Name {
+			sorted = append(sorted, wt)
+			continue
+		}
+		if trackedBranches[wt.Branch] {
+			tracked = append(tracked, wt)
+			continue
+		}
+		adHoc = append(adHoc, wt)
+	}
+
+	sorted = append(sorted, tracked...)
+	sorted = append(sorted, adHoc...)
+	return sorted
+}
+
 // DefaultTableStyles returns the standard table styling.
 func DefaultTableStyles() table.Styles {
 	s := table.DefaultStyles()
@@ -206,32 +233,8 @@ func (m worktreeTableModel) refreshTable() worktreeTableModel {
 		return m
 	}
 
-	// Categorize worktrees: current first (if found), then tracked, then ad hoc (exclude bare)
-	var sortedWorktrees []git.Worktree
-	var trackedWorktrees []git.Worktree
-	var adHocWorktrees []git.Worktree
-
-	for _, wt := range worktrees {
-		if wt.IsBare {
-			// Skip bare repository
-			continue
-		}
-		if m.currentWorktree != nil && wt.Name == m.currentWorktree.Name {
-			// Add current worktree first and skip categorization
-			sortedWorktrees = append(sortedWorktrees, wt)
-			continue
-		}
-
-		if m.trackedBranches[wt.Branch] {
-			trackedWorktrees = append(trackedWorktrees, wt)
-			continue
-		}
-		adHocWorktrees = append(adHocWorktrees, wt)
-	}
-
-	// Append categorized worktrees in priority order: tracked, ad hoc
-	sortedWorktrees = append(sortedWorktrees, trackedWorktrees...)
-	sortedWorktrees = append(sortedWorktrees, adHocWorktrees...)
+	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
+	sortedWorktrees := SortWorktrees(worktrees, m.currentWorktree, m.trackedBranches)
 
 	// Rebuild the table with updated worktrees (will fetch branch statuses again)
 	return newWorktreeTable(sortedWorktrees, m.trackedBranches, m.currentWorktree, m.svc)
