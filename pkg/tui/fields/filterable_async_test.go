@@ -253,8 +253,9 @@ func TestFilterable_SpinnerTicks(t *testing.T) {
 	field, cmd := f.Update(msg)
 	f = field.(*Filterable)
 
-	// Should return a tick command for animation
+	// Should return a tick command for animation and still be loading
 	assert.NotNil(t, cmd, "should return spinner.Tick command while loading")
+	assert.True(t, f.isLoading, "should still be loading after spinner tick")
 }
 
 func TestFilterable_WithOptionsFuncAsync_Chaining(t *testing.T) {

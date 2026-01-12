@@ -64,7 +64,8 @@ func (c *Cell[T]) StartLoading() tea.Cmd {
 // Call this from Update() on each tick to animate the spinner.
 func (c *Cell[T]) Tick() {
 	// Update spinner with tick message
-	c.spinner, _ = c.spinner.Update(spinner.Tick())
+	newSpinner, _ := c.spinner.Update(c.spinner.Tick())
+	c.spinner = newSpinner
 }
 
 // IsLoading returns true if the async fetch is still in progress.
