@@ -13,6 +13,132 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// FormatGitStatus formats a BranchStatus into a display string for the table.
+// Returns: ✓ (up to date), ↑ N (ahead), ↓ N (behind), ↕ N↑M↓ (diverged), ? (no remote), — (unknown).
+func FormatGitStatus(status *git.BranchStatus) string {
+	if status == nil {
+		return "—"
+	}
+	if status.NoRemote {
+		return "?"
+	}
+	if status.UpToDate {
+		return "✓"
+	}
+	if status.Ahead > 0 && status.Behind > 0 {
+		return fmt.Sprintf("↕ %d↑%d↓", status.Ahead, status.Behind)
+	}
+	if status.Ahead > 0 {
+		return fmt.Sprintf("↑ %d", status.Ahead)
+	}
+	if status.Behind > 0 {
+		return fmt.Sprintf("↓ %d", status.Behind)
+	}
+	return "—"
+}
+
+// FormatWorktreeName formats a worktree name with a * prefix if it's the current worktree.
+func FormatWorktreeName(wt git.Worktree, currentWorktree *git.Worktree) string {
+	if currentWorktree != nil && wt.Name == currentWorktree.Name {
+		return "* " + wt.Name
+	}
+	return wt.Name
+}
+
+// FormatWorktreeKind returns "tracked" or "ad hoc" based on whether the branch is tracked.
+func FormatWorktreeKind(wt git.Worktree, trackedBranches map[string]bool) string {
+	if trackedBranches[wt.Branch] {
+		return "tracked"
+	}
+	return "ad hoc"
+}
+
+// BuildWorktreeRow creates a table row for a worktree using the shared formatting helpers.
+func BuildWorktreeRow(wt git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool, status *git.BranchStatus) table.Row {
+	return table.Row{
+		FormatWorktreeName(wt, currentWorktree),
+		wt.Branch,
+		FormatWorktreeKind(wt, trackedBranches),
+		FormatGitStatus(status),
+	}
+}
+
+// CalculateTableColumns returns responsive column widths based on terminal width.
+// Column ratios: Name 25% (min 15), Branch 45% (min 20), Kind 10% (min 8), Status 20% (min 10).
+func CalculateTableColumns(terminalWidth int) []table.Column {
+	// Account for table borders (~4 chars), minimum 60 chars
+	availableWidth := max(terminalWidth-4, 60)
+
+	nameWidth := max(availableWidth*25/100, 15)
+	branchWidth := max(availableWidth*45/100, 20)
+	kindWidth := max(availableWidth*10/100, 8)
+	statusWidth := max(availableWidth*20/100, 10)
+
+	return []table.Column{
+		{Title: "Name", Width: nameWidth},
+		{Title: "Branch", Width: branchWidth},
+		{Title: "Kind", Width: kindWidth},
+		{Title: "Git Status", Width: statusWidth},
+	}
+}
+
+// CalculateTableHeight returns the table height based on terminal height and row count.
+// The table height is set to show all available worktrees (rowCount).
+// The table library handles its own viewport rendering with header + data rows.
+func CalculateTableHeight(terminalHeight, rowCount int) int {
+	// Reserve space for header (1), message (1), help text (1), and padding (1)
+	reservedLines := 4
+	availableHeight := terminalHeight - reservedLines
+
+	// Use all available space or fit all rows, whichever is smaller
+	if rowCount+2 <= availableHeight {
+		return rowCount + 2 // 1 for header, 1 for border
+	}
+	return availableHeight
+}
+
+// SortWorktrees sorts worktrees by priority: current first, then tracked, then ad hoc.
+// Bare worktrees are excluded from the result.
+func SortWorktrees(worktrees []git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool) []git.Worktree {
+	var sorted []git.Worktree
+	var tracked []git.Worktree
+	var adHoc []git.Worktree
+
+	for _, wt := range worktrees {
+		if wt.IsBare {
+			continue
+		}
+		if currentWorktree != nil && wt.Name == currentWorktree.Name {
+			sorted = append(sorted, wt)
+			continue
+		}
+		if trackedBranches[wt.Branch] {
+			tracked = append(tracked, wt)
+			continue
+		}
+		adHoc = append(adHoc, wt)
+	}
+
+	sorted = append(sorted, tracked...)
+	sorted = append(sorted, adHoc...)
+	return sorted
+}
+
+// DefaultTableStyles returns the standard table styling.
+func DefaultTableStyles() table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	return s
+}
+
 // WorktreeConfigService defines the configuration service interface needed by the TUI.
 type WorktreeConfigService interface {
 	GetConfig() *Config
