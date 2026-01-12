@@ -233,6 +233,8 @@ func (m *testlsModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Forward navigation to table
 	_, cmd := m.table.Update(msg)
+	// Guard against cursor going out of bounds (bubbles/table handles additional keys)
+	m.clampCursor()
 	return m, cmd
 }
 
@@ -400,6 +402,19 @@ func (m *testlsModel) updateRow(index int, row table.Row) {
 	if index < len(rows) {
 		rows[index] = row
 		m.table.SetRows(rows)
+	}
+}
+
+// clampCursor ensures the table cursor stays within valid bounds.
+func (m *testlsModel) clampCursor() {
+	if len(m.worktrees) == 0 {
+		return
+	}
+	cursor := m.table.Cursor()
+	if cursor < 0 {
+		m.table.SetCursor(0)
+	} else if cursor >= len(m.worktrees) {
+		m.table.SetCursor(len(m.worktrees) - 1)
 	}
 }
 
