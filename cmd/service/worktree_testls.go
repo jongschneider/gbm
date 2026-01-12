@@ -191,14 +191,6 @@ func (m *testlsModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c", "esc":
 		return m, tea.Quit
 
-	case "up", "k":
-		m.table.SetCursor(max(0, m.table.Cursor()-1))
-		return m, nil
-
-	case "down", "j":
-		m.table.SetCursor(min(len(m.worktrees)-1, m.table.Cursor()+1))
-		return m, nil
-
 	case " ", "enter":
 		cursor := m.table.Cursor()
 		if cursor >= 0 && cursor < len(m.worktrees) {
