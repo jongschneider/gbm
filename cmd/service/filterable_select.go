@@ -69,7 +69,7 @@ func NewFilterableSelect(title, description string, items []FilterableItem) Filt
 	ti.Placeholder = "Type to filter or enter custom value..."
 	ti.Focus()
 	ti.CharLimit = 200
-	ti.Width = 80
+	ti.Width = 80 // Will be adjusted based on terminal width in Update()
 
 	// Convert FilterableItems to list.Items
 	listItems := make([]list.Item, len(items))
@@ -155,6 +155,12 @@ func (m FilterableSelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		// Use min of CharLimit and terminal width for text input
+		inputWidth := m.textInput.CharLimit
+		if msg.Width-4 < inputWidth {
+			inputWidth = msg.Width - 4
+		}
+		m.textInput.Width = inputWidth
 		m.list.SetWidth(msg.Width - 4)
 		m.list.SetHeight(msg.Height - 10)
 	}
