@@ -386,6 +386,19 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 			}
 		}
 
+		// Skip links that reference the parent issue (deduplicate parent from linked issues)
+		if ticket.Parent != nil {
+			linkedKey := ""
+			if link.InwardIssue != nil {
+				linkedKey = link.InwardIssue.Key
+			} else if link.OutwardIssue != nil {
+				linkedKey = link.OutwardIssue.Key
+			}
+			if linkedKey == ticket.Parent.Key {
+				continue
+			}
+		}
+
 		ticket.IssueLinks = append(ticket.IssueLinks, link)
 	}
 

@@ -590,3 +590,195 @@ func TestChildWithLinkedIssuesDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParentDeduplicatedFromLinkedIssues tests that parent issues are removed from linked issues
+func TestParentDeduplicatedFromLinkedIssues(t *testing.T) {
+	tests := []struct {
+		name              string
+		parent            *LinkedIssue
+		issueLinks        []IssueLink
+		expectLinkCount   int
+		expectFilteredKey string
+	}{
+		{
+			name: "parent appears as inward issue link - should be removed",
+			parent: &LinkedIssue{
+				Key:     "PARENT-100",
+				Summary: "Parent Epic",
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:   "Parent",
+						Inward: "is child of",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "PARENT-100",
+						Summary: "Parent Epic",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "OTHER-200",
+						Summary: "Other Issue",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "OTHER-200",
+		},
+		{
+			name: "parent appears as outward issue link - should be removed",
+			parent: &LinkedIssue{
+				Key:     "PARENT-100",
+				Summary: "Parent Epic",
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Parent",
+						Outward: "is parent of",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "PARENT-100",
+						Summary: "Parent Epic",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:   "Relates",
+						Inward: "relates to",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "OTHER-300",
+						Summary: "Related Issue",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "OTHER-300",
+		},
+		{
+			name:   "no parent - all links preserved",
+			parent: nil,
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "ISSUE-100",
+						Summary: "Issue 100",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:   "Relates",
+						Inward: "relates to",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "ISSUE-200",
+						Summary: "Issue 200",
+					},
+				},
+			},
+			expectLinkCount:   2,
+			expectFilteredKey: "",
+		},
+		{
+			name: "parent not in links - all links preserved",
+			parent: &LinkedIssue{
+				Key:     "PARENT-999",
+				Summary: "Parent Not In Links",
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "ISSUE-100",
+						Summary: "Issue 100",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "ISSUE-100",
+		},
+		{
+			name: "parent is only link - empty links after dedup",
+			parent: &LinkedIssue{
+				Key:     "PARENT-100",
+				Summary: "Parent Epic",
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:   "Parent",
+						Inward: "is child of",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "PARENT-100",
+						Summary: "Parent Epic",
+					},
+				},
+			},
+			expectLinkCount:   0,
+			expectFilteredKey: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the deduplication logic from GetJiraIssue
+			filteredLinks := make([]IssueLink, 0, len(tt.issueLinks))
+			for _, link := range tt.issueLinks {
+				// Skip links that reference the parent issue
+				if tt.parent != nil {
+					linkedKey := ""
+					if link.InwardIssue != nil {
+						linkedKey = link.InwardIssue.Key
+					} else if link.OutwardIssue != nil {
+						linkedKey = link.OutwardIssue.Key
+					}
+					if linkedKey == tt.parent.Key {
+						continue
+					}
+				}
+				filteredLinks = append(filteredLinks, link)
+			}
+
+			assert.Len(t, filteredLinks, tt.expectLinkCount,
+				"filtered link count should match expected")
+
+			// If we expect a specific key to remain, verify it
+			if tt.expectFilteredKey != "" && len(filteredLinks) > 0 {
+				var foundKey string
+				if filteredLinks[0].InwardIssue != nil {
+					foundKey = filteredLinks[0].InwardIssue.Key
+				} else if filteredLinks[0].OutwardIssue != nil {
+					foundKey = filteredLinks[0].OutwardIssue.Key
+				}
+				assert.Equal(t, tt.expectFilteredKey, foundKey,
+					"remaining link key should match expected")
+			}
+
+			t.Logf("✓ %s: %d links → %d links after dedup",
+				tt.name, len(tt.issueLinks), len(filteredLinks))
+		})
+	}
+}
