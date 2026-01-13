@@ -189,6 +189,22 @@ type jiraRawResponse struct {
 				} `json:"issuetype"`
 			} `json:"fields"`
 		} `json:"parent"`
+		Subtasks []struct {
+			ID     string `json:"id"`
+			Key    string `json:"key"`
+			Fields struct {
+				Summary string `json:"summary"`
+				Status  struct {
+					Name string `json:"name"`
+				} `json:"status"`
+				Priority struct {
+					Name string `json:"name"`
+				} `json:"priority"`
+				IssueType struct {
+					Name string `json:"name"`
+				} `json:"issuetype"`
+			} `json:"fields"`
+		} `json:"subtasks"`
 		Description *Description `json:"description"`
 		Attachment  []struct {
 			ID       string `json:"id"`
