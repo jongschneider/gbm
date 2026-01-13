@@ -156,8 +156,8 @@ func (t *TextInput) Focus() tea.Cmd {
 	t.focused = true
 	t.textInput.Focus()
 
-	// If there's a default value and the input is empty, populate it
-	if t.defaultValue != "" && t.textInput.Value() == "" {
+	// If there's a default value, populate it (override any previous value)
+	if t.defaultValue != "" {
 		t.textInput.SetValue(t.defaultValue)
 		// Position cursor at end of default text
 		t.textInput.SetCursor(len(t.defaultValue))
