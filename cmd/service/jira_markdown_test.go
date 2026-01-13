@@ -280,6 +280,72 @@ The authentication module needs refactoring for better maintainability.
 - Feature works as expected`,
 			},
 		},
+		{
+			name: "ticket_with_children",
+			ticket: &jira.JiraTicketDetails{
+				Key:      "PROJ-444",
+				Summary:  "Parent feature with children",
+				Status:   "In Progress",
+				Priority: "High",
+				Assignee: "Jane Doe",
+				Created:  fixedTime,
+				URL:      "https://jira.company.com/browse/PROJ-444",
+				Children: []jira.LinkedIssue{
+					{Key: "PROJ-445", Summary: "First child task"},
+					{Key: "PROJ-446", Summary: "Second child task"},
+					{Key: "PROJ-447", Summary: "Third child task"},
+				},
+				Description: `This is a parent feature with multiple children.
+
+## Acceptance Criteria
+
+- All child tasks are completed
+- Feature is fully functional`,
+			},
+		},
+		{
+			name: "ticket_with_parent_and_children",
+			ticket: &jira.JiraTicketDetails{
+				Key:      "PROJ-555",
+				Summary:  "Middle-level feature",
+				Status:   "In Progress",
+				Priority: "Medium",
+				Assignee: "Bob Smith",
+				Created:  fixedTime,
+				URL:      "https://jira.company.com/browse/PROJ-555",
+				Parent: &jira.LinkedIssue{
+					Key:     "PROJ-500",
+					Summary: "Top-level epic",
+				},
+				Children: []jira.LinkedIssue{
+					{Key: "PROJ-556", Summary: "Implementation task"},
+					{Key: "PROJ-557", Summary: "Testing task"},
+				},
+				Description: `This feature has both a parent and children.
+
+## Acceptance Criteria
+
+- Implements part of parent epic
+- Child tasks are completed`,
+			},
+		},
+		{
+			name: "ticket_without_children",
+			ticket: &jira.JiraTicketDetails{
+				Key:      "PROJ-666",
+				Summary:  "Leaf task with no children",
+				Status:   "Open",
+				Priority: "Low",
+				Created:  fixedTime,
+				URL:      "https://jira.company.com/browse/PROJ-666",
+				Children: nil,
+				Description: `This is a leaf task with no children.
+
+## Acceptance Criteria
+
+- Task is completed`,
+			},
+		},
 	}
 
 	for _, tt := range tests {
