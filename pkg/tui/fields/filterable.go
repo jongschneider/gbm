@@ -17,22 +17,23 @@ import (
 // Filterable is a field that displays a text input above a filterable list of options.
 // Users can type to filter the list or enter a custom value.
 type Filterable struct {
-	key          string
-	title        string
-	description  string
-	options      []Option
-	filtered     []Option
-	cursor       int
-	textInput    textinput.Model
-	selected     string
-	complete     bool
-	cancelled    bool
-	focused      bool
-	theme        *tui.Theme
-	width        int
-	height       int
-	cursorStyle  lipgloss.Style
-	noMatchStyle lipgloss.Style
+	key            string
+	title          string
+	description    string
+	options        []Option
+	filtered       []Option
+	cursor         int
+	viewportOffset int // First visible item index for scrolling
+	textInput      textinput.Model
+	selected       string
+	complete       bool
+	cancelled      bool
+	focused        bool
+	theme          *tui.Theme
+	width          int
+	height         int
+	cursorStyle    lipgloss.Style
+	noMatchStyle   lipgloss.Style
 
 	// Async options support
 	optionsFetch func() ([]Option, error)
@@ -131,22 +132,31 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	// Navigation: up arrow, k, and ctrl+k
-	case KeyUp, "k", KeyCtrlUp:
+	// Navigation: up arrow and ctrl+k (j/k reserved for filtering)
+	case KeyUp, KeyCtrlUp:
 		if len(f.filtered) > 0 {
 			f.cursor--
 			if f.cursor < 0 {
 				f.cursor = len(f.filtered) - 1 // Wrap to bottom
+				// When wrapping to bottom, adjust viewport to show cursor
+				f.adjustViewport()
+			} else if f.cursor < f.viewportOffset {
+				// Cursor moved above viewport, scroll up
+				f.viewportOffset = f.cursor
 			}
 		}
 		return f, nil
 
-	// Navigation: down arrow, j, and ctrl+j
-	case KeyDown, "j", KeyCtrlDown:
+	// Navigation: down arrow and ctrl+j (j/k reserved for filtering)
+	case KeyDown, KeyCtrlDown:
 		if len(f.filtered) > 0 {
 			f.cursor++
 			if f.cursor >= len(f.filtered) {
 				f.cursor = 0 // Wrap to top
+				f.viewportOffset = 0
+			} else {
+				// Cursor moved below viewport, scroll down
+				f.adjustViewport()
 			}
 		}
 		return f, nil
@@ -198,13 +208,52 @@ func (f *Filterable) filterOptions() {
 		}
 	}
 
-	// Reset cursor to valid position
+	// Reset cursor and viewport to valid positions
 	if f.cursor >= len(f.filtered) {
 		if len(f.filtered) > 0 {
 			f.cursor = 0
 		} else {
 			f.cursor = -1
 		}
+	}
+	f.viewportOffset = 0 // Reset viewport when filter changes
+}
+
+// visibleItemCount returns how many list items can fit in the available height.
+// Reserves space for header (title, description, input field).
+func (f *Filterable) visibleItemCount() int {
+	if f.height <= 0 {
+		return 10 // Default fallback
+	}
+	// Header takes: title (1) + description (1) + blank (1) + input (1) + blank (1) = 5 lines
+	headerLines := 5
+	if f.description == "" {
+		headerLines = 4
+	}
+	available := f.height - headerLines
+	if available < 1 {
+		return 1
+	}
+	return available
+}
+
+// adjustViewport ensures the cursor is visible within the viewport.
+func (f *Filterable) adjustViewport() {
+	visible := f.visibleItemCount()
+
+	// If cursor is above viewport, scroll up
+	if f.cursor < f.viewportOffset {
+		f.viewportOffset = f.cursor
+	}
+
+	// If cursor is below viewport, scroll down
+	if f.cursor >= f.viewportOffset+visible {
+		f.viewportOffset = f.cursor - visible + 1
+	}
+
+	// Ensure viewport doesn't go negative
+	if f.viewportOffset < 0 {
+		f.viewportOffset = 0
 	}
 }
 
@@ -256,8 +305,17 @@ func (f *Filterable) View() string {
 			b.WriteString(styles.Description.Render("No matches"))
 		}
 	} else {
-		// Render options
-		for i, opt := range f.filtered {
+		// Calculate visible range
+		visible := f.visibleItemCount()
+		start := f.viewportOffset
+		end := start + visible
+		if end > len(f.filtered) {
+			end = len(f.filtered)
+		}
+
+		// Render only visible options
+		for i := start; i < end; i++ {
+			opt := f.filtered[i]
 			cursor := "  " // No cursor for non-selected items
 			if i == f.cursor {
 				cursor = f.cursorStyle.Render("▸ ") // Highlighted cursor
@@ -275,7 +333,7 @@ func (f *Filterable) View() string {
 			}
 
 			b.WriteString(line)
-			if i < len(f.filtered)-1 {
+			if i < end-1 {
 				b.WriteString("\n")
 			}
 		}

@@ -12,7 +12,7 @@ import (
 
 func TestFilterable_Init_WithAsyncOptions(t *testing.T) {
 	testCases := []struct {
-		name        string
+		name         string
 		optionsFetch func() ([]Option, error)
 		expect       func(t *testing.T, cmd tea.Cmd)
 		description  string
@@ -32,7 +32,7 @@ func TestFilterable_Init_WithAsyncOptions(t *testing.T) {
 			description: "Init should return FetchCmd for async loading",
 		},
 		{
-			name: "Init returns textinput.Blink when no async options",
+			name:         "Init returns textinput.Blink when no async options",
 			optionsFetch: nil,
 			expect: func(t *testing.T, cmd tea.Cmd) {
 				assert.NotNil(t, cmd, "Init should return a command (textinput.Blink)")
@@ -140,44 +140,44 @@ func TestFilterable_View_ShowsErrorOnAsyncFailure(t *testing.T) {
 
 func TestFilterable_Update_BlocksInputWhileLoading(t *testing.T) {
 	testCases := []struct {
-		name       string
-		keyMsg     tea.KeyMsg
+		name        string
+		keyMsg      tea.KeyMsg
 		shouldBlock bool
 		description string
 	}{
 		{
-			name:       "Enter blocked while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyEnter},
+			name:        "Enter blocked while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyEnter},
 			shouldBlock: true,
 			description: "Enter should not allow submission while loading",
 		},
 		{
-			name:       "j (nav) blocked while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")},
+			name:        "j (filter) blocked while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")},
 			shouldBlock: true,
-			description: "j should not navigate while loading",
+			description: "j should not filter while loading",
 		},
 		{
-			name:       "down (nav) blocked while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyDown},
+			name:        "down (nav) blocked while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyDown},
 			shouldBlock: true,
 			description: "down should not navigate while loading",
 		},
 		{
-			name:       "typing blocked while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")},
+			name:        "typing blocked while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")},
 			shouldBlock: true,
 			description: "typing should be ignored while loading",
 		},
 		{
-			name:       "Ctrl+C allowed while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyCtrlC},
+			name:        "Ctrl+C allowed while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyCtrlC},
 			shouldBlock: false,
 			description: "Ctrl+C should be allowed to cancel",
 		},
 		{
-			name:       "q allowed while loading",
-			keyMsg:     tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")},
+			name:        "q allowed while loading",
+			keyMsg:      tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")},
 			shouldBlock: false,
 			description: "q should be allowed to quit",
 		},
