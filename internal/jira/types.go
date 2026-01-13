@@ -71,20 +71,20 @@ type IssueLinkType struct {
 
 // LinkedIssue represents a basic linked issue with key information
 type LinkedIssue struct {
-	ID      string
-	Key     string
-	Summary string
-	Status  string
-	Priority string
+	ID        string
+	Key       string
+	Summary   string
+	Status    string
+	Priority  string
 	IssueType string
 }
 
 // IssueLink represents a link between two JIRA issues
 type IssueLink struct {
-	ID            string
-	Type          IssueLinkType
-	InwardIssue   *LinkedIssue // Issue that this issue links to (inward relationship)
-	OutwardIssue  *LinkedIssue // Issue that links to this issue (outward relationship)
+	ID           string
+	Type         IssueLinkType
+	InwardIssue  *LinkedIssue // Issue that this issue links to (inward relationship)
+	OutwardIssue *LinkedIssue // Issue that links to this issue (outward relationship)
 }
 
 // ADFDocument represents a full Atlassian Document Format document
@@ -174,7 +174,20 @@ type jiraRawResponse struct {
 			} `json:"avatarUrls"`
 		} `json:"assignee"`
 		Parent *struct {
-			Key string `json:"key"`
+			ID     string `json:"id"`
+			Key    string `json:"key"`
+			Fields struct {
+				Summary string `json:"summary"`
+				Status  struct {
+					Name string `json:"name"`
+				} `json:"status"`
+				Priority struct {
+					Name string `json:"name"`
+				} `json:"priority"`
+				IssueType struct {
+					Name string `json:"name"`
+				} `json:"issuetype"`
+			} `json:"fields"`
 		} `json:"parent"`
 		Description *Description `json:"description"`
 		Attachment  []struct {
