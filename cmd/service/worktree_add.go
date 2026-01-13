@@ -59,7 +59,9 @@ Examples:
 					}
 					return fmt.Errorf("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
 				}
-				return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
+				// return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
+				// return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
+				return runWorktreeTestaddCommand(svc)
 			}
 
 			// CLI mode (existing behavior)

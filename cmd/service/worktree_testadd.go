@@ -84,6 +84,8 @@ func (a *testaddNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle back navigation from workflow
 	if _, ok := msg.(tui.BackBoundaryMsg); ok && a.nav.Depth() > 1 {
 		a.nav.Pop()
+		// Reset context state when going back to type selector
+		a.ctx.State = &tui.WorkflowState{}
 		newTypeWizard := a.createTypeWizard()
 		a.nav.Pop()
 		a.nav.Push(newTypeWizard)
