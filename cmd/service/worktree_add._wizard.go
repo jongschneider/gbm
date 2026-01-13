@@ -201,7 +201,7 @@ func runWorktreeAddWizardTUI(svc *Service) error {
 	}
 
 	// Handle final state
-	return handleFinalState(finalModel)
+	return handleFinalState(finalModel, svc)
 }
 
 // buildStepsMap creates workflow steps for each workflow type.
@@ -217,8 +217,8 @@ func buildStepsMap(ctx *tui.Context) (map[string][]tui.Step, error) {
 	return stepsMap, nil
 }
 
-// handleFinalState processes the final wizard state and prints results.
-func handleFinalState(finalModel tea.Model) error {
+// handleFinalState processes the final wizard state and creates the worktree.
+func handleFinalState(finalModel tea.Model, svc *Service) error {
 	adapter, ok := finalModel.(*addNavigatorAdapter)
 	if !ok {
 		return fmt.Errorf("unexpected model type: %T", finalModel)
@@ -234,18 +234,39 @@ func handleFinalState(finalModel tea.Model) error {
 		return fmt.Errorf("unexpected wizard type: %T", currentModel)
 	}
 
-	// Handle completion
-	if w.IsComplete() {
-		state := w.State()
-		fmt.Fprintf(os.Stderr, "Would create worktree: %s\n", state.WorktreeName)
-		fmt.Fprintf(os.Stderr, "Would create branch: %s\n", state.BranchName)
-		if state.BaseBranch != "" {
-			fmt.Fprintf(os.Stderr, "Based on: %s\n", state.BaseBranch)
-		}
+	// Handle cancellation (including Ctrl+C)
+	if !w.IsComplete() {
+		fmt.Fprintf(os.Stderr, "Cancelled\n")
 		return nil
 	}
 
-	// Handle cancellation (including Ctrl+C)
-	fmt.Fprintf(os.Stderr, "Cancelled\n")
+	state := w.State()
+
+	// Get worktrees directory from service
+	worktreesDir, err := svc.GetWorktreesPath()
+	if err != nil {
+		return fmt.Errorf("failed to get worktrees directory: %w", err)
+	}
+
+	// Create the worktree (always create branch since TUI collects new branch info)
+	wt, err := svc.Git.AddWorktree(worktreesDir, state.WorktreeName, state.BranchName, true, state.BaseBranch, false)
+	if err != nil {
+		return fmt.Errorf("failed to create worktree: %w", err)
+	}
+
+	// Output path to stdout, message to stderr (shell integration pattern)
+	fmt.Println(wt.Path)
+	PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
+
+	// Copy files from source worktrees based on config rules
+	if err := svc.CopyFilesToWorktree(state.WorktreeName); err != nil {
+		PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
+	}
+
+	// Create JIRA markdown if applicable
+	if err := svc.CreateJiraMarkdownFile(state.WorktreeName); err != nil {
+		PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
+	}
+
 	return nil
 }
