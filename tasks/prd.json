@@ -1,0 +1,250 @@
+{
+  "name": "Capture Parent/Child Issue Relationships in Worktree Add",
+  "branchName": "feature/jira_parent",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Expand Parent struct in jiraRawResponse",
+      "description": "As a developer, I want the Parent field in jiraRawResponse.Fields to capture full issue details (id, key, summary, status, priority, issuetype) so that parent information matches the LinkedIssue structure.",
+      "acceptanceCriteria": [
+        "Parent struct includes ID field",
+        "Parent struct includes Key field",
+        "Parent struct includes nested Fields with Summary, Status.Name, Priority.Name, IssueType.Name",
+        "Existing parent key parsing still works"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Add Subtasks field to jiraRawResponse",
+      "description": "As a developer, I want a Subtasks field added to jiraRawResponse.Fields to capture child issues from the JIRA API response.",
+      "acceptanceCriteria": [
+        "Subtasks field is a slice of structs matching Parent structure",
+        "Each subtask includes ID, Key, and nested Fields (Summary, Status, Priority, IssueType)",
+        "Empty subtasks array parses correctly"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-003",
+      "title": "Add Parent and Children fields to JiraTicketDetails",
+      "description": "As a developer, I want JiraTicketDetails to have Parent (*LinkedIssue) and Children ([]LinkedIssue) fields so that the processed issue data includes parent/child relationships.",
+      "acceptanceCriteria": [
+        "JiraTicketDetails.Parent is of type *LinkedIssue",
+        "JiraTicketDetails.Children is of type []LinkedIssue",
+        "Both fields are nil/empty when issue has no parent/children"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Convert raw parent to LinkedIssue during parsing",
+      "description": "As a developer, I want the service to convert the raw parent response to a LinkedIssue struct when parsing issue data.",
+      "acceptanceCriteria": [
+        "Parent is converted to LinkedIssue with ID, Key, Summary, Status, Priority, IssueType",
+        "Nil parent in raw response results in nil Parent in JiraTicketDetails",
+        "Parent conversion handles missing optional fields gracefully"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Convert raw subtasks to Children LinkedIssues during parsing",
+      "description": "As a developer, I want the service to convert the raw subtasks array to Children []LinkedIssue when parsing issue data.",
+      "acceptanceCriteria": [
+        "Each subtask is converted to LinkedIssue with ID, Key, Summary, Status, Priority, IssueType",
+        "Empty subtasks array results in empty Children slice",
+        "Subtask conversion handles missing optional fields gracefully"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-002",
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Recursive parent fetching with depth limit",
+      "description": "As a developer, I want parent issues to be fetched recursively following the same MaxDepth configuration used for linked issues.",
+      "acceptanceCriteria": [
+        "Parent is fetched recursively when depth < MaxDepth",
+        "Parent key is added to lookup table before fetching",
+        "Parent fetching stops when MaxDepth is reached",
+        "Parent's linked issues are also fetched following MaxDepth rules"
+      ],
+      "priority": 3,
+      "passes": false,
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Recursive child fetching with depth limit",
+      "description": "As a developer, I want child issues to be fetched recursively following the same MaxDepth configuration used for linked issues.",
+      "acceptanceCriteria": [
+        "Children are fetched recursively when depth < MaxDepth",
+        "Each child key is added to lookup table before fetching",
+        "Child fetching stops when MaxDepth is reached",
+        "Child's linked issues are also fetched following MaxDepth rules"
+      ],
+      "priority": 3,
+      "passes": false,
+      "dependsOn": [
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Shared lookup table for deduplication",
+      "description": "As a developer, I want a shared lookup table across parent, child, and linked issue fetching to prevent duplicate fetches and infinite loops.",
+      "acceptanceCriteria": [
+        "Single lookup table is used for all issue types (parent, child, linked)",
+        "Issues already in lookup table are not fetched again",
+        "Circular references (A parent of B, B linked to A) do not cause infinite loops",
+        "Lookup table is keyed by issue key (e.g., 'PROJ-123')"
+      ],
+      "priority": 3,
+      "passes": false,
+      "dependsOn": [
+        "US-006",
+        "US-007"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Generate Parent section in markdown",
+      "description": "As a user, I want the generated markdown files to include a Parent section when the issue has a parent, formatted as '- **Parent:** KEY - Summary'.",
+      "acceptanceCriteria": [
+        "Parent section appears after issue details and before Children section",
+        "Parent is formatted as '- **Parent:** KEY - Summary'",
+        "Parent section is omitted when issue has no parent",
+        "Section header is '## Parent'"
+      ],
+      "priority": 4,
+      "passes": false,
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Generate Children section in markdown",
+      "description": "As a user, I want the generated markdown files to include a Children section when the issue has children, formatted as '- **is parent of:** KEY - Summary'.",
+      "acceptanceCriteria": [
+        "Children section appears after Parent section and before Linked Issues",
+        "Each child is formatted as '- **is parent of:** KEY - Summary'",
+        "Children section is omitted when issue has no children",
+        "Section header is '## Children'"
+      ],
+      "priority": 4,
+      "passes": false,
+      "dependsOn": [
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Deduplicate parent from linked issues",
+      "description": "As a user, I want issues that appear as both parent AND linked issue to show only in the Parent section, not in Linked Issues.",
+      "acceptanceCriteria": [
+        "Parent issue is removed from linked issues list if present",
+        "Parent appears only in Parent section",
+        "Other linked issues are unaffected"
+      ],
+      "priority": 5,
+      "passes": false,
+      "dependsOn": [
+        "US-009"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Deduplicate children from linked issues",
+      "description": "As a user, I want issues that appear as both child AND linked issue to show only in the Children section, not in Linked Issues.",
+      "acceptanceCriteria": [
+        "Child issues are removed from linked issues list if present",
+        "Children appear only in Children section",
+        "Other linked issues are unaffected"
+      ],
+      "priority": 5,
+      "passes": false,
+      "dependsOn": [
+        "US-010"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Unit tests for parent/child data model changes",
+      "description": "As a developer, I want unit tests covering the new Parent and Children fields in both raw response parsing and JiraTicketDetails.",
+      "acceptanceCriteria": [
+        "Test parsing of parent field with full details",
+        "Test parsing of subtasks array",
+        "Test conversion to LinkedIssue for parent",
+        "Test conversion to LinkedIssue for children",
+        "Test nil/empty cases"
+      ],
+      "priority": 6,
+      "passes": false,
+      "dependsOn": [
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-014",
+      "title": "Unit tests for recursive fetching and deduplication",
+      "description": "As a developer, I want unit tests covering recursive parent/child fetching with depth limits and deduplication.",
+      "acceptanceCriteria": [
+        "Test parent fetching respects MaxDepth",
+        "Test child fetching respects MaxDepth",
+        "Test lookup table prevents duplicate fetches",
+        "Test circular reference handling",
+        "Test deep hierarchy exceeding MaxDepth"
+      ],
+      "priority": 6,
+      "passes": false,
+      "dependsOn": [
+        "US-008"
+      ]
+    },
+    {
+      "id": "US-015",
+      "title": "Unit tests for markdown generation",
+      "description": "As a developer, I want unit tests covering Parent and Children sections in generated markdown.",
+      "acceptanceCriteria": [
+        "Test Parent section format and placement",
+        "Test Children section format and placement",
+        "Test deduplication from linked issues",
+        "Test section ordering (Parent before Children before Linked Issues)",
+        "Test omission when no parent/children exist"
+      ],
+      "priority": 6,
+      "passes": false,
+      "dependsOn": [
+        "US-011",
+        "US-012"
+      ]
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-01-13T20:52:30.016Z"
+  }
+}

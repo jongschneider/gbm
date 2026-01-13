@@ -24,10 +24,12 @@ type JiraTicketDetails struct {
 	Epic          string
 	URL           string
 	LatestComment *Comment
-	Attachments   []Attachment // All ticket-level attachments
-	Comments      []Comment    // All comments with full ADF structure
-	Labels        []string     // Issue labels
-	IssueLinks    []IssueLink  // Linked issues (blocked by, blocks, relates to, etc.)
+	Attachments   []Attachment  // All ticket-level attachments
+	Comments      []Comment     // All comments with full ADF structure
+	Labels        []string      // Issue labels
+	IssueLinks    []IssueLink   // Linked issues (blocked by, blocks, relates to, etc.)
+	Parent        *LinkedIssue  // Parent issue (for subtasks)
+	Children      []LinkedIssue // Child issues (subtasks)
 }
 
 // User represents a JIRA user

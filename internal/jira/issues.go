@@ -231,9 +231,36 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		}
 	}
 
-	// Add epic information
+	// Add epic information (backward compatibility)
 	if jiraResponse.Fields.Parent != nil {
 		ticket.Epic = jiraResponse.Fields.Parent.Key
+	}
+
+	// Parse parent issue
+	if jiraResponse.Fields.Parent != nil {
+		ticket.Parent = &LinkedIssue{
+			ID:        jiraResponse.Fields.Parent.ID,
+			Key:       jiraResponse.Fields.Parent.Key,
+			Summary:   jiraResponse.Fields.Parent.Fields.Summary,
+			Status:    jiraResponse.Fields.Parent.Fields.Status.Name,
+			Priority:  jiraResponse.Fields.Parent.Fields.Priority.Name,
+			IssueType: jiraResponse.Fields.Parent.Fields.IssueType.Name,
+		}
+	}
+
+	// Parse children (subtasks)
+	if len(jiraResponse.Fields.Subtasks) > 0 {
+		ticket.Children = make([]LinkedIssue, 0, len(jiraResponse.Fields.Subtasks))
+		for _, subtask := range jiraResponse.Fields.Subtasks {
+			ticket.Children = append(ticket.Children, LinkedIssue{
+				ID:        subtask.ID,
+				Key:       subtask.Key,
+				Summary:   subtask.Fields.Summary,
+				Status:    subtask.Fields.Status.Name,
+				Priority:  subtask.Fields.Priority.Name,
+				IssueType: subtask.Fields.IssueType.Name,
+			})
+		}
 	}
 
 	// Parse labels
