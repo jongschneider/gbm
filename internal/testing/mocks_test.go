@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gbm/pkg/tui"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +43,7 @@ func TestMockGitService(t *testing.T) {
 			svc := NewMockGitService()
 			tc.setup(svc)
 
-			branches, err := svc.ListBranches()
+			branches, err := svc.ListBranches(false)
 
 			if tc.expectErr {
 				assert.Error(t, err)
@@ -169,7 +170,7 @@ func TestMockJiraServiceCopyProtection(t *testing.T) {
 func TestErrorMockGitService(t *testing.T) {
 	svc := NewErrorMockGitService(nil)
 
-	branches, err := svc.ListBranches()
+	branches, err := svc.ListBranches(false)
 
 	assert.Error(t, err)
 	assert.Nil(t, branches)

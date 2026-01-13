@@ -81,7 +81,7 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}
@@ -165,7 +165,7 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}
@@ -240,7 +240,7 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}
@@ -286,7 +286,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}
@@ -313,7 +313,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}

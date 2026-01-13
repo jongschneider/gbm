@@ -3,7 +3,7 @@ package tui
 // GitService defines the interface for git operations needed by the TUI.
 type GitService interface {
 	BranchExists(branch string) (bool, error)
-	ListBranches() ([]string, error)
+	ListBranches(dryRun bool) ([]string, error)
 }
 
 // JiraService defines the interface for JIRA operations needed by the TUI.

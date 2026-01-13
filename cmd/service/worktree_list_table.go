@@ -153,6 +153,8 @@ type WorktreeTableGitOps interface {
 	RemoveWorktree(worktreeName string, force, dryRun bool) (*git.Worktree, error)
 	PullWorktree(worktreePath string, dryRun bool) error
 	PushWorktree(worktreePath string, dryRun bool) error
+	ListBranches(dryRun bool) ([]string, error)
+	BranchExists(name string) (bool, error)
 }
 
 // operationState represents the FSM states for the testls TUI.

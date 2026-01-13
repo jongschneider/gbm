@@ -68,7 +68,7 @@ func (m *MockGitService) WithBranchExists(fn func(string) bool) *MockGitService 
 }
 
 // ListBranches returns the list of branches with optional delay and jitter.
-func (m *MockGitService) ListBranches() ([]string, error) {
+func (m *MockGitService) ListBranches(dryrun bool) ([]string, error) {
 	if m.delay > 0 {
 		actualDelay := applyJitter(m.delay)
 		time.Sleep(actualDelay)
@@ -161,7 +161,7 @@ func NewErrorMockGitService(err error) *ErrorMockGitService {
 }
 
 // ListBranches returns an error.
-func (m *ErrorMockGitService) ListBranches() ([]string, error) {
+func (m *ErrorMockGitService) ListBranches(dryrun bool) ([]string, error) {
 	return nil, m.err
 }
 

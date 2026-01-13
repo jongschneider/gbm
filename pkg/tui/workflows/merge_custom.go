@@ -63,7 +63,7 @@ func getMergeCustomSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}
@@ -90,7 +90,7 @@ func getMergeCustomSteps(ctx *tui.Context) []tui.Step {
 				if ctx.GitService == nil {
 					return []fields.Option{}, nil
 				}
-				branches, err := ctx.GitService.ListBranches()
+				branches, err := ctx.GitService.ListBranches(false)
 				if err != nil {
 					return nil, err
 				}

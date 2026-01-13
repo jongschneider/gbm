@@ -3,21 +3,16 @@ package service
 import (
 	"fmt"
 	"os"
-	"time"
 
-	"gbm/internal/testing"
+	"gbm/internal/jira"
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/workflows"
-	"gbm/testutil"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
 func newWorktreeTestaddCommand(svc *Service) *cobra.Command {
-	var delayMs int
-	var withConfig bool
-
 	cmd := &cobra.Command{
 		Use:   "testadd",
 		Short: "Test the wizard UI with mock data",
@@ -36,18 +31,16 @@ Each workflow type has different configurations:
 - Hotfix: Requires mandatory base branch selection (for production hotfixes)
 - Merge: Merge branches without JIRA issues with optional merge_into suggestion from config
 
-With --config flag enabled:
-- Merge workflow will include a suggested target branch (merge_into from config)
-- This allows testing merge suggestion logic with realistic worktree configurations
+With real services:
+- The wizard uses actual JIRA issues from the configured board
+- Git operations work with the real repository
+- This allows testing the full workflow with realistic data
 
 No actual worktrees or branches are created (dry-run mode).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWorktreeTestaddCommand(cmd, delayMs, withConfig)
+			return runWorktreeTestaddCommand(svc)
 		},
 	}
-
-	cmd.Flags().IntVar(&delayMs, "delay", 0, "simulate network latency in milliseconds (0-5000)")
-	cmd.Flags().BoolVar(&withConfig, "config", false, "include mock repository configuration for testing merge suggestions")
 
 	return cmd
 }
@@ -157,21 +150,49 @@ func (a *testaddNavigatorAdapter) View() string {
 	return a.nav.View()
 }
 
-// runWorktreeTestaddCommand runs the test wizard with mock services using Navigator.
+// jiraServiceAdapter adapts *jira.Service to tui.JiraService interface.
+type jiraServiceAdapter struct {
+	jiraService jiraService
+}
+
+type jiraService interface {
+	GetJiraIssues(filters jira.JiraFilters, dryRun bool) ([]jira.JiraIssue, error)
+}
+
+func newJiraServiceAdapter(jiraSvc jiraService) *jiraServiceAdapter {
+	return &jiraServiceAdapter{jiraService: jiraSvc}
+}
+
+func (a *jiraServiceAdapter) FetchIssues() ([]tui.JiraIssue, error) {
+	// Fetch issues using an empty filter and no dry-run
+	issues, err := a.jiraService.GetJiraIssues(jira.JiraFilters{}, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JIRA issues: %w", err)
+	}
+
+	// Convert internal JiraIssue to tui.JiraIssue
+	result := make([]tui.JiraIssue, len(issues))
+	for i, issue := range issues {
+		result[i] = tui.JiraIssue{
+			Key:     issue.Key,
+			Summary: issue.Summary,
+		}
+	}
+	return result, nil
+}
+
+// runWorktreeTestaddCommand runs the testadd wizard using real service dependencies.
 // Uses Navigator to manage seamless transitions between:
 // 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
 // 2. Workflow screen - workflow-specific steps for the selected type
-func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool) error {
-	// Validate delay flag
-	if delayMs < 0 || delayMs > 5000 {
-		return fmt.Errorf("delay must be between 0 and 5000 milliseconds")
-	}
-
-	// Build context with mock services
-	ctx, err := buildTestContext(delayMs, withConfig)
-	if err != nil {
-		return err
-	}
+func runWorktreeTestaddCommand(svc *Service) error {
+	// Build context with services
+	ctx := tui.NewContext().
+		WithDimensions(100, 30).
+		WithTheme(tui.DefaultTheme()).
+		WithGitService(svc.Git).
+		WithJiraService(newJiraServiceAdapter(svc.Jira)).
+		WithConfig(svc.GetConfig())
 
 	// Build stepsMap for all workflow types
 	stepsMap, err := buildStepsMap(ctx)
@@ -198,48 +219,6 @@ func runWorktreeTestaddCommand(cmd *cobra.Command, delayMs int, withConfig bool)
 
 	// Handle final state
 	return handleFinalState(finalModel)
-}
-
-// buildTestContext creates the TUI context with mock services.
-func buildTestContext(delayMs int, withConfig bool) (*tui.Context, error) {
-	// Create mock git service
-	mockGit := testing.NewMockGitService().
-		WithBranches([]string{
-			"main",
-			"master",
-			"develop",
-			"staging",
-			"production",
-			"release/v1.0",
-			"release/v2.0",
-		})
-	if delayMs > 0 {
-		mockGit = mockGit.WithDelay(time.Duration(delayMs) * time.Millisecond)
-	}
-
-	// Create mock jira service
-	mockJira := testing.NewMockJiraService()
-	if delayMs > 0 {
-		mockJira = mockJira.WithDelay(time.Duration(delayMs) * time.Millisecond)
-	}
-
-	// Build context
-	ctx := tui.NewContext().
-		WithDimensions(100, 30).
-		WithTheme(tui.DefaultTheme()).
-		WithGitService(mockGit).
-		WithJiraService(mockJira)
-
-	// Add config if requested
-	if withConfig {
-		mockConfig := testutil.NewMockRepoConfig().
-			WithWorktree("feature_auth", "feature/auth", "main").
-			WithWorktree("bugfix_performance", "bugfix/performance", "main").
-			WithWorktree("release_v1", "release/v1.0", "production")
-		ctx = ctx.WithConfig(mockConfig)
-	}
-
-	return ctx, nil
 }
 
 // buildStepsMap creates workflow steps for each workflow type.

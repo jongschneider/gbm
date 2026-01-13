@@ -10,6 +10,7 @@ import (
 	"gbm/internal/git"
 	"gbm/internal/jira"
 	"gbm/internal/utils"
+	"gbm/pkg/tui"
 
 	"gopkg.in/yaml.v3"
 )
@@ -87,6 +88,16 @@ type WorktreeConfig struct {
 	Description string `yaml:"description,omitempty"`
 }
 
+// GetBranch implements tui.WorktreeConfig.GetBranch.
+func (wc *WorktreeConfig) GetBranch() string {
+	return wc.Branch
+}
+
+// GetMergeInto implements tui.WorktreeConfig.GetMergeInto.
+func (wc *WorktreeConfig) GetMergeInto() string {
+	return wc.MergeInto
+}
+
 // Config represents the .gbm/config.yaml structure.
 // This is the main configuration file for GBM, stored at .gbm/config.yaml in the repository root.
 //
@@ -107,6 +118,19 @@ type Config struct {
 	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
 	Jira          JiraConfig                `yaml:"jira,omitempty"`
 	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
+}
+
+// GetWorktrees implements tui.RepoConfig.GetWorktrees.
+// Returns the configured worktrees as a map of name to WorktreeConfig.
+func (c *Config) GetWorktrees() map[string]tui.WorktreeConfig {
+	if c.Worktrees == nil {
+		return make(map[string]tui.WorktreeConfig)
+	}
+	result := make(map[string]tui.WorktreeConfig)
+	for name, wt := range c.Worktrees {
+		result[name] = &wt
+	}
+	return result
 }
 
 // State represents the .gbm/state.yaml structure for cached data.
