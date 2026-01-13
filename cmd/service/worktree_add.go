@@ -16,8 +16,6 @@ func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	var (
 		createBranch bool
 		baseBranch   string
-		visualizeFSM bool
-		fsmGraphType string
 	)
 
 	cmd := &cobra.Command{
@@ -59,9 +57,7 @@ Examples:
 					}
 					return fmt.Errorf("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
 				}
-				// return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
-				// return runWorktreeAddTUI(cmd, svc, visualizeFSM, fsmGraphType)
-				return runWorktreeTestaddCommand(svc)
+				return runWorktreeAddWizardTUI(svc)
 			}
 
 			// CLI mode (existing behavior)
@@ -199,8 +195,6 @@ Examples:
 
 	cmd.Flags().BoolVarP(&createBranch, "create-branch", "b", false, "Create a new branch for the worktree")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch to create new branch from (defaults to config.default_branch)")
-	cmd.Flags().BoolVar(&visualizeFSM, "visualize-fsm", false, "Print FSM diagram before running TUI (TUI mode only)")
-	cmd.Flags().StringVar(&fsmGraphType, "fsm-graph-type", "statediagram", "FSM graph type: 'statediagram' or 'flowchart' (default: statediagram)")
 
 	// Add JIRA key completions for the first positional argument
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

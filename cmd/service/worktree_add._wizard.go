@@ -9,52 +9,18 @@ import (
 	"gbm/pkg/tui/workflows"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 )
 
-func newWorktreeTestaddCommand(svc *Service) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "testadd",
-		Short: "Test the wizard UI with mock data",
-		Long: `Launch the interactive TUI workflow with mock JIRA and Git services.
-
-This command is useful for testing and developing the wizard UI without
-affecting real repositories or making actual API calls.
-
-The wizard follows a two-step process:
-1. Select a workflow type: Feature, Bug, Hotfix, or Merge
-2. Follow the workflow-specific steps (e.g., select JIRA issue, branch name, base branch)
-
-Each workflow type has different configurations:
-- Feature: Creates feature branches from JIRA issues with optional base branch selection
-- Bug: Like feature, but for bug fixes with bug/ prefix
-- Hotfix: Requires mandatory base branch selection (for production hotfixes)
-- Merge: Merge branches without JIRA issues with optional merge_into suggestion from config
-
-With real services:
-- The wizard uses actual JIRA issues from the configured board
-- Git operations work with the real repository
-- This allows testing the full workflow with realistic data
-
-No actual worktrees or branches are created (dry-run mode).`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWorktreeTestaddCommand(svc)
-		},
-	}
-
-	return cmd
-}
-
-// testaddNavigatorAdapter wraps testadd workflow to work with Navigator.
+// addNavigatorAdapter wraps add workflow to work with Navigator.
 // It handles type selection and workflow progression via the Navigator stack.
-type testaddNavigatorAdapter struct {
+type addNavigatorAdapter struct {
 	nav      *tui.Navigator
 	stepsMap map[string][]tui.Step
 	ctx      *tui.Context
 }
 
-// newTestaddNavigatorAdapter creates a new adapter with Navigator initialized with type selector.
-func newTestaddNavigatorAdapter(ctx *tui.Context, stepsMap map[string][]tui.Step) *testaddNavigatorAdapter {
+// newAddNavigatorAdapter creates a new adapter with Navigator initialized with type selector.
+func newAddNavigatorAdapter(ctx *tui.Context, stepsMap map[string][]tui.Step) *addNavigatorAdapter {
 	typeSelector := workflows.SelectWorkflowType()
 	typeSelectorStep := tui.Step{
 		Name:  "workflow_type_selector",
@@ -62,7 +28,7 @@ func newTestaddNavigatorAdapter(ctx *tui.Context, stepsMap map[string][]tui.Step
 	}
 	typeWizard := tui.NewWizard([]tui.Step{typeSelectorStep}, ctx)
 
-	return &testaddNavigatorAdapter{
+	return &addNavigatorAdapter{
 		nav:      tui.NewNavigator(typeWizard),
 		stepsMap: stepsMap,
 		ctx:      ctx,
@@ -70,12 +36,12 @@ func newTestaddNavigatorAdapter(ctx *tui.Context, stepsMap map[string][]tui.Step
 }
 
 // Init delegates to Navigator.
-func (a *testaddNavigatorAdapter) Init() tea.Cmd {
+func (a *addNavigatorAdapter) Init() tea.Cmd {
 	return a.nav.Init()
 }
 
 // Update handles type selection completion and workflow transitions.
-func (a *testaddNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (a *addNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle Ctrl+C to quit
 	if km, ok := msg.(tea.KeyMsg); ok && km.Type == tea.KeyCtrlC {
 		return a, tea.Quit
@@ -120,7 +86,7 @@ func (a *testaddNavigatorAdapter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // transitionToWorkflow creates and pushes workflow wizard for selected type.
-func (a *testaddNavigatorAdapter) transitionToWorkflow(typeWiz *tui.Wizard) tea.Cmd {
+func (a *addNavigatorAdapter) transitionToWorkflow(typeWiz *tui.Wizard) tea.Cmd {
 	selectedType := typeWiz.State().WorkflowType
 	if selectedType == "" || selectedType == "unknown" {
 		return nil
@@ -138,7 +104,7 @@ func (a *testaddNavigatorAdapter) transitionToWorkflow(typeWiz *tui.Wizard) tea.
 }
 
 // createTypeWizard creates a fresh type selector wizard.
-func (a *testaddNavigatorAdapter) createTypeWizard() *tui.Wizard {
+func (a *addNavigatorAdapter) createTypeWizard() *tui.Wizard {
 	typeSelector := workflows.SelectWorkflowType()
 	typeSelectorStep := tui.Step{
 		Name:  "workflow_type_selector",
@@ -148,7 +114,7 @@ func (a *testaddNavigatorAdapter) createTypeWizard() *tui.Wizard {
 }
 
 // View delegates to Navigator.
-func (a *testaddNavigatorAdapter) View() string {
+func (a *addNavigatorAdapter) View() string {
 	return a.nav.View()
 }
 
@@ -183,11 +149,11 @@ func (a *jiraServiceAdapter) FetchIssues() ([]tui.JiraIssue, error) {
 	return result, nil
 }
 
-// runWorktreeTestaddCommand runs the testadd wizard using real service dependencies.
+// runWorktreeAddWizardTUI runs the add wizard using real service dependencies.
 // Uses Navigator to manage seamless transitions between:
 // 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
 // 2. Workflow screen - workflow-specific steps for the selected type
-func runWorktreeTestaddCommand(svc *Service) error {
+func runWorktreeAddWizardTUI(svc *Service) error {
 	// Build context with services
 	ctx := tui.NewContext().
 		WithDimensions(100, 30).
@@ -212,7 +178,7 @@ func runWorktreeTestaddCommand(svc *Service) error {
 	}()
 
 	// Run the adapter program
-	adapter := newTestaddNavigatorAdapter(ctx, stepsMap)
+	adapter := newAddNavigatorAdapter(ctx, stepsMap)
 	p := tea.NewProgram(adapter, tea.WithInput(input), tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
@@ -238,7 +204,7 @@ func buildStepsMap(ctx *tui.Context) (map[string][]tui.Step, error) {
 
 // handleFinalState processes the final wizard state and prints results.
 func handleFinalState(finalModel tea.Model) error {
-	adapter, ok := finalModel.(*testaddNavigatorAdapter)
+	adapter, ok := finalModel.(*addNavigatorAdapter)
 	if !ok {
 		return fmt.Errorf("unexpected model type: %T", finalModel)
 	}
