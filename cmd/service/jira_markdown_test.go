@@ -241,6 +241,45 @@ The authentication module needs refactoring for better maintainability.
 				URL:      "https://jira.company.com/browse/PROJ-111",
 			},
 		},
+		{
+			name: "ticket_with_parent",
+			ticket: &jira.JiraTicketDetails{
+				Key:      "PROJ-222",
+				Summary:  "Implement login button",
+				Status:   "In Progress",
+				Priority: "Medium",
+				Assignee: "John Doe",
+				Created:  fixedTime,
+				URL:      "https://jira.company.com/browse/PROJ-222",
+				Parent: &jira.LinkedIssue{
+					Key:     "PROJ-100",
+					Summary: "User Authentication Epic",
+				},
+				Description: `Implement the login button on the home page.
+
+## Acceptance Criteria
+
+- Button is visible on home page
+- Button redirects to login form`,
+			},
+		},
+		{
+			name: "ticket_without_parent",
+			ticket: &jira.JiraTicketDetails{
+				Key:      "PROJ-333",
+				Summary:  "Top-level feature",
+				Status:   "Open",
+				Priority: "High",
+				Created:  fixedTime,
+				URL:      "https://jira.company.com/browse/PROJ-333",
+				Parent:   nil,
+				Description: `This is a top-level feature with no parent.
+
+## Acceptance Criteria
+
+- Feature works as expected`,
+			},
+		},
 	}
 
 	for _, tt := range tests {
