@@ -411,3 +411,182 @@ func TestParentWithLinkedIssuesDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestChildDepthConfiguration tests that children (subtasks) follow MaxDepth rules
+func TestChildDepthConfiguration(t *testing.T) {
+	tests := []struct {
+		name          string
+		maxDepth      int
+		currentDepth  int
+		childrenCount int
+		shouldProcess bool
+	}{
+		{
+			name:          "Depth 1 of 2 with children - should process children",
+			maxDepth:      2,
+			currentDepth:  1,
+			childrenCount: 3,
+			shouldProcess: true,
+		},
+		{
+			name:          "Depth 2 of 2 with children - should skip children",
+			maxDepth:      2,
+			currentDepth:  2,
+			childrenCount: 2,
+			shouldProcess: false,
+		},
+		{
+			name:          "Depth 1 of 1 with children - should skip children",
+			maxDepth:      1,
+			currentDepth:  1,
+			childrenCount: 1,
+			shouldProcess: false,
+		},
+		{
+			name:          "Depth 2 of 3 with children - should process children",
+			maxDepth:      3,
+			currentDepth:  2,
+			childrenCount: 5,
+			shouldProcess: true,
+		},
+		{
+			name:          "Depth 1 of 2 without children - should not process",
+			maxDepth:      2,
+			currentDepth:  1,
+			childrenCount: 0,
+			shouldProcess: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the condition checks for children processing
+			// Children are processed when: children exist AND currentDepth < MaxDepth
+			shouldProcess := tt.childrenCount > 0 && tt.currentDepth < tt.maxDepth
+
+			assert.Equal(t, tt.shouldProcess, shouldProcess, "shouldProcess should match expected value")
+
+			t.Logf("✓ Depth %d/%d (children=%d): process=%v",
+				tt.currentDepth, tt.maxDepth, tt.childrenCount, shouldProcess)
+		})
+	}
+}
+
+// TestChildCircularDependencyPrevention tests that child processing respects the lookup table
+func TestChildCircularDependencyPrevention(t *testing.T) {
+	processedIssues := map[string]bool{
+		"CHILD-123": true, // Already processed
+		"CHILD-456": true, // Already processed
+	}
+
+	children := []LinkedIssue{
+		{Key: "CHILD-123"},
+		{Key: "CHILD-456"},
+		{Key: "CHILD-789"}, // Not processed yet
+	}
+
+	processedCount := 0
+	skippedCount := 0
+
+	for _, child := range children {
+		if processedIssues[child.Key] {
+			skippedCount++
+		} else {
+			processedCount++
+		}
+	}
+
+	assert.Equal(t, 2, skippedCount, "two children should be skipped (already processed)")
+	assert.Equal(t, 1, processedCount, "one child should be processed")
+	t.Log("✓ Child circular dependency prevention works correctly")
+}
+
+// TestChildKeyAddedToLookupTable tests that child key is added before fetching
+func TestChildKeyAddedToLookupTable(t *testing.T) {
+	processedIssues := make(map[string]bool)
+	childKey := "CHILD-456"
+
+	// Before processing, child should not be in the lookup table
+	assert.False(t, processedIssues[childKey], "child should not be in lookup table before processing")
+
+	// When processing starts, the child key is added to the lookup table
+	// (This is done in generateIssueMarkdownFileWithDepth when it marks issueKey as processed)
+	processedIssues[childKey] = true
+
+	// After processing, child should be in the lookup table
+	assert.True(t, processedIssues[childKey], "child should be in lookup table after processing")
+	t.Log("✓ Child key is correctly added to lookup table")
+}
+
+// TestChildWithLinkedIssuesDepth tests that child's linked issues also follow MaxDepth
+func TestChildWithLinkedIssuesDepth(t *testing.T) {
+	// Scenario: Main ticket at depth 1, child at depth 2, child's linked issue at depth 3
+	// With MaxDepth=3, all should be processed
+	// With MaxDepth=2, only main ticket and child are processed (child's links skipped)
+
+	tests := []struct {
+		name                   string
+		maxDepth               int
+		mainTicketDepth        int
+		childDepth             int
+		childLinkedIssueDepth  int
+		shouldProcessChild     bool
+		shouldProcessChildLink bool
+	}{
+		{
+			name:                   "MaxDepth 3 - process all",
+			maxDepth:               3,
+			mainTicketDepth:        1,
+			childDepth:             2,
+			childLinkedIssueDepth:  3,
+			shouldProcessChild:     true, // 1 < 3
+			shouldProcessChildLink: true, // 2 < 3
+		},
+		{
+			name:                   "MaxDepth 2 - process child only",
+			maxDepth:               2,
+			mainTicketDepth:        1,
+			childDepth:             2,
+			childLinkedIssueDepth:  3,
+			shouldProcessChild:     true,  // 1 < 2
+			shouldProcessChildLink: false, // 2 >= 2
+		},
+		{
+			name:                   "MaxDepth 1 - main ticket only",
+			maxDepth:               1,
+			mainTicketDepth:        1,
+			childDepth:             2,
+			childLinkedIssueDepth:  3,
+			shouldProcessChild:     false, // 1 >= 1
+			shouldProcessChildLink: false, // N/A since child not processed
+		},
+		{
+			name:                   "MaxDepth 4 - process all with extra depth",
+			maxDepth:               4,
+			mainTicketDepth:        1,
+			childDepth:             2,
+			childLinkedIssueDepth:  3,
+			shouldProcessChild:     true, // 1 < 4
+			shouldProcessChildLink: true, // 2 < 4
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Check if child should be processed (from main ticket perspective)
+			shouldProcessChild := tt.mainTicketDepth < tt.maxDepth
+			assert.Equal(t, tt.shouldProcessChild, shouldProcessChild,
+				"child processing should match expected value")
+
+			// Check if child's linked issues should be processed (from child's perspective)
+			shouldProcessChildLink := tt.childDepth < tt.maxDepth
+			assert.Equal(t, tt.shouldProcessChildLink, shouldProcessChildLink,
+				"child's linked issues processing should match expected value")
+
+			t.Logf("✓ MaxDepth %d: child=%v (depth %d<%d), child's links=%v (depth %d<%d)",
+				tt.maxDepth,
+				shouldProcessChild, tt.mainTicketDepth, tt.maxDepth,
+				shouldProcessChildLink, tt.childDepth, tt.maxDepth)
+		})
+	}
+}

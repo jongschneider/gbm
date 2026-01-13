@@ -311,6 +311,54 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 		}
 	}
 
+	// Step 8: Process children (subtasks) if exists and within depth limit
+	if len(details.Children) > 0 && currentDepth < opts.MaxDepth {
+		if !dryRun {
+			fmt.Fprintf(os.Stderr, "  Processing %d children at depth %d/%d\n",
+				len(details.Children), currentDepth+1, opts.MaxDepth)
+		}
+
+		for _, child := range details.Children {
+			childKey := child.Key
+
+			// Skip if already processed (prevents circular dependencies)
+			if processedIssues[childKey] {
+				if !dryRun {
+					fmt.Fprintf(os.Stderr, "  Skipping child %s (already processed)\n", childKey)
+				}
+				continue
+			}
+
+			// Create options for child issue
+			childOpts := IssueMarkdownOptions{
+				WorktreeRoot:        opts.WorktreeRoot,
+				DownloadAttachments: opts.DownloadAttachments,
+				AttachmentConfig:    opts.AttachmentConfig,
+				IncludeComments:     opts.IncludeComments,
+				Filename:            fmt.Sprintf(".jira/%s.md", childKey),
+				IncludeLinkedIssues: opts.IncludeLinkedIssues,
+				MaxDepth:            opts.MaxDepth,
+			}
+
+			// Process child issue at next depth level
+			childResult, err := s.generateIssueMarkdownFileWithDepth(
+				childKey,
+				childOpts,
+				dryRun,
+				currentDepth+1,
+				processedIssues, // Pass the tracking map to prevent circular dependencies
+			)
+			if err != nil {
+				// Log warning but continue - child issue failure is not critical
+				fmt.Fprintf(os.Stderr, "Warning: failed to process child issue %s at depth %d: %v\n",
+					childKey, currentDepth+1, err)
+				continue
+			}
+
+			result.LinkedIssueResults[childKey] = childResult
+		}
+	}
+
 	return result, nil
 }
 
