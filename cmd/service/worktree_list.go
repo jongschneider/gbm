@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"gbm/internal/git"
 
@@ -147,12 +146,8 @@ func newWorktreeTableTUI(
 	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
 	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
 
-	// Fetch branch statuses concurrently
-	// TODO: make this async for each row to improve TUI responsiveness
-	branchStatuses := fetchBranchStatuses(sorted, gitOps)
-
-	// Create model
-	return newWorktreeListModel(sorted, trackedBranches, branchStatuses, currentWorktree, gitOps), nil
+	// Create model with lazy-loaded branch statuses
+	return newWorktreeListModel(sorted, trackedBranches, make(map[string]*git.BranchStatus), currentWorktree, gitOps), nil
 }
 
 // handleWorktreeTableTUI runs the TUI and handles the final output.
@@ -208,29 +203,4 @@ func handleWorktreeTableTUI(svc WorktreeConfigService, gitOps WorktreeTableGitOp
 	return nil
 }
 
-// fetchBranchStatuses fetches branch statuses for all worktrees concurrently.
-func fetchBranchStatuses(worktrees []git.Worktree, gitSvc WorktreeTableGitOps) map[string]*git.BranchStatus {
-	statuses := make(map[string]*git.BranchStatus)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
 
-	for _, wt := range worktrees {
-		if wt.IsBare {
-			continue
-		}
-
-		wg.Add(1)
-		go func(worktree git.Worktree) {
-			defer wg.Done()
-			status, err := gitSvc.GetBranchStatus(worktree.Path)
-			if err == nil && status != nil {
-				mu.Lock()
-				statuses[worktree.Name] = status
-				mu.Unlock()
-			}
-		}(wt)
-	}
-	wg.Wait()
-
-	return statuses
-}

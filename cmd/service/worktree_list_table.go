@@ -187,6 +187,7 @@ type worktreeListModel struct {
 	worktrees       []git.Worktree
 	trackedBranches map[string]bool
 	branchStatuses  map[string]*git.BranchStatus
+	loadingStatuses map[string]bool // tracks which statuses are currently loading
 
 	// Dependencies
 	gitOps          WorktreeTableGitOps
@@ -232,16 +233,33 @@ func newWorktreeListModel(
 	// Create table with height for all rows (will be recalculated on WindowSizeMsg)
 	// Start with a reasonable default that fits all rows plus header
 	tableHeight := len(rows) + 1
+
+	// Build initial rows with loading spinners and initialize loading statuses
+	initialRows := make([]table.Row, 0, len(worktrees))
+	loadingStatuses := make(map[string]bool)
+	for _, wt := range worktrees {
+		if wt.IsBare {
+			continue
+		}
+		row := table.Row{
+			FormatWorktreeName(wt, currentWorktree),
+			wt.Branch,
+			FormatWorktreeKind(wt, trackedBranches),
+			"", // Loading spinner placeholder
+		}
+		initialRows = append(initialRows, row)
+		loadingStatuses[wt.Name] = true
+	}
+
 	tbl := tui.NewTable(ctx).
 		WithColumns(columns).
-		WithRows(rows).
+		WithRows(initialRows).
 		WithHeight(tableHeight).
 		WithFocused(true).
 		Build()
 
-	// Create spinner
-	sp := spinner.New()
-	sp.Spinner = spinner.Line
+	// Create spinner with dots style
+	sp := spinner.New(spinner.WithSpinner(spinner.Dot))
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	return &worktreeListModel{
@@ -250,6 +268,7 @@ func newWorktreeListModel(
 		worktrees:       worktrees,
 		trackedBranches: trackedBranches,
 		branchStatuses:  branchStatuses,
+		loadingStatuses: loadingStatuses,
 		gitOps:          gitOps,
 		currentWorktree: currentWorktree,
 		state:           stateIdle,
@@ -259,7 +278,38 @@ func newWorktreeListModel(
 
 // Init implements tea.Model.
 func (m *worktreeListModel) Init() tea.Cmd {
-	return m.spinner.Tick
+	return tea.Batch(m.spinner.Tick, m.loadBranchStatusesAsync())
+}
+
+// statusFetchMsg wraps a FetchMsg with the worktree name.
+type statusFetchMsg struct {
+	worktreeName string
+	status       *git.BranchStatus
+	err          error
+}
+
+// loadBranchStatusesAsync returns a command that loads all branch statuses asynchronously.
+func (m *worktreeListModel) loadBranchStatusesAsync() tea.Cmd {
+	return func() tea.Msg {
+		var cmds []tea.Cmd
+		for _, wt := range m.worktrees {
+			if wt.IsBare {
+				continue
+			}
+			// Capture wt in closure
+			worktree := wt
+			cmd := func() tea.Msg {
+				status, err := m.gitOps.GetBranchStatus(worktree.Path)
+				return statusFetchMsg{
+					worktreeName: worktree.Name,
+					status:       status,
+					err:          err,
+				}
+			}
+			cmds = append(cmds, cmd)
+		}
+		return tea.Batch(cmds...)()
+	}
 }
 
 // Update implements tea.Model with the state machine.
@@ -276,14 +326,20 @@ func (m *worktreeListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyMsg(msg)
 
 	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+
 		if m.state == stateOperating {
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
 			// Update the row to show spinner
 			m.updateOperatingRow()
-			return m, cmd
 		}
-		return m, nil
+
+		// Update loading status rows with spinner
+		if len(m.loadingStatuses) > 0 {
+			m.updateLoadingRows()
+		}
+
+		return m, cmd
 
 	case operationResultMsg:
 		return m.handleOperationResult(msg)
@@ -291,11 +347,38 @@ func (m *worktreeListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearMessageMsg:
 		m.message = ""
 		return m, nil
+
+	case statusFetchMsg:
+		return m.handleBranchStatusLoaded(msg)
 	}
 
 	// Forward other messages to table
 	_, cmd := m.table.Update(msg)
 	return m, cmd
+}
+
+// handleBranchStatusLoaded updates the model when a branch status is loaded.
+func (m *worktreeListModel) handleBranchStatusLoaded(msg statusFetchMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		// Silently ignore errors loading individual statuses, but clear loading state
+		delete(m.loadingStatuses, msg.worktreeName)
+		return m, nil
+	}
+
+	// Store the status and update the corresponding row
+	m.branchStatuses[msg.worktreeName] = msg.status
+	delete(m.loadingStatuses, msg.worktreeName)
+
+	// Find the worktree index and update its row
+	for i, wt := range m.worktrees {
+		if wt.Name == msg.worktreeName {
+			newRow := BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, msg.status)
+			m.updateRow(i, newRow)
+			break
+		}
+	}
+
+	return m, nil
 }
 
 // handleKeyMsg processes key presses based on current state.
@@ -520,6 +603,21 @@ func (m *worktreeListModel) updateOperatingRow() {
 		m.spinner.View() + " " + opLabel,
 	}
 	m.updateRow(m.operationIndex, row)
+}
+
+// updateLoadingRows updates rows that are still loading their status.
+func (m *worktreeListModel) updateLoadingRows() {
+	for i, wt := range m.worktrees {
+		if m.loadingStatuses[wt.Name] {
+			row := table.Row{
+				FormatWorktreeName(wt, m.currentWorktree),
+				wt.Branch,
+				FormatWorktreeKind(wt, m.trackedBranches),
+				m.spinner.View(),
+			}
+			m.updateRow(i, row)
+		}
+	}
 }
 
 // updateRow updates a specific row in the table.
