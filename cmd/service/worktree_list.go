@@ -148,6 +148,7 @@ func newWorktreeTableTUI(
 	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
 
 	// Fetch branch statuses concurrently
+	// TODO: make this async for each row to improve TUI responsiveness
 	branchStatuses := fetchBranchStatuses(sorted, gitOps)
 
 	// Create model

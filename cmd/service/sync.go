@@ -13,11 +13,11 @@ import (
 
 // SyncStatus represents the synchronization status between config and actual worktrees
 type SyncStatus struct {
-	MissingWorktrees  []string                  // Worktrees in config but not on disk
-	OrphanedWorktrees map[string]string         // Worktrees on disk but not in config (name -> branch)
-	BranchChanges     map[string]BranchChange   // Worktrees where branch differs from config
-	WorktreeMoves     []WorktreeMove            // Worktrees that can be moved/renamed
-	InSync            bool                      // True if everything matches
+	MissingWorktrees  []string                // Worktrees in config but not on disk
+	OrphanedWorktrees map[string]string       // Worktrees on disk but not in config (name -> branch)
+	BranchChanges     map[string]BranchChange // Worktrees where branch differs from config
+	WorktreeMoves     []WorktreeMove          // Worktrees that can be moved/renamed
+	InSync            bool                    // True if everything matches
 }
 
 // BranchChange represents a worktree where the branch needs to change
@@ -35,9 +35,7 @@ type WorktreeMove struct {
 }
 
 func newSyncCommand(svc *Service) *cobra.Command {
-	var (
-		force bool
-	)
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -104,7 +102,7 @@ confirmation unless --force is specified.`,
 }
 
 // getSyncStatus compares configured worktrees with actual worktrees and returns the differences
-func getSyncStatus(svc *Service, dryRun bool) (*SyncStatus, error) {
+func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 	config := svc.GetConfig()
 
 	// Get actual worktrees from git (always read real state, even in dry-run)
@@ -130,8 +128,8 @@ func getSyncStatus(svc *Service, dryRun bool) (*SyncStatus, error) {
 	}
 
 	// Temporary maps for missing and orphaned before move detection
-	missingMap := make(map[string]string)    // name -> branch
-	orphanedMap := make(map[string]string)   // name -> branch
+	missingMap := make(map[string]string)  // name -> branch
+	orphanedMap := make(map[string]string) // name -> branch
 
 	// Find missing worktrees (in config but not on disk)
 	for name, configEntry := range config.Worktrees {

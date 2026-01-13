@@ -9,6 +9,8 @@ import (
 	"gbm/pkg/tui/workflows"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 // addNavigatorAdapter wraps add workflow to work with Navigator.
@@ -154,7 +156,25 @@ func (a *jiraServiceAdapter) FetchIssues() ([]tui.JiraIssue, error) {
 // 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
 // 2. Workflow screen - workflow-specific steps for the selected type
 func runWorktreeAddWizardTUI(svc *Service) error {
-	// Build context with services
+	// Open /dev/tty for TUI rendering FIRST, before creating any models/styles
+	// This is required for shell integration where stdout is captured
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
+	}
+	defer func() {
+		_ = tty.Close()
+	}()
+
+	// Set up color renderer BEFORE creating the model, so styles are created with the correct renderer
+	renderer := lipgloss.NewRenderer(tty,
+		termenv.WithColorCache(true),
+		termenv.WithTTY(true),
+		termenv.WithProfile(termenv.TrueColor),
+	)
+	lipgloss.SetDefaultRenderer(renderer)
+
+	// Build context with services (after renderer is set up)
 	ctx := tui.NewContext().
 		WithDimensions(100, 30).
 		WithTheme(tui.DefaultTheme()).
@@ -168,18 +188,13 @@ func runWorktreeAddWizardTUI(svc *Service) error {
 		return err
 	}
 
-	// Open input and run program
-	input, err := os.Open("/dev/tty")
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/tty: %w", err)
-	}
-	defer func() {
-		_ = input.Close()
-	}()
-
-	// Run the adapter program
+	// Run the adapter program with tty for both input and output
 	adapter := newAddNavigatorAdapter(ctx, stepsMap)
-	p := tea.NewProgram(adapter, tea.WithInput(input), tea.WithAltScreen())
+	p := tea.NewProgram(adapter,
+		tea.WithInput(tty),
+		tea.WithOutput(tty),
+		tea.WithAltScreen(),
+	)
 	finalModel, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("testadd error: %w", err)

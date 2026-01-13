@@ -17,7 +17,7 @@ type Cell[T any] struct {
 func NewCell[T any](eval *Eval[T]) *Cell[T] {
 	return &Cell[T]{
 		eval:    eval,
-		spinner: spinner.New(spinner.WithSpinner(spinner.Line)),
+		spinner: spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 }
 
