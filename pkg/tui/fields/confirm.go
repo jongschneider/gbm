@@ -60,9 +60,9 @@ func (c *Confirm) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	switch keyMsg.String() {
 	// Navigation: left/right arrows and h/l (vim-style)
 	case "left", "h":
-		c.selected = false // Select No
+		c.selected = true // Select Yes (on the left)
 	case "right", "l":
-		c.selected = true // Select Yes
+		c.selected = false // Select No (on the right)
 
 	// Toggle with tab
 	case "tab":
