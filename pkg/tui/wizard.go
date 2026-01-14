@@ -226,6 +226,7 @@ func (w *Wizard) findPrevStep(fromIdx int) int {
 
 // storeFieldValue stores the current field's value in the workflow state.
 // This uses the field's key to determine where to store the value.
+// Known keys are stored in dedicated fields; unknown keys go to CustomFields.
 func (w *Wizard) storeFieldValue() {
 	field := w.currentField()
 	key := field.GetKey()
@@ -252,6 +253,10 @@ func (w *Wizard) storeFieldValue() {
 		if v, ok := value.(*JiraIssue); ok {
 			w.ctx.State.JiraIssue = v
 		}
+	default:
+		// Store unknown keys in CustomFields for flexibility
+		// This supports merge workflows with custom fields like "source_branch", "target_branch"
+		w.ctx.State.SetField(key, value)
 	}
 }
 

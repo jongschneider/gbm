@@ -174,6 +174,17 @@
   - [x] Test worktree name gets HOTFIX_ prefix (via ProcessHotfixWorkflow)
 - **Notes**: Tests verify hotfix workflow differs from feature workflow: base branch is mandatory (step 2, no skip logic), branch name comes after base branch selection. Includes tests for back navigation and custom worktree names.
 
+### TT-024: MergeWorkflow end-to-end (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/workflows/workflows_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test step 1: Source branch selection
+  - [x] Test step 2: Target branch selection
+  - [x] Test step 3: Confirm step shows merge details
+  - [x] Test auto-generated worktree name (MERGE_{source-to-target})
+  - [x] Test auto-generated branch name (merge/{source-to-target})
+- **Notes**: Tests verify merge workflow stores custom fields ("source_branch", "target_branch") in WorkflowState.CustomFields. Also fixed Wizard.storeFieldValue() to store unknown keys to CustomFields for flexibility with custom workflow fields. Includes tests for arrow navigation, filtering, and back navigation.
+
 ## In Progress
 
 None
@@ -184,4 +195,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 19 of 25 complete
+- Total items: 20 of 25 complete

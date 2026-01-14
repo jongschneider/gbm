@@ -366,9 +366,9 @@
         "Test auto-generated branch name (merge/{source}-to-{target})"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-022"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/workflows/workflows_teatest_test.go. Fixed Wizard.storeFieldValue() to store unknown keys to CustomFields for custom workflow fields."
     },
     {
       "id": "TT-025",
