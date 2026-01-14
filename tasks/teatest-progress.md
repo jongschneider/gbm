@@ -35,6 +35,15 @@
 - **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
 - **Note**: Completed previously
 
+### TT-008: Filterable Enter selection (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Enter selects currently highlighted option
+  - [x] Test selected value is stored in field
+  - [x] Test NextStepMsg is sent after selection
+  - [x] Test IsComplete() returns true after selection
+
 ## In Progress
 
 None
@@ -44,4 +53,4 @@ None
 
 ## Summary
 - Priority 1 items: 4 of 5 complete
-- Total items: 5 of 25 complete
+- Total items: 6 of 25 complete
