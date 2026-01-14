@@ -3104,3 +3104,230 @@ func TestConfirm_CancelMsgSentOnNKey(t *testing.T) {
 	assert.True(t, c.IsCancelled(), "IsCancelled() should be true after n press (CancelMsg sent)")
 	assert.True(t, c.IsComplete(), "IsComplete() should also be true")
 }
+
+// =============================================================================
+// TT-018: Confirm left/right navigation tests
+// =============================================================================
+
+// TestConfirm_LeftArrowSelectsYes verifies that pressing the left arrow key
+// selects the Yes button.
+func TestConfirm_LeftArrowSelectsYes(t *testing.T) {
+	c := NewConfirm("test", "Proceed?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Proceed?"))
+	}, teatest.WithDuration(time.Second))
+
+	// First navigate to No (right)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after right arrow")
+
+	// Now press left arrow to select Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, c.selected, "Yes should be selected after left arrow")
+
+	// Verify we can confirm with Enter and get true
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	assert.True(t, c.IsComplete(), "should be complete")
+	assert.Equal(t, true, c.GetValue(), "GetValue() should return true after selecting Yes with left arrow")
+}
+
+// TestConfirm_RightArrowSelectsNo verifies that pressing the right arrow key
+// selects the No button.
+func TestConfirm_RightArrowSelectsNo(t *testing.T) {
+	c := NewConfirm("test", "Continue?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Continue?"))
+	}, teatest.WithDuration(time.Second))
+
+	// Yes is selected by default
+	assert.True(t, c.selected, "Yes should be selected by default")
+
+	// Press right arrow to select No
+	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after right arrow")
+
+	// Verify we can confirm with Enter and get false + cancelled
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	assert.True(t, c.IsComplete(), "should be complete")
+	assert.True(t, c.IsCancelled(), "should be cancelled after selecting No")
+	assert.Equal(t, false, c.GetValue(), "GetValue() should return false after selecting No with right arrow")
+}
+
+// TestConfirm_HKeySelectsYes verifies that pressing 'h' (vim-style) selects Yes.
+func TestConfirm_HKeySelectsYes(t *testing.T) {
+	c := NewConfirm("test", "Save changes?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Save changes?"))
+	}, teatest.WithDuration(time.Second))
+
+	// First navigate to No using 'l' key
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after 'l' key")
+
+	// Now press 'h' to select Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, c.selected, "Yes should be selected after 'h' key")
+
+	// Verify we can confirm with Enter and get true
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	assert.True(t, c.IsComplete(), "should be complete")
+	assert.Equal(t, true, c.GetValue(), "GetValue() should return true after selecting Yes with 'h' key")
+}
+
+// TestConfirm_LKeySelectsNo verifies that pressing 'l' (vim-style) selects No.
+func TestConfirm_LKeySelectsNo(t *testing.T) {
+	c := NewConfirm("test", "Delete file?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Delete file?"))
+	}, teatest.WithDuration(time.Second))
+
+	// Yes is selected by default
+	assert.True(t, c.selected, "Yes should be selected by default")
+
+	// Press 'l' to select No
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after 'l' key")
+
+	// Verify we can confirm with Enter and get false + cancelled
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	assert.True(t, c.IsComplete(), "should be complete")
+	assert.True(t, c.IsCancelled(), "should be cancelled after selecting No")
+	assert.Equal(t, false, c.GetValue(), "GetValue() should return false after selecting No with 'l' key")
+}
+
+// TestConfirm_MixedArrowAndVimNavigation verifies that arrow keys and vim keys
+// can be used interchangeably for navigation.
+func TestConfirm_MixedArrowAndVimNavigation(t *testing.T) {
+	c := NewConfirm("test", "Confirm action?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Confirm action?"))
+	}, teatest.WithDuration(time.Second))
+
+	// Yes is selected by default
+	assert.True(t, c.selected, "Yes should be selected by default")
+
+	// Use right arrow to go to No
+	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after right arrow")
+
+	// Use 'h' to go back to Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, c.selected, "Yes should be selected after 'h' key")
+
+	// Use 'l' to go to No
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, c.selected, "No should be selected after 'l' key")
+
+	// Use left arrow to go back to Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, c.selected, "Yes should be selected after left arrow")
+
+	// Quit without submitting
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestConfirm_LeftRightAtBoundaries verifies that pressing left when Yes is
+// already selected or right when No is already selected does not cause issues.
+func TestConfirm_LeftRightAtBoundaries(t *testing.T) {
+	t.Run("left at Yes stays at Yes", func(t *testing.T) {
+		c := NewConfirm("test", "Confirm?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Confirm?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Yes is selected by default
+		assert.True(t, c.selected, "Yes should be selected by default")
+
+		// Press left (should stay at Yes)
+		tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
+		time.Sleep(50 * time.Millisecond)
+		assert.True(t, c.selected, "Yes should still be selected after left at boundary")
+
+		// Press 'h' (should stay at Yes)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+		time.Sleep(50 * time.Millisecond)
+		assert.True(t, c.selected, "Yes should still be selected after 'h' at boundary")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("right at No stays at No", func(t *testing.T) {
+		c := NewConfirm("test", "Confirm?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Confirm?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to No first
+		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected, "No should be selected after right arrow")
+
+		// Press right again (should stay at No)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected, "No should still be selected after right at boundary")
+
+		// Press 'l' (should stay at No)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected, "No should still be selected after 'l' at boundary")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}

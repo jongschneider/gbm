@@ -214,6 +214,16 @@
   - [x] Test empty default value is handled
 - **Notes**: Tests verify WithDefault() sets the initial text input value when the field is focused, cursor position is correctly set to end of default value, default value can be appended to/edited with backspace/completely replaced, and both empty string defaults and no WithDefault() calls are handled gracefully.
 
+### TT-018: Confirm left/right navigation (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test left arrow selects Yes
+  - [x] Test right arrow selects No
+  - [x] Test h key selects Yes (vim-style)
+  - [x] Test l key selects No (vim-style)
+- **Notes**: Tests verify left/right arrow keys and h/l vim-style keys work correctly for navigating between Yes/No buttons. Includes tests for mixed arrow/vim navigation and boundary behavior (pressing left at Yes or right at No stays at current selection).
+
 ## In Progress
 
 None
@@ -224,4 +234,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 23 of 25 complete
+- Total items: 24 of 25 complete
