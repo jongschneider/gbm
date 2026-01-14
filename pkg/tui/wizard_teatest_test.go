@@ -703,3 +703,238 @@ func TestWizard_SkipMultipleConsecutiveSteps(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
+
+// =============================================================================
+// TT-003: Wizard completion flow tests
+// =============================================================================
+
+// TestWizard_WorkflowCompleteMsgSentAfterLastStep verifies that WorkflowCompleteMsg is sent
+// after pressing Enter on the last step. The wrapper model quits on WorkflowCompleteMsg,
+// so program termination indicates the message was sent.
+func TestWizard_WorkflowCompleteMsgSentAfterLastStep(t *testing.T) {
+	step1Field := newWizardTestField("step1", "FIRST_STEP")
+	step2Field := newWizardTestField("step2", "LAST_STEP")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field},
+	}, NewContext())
+
+	// Track if WorkflowCompleteMsg was received
+	completeMsgReceived := false
+	wrapperModel := &workflowCompleteMsgTracker{
+		wizard:              wizard,
+		completeMsgReceived: &completeMsgReceived,
+	}
+
+	tm := teatest.NewTestModel(t, wrapperModel, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for first step
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("FIRST_STEP"))
+	}, teatest.WithDuration(time.Second))
+
+	// Advance to last step
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("LAST_STEP"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter on last step - should trigger WorkflowCompleteMsg
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for program to finish (happens because wrapper quits on WorkflowCompleteMsg)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify WorkflowCompleteMsg was received
+	assert.True(t, completeMsgReceived, "WorkflowCompleteMsg should be sent after last step Enter")
+	assert.True(t, wizard.IsComplete(), "wizard should be complete after WorkflowCompleteMsg")
+}
+
+// workflowCompleteMsgTracker wraps a Wizard to track WorkflowCompleteMsg reception.
+type workflowCompleteMsgTracker struct {
+	wizard              *Wizard
+	completeMsgReceived *bool
+}
+
+func (m *workflowCompleteMsgTracker) Init() tea.Cmd {
+	return m.wizard.Init()
+}
+
+func (m *workflowCompleteMsgTracker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(WorkflowCompleteMsg); ok {
+		*m.completeMsgReceived = true
+		return m, tea.Quit
+	}
+	model, cmd := m.wizard.Update(msg)
+	if w, ok := model.(*Wizard); ok {
+		m.wizard = w
+	}
+	return m, cmd
+}
+
+func (m *workflowCompleteMsgTracker) View() string {
+	return m.wizard.View()
+}
+
+// TestWizard_IsCompleteAfterAllSteps verifies that IsComplete() returns true
+// after completing all steps and false before completion.
+func TestWizard_IsCompleteAfterAllSteps(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE")
+	step2Field := newWizardTestField("step2", "STEP_TWO")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field},
+		{Name: "step3", Field: step3Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Initial state: not complete
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete initially")
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Complete Step 1
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_TWO"))
+	}, teatest.WithDuration(time.Second))
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete at step 2")
+
+	// Complete Step 2
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_THREE"))
+	}, teatest.WithDuration(time.Second))
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete at step 3")
+
+	// Complete Step 3 (last step)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for wizard to complete
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Final state: complete
+	assert.True(t, wizard.IsComplete(), "wizard should be complete after all steps")
+}
+
+// TestWizard_AllFieldValuesStoredInState verifies that all field values are stored
+// in WorkflowState after completing the wizard.
+func TestWizard_AllFieldValuesStoredInState(t *testing.T) {
+	// Create fields with distinct values
+	worktreeField := newWizardTestField(FieldKeyWorktreeName, "Enter worktree name")
+	worktreeField.value = "my-worktree"
+
+	branchField := newWizardTestField(FieldKeyBranchName, "Enter branch name")
+	branchField.value = "feature/my-branch"
+
+	baseBranchField := newWizardTestField(FieldKeyBaseBranch, "Select base branch")
+	baseBranchField.value = "develop"
+
+	ctx := NewContext()
+	wizard := NewWizard([]Step{
+		{Name: FieldKeyWorktreeName, Field: worktreeField},
+		{Name: FieldKeyBranchName, Field: branchField},
+		{Name: FieldKeyBaseBranch, Field: baseBranchField},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Initial state: all values should be empty
+	assert.Empty(t, ctx.State.WorktreeName, "WorktreeName should be empty initially")
+	assert.Empty(t, ctx.State.BranchName, "BranchName should be empty initially")
+	assert.Empty(t, ctx.State.BaseBranch, "BaseBranch should be empty initially")
+
+	// Wait for first step
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter worktree name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Complete step 1 - worktree name should be stored
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter branch name"))
+	}, teatest.WithDuration(time.Second))
+	assert.Equal(t, "my-worktree", ctx.State.WorktreeName, "WorktreeName should be stored after step 1")
+
+	// Complete step 2 - branch name should be stored
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select base branch"))
+	}, teatest.WithDuration(time.Second))
+	assert.Equal(t, "feature/my-branch", ctx.State.BranchName, "BranchName should be stored after step 2")
+
+	// Complete step 3 - base branch should be stored
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for wizard to complete
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify all values are stored
+	assert.Equal(t, "my-worktree", ctx.State.WorktreeName)
+	assert.Equal(t, "feature/my-branch", ctx.State.BranchName)
+	assert.Equal(t, "develop", ctx.State.BaseBranch)
+	assert.True(t, wizard.IsComplete(), "wizard should be complete")
+}
+
+// TestWizard_EmptyStepsListCompletesImmediately verifies that a wizard with no steps
+// handles the edge case gracefully by completing immediately.
+func TestWizard_EmptyStepsListCompletesImmediately(t *testing.T) {
+	ctx := NewContext()
+	wizard := NewWizard([]Step{}, ctx)
+
+	// Empty wizard should complete immediately on Init
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete before Init")
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for program to finish (should happen immediately)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify wizard completed
+	assert.True(t, wizard.IsComplete(), "empty wizard should be complete after Init")
+	assert.False(t, wizard.IsCancelled(), "empty wizard should not be cancelled")
+
+	// View should return empty string for empty wizard
+	assert.Equal(t, "", wizard.View(), "empty wizard View() should return empty string")
+}
+
+// TestWizard_SingleStepCompletesOnEnter verifies that a single-step wizard
+// completes correctly when Enter is pressed.
+func TestWizard_SingleStepCompletesOnEnter(t *testing.T) {
+	singleField := newWizardTestField("only_step", "ONLY_STEP_CONTENT")
+	singleField.value = "single-value"
+
+	ctx := NewContext()
+	wizard := NewWizard([]Step{
+		{Name: "only_step", Field: singleField},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for the single step
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("ONLY_STEP_CONTENT"))
+	}, teatest.WithDuration(time.Second))
+
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete before Enter")
+
+	// Press Enter to complete the only step
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for wizard to complete
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	assert.True(t, wizard.IsComplete(), "single-step wizard should be complete after Enter")
+}
