@@ -204,6 +204,16 @@
   - [x] Test Ctrl+k moves cursor up
 - **Notes**: Tests verify j/k and Ctrl+J/Ctrl+K vim-style navigation works correctly, including cursor wrapping from top to bottom and bottom to top. Also tests mixed vim and arrow key navigation followed by Enter selection.
 
+### TT-015: TextInput default value (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test WithDefault() sets initial value on Focus()
+  - [x] Test cursor is positioned at end of default value
+  - [x] Test default value can be edited
+  - [x] Test empty default value is handled
+- **Notes**: Tests verify WithDefault() sets the initial text input value when the field is focused, cursor position is correctly set to end of default value, default value can be appended to/edited with backspace/completely replaced, and both empty string defaults and no WithDefault() calls are handled gracefully.
+
 ## In Progress
 
 None
@@ -214,4 +224,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 22 of 25 complete
+- Total items: 23 of 25 complete

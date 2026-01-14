@@ -1093,6 +1093,211 @@ func TestTextInput_NoValidatorAllowsAnyInput(t *testing.T) {
 }
 
 // =============================================================================
+// TT-015: TextInput default value tests
+// =============================================================================
+
+// TestTextInput_WithDefaultSetsValueOnFocus verifies that WithDefault() sets
+// the initial value when the field is focused.
+func TestTextInput_WithDefaultSetsValueOnFocus(t *testing.T) {
+	ti := NewTextInput("name", "Enter name", "Your full name")
+	ti.WithDefault("John Doe")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify the default value was set on focus (focus happens in Init)
+	assert.Equal(t, "John Doe", ti.textInput.Value(), "default value should be set after focus")
+
+	// View should display the default value
+	view := ti.View()
+	assert.Contains(t, view, "John Doe", "view should contain default value")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_CursorAtEndOfDefault verifies that the cursor is positioned
+// at the end of the default value after focus.
+func TestTextInput_CursorAtEndOfDefault(t *testing.T) {
+	ti := NewTextInput("name", "Enter name", "")
+	ti.WithDefault("Hello World")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify cursor position is at end of default value
+	assert.Equal(t, len("Hello World"), ti.textInput.Position(), "cursor should be at end of default value")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_DefaultValueCanBeEdited verifies that the default value can
+// be modified by typing.
+func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
+	t.Run("append to default value", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		ti.WithDefault("Hello")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify default value is set
+		assert.Equal(t, "Hello", ti.textInput.Value())
+
+		// Type additional characters (cursor at end, so this appends)
+		tm.Type(" World")
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify the combined value
+		assert.Equal(t, "Hello World", ti.textInput.Value(), "typing should append to default value")
+
+		// Submit and verify
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, ti.IsComplete())
+		assert.Equal(t, "Hello World", ti.GetValue())
+	})
+
+	t.Run("backspace removes from default value", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		ti.WithDefault("Hello")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Press backspace a few times
+		tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
+		tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify characters were removed
+		assert.Equal(t, "Hel", ti.textInput.Value(), "backspace should remove characters from default")
+
+		// Submit and verify
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, ti.IsComplete())
+		assert.Equal(t, "Hel", ti.GetValue())
+	})
+
+	t.Run("replace entire default value", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		ti.WithDefault("Old Value")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Clear with Ctrl+U (delete to start of line)
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU})
+		time.Sleep(50 * time.Millisecond)
+
+		// Type new value
+		tm.Type("New Value")
+		time.Sleep(100 * time.Millisecond)
+
+		// Submit and verify
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, ti.IsComplete())
+		assert.Equal(t, "New Value", ti.GetValue())
+	})
+}
+
+// TestTextInput_EmptyDefaultValueHandled verifies that an empty default value
+// is handled gracefully.
+func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
+	t.Run("empty string default", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		ti.WithDefault("")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify text input is empty
+		assert.Equal(t, "", ti.textInput.Value(), "empty default should result in empty input")
+
+		// Should still be able to type and submit
+		tm.Type("New Text")
+		time.Sleep(100 * time.Millisecond)
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, ti.IsComplete())
+		assert.Equal(t, "New Text", ti.GetValue())
+	})
+
+	t.Run("no WithDefault called", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		// No WithDefault call
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify text input starts empty
+		assert.Equal(t, "", ti.textInput.Value(), "input should start empty without WithDefault")
+
+		// Type and submit
+		tm.Type("Typed Value")
+		time.Sleep(100 * time.Millisecond)
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, ti.IsComplete())
+		assert.Equal(t, "Typed Value", ti.GetValue())
+	})
+}
+
+// =============================================================================
 // TT-017: Confirm Enter submission tests
 // =============================================================================
 
