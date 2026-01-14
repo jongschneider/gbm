@@ -15,6 +15,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// waitFor polls until condition returns true or timeout is reached.
+func waitFor(t *testing.T, condition func() bool, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	t.Fatal("waitFor: condition not met within timeout")
+}
+
 func init() {
 	// Set ASCII color profile for consistent test output across environments
 	lipgloss.SetColorProfile(termenv.Ascii)
@@ -216,7 +229,7 @@ func TestFeatureWorkflow_Step1_CustomNameEntry(t *testing.T) {
 
 	// Type a custom name that doesn't match any issue
 	tm.Type("my-custom-feature")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	// Press Enter to submit the custom name
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -267,9 +280,9 @@ func TestFeatureWorkflow_Step2_BranchNameInput(t *testing.T) {
 
 	// Step 2: Clear any auto-generated default and enter branch name
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/proj-123-add-auth")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 3 (base branch selection)
@@ -315,9 +328,9 @@ func TestFeatureWorkflow_Step3_BaseBranchSelection(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the new branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/my-branch")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 3 (base branch)
@@ -327,7 +340,7 @@ func TestFeatureWorkflow_Step3_BaseBranchSelection(t *testing.T) {
 
 	// Step 3: Navigate to "develop" (second option)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Select develop as base branch
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -381,9 +394,9 @@ func TestFeatureWorkflow_Step3_SkippedIfBranchExists(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the new branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/existing-branch")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3 should be SKIPPED - should go directly to step 4 (confirm)
@@ -431,9 +444,9 @@ func TestFeatureWorkflow_Step4_ConfirmYes(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the new branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/final-branch")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Select base branch
@@ -490,9 +503,9 @@ func TestFeatureWorkflow_Step4_ConfirmNo(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the new branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/to-cancel")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Select base branch
@@ -507,7 +520,7 @@ func TestFeatureWorkflow_Step4_ConfirmNo(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // Move to No
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm No
 
 	// Wait for wizard to finish (due to CancelMsg)
@@ -586,7 +599,7 @@ func TestFeatureWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Move to second issue
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 2: Enter branch name
@@ -595,9 +608,9 @@ func TestFeatureWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("feature/feat-101-user-settings")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Select base branch (choose develop)
@@ -606,7 +619,7 @@ func TestFeatureWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Navigate to develop
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 4: Confirm
@@ -652,7 +665,7 @@ func TestFeatureWorkflow_FilteringJIRAIssues(t *testing.T) {
 
 	// Type "DATA" to filter to just DATA-001
 	tm.Type("DATA")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	// Verify filter narrows the list (we can check by selecting and verifying value)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -813,7 +826,7 @@ func TestSelectWorkflowType_ArrowNavigation(t *testing.T) {
 
 		// Press down once to move to Bug (index 1) and select
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -839,7 +852,7 @@ func TestSelectWorkflowType_ArrowNavigation(t *testing.T) {
 		// Press down 3 times to reach Merge (index 3)
 		for i := 0; i < 3; i++ {
 			tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
 		}
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -864,7 +877,7 @@ func TestSelectWorkflowType_ArrowNavigation(t *testing.T) {
 
 		// At index 0 (Feature), press up to wrap to Merge (index 3)
 		tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -889,7 +902,7 @@ func TestSelectWorkflowType_ArrowNavigation(t *testing.T) {
 		// Navigate to Merge (3 downs), then one more to wrap to Feature
 		for i := 0; i < 4; i++ {
 			tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
 		}
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -914,11 +927,11 @@ func TestSelectWorkflowType_ArrowNavigation(t *testing.T) {
 
 		// Go to Hotfix (2 downs) then back to Bug (1 up)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -972,7 +985,7 @@ func TestSelectWorkflowType_EnterSelectsWorkflowType(t *testing.T) {
 
 		// Navigate to Bug (index 1) and select
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -996,9 +1009,9 @@ func TestSelectWorkflowType_EnterSelectsWorkflowType(t *testing.T) {
 
 		// Navigate to Hotfix (index 2) and select
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -1023,7 +1036,7 @@ func TestSelectWorkflowType_EnterSelectsWorkflowType(t *testing.T) {
 		// Navigate to Merge (index 3) and select
 		for i := 0; i < 3; i++ {
 			tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
 		}
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -1161,7 +1174,7 @@ func TestHotfixWorkflow_Step2_BaseBranchMandatory(t *testing.T) {
 
 	// Navigate to release-1.0 (second option) and select
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 3 (branch name input)
@@ -1213,9 +1226,9 @@ func TestHotfixWorkflow_Step3_BranchNameWithHotfixPrefix(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("hotfix/prod-001-security-fix")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 4 (confirmation)
@@ -1266,9 +1279,9 @@ func TestHotfixWorkflow_Step4_ConfirmYes(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("hotfix/final-fix")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 4: Confirm
@@ -1326,9 +1339,9 @@ func TestHotfixWorkflow_Step4_ConfirmNo(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("hotfix/to-cancel")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 4: Navigate to No and select
@@ -1337,7 +1350,7 @@ func TestHotfixWorkflow_Step4_ConfirmNo(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // Move to No
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm No
 
 	// Wait for wizard to finish (due to CancelMsg)
@@ -1372,7 +1385,7 @@ func TestHotfixWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Move to second issue
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 2: Select base branch (release-2.0)
@@ -1381,9 +1394,9 @@ func TestHotfixWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // release-1.0
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // release-2.0
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Enter branch name
@@ -1392,9 +1405,9 @@ func TestHotfixWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("hotfix/prod-101-data-fix")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 4: Confirm
@@ -1482,7 +1495,7 @@ func TestHotfixWorkflow_CustomWorktreeName(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Type("urgent-security-patch")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 2: Select base branch
@@ -1496,9 +1509,9 @@ func TestHotfixWorkflow_CustomWorktreeName(t *testing.T) {
 		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Type("hotfix/urgent-security-patch")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 4: Confirm
@@ -1572,7 +1585,7 @@ func TestSelectWorkflowType_GetValueReturnsCorrectString(t *testing.T) {
 			// Navigate to the target option
 			for i := 0; i < tc.navigateSteps; i++ {
 				tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(2 * time.Millisecond)
 			}
 
 			// Select
@@ -1703,7 +1716,7 @@ func TestMergeWorkflow_Step2_TargetBranchSelection(t *testing.T) {
 
 	// Navigate to "main" (second option) and select
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 3 (confirmation)
@@ -1747,7 +1760,7 @@ func TestMergeWorkflow_Step3_ConfirmYes(t *testing.T) {
 		return bytes.Contains(bts, []byte("Select Target Branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Navigate to main
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Confirm
@@ -1798,7 +1811,7 @@ func TestMergeWorkflow_Step3_ConfirmNo(t *testing.T) {
 		return bytes.Contains(bts, []byte("Select Target Branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Navigate to main
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Navigate to No and select
@@ -1807,7 +1820,7 @@ func TestMergeWorkflow_Step3_ConfirmNo(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // Move to No
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm No
 
 	// Wait for wizard to finish (due to CancelMsg)
@@ -1840,7 +1853,7 @@ func TestMergeWorkflow_EndToEndComplete(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Move to feature/user-profile
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 2: Select target branch (develop - 4th option)
@@ -1851,7 +1864,7 @@ func TestMergeWorkflow_EndToEndComplete(t *testing.T) {
 	// Navigate to develop (4th option, index 3)
 	for i := 0; i < 3; i++ {
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -1939,7 +1952,7 @@ func TestMergeWorkflow_FilteringBranches(t *testing.T) {
 
 	// Type "main" to filter to just main branch
 	tm.Type("main")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	// Press Enter to select the filtered result
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1984,7 +1997,7 @@ func TestMergeWorkflow_AutoGeneratedWorktreeName(t *testing.T) {
 		return bytes.Contains(bts, []byte("Select Target Branch"))
 	}, teatest.WithDuration(time.Second))
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Navigate to main
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Step 3: Confirm
@@ -2063,9 +2076,9 @@ func TestMergeWorkflow_ArrowNavigation(t *testing.T) {
 
 	// Navigate down twice to select "main"
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	// Wait for step 2

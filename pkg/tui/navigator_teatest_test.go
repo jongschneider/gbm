@@ -93,8 +93,8 @@ func TestNavigator_PushAddsModelToStack(t *testing.T) {
 	// Verify depth increased
 	assert.Equal(t, 2, nav.Depth(), "Navigator should have depth 2 after push")
 
-	// Give time for any pending updates
-	time.Sleep(10 * time.Millisecond)
+	// Wait for view to update (using waitFor since Push() modifies model directly, not via tm.Send)
+	waitFor(t, func() bool { return bytes.Contains([]byte(nav.View()), []byte("SCREEN_TWO")) }, time.Second)
 
 	// Verify the new model is now current
 	assert.Contains(t, nav.View(), "SCREEN_TWO",
@@ -609,8 +609,8 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	// Send a message to initial model
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
 
-	// Give time for update to process
-	time.Sleep(20 * time.Millisecond)
+	// Wait for update to process
+	waitFor(t, func() bool { return initialModel.updateCallCount > 0 }, time.Second)
 
 	// Verify initial model received the message
 	assert.Greater(t, initialModel.updateCallCount, 0, "Initial model should receive Update() calls")
@@ -631,8 +631,8 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	// Send a message - should now go to target
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
-	// Give time for update to process
-	time.Sleep(20 * time.Millisecond)
+	// Wait for update to process
+	waitFor(t, func() bool { return targetModel.updateCallCount > 0 }, time.Second)
 
 	// Verify target model receives the message now
 	assert.Greater(t, targetModel.updateCallCount, 0, "Target model should receive Update() calls after navigation")

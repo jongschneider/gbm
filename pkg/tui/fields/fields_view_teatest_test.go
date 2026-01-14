@@ -297,7 +297,7 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 		tm.Type("ap")
 
 		// Allow time for messages to process
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify filter was applied - only Apple and Apricot match 'ap'
 		assert.Equal(t, 2, len(f.filtered), "after typing 'ap', should have 2 matches")
@@ -305,7 +305,7 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 
 		// Type more to narrow down
 		tm.Type("r")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Only Apricot matches 'apr'
 		assert.Equal(t, 1, len(f.filtered), "after typing 'apr', should have 1 match")
@@ -339,12 +339,12 @@ func TestSelector_Interactive_Navigation(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 
 	// Give it time to process
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Press down again
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Quit and verify final state
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -371,13 +371,13 @@ func TestConfirm_Interactive_Toggle(t *testing.T) {
 
 	// Press tab to toggle
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.False(t, c.selected, "after tab, selection should be No")
 
 	// Press tab again
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.True(t, c.selected, "after second tab, selection should be Yes again")
 
@@ -440,7 +440,7 @@ func TestFilterable_EnterSelectsHighlightedOption(t *testing.T) {
 
 		// Navigate to second option
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, f.cursor, "cursor should be at index 1 after down press")
 
@@ -470,9 +470,9 @@ func TestFilterable_EnterSelectsHighlightedOption(t *testing.T) {
 
 		// Navigate to third option
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, f.cursor, "cursor should be at index 2 after two down presses")
 
@@ -513,7 +513,7 @@ func TestFilterable_EnterWithFilteredResults(t *testing.T) {
 
 		// Type 'ap' to filter to Apple and Apricot
 		tm.Type("ap")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify filter was applied
 		assert.Equal(t, 2, len(f.filtered), "filter should show 2 options (Apple, Apricot)")
@@ -521,7 +521,7 @@ func TestFilterable_EnterWithFilteredResults(t *testing.T) {
 
 		// Navigate to second filtered option (Apricot)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, f.cursor, "cursor should be at 1")
 		assert.Equal(t, "Apricot", f.filtered[f.cursor].Label, "cursor should be on Apricot")
@@ -597,7 +597,7 @@ func TestFilterable_ValueStoredAfterSelection(t *testing.T) {
 
 	// Navigate to Item Two and select
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -630,7 +630,7 @@ func TestTextInput_TypingUpdatesValue(t *testing.T) {
 
 	// Type some characters
 	tm.Type("John Doe")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify typed text is in the input
 	assert.Equal(t, "John Doe", ti.textInput.Value(), "typed text should be in input")
@@ -657,7 +657,7 @@ func TestTextInput_EnterSubmitsValue(t *testing.T) {
 
 	// Type a value
 	tm.Type("Alice Smith")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify not complete before Enter
 	assert.False(t, ti.IsComplete(), "should not be complete before Enter")
@@ -691,7 +691,7 @@ func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
 
 		// Type value with leading and trailing spaces
 		tm.Type("  Bob Jones  ")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Press Enter to submit
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -716,7 +716,7 @@ func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
 
 		// Type only spaces
 		tm.Type("   ")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Press Enter to submit
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -747,7 +747,7 @@ func TestTextInput_NextStepMsgSentOnEnter(t *testing.T) {
 
 	// Type something
 	tm.Type("test value")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Press Enter - this triggers NextStepMsg which causes fieldModel to quit
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -782,7 +782,7 @@ func TestTextInput_IsCompleteAfterSubmission(t *testing.T) {
 
 	// Type and submit
 	tm.Type("my value")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Still not complete until Enter
 	assert.False(t, ti.IsComplete(), "IsComplete() should still be false before Enter")
@@ -847,7 +847,7 @@ func TestTextInput_ValidatorCalledOnEnter(t *testing.T) {
 
 	// Type a value
 	tm.Type("test value")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Validator still not called
 	assert.False(t, validatorCalled, "validator should not be called on typing")
@@ -884,11 +884,11 @@ func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 
 	// Type a short value (less than 5 chars)
 	tm.Type("abc")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Press Enter - this should fail validation
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify field is NOT complete
 	assert.False(t, ti.IsComplete(), "should not complete with invalid input")
@@ -924,7 +924,7 @@ func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 
 	// Press Enter with empty input - should fail validation
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
 	assert.NotNil(t, ti.err, "error should be set after validation failure")
@@ -962,7 +962,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 
 	// Press Enter with empty input - should fail validation
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
 	assert.NotNil(t, ti.err, "error should be set after validation failure")
@@ -970,7 +970,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 
 	// Start typing - error should clear
 	tm.Type("a")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
 	assert.Nil(t, ti.err, "error should be cleared after typing")
@@ -1004,10 +1004,10 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 
 	// Type short value and submit
 	tm.Type("ab")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Should fail validation
 	assert.False(t, ti.IsComplete(), "should not complete with short input")
@@ -1015,7 +1015,7 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 
 	// Add more characters to make valid
 	tm.Type("cdef")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
 	assert.Nil(t, ti.err, "error should be cleared after typing")
@@ -1055,7 +1055,7 @@ func TestTextInput_ValidationWithTrimmedValue(t *testing.T) {
 
 	// Type value with whitespace
 	tm.Type("  hello  ")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Submit
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1167,7 +1167,7 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 
 		// Type additional characters (cursor at end, so this appends)
 		tm.Type(" World")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify the combined value
 		assert.Equal(t, "Hello World", ti.textInput.Value(), "typing should append to default value")
@@ -1196,7 +1196,7 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 		// Press backspace a few times
 		tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
 		tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify characters were removed
 		assert.Equal(t, "Hel", ti.textInput.Value(), "backspace should remove characters from default")
@@ -1224,11 +1224,11 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 
 		// Clear with Ctrl+U (delete to start of line)
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Type new value
 		tm.Type("New Value")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Submit and verify
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1260,7 +1260,7 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 
 		// Should still be able to type and submit
 		tm.Type("New Text")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -1287,7 +1287,7 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 
 		// Type and submit
 		tm.Type("Typed Value")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -1348,7 +1348,7 @@ func TestConfirm_EnterWithNoSelected(t *testing.T) {
 
 	// Navigate to No using right arrow
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify No is now selected
 	assert.False(t, c.selected, "No should be selected after right arrow")
@@ -1402,7 +1402,7 @@ func TestConfirm_GetValueReturnsCorrectBoolean(t *testing.T) {
 
 		// Navigate to No with tab
 		tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Confirm with No selected
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1450,7 +1450,7 @@ func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
 
 		// Navigate to No using vim-style 'l' key
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.False(t, c.selected, "No should be selected after 'l' press")
 
@@ -1475,15 +1475,15 @@ func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
 
 		// Navigate: Yes -> No -> Yes -> No
 		tm.Send(tea.KeyMsg{Type: tea.KeyTab}) // to No
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected)
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyTab}) // back to Yes
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.True(t, c.selected)
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // to No again
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected)
 
 		// Confirm No
@@ -1554,7 +1554,7 @@ func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
 
 		// Type text that doesn't match any option
 		tm.Type("xyz")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches state
 		assert.Equal(t, 0, len(f.filtered), "filter should have no matches for 'xyz'")
@@ -1617,7 +1617,7 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 
 		// Type a custom value that doesn't match any option
 		tm.Type("Orange")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches
 		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'Orange'")
@@ -1647,12 +1647,12 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 
 		// Type 'a' - should match Apple
 		tm.Type("a")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, len(f.filtered), "should match Apple and Banana")
 
 		// Type more to make it not match anything
 		tm.Type("xyz")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'axyz'")
 
 		// Press Enter to submit custom value
@@ -1686,7 +1686,7 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 
 		// Type value with leading and trailing spaces
 		tm.Type("  custom value  ")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches (so custom value will be used)
 		assert.Equal(t, 0, len(f.filtered), "should have no matches")
@@ -1714,7 +1714,7 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 
 		// Type value with internal spaces
 		tm.Type("hello   world")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Press Enter to submit
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1754,20 +1754,20 @@ func TestFilterable_ArrowNavigation_UpMovesUp(t *testing.T) {
 
 	// Move down first so we can test moving up
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 1, f.cursor, "cursor should be at 1 after down")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 2, f.cursor, "cursor should be at 2 after second down")
 
 	// Now test Up arrow
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 1, f.cursor, "cursor should move to 1 after up arrow")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 0, f.cursor, "cursor should move to 0 after second up arrow")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -1800,17 +1800,17 @@ func TestFilterable_ArrowNavigation_DownMovesDown(t *testing.T) {
 
 	// Press Down arrow - cursor should move to 1
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 1, f.cursor, "cursor should be at 1 after first down")
 
 	// Press Down arrow again - cursor should move to 2
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 2, f.cursor, "cursor should be at 2 after second down")
 
 	// Press Down arrow again - cursor should move to 3
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 3, f.cursor, "cursor should be at 3 after third down")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -1842,7 +1842,7 @@ func TestFilterable_ArrowNavigation_WrapTopToBottom(t *testing.T) {
 
 	// Press Up arrow at first item - should wrap to last item (index 2)
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.Equal(t, 2, f.cursor, "cursor should wrap to last item (index 2) after up at first")
 	assert.Equal(t, "Third", f.filtered[f.cursor].Label, "cursor should be on Third after wrap")
@@ -1873,16 +1873,16 @@ func TestFilterable_ArrowNavigation_WrapBottomToTop(t *testing.T) {
 
 	// Move to last item
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.Equal(t, 2, f.cursor, "cursor should be at last item (index 2)")
 	assert.Equal(t, "Third", f.filtered[f.cursor].Label, "cursor should be on Third")
 
 	// Press Down arrow at last item - should wrap to first item (index 0)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.Equal(t, 0, f.cursor, "cursor should wrap to first item (index 0) after down at last")
 	assert.Equal(t, "First", f.filtered[f.cursor].Label, "cursor should be on First after wrap")
@@ -1923,7 +1923,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
 	// Move down multiple times to force scrolling
 	for i := 0; i < 8; i++ {
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Cursor should be at position 8
@@ -1966,7 +1966,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
 	// Move down multiple times to scroll viewport down
 	for i := 0; i < 10; i++ {
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Record the viewport offset after scrolling down
@@ -1976,7 +1976,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
 	// Now move up multiple times
 	for i := 0; i < 8; i++ {
 		tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Cursor should be at position 2 (10 - 8)
@@ -2014,7 +2014,7 @@ func TestFilterable_ArrowNavigation_CtrlUpDown(t *testing.T) {
 
 		// Ctrl+J should move down
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, f.cursor, "cursor should move to 1 after Ctrl+J")
 
@@ -2035,15 +2035,15 @@ func TestFilterable_ArrowNavigation_CtrlUpDown(t *testing.T) {
 
 		// Move down first
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, f.cursor, "cursor should be at 2")
 
 		// Ctrl+K should move up
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, f.cursor, "cursor should move to 1 after Ctrl+K")
 
@@ -2071,9 +2071,9 @@ func TestFilterable_ArrowNavigation_EmptyList(t *testing.T) {
 
 	// These should not crash or change state dramatically
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify no crash occurred and we can still quit
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -2105,12 +2105,12 @@ func TestFilterable_ArrowNavigation_SingleOption(t *testing.T) {
 
 	// Down should wrap back to 0
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0 with single option")
 
 	// Up should also wrap back to 0
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0 with single option")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -2143,26 +2143,26 @@ func TestFilterable_ArrowNavigation_AfterFiltering(t *testing.T) {
 
 	// Type 'ap' to filter to Apple and Apricot
 	tm.Type("ap")
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	assert.Equal(t, 2, len(f.filtered), "should have 2 options after filtering")
 	assert.Equal(t, 0, f.cursor, "cursor should reset to 0 after filter")
 
 	// Navigate down
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 1, f.cursor, "cursor should be at 1")
 	assert.Equal(t, "Apricot", f.filtered[f.cursor].Label, "should be on Apricot")
 
 	// Navigate down again - should wrap to 0
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0")
 	assert.Equal(t, "Apple", f.filtered[f.cursor].Label, "should be on Apple")
 
 	// Navigate up - should wrap to 1 (last in filtered list)
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.Equal(t, 1, f.cursor, "cursor should wrap to 1")
 	assert.Equal(t, "Apricot", f.filtered[f.cursor].Label, "should be on Apricot")
 
@@ -2216,11 +2216,11 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 
 		// Type only spaces - this still shows all options since trim is applied to filter
 		tm.Type("   ")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Move to second option
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Press Enter - should select highlighted option
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -2266,7 +2266,7 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 
 		// Type custom value
 		tm.Type("custom")
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Press Enter
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -2333,7 +2333,7 @@ func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
 
 		// Navigate to second option
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should be at index 1 after down press")
 
@@ -2363,9 +2363,9 @@ func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
 
 		// Navigate to third option
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, s.cursor, "cursor should be at index 2 after two down presses")
 
@@ -2404,7 +2404,7 @@ func TestSelector_SelectedValueMatchesOptionValue(t *testing.T) {
 
 	// Navigate to second option and select
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -2473,7 +2473,7 @@ func TestSelector_IsCompleteAfterSelection(t *testing.T) {
 
 	// Navigate and check - still not complete
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, s.IsComplete(), "IsComplete() should still be false before Enter")
 
 	// Submit
@@ -2502,7 +2502,7 @@ func TestSelector_EmptyOptionsDoesNotCrash(t *testing.T) {
 
 	// Press Enter - should not crash and should not complete
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	// Verify not complete (no options to select)
 	assert.False(t, s.IsComplete(), "should not be complete with no options")
@@ -2535,14 +2535,14 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 
 		// Move to last item
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should be at index 2")
 
 		// Wrap to first
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // wraps to 0
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 0, s.cursor, "should wrap to index 0")
 
 		// Select
@@ -2565,7 +2565,7 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 
 		// At first item, wrap to last
 		tm.Send(tea.KeyMsg{Type: tea.KeyUp}) // wraps to 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should wrap to index 2")
 
 		// Select
@@ -2605,13 +2605,13 @@ func TestSelector_JKeyMovesCursorDown(t *testing.T) {
 
 		// Press 'j' to move down
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after j press")
 
 		// Press 'j' again
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, s.cursor, "cursor should move to index 2 after second j press")
 
@@ -2632,14 +2632,14 @@ func TestSelector_JKeyMovesCursorDown(t *testing.T) {
 
 		// Move to last item
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should be at last index")
 
 		// Press j to wrap
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 0, s.cursor, "j should wrap from bottom to top")
 
@@ -2670,20 +2670,20 @@ func TestSelector_KKeyMovesCursorUp(t *testing.T) {
 
 		// First move down to have room to go up
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should be at index 2")
 
 		// Press 'k' to move up
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after k press")
 
 		// Press 'k' again
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 0, s.cursor, "cursor should move to index 0 after second k press")
 
@@ -2706,7 +2706,7 @@ func TestSelector_KKeyMovesCursorUp(t *testing.T) {
 		assert.Equal(t, 0, s.cursor, "should start at index 0")
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, s.cursor, "k should wrap from top to bottom")
 
@@ -2738,7 +2738,7 @@ func TestSelector_CtrlJMovesCursorDown(t *testing.T) {
 
 		// Press Ctrl+J to move down
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after ctrl+j")
 
@@ -2759,14 +2759,14 @@ func TestSelector_CtrlJMovesCursorDown(t *testing.T) {
 
 		// Move to last position
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ}) // 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should be at last index")
 
 		// Wrap
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 0, s.cursor, "ctrl+j should wrap from bottom to top")
 
@@ -2796,14 +2796,14 @@ func TestSelector_CtrlKMovesCursorUp(t *testing.T) {
 
 		// Move down first
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.Equal(t, 2, s.cursor, "should be at index 2")
 
 		// Press Ctrl+K to move up
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after ctrl+k")
 
@@ -2826,7 +2826,7 @@ func TestSelector_CtrlKMovesCursorUp(t *testing.T) {
 
 		// Press Ctrl+K to wrap
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 2, s.cursor, "ctrl+k should wrap from top to bottom")
 
@@ -2857,7 +2857,7 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 
 		// Navigate with j to second option
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Select with Enter
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -2880,7 +2880,7 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 
 		// Navigate with k to wrap to last option
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		// Select with Enter
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -2903,11 +2903,11 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 
 		// Mix j and arrow keys
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 2
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}) // 1
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 
 		assert.Equal(t, 1, s.cursor, "cursor should be at index 1")
 
@@ -3039,7 +3039,7 @@ func TestConfirm_YNShortcutsIgnoreCurrentSelection(t *testing.T) {
 
 		// Navigate to No
 		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected, "No should be selected")
 
 		// Press 'y' - should still confirm with true
@@ -3124,12 +3124,12 @@ func TestConfirm_LeftArrowSelectsYes(t *testing.T) {
 
 	// First navigate to No (right)
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after right arrow")
 
 	// Now press left arrow to select Yes
 	tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.True(t, c.selected, "Yes should be selected after left arrow")
 
 	// Verify we can confirm with Enter and get true
@@ -3158,7 +3158,7 @@ func TestConfirm_RightArrowSelectsNo(t *testing.T) {
 
 	// Press right arrow to select No
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after right arrow")
 
 	// Verify we can confirm with Enter and get false + cancelled
@@ -3184,12 +3184,12 @@ func TestConfirm_HKeySelectsYes(t *testing.T) {
 
 	// First navigate to No using 'l' key
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after 'l' key")
 
 	// Now press 'h' to select Yes
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.True(t, c.selected, "Yes should be selected after 'h' key")
 
 	// Verify we can confirm with Enter and get true
@@ -3217,7 +3217,7 @@ func TestConfirm_LKeySelectsNo(t *testing.T) {
 
 	// Press 'l' to select No
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after 'l' key")
 
 	// Verify we can confirm with Enter and get false + cancelled
@@ -3247,22 +3247,22 @@ func TestConfirm_MixedArrowAndVimNavigation(t *testing.T) {
 
 	// Use right arrow to go to No
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after right arrow")
 
 	// Use 'h' to go back to Yes
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.True(t, c.selected, "Yes should be selected after 'h' key")
 
 	// Use 'l' to go to No
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.False(t, c.selected, "No should be selected after 'l' key")
 
 	// Use left arrow to go back to Yes
 	tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	assert.True(t, c.selected, "Yes should be selected after left arrow")
 
 	// Quit without submitting
@@ -3289,12 +3289,12 @@ func TestConfirm_LeftRightAtBoundaries(t *testing.T) {
 
 		// Press left (should stay at Yes)
 		tm.Send(tea.KeyMsg{Type: tea.KeyLeft})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.True(t, c.selected, "Yes should still be selected after left at boundary")
 
 		// Press 'h' (should stay at Yes)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.True(t, c.selected, "Yes should still be selected after 'h' at boundary")
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -3314,17 +3314,17 @@ func TestConfirm_LeftRightAtBoundaries(t *testing.T) {
 
 		// Navigate to No first
 		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected, "No should be selected after right arrow")
 
 		// Press right again (should stay at No)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected, "No should still be selected after right at boundary")
 
 		// Press 'l' (should stay at No)
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		assert.False(t, c.selected, "No should still be selected after 'l' at boundary")
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
