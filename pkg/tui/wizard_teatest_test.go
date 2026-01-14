@@ -938,3 +938,159 @@ func TestWizard_SingleStepCompletesOnEnter(t *testing.T) {
 
 	assert.True(t, wizard.IsComplete(), "single-step wizard should be complete after Enter")
 }
+
+// =============================================================================
+// TT-004: Wizard back boundary handling tests
+// =============================================================================
+
+// backBoundaryMsgTracker wraps a Wizard to track BackBoundaryMsg reception.
+type backBoundaryMsgTracker struct {
+	wizard               *Wizard
+	backBoundaryReceived *bool
+}
+
+func (m *backBoundaryMsgTracker) Init() tea.Cmd {
+	return m.wizard.Init()
+}
+
+func (m *backBoundaryMsgTracker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(BackBoundaryMsg); ok {
+		*m.backBoundaryReceived = true
+		// Don't quit - just record that we received the message
+	}
+	// Handle Ctrl+C to quit
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.Type == tea.KeyCtrlC {
+		return m, tea.Quit
+	}
+	model, cmd := m.wizard.Update(msg)
+	if w, ok := model.(*Wizard); ok {
+		m.wizard = w
+	}
+	return m, cmd
+}
+
+func (m *backBoundaryMsgTracker) View() string {
+	return m.wizard.View()
+}
+
+// TestWizard_BackBoundaryMsgSentAtStep0 verifies that BackBoundaryMsg is sent
+// when pressing Esc at step 0 (the first step).
+func TestWizard_BackBoundaryMsgSentAtStep0(t *testing.T) {
+	step1Field := newWizardTestField("step1", "FIRST_STEP")
+	step2Field := newWizardTestField("step2", "SECOND_STEP")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field},
+	}, NewContext())
+
+	// Track if BackBoundaryMsg was received
+	backBoundaryReceived := false
+	wrapperModel := &backBoundaryMsgTracker{
+		wizard:               wizard,
+		backBoundaryReceived: &backBoundaryReceived,
+	}
+
+	tm := teatest.NewTestModel(t, wrapperModel, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for first step
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("FIRST_STEP"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Esc at step 0 - should trigger BackBoundaryMsg
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Give time for message to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify BackBoundaryMsg was received
+	assert.True(t, backBoundaryReceived, "BackBoundaryMsg should be sent when pressing Esc at step 0")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_RemainsAtStep0AfterBackBoundary verifies that the wizard remains
+// at step 0 after BackBoundaryMsg is sent (pressing Esc at first step doesn't navigate away).
+func TestWizard_RemainsAtStep0AfterBackBoundary(t *testing.T) {
+	step1Field := newWizardTestField("step1", "UNIQUE_FIRST_STEP")
+	step2Field := newWizardTestField("step2", "UNIQUE_SECOND_STEP")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for first step
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("UNIQUE_FIRST_STEP"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Esc at step 0 multiple times
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Give time for messages to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify we're still at step 0 - view should still show first step content
+	assert.Contains(t, wizard.View(), "UNIQUE_FIRST_STEP",
+		"Wizard should remain at step 0 after pressing Esc at first step")
+	assert.NotContains(t, wizard.View(), "UNIQUE_SECOND_STEP",
+		"Wizard should not show step 2 content when at step 0")
+
+	// Verify wizard state is still valid (not cancelled, not complete)
+	assert.False(t, wizard.IsCancelled(), "Wizard should not be cancelled after Esc at step 0")
+	assert.False(t, wizard.IsComplete(), "Wizard should not be complete after Esc at step 0")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_FieldRemainsFocusedAfterBackBoundary verifies that the current field
+// remains focused after BackBoundaryMsg is sent.
+func TestWizard_FieldRemainsFocusedAfterBackBoundary(t *testing.T) {
+	step1Field := newWizardTestField("step1", "FOCUSED_STEP")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for first step - should show focused indicator "> "
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("> FOCUSED_STEP"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify field is focused (shows "> " prefix)
+	assert.Contains(t, wizard.View(), "> FOCUSED_STEP",
+		"Field should be focused initially (showing '> ' prefix)")
+
+	// Press Esc at step 0
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Give time for message to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify field is still focused after BackBoundaryMsg
+	// The wizardTestField shows "> " prefix when focused
+	assert.Contains(t, wizard.View(), "> FOCUSED_STEP",
+		"Field should remain focused after BackBoundaryMsg (showing '> ' prefix)")
+
+	// Additional verification: the field's focused state should be true
+	assert.True(t, step1Field.focused, "Field's focused flag should remain true after BackBoundaryMsg")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}

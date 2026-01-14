@@ -74,6 +74,14 @@
   - [x] Test final state contains all expected values
 - **Notes**: Fixed test model to process CancelMsg through wizard before quitting, ensuring wizard.IsCancelled() is set correctly
 
+### TT-004: Wizard back boundary handling (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/wizard_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test BackBoundaryMsg sent when Esc pressed at step 0
+  - [x] Test wizard remains at step 0 after BackBoundaryMsg
+  - [x] Test current field remains focused after BackBoundaryMsg
+
 ## In Progress
 
 None
@@ -84,4 +92,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 9 of 25 complete
+- Total items: 10 of 25 complete
