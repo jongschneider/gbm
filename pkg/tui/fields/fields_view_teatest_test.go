@@ -2372,6 +2372,349 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 }
 
 // =============================================================================
+// TT-012: Selector vim key navigation tests
+// =============================================================================
+
+// TestSelector_JKeyMovesCursorDown verifies that pressing 'j' moves the cursor
+// down in vim-style navigation.
+func TestSelector_JKeyMovesCursorDown(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("j moves cursor down one position", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify initial cursor is at 0
+		assert.Equal(t, 0, s.cursor, "initial cursor should be at index 0")
+
+		// Press 'j' to move down
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after j press")
+
+		// Press 'j' again
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 2, s.cursor, "cursor should move to index 2 after second j press")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("j wraps from bottom to top", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Move to last item
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 2
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should be at last index")
+
+		// Press j to wrap
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 0, s.cursor, "j should wrap from bottom to top")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}
+
+// TestSelector_KKeyMovesCursorUp verifies that pressing 'k' moves the cursor
+// up in vim-style navigation.
+func TestSelector_KKeyMovesCursorUp(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("k moves cursor up one position", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// First move down to have room to go up
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 2
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should be at index 2")
+
+		// Press 'k' to move up
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after k press")
+
+		// Press 'k' again
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 0, s.cursor, "cursor should move to index 0 after second k press")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("k wraps from top to bottom", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// At first item, press k to wrap
+		assert.Equal(t, 0, s.cursor, "should start at index 0")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 2, s.cursor, "k should wrap from top to bottom")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}
+
+// TestSelector_CtrlJMovesCursorDown verifies that Ctrl+J moves the cursor down.
+func TestSelector_CtrlJMovesCursorDown(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("ctrl+j moves cursor down", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		assert.Equal(t, 0, s.cursor, "initial cursor should be at index 0")
+
+		// Press Ctrl+J to move down
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after ctrl+j")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("ctrl+j wraps from bottom to top", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Move to last position
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ}) // 1
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ}) // 2
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should be at last index")
+
+		// Wrap
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 0, s.cursor, "ctrl+j should wrap from bottom to top")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}
+
+// TestSelector_CtrlKMovesCursorUp verifies that Ctrl+K moves the cursor up.
+func TestSelector_CtrlKMovesCursorUp(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("ctrl+k moves cursor up", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Move down first
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should be at index 2")
+
+		// Press Ctrl+K to move up
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should move to index 1 after ctrl+k")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("ctrl+k wraps from top to bottom", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		assert.Equal(t, 0, s.cursor, "should start at index 0")
+
+		// Press Ctrl+K to wrap
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 2, s.cursor, "ctrl+k should wrap from top to bottom")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}
+
+// TestSelector_VimKeysThenSelect verifies that vim keys can be used to navigate
+// and then Enter selects the correct option.
+func TestSelector_VimKeysThenSelect(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("j navigation then enter selects correct option", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate with j to second option
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		time.Sleep(50 * time.Millisecond)
+
+		// Select with Enter
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, s.IsComplete(), "should be complete after enter")
+		assert.Equal(t, "2", s.GetValue(), "should select second option")
+	})
+
+	t.Run("k navigation then enter selects correct option", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate with k to wrap to last option
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		time.Sleep(50 * time.Millisecond)
+
+		// Select with Enter
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, s.IsComplete(), "should be complete after enter")
+		assert.Equal(t, "3", s.GetValue(), "should select third option after k wrap")
+	})
+
+	t.Run("mixed vim and arrow navigation then select", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Mix j and arrow keys
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // 1
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 2
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}) // 1
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should be at index 1")
+
+		// Select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.Equal(t, "2", s.GetValue(), "should select second option")
+	})
+}
+
+// =============================================================================
 // TT-016: Confirm y/n shortcut keys tests
 // =============================================================================
 

@@ -194,6 +194,16 @@
   - [x] Test field re-renders with new dimensions
 - **Notes**: Added `resizeTrackingField` test helper that tracks all width/height calls. Tests verify context dimensions are updated, field methods are called with correct values, and resize doesn't interfere with step navigation. Includes test for multiple consecutive resize messages.
 
+### TT-012: Selector vim key navigation (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test j key moves cursor down
+  - [x] Test k key moves cursor up
+  - [x] Test Ctrl+j moves cursor down
+  - [x] Test Ctrl+k moves cursor up
+- **Notes**: Tests verify j/k and Ctrl+J/Ctrl+K vim-style navigation works correctly, including cursor wrapping from top to bottom and bottom to top. Also tests mixed vim and arrow key navigation followed by Enter selection.
+
 ## In Progress
 
 None
@@ -204,4 +214,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 21 of 25 complete
+- Total items: 22 of 25 complete
