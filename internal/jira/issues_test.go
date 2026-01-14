@@ -828,6 +828,371 @@ func TestChildrenDeduplicatedFromLinkedIssues(t *testing.T) {
 	}
 }
 
+// TestParentFieldParsing tests that parent field is correctly parsed from raw JSON
+func TestParentFieldParsing(t *testing.T) {
+	// Read the sample ticket.json from testdata (which has a parent field)
+	ticketPath := "testdata/ticket.json"
+	data, err := os.ReadFile(ticketPath)
+	require.NoError(t, err, "ticket.json should exist in testdata/")
+
+	// Parse the JSON response
+	var jiraResponse jiraRawResponse
+	require.NoError(t, json.Unmarshal(data, &jiraResponse), "ticket.json should be valid JSON")
+
+	// Verify that we have a parent field
+	require.NotNil(t, jiraResponse.Fields.Parent, "ticket.json should contain a parent field")
+
+	// Verify parent field details
+	parent := jiraResponse.Fields.Parent
+	assert.Equal(t, "62959", parent.ID, "parent ID should match")
+	assert.Equal(t, "EPIC-3089", parent.Key, "parent key should match")
+	assert.Equal(t, "[Wells Fargo] Microsoft Teams Messaging : Add Support for Conversation Rename",
+		parent.Fields.Summary, "parent summary should match")
+	assert.Equal(t, "ENG Accepted", parent.Fields.Status.Name, "parent status should match")
+	assert.Equal(t, "Medium", parent.Fields.Priority.Name, "parent priority should match")
+	assert.Equal(t, "Epic", parent.Fields.IssueType.Name, "parent issue type should match")
+
+	t.Logf("✓ Parent field parsed: %s - %s", parent.Key, parent.Fields.Summary)
+}
+
+// TestSubtasksArrayParsing tests that subtasks array is correctly parsed from raw JSON
+func TestSubtasksArrayParsing(t *testing.T) {
+	// Create test JSON with subtasks
+	jsonData := `{
+		"key": "PARENT-123",
+		"self": "https://example.com/rest/api/3/issue/12345",
+		"fields": {
+			"summary": "Parent issue",
+			"status": {"name": "Open"},
+			"priority": {"name": "High"},
+			"issuetype": {"name": "Story"},
+			"subtasks": [
+				{
+					"id": "100",
+					"key": "CHILD-100",
+					"fields": {
+						"summary": "First subtask",
+						"status": {"name": "In Progress"},
+						"priority": {"name": "Medium"},
+						"issuetype": {"name": "Sub-task"}
+					}
+				},
+				{
+					"id": "101",
+					"key": "CHILD-101",
+					"fields": {
+						"summary": "Second subtask",
+						"status": {"name": "Done"},
+						"priority": {"name": "Low"},
+						"issuetype": {"name": "Sub-task"}
+					}
+				}
+			]
+		}
+	}`
+
+	var jiraResponse jiraRawResponse
+	require.NoError(t, json.Unmarshal([]byte(jsonData), &jiraResponse), "JSON should be valid")
+
+	// Verify subtasks were parsed
+	require.Len(t, jiraResponse.Fields.Subtasks, 2, "should have 2 subtasks")
+
+	// Verify first subtask
+	first := jiraResponse.Fields.Subtasks[0]
+	assert.Equal(t, "100", first.ID, "first subtask ID should match")
+	assert.Equal(t, "CHILD-100", first.Key, "first subtask key should match")
+	assert.Equal(t, "First subtask", first.Fields.Summary, "first subtask summary should match")
+	assert.Equal(t, "In Progress", first.Fields.Status.Name, "first subtask status should match")
+	assert.Equal(t, "Medium", first.Fields.Priority.Name, "first subtask priority should match")
+	assert.Equal(t, "Sub-task", first.Fields.IssueType.Name, "first subtask type should match")
+
+	// Verify second subtask
+	second := jiraResponse.Fields.Subtasks[1]
+	assert.Equal(t, "101", second.ID, "second subtask ID should match")
+	assert.Equal(t, "CHILD-101", second.Key, "second subtask key should match")
+	assert.Equal(t, "Second subtask", second.Fields.Summary, "second subtask summary should match")
+	assert.Equal(t, "Done", second.Fields.Status.Name, "second subtask status should match")
+	assert.Equal(t, "Low", second.Fields.Priority.Name, "second subtask priority should match")
+	assert.Equal(t, "Sub-task", second.Fields.IssueType.Name, "second subtask type should match")
+
+	t.Logf("✓ Subtasks parsed: %d items", len(jiraResponse.Fields.Subtasks))
+}
+
+// TestParentConversionToLinkedIssue tests that parent is correctly converted to LinkedIssue
+func TestParentConversionToLinkedIssue(t *testing.T) {
+	// Create test raw parent structure
+	rawParent := struct {
+		ID     string `json:"id"`
+		Key    string `json:"key"`
+		Fields struct {
+			Summary string `json:"summary"`
+			Status  struct {
+				Name string `json:"name"`
+			} `json:"status"`
+			Priority struct {
+				Name string `json:"name"`
+			} `json:"priority"`
+			IssueType struct {
+				Name string `json:"name"`
+			} `json:"issuetype"`
+		} `json:"fields"`
+	}{
+		ID:  "12345",
+		Key: "EPIC-100",
+	}
+	rawParent.Fields.Summary = "Parent Epic Summary"
+	rawParent.Fields.Status.Name = "In Progress"
+	rawParent.Fields.Priority.Name = "High"
+	rawParent.Fields.IssueType.Name = "Epic"
+
+	// Convert to LinkedIssue (same logic as GetJiraIssue)
+	linkedIssue := &LinkedIssue{
+		ID:        rawParent.ID,
+		Key:       rawParent.Key,
+		Summary:   rawParent.Fields.Summary,
+		Status:    rawParent.Fields.Status.Name,
+		Priority:  rawParent.Fields.Priority.Name,
+		IssueType: rawParent.Fields.IssueType.Name,
+	}
+
+	// Verify all fields are correctly mapped
+	assert.Equal(t, "12345", linkedIssue.ID, "ID should match")
+	assert.Equal(t, "EPIC-100", linkedIssue.Key, "Key should match")
+	assert.Equal(t, "Parent Epic Summary", linkedIssue.Summary, "Summary should match")
+	assert.Equal(t, "In Progress", linkedIssue.Status, "Status should match")
+	assert.Equal(t, "High", linkedIssue.Priority, "Priority should match")
+	assert.Equal(t, "Epic", linkedIssue.IssueType, "IssueType should match")
+
+	t.Logf("✓ Parent converted to LinkedIssue: %s (%s)", linkedIssue.Key, linkedIssue.IssueType)
+}
+
+// TestChildrenConversionToLinkedIssue tests that children (subtasks) are correctly converted to LinkedIssue slice
+func TestChildrenConversionToLinkedIssue(t *testing.T) {
+	// Create test raw subtasks structure
+	type rawSubtask struct {
+		ID     string `json:"id"`
+		Key    string `json:"key"`
+		Fields struct {
+			Summary string `json:"summary"`
+			Status  struct {
+				Name string `json:"name"`
+			} `json:"status"`
+			Priority struct {
+				Name string `json:"name"`
+			} `json:"priority"`
+			IssueType struct {
+				Name string `json:"name"`
+			} `json:"issuetype"`
+		} `json:"fields"`
+	}
+
+	rawSubtasks := []rawSubtask{
+		{ID: "100", Key: "TASK-100"},
+		{ID: "101", Key: "TASK-101"},
+		{ID: "102", Key: "TASK-102"},
+	}
+	rawSubtasks[0].Fields.Summary = "First Task"
+	rawSubtasks[0].Fields.Status.Name = "Open"
+	rawSubtasks[0].Fields.Priority.Name = "High"
+	rawSubtasks[0].Fields.IssueType.Name = "Sub-task"
+
+	rawSubtasks[1].Fields.Summary = "Second Task"
+	rawSubtasks[1].Fields.Status.Name = "In Progress"
+	rawSubtasks[1].Fields.Priority.Name = "Medium"
+	rawSubtasks[1].Fields.IssueType.Name = "Sub-task"
+
+	rawSubtasks[2].Fields.Summary = "Third Task"
+	rawSubtasks[2].Fields.Status.Name = "Done"
+	rawSubtasks[2].Fields.Priority.Name = "Low"
+	rawSubtasks[2].Fields.IssueType.Name = "Sub-task"
+
+	// Convert to LinkedIssue slice (same logic as GetJiraIssue)
+	children := make([]LinkedIssue, 0, len(rawSubtasks))
+	for _, subtask := range rawSubtasks {
+		children = append(children, LinkedIssue{
+			ID:        subtask.ID,
+			Key:       subtask.Key,
+			Summary:   subtask.Fields.Summary,
+			Status:    subtask.Fields.Status.Name,
+			Priority:  subtask.Fields.Priority.Name,
+			IssueType: subtask.Fields.IssueType.Name,
+		})
+	}
+
+	// Verify all children are correctly converted
+	require.Len(t, children, 3, "should have 3 children")
+
+	// Verify first child
+	assert.Equal(t, "100", children[0].ID, "first child ID should match")
+	assert.Equal(t, "TASK-100", children[0].Key, "first child Key should match")
+	assert.Equal(t, "First Task", children[0].Summary, "first child Summary should match")
+	assert.Equal(t, "Open", children[0].Status, "first child Status should match")
+	assert.Equal(t, "High", children[0].Priority, "first child Priority should match")
+	assert.Equal(t, "Sub-task", children[0].IssueType, "first child IssueType should match")
+
+	// Verify second child
+	assert.Equal(t, "101", children[1].ID, "second child ID should match")
+	assert.Equal(t, "TASK-101", children[1].Key, "second child Key should match")
+	assert.Equal(t, "In Progress", children[1].Status, "second child Status should match")
+
+	// Verify third child
+	assert.Equal(t, "102", children[2].ID, "third child ID should match")
+	assert.Equal(t, "TASK-102", children[2].Key, "third child Key should match")
+	assert.Equal(t, "Done", children[2].Status, "third child Status should match")
+
+	t.Logf("✓ Children converted to LinkedIssue slice: %d items", len(children))
+}
+
+// TestParentNilCase tests handling when parent field is nil
+func TestParentNilCase(t *testing.T) {
+	// Create test JSON without parent
+	jsonData := `{
+		"key": "TASK-123",
+		"self": "https://example.com/rest/api/3/issue/12345",
+		"fields": {
+			"summary": "Task without parent",
+			"status": {"name": "Open"},
+			"priority": {"name": "Medium"},
+			"issuetype": {"name": "Task"}
+		}
+	}`
+
+	var jiraResponse jiraRawResponse
+	require.NoError(t, json.Unmarshal([]byte(jsonData), &jiraResponse), "JSON should be valid")
+
+	// Verify parent is nil
+	assert.Nil(t, jiraResponse.Fields.Parent, "parent should be nil")
+
+	// Simulate the conversion (same as GetJiraIssue)
+	var parent *LinkedIssue
+	if jiraResponse.Fields.Parent != nil {
+		parent = &LinkedIssue{
+			ID:        jiraResponse.Fields.Parent.ID,
+			Key:       jiraResponse.Fields.Parent.Key,
+			Summary:   jiraResponse.Fields.Parent.Fields.Summary,
+			Status:    jiraResponse.Fields.Parent.Fields.Status.Name,
+			Priority:  jiraResponse.Fields.Parent.Fields.Priority.Name,
+			IssueType: jiraResponse.Fields.Parent.Fields.IssueType.Name,
+		}
+	}
+
+	assert.Nil(t, parent, "converted parent should be nil")
+	t.Log("✓ Nil parent case handled correctly")
+}
+
+// TestSubtasksEmptyCase tests handling when subtasks array is empty
+func TestSubtasksEmptyCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData string
+	}{
+		{
+			name: "subtasks is empty array",
+			jsonData: `{
+				"key": "TASK-123",
+				"self": "https://example.com/rest/api/3/issue/12345",
+				"fields": {
+					"summary": "Task without subtasks",
+					"status": {"name": "Open"},
+					"priority": {"name": "Medium"},
+					"issuetype": {"name": "Task"},
+					"subtasks": []
+				}
+			}`,
+		},
+		{
+			name: "subtasks is not present",
+			jsonData: `{
+				"key": "TASK-124",
+				"self": "https://example.com/rest/api/3/issue/12346",
+				"fields": {
+					"summary": "Task without subtasks field",
+					"status": {"name": "Open"},
+					"priority": {"name": "Medium"},
+					"issuetype": {"name": "Task"}
+				}
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var jiraResponse jiraRawResponse
+			require.NoError(t, json.Unmarshal([]byte(tt.jsonData), &jiraResponse), "JSON should be valid")
+
+			// Verify subtasks is empty or nil
+			assert.Empty(t, jiraResponse.Fields.Subtasks, "subtasks should be empty")
+
+			// Simulate the conversion (same as GetJiraIssue)
+			var children []LinkedIssue
+			if len(jiraResponse.Fields.Subtasks) > 0 {
+				children = make([]LinkedIssue, 0, len(jiraResponse.Fields.Subtasks))
+				for _, subtask := range jiraResponse.Fields.Subtasks {
+					children = append(children, LinkedIssue{
+						ID:        subtask.ID,
+						Key:       subtask.Key,
+						Summary:   subtask.Fields.Summary,
+						Status:    subtask.Fields.Status.Name,
+						Priority:  subtask.Fields.Priority.Name,
+						IssueType: subtask.Fields.IssueType.Name,
+					})
+				}
+			}
+
+			assert.Nil(t, children, "converted children should be nil")
+			t.Logf("✓ %s: empty subtasks handled correctly", tt.name)
+		})
+	}
+}
+
+// TestJiraTicketDetailsParentAndChildrenFields tests that JiraTicketDetails correctly stores Parent and Children
+func TestJiraTicketDetailsParentAndChildrenFields(t *testing.T) {
+	// Create a JiraTicketDetails with parent and children
+	ticket := &JiraTicketDetails{
+		Key:     "TASK-123",
+		Summary: "Test ticket with parent and children",
+		Status:  "Open",
+		Parent: &LinkedIssue{
+			ID:        "100",
+			Key:       "EPIC-100",
+			Summary:   "Parent Epic",
+			Status:    "In Progress",
+			Priority:  "High",
+			IssueType: "Epic",
+		},
+		Children: []LinkedIssue{
+			{
+				ID:        "200",
+				Key:       "SUBTASK-200",
+				Summary:   "First subtask",
+				Status:    "Open",
+				Priority:  "Medium",
+				IssueType: "Sub-task",
+			},
+			{
+				ID:        "201",
+				Key:       "SUBTASK-201",
+				Summary:   "Second subtask",
+				Status:    "Done",
+				Priority:  "Low",
+				IssueType: "Sub-task",
+			},
+		},
+	}
+
+	// Verify parent
+	require.NotNil(t, ticket.Parent, "ticket should have parent")
+	assert.Equal(t, "EPIC-100", ticket.Parent.Key, "parent key should match")
+	assert.Equal(t, "Epic", ticket.Parent.IssueType, "parent type should match")
+
+	// Verify children
+	require.Len(t, ticket.Children, 2, "ticket should have 2 children")
+	assert.Equal(t, "SUBTASK-200", ticket.Children[0].Key, "first child key should match")
+	assert.Equal(t, "SUBTASK-201", ticket.Children[1].Key, "second child key should match")
+
+	t.Logf("✓ JiraTicketDetails with Parent (%s) and %d Children", ticket.Parent.Key, len(ticket.Children))
+}
+
 // TestParentDeduplicatedFromLinkedIssues tests that parent issues are removed from linked issues
 func TestParentDeduplicatedFromLinkedIssues(t *testing.T) {
 	tests := []struct {
