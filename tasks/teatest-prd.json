@@ -334,9 +334,9 @@
         "Test final state contains all expected values"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-001", "TT-002", "TT-003", "TT-008", "TT-013", "TT-017"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/workflows/workflows_teatest_test.go. Fixed test model to process CancelMsg through wizard before quitting."
     },
     {
       "id": "TT-023",

@@ -63,14 +63,25 @@
   - [x] Test GetValue() returns correct boolean
   - [x] Test IsCancelled() reflects No selection
 
+### TT-022: FeatureWorkflow end-to-end (Priority 1)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/workflows/workflows_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test step 1: JIRA issue/custom name selection
+  - [x] Test step 2: Branch name input with auto-generated default
+  - [x] Test step 3: Base branch selection (or skip if branch exists)
+  - [x] Test step 4: Confirm step shows correct summary
+  - [x] Test final state contains all expected values
+- **Notes**: Fixed test model to process CancelMsg through wizard before quitting, ensuring wizard.IsCancelled() is set correctly
+
 ## In Progress
 
 None
 
 ## Pending (Priority 1)
-- TT-022: FeatureWorkflow end-to-end (depends on TT-001, TT-002, TT-003, TT-008, TT-013, TT-017)
-  - All dependencies now complete - ready to implement
+
+None - All priority 1 items complete!
 
 ## Summary
-- Priority 1 items: 4 of 5 complete
-- Total items: 8 of 25 complete
+- Priority 1 items: 5 of 5 complete
+- Total items: 9 of 25 complete
