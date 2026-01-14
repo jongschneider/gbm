@@ -110,6 +110,17 @@
   - [x] Test custom value is trimmed before storing
   - [x] Test empty input is handled gracefully
 
+### TT-010: Filterable arrow key navigation (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Up arrow moves cursor up
+  - [x] Test Down arrow moves cursor down
+  - [x] Test cursor wraps from top to bottom
+  - [x] Test cursor wraps from bottom to top
+  - [x] Test viewport scrolls when cursor moves out of view
+- **Notes**: Also includes tests for Ctrl+J/Ctrl+K navigation, empty list handling, single option behavior, and navigation after filtering
+
 ## In Progress
 
 None
@@ -120,4 +131,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 13 of 25 complete
+- Total items: 14 of 25 complete

@@ -2,6 +2,7 @@ package fields
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1243,6 +1244,451 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 		// Verify internal spaces preserved
 		assert.Equal(t, "hello   world", f.GetValue(), "internal spaces should be preserved")
 	})
+}
+
+// =============================================================================
+// TT-010: Filterable arrow key navigation tests
+// =============================================================================
+
+// TestFilterable_ArrowNavigation_UpMovesUp verifies that pressing Up arrow
+// moves the cursor up in the filtered list.
+func TestFilterable_ArrowNavigation_UpMovesUp(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial cursor should be at 0
+	assert.Equal(t, 0, f.cursor, "initial cursor should be at 0")
+
+	// Move down first so we can test moving up
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 1, f.cursor, "cursor should be at 1 after down")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 2, f.cursor, "cursor should be at 2 after second down")
+
+	// Now test Up arrow
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 1, f.cursor, "cursor should move to 1 after up arrow")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, f.cursor, "cursor should move to 0 after second up arrow")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_DownMovesDown verifies that pressing Down arrow
+// moves the cursor down in the filtered list.
+func TestFilterable_ArrowNavigation_DownMovesDown(t *testing.T) {
+	options := []Option{
+		{Label: "Alpha", Value: "a"},
+		{Label: "Beta", Value: "b"},
+		{Label: "Gamma", Value: "g"},
+		{Label: "Delta", Value: "d"},
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial cursor should be at 0
+	assert.Equal(t, 0, f.cursor, "initial cursor should be at 0")
+
+	// Press Down arrow - cursor should move to 1
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 1, f.cursor, "cursor should be at 1 after first down")
+
+	// Press Down arrow again - cursor should move to 2
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 2, f.cursor, "cursor should be at 2 after second down")
+
+	// Press Down arrow again - cursor should move to 3
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 3, f.cursor, "cursor should be at 3 after third down")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_WrapTopToBottom verifies that pressing Up arrow
+// at the first item wraps to the last item.
+func TestFilterable_ArrowNavigation_WrapTopToBottom(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial cursor should be at 0 (first item)
+	assert.Equal(t, 0, f.cursor, "initial cursor should be at 0")
+
+	// Press Up arrow at first item - should wrap to last item (index 2)
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, 2, f.cursor, "cursor should wrap to last item (index 2) after up at first")
+	assert.Equal(t, "Third", f.filtered[f.cursor].Label, "cursor should be on Third after wrap")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_WrapBottomToTop verifies that pressing Down arrow
+// at the last item wraps to the first item.
+func TestFilterable_ArrowNavigation_WrapBottomToTop(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	// Move to last item
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, 2, f.cursor, "cursor should be at last item (index 2)")
+	assert.Equal(t, "Third", f.filtered[f.cursor].Label, "cursor should be on Third")
+
+	// Press Down arrow at last item - should wrap to first item (index 0)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, 0, f.cursor, "cursor should wrap to first item (index 0) after down at last")
+	assert.Equal(t, "First", f.filtered[f.cursor].Label, "cursor should be on First after wrap")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_ViewportScrollsDown verifies that the viewport
+// scrolls when cursor moves below visible area.
+func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
+	// Create many options to force scrolling
+	options := make([]Option, 20)
+	for i := range options {
+		options[i] = Option{
+			Label: fmt.Sprintf("Option %02d", i+1),
+			Value: fmt.Sprintf("%d", i+1),
+		}
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	// Set a small height to force viewport scrolling
+	f.WithHeight(10) // With header lines, this allows only ~5 visible items
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 10))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render - look for the first option
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Option 01"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial viewport offset should be 0
+	assert.Equal(t, 0, f.viewportOffset, "initial viewport offset should be 0")
+	assert.Equal(t, 0, f.cursor, "initial cursor should be 0")
+
+	// Move down multiple times to force scrolling
+	for i := 0; i < 8; i++ {
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(30 * time.Millisecond)
+	}
+
+	// Cursor should be at position 8
+	assert.Equal(t, 8, f.cursor, "cursor should be at position 8 after 8 down presses")
+
+	// Viewport should have scrolled to keep cursor visible
+	// The exact offset depends on visibleItemCount(), but it should be > 0
+	assert.Greater(t, f.viewportOffset, 0, "viewport should have scrolled down")
+	assert.LessOrEqual(t, f.viewportOffset, f.cursor, "cursor should be >= viewport offset")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_ViewportScrollsUp verifies that the viewport
+// scrolls when cursor moves above visible area.
+func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
+	// Create many options to force scrolling
+	options := make([]Option, 20)
+	for i := range options {
+		options[i] = Option{
+			Label: fmt.Sprintf("Option %02d", i+1),
+			Value: fmt.Sprintf("%d", i+1),
+		}
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	// Set a small height to force viewport scrolling
+	f.WithHeight(10)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 10))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render - look for the first option
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Option 01"))
+	}, teatest.WithDuration(time.Second))
+
+	// Move down multiple times to scroll viewport down
+	for i := 0; i < 10; i++ {
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(30 * time.Millisecond)
+	}
+
+	// Record the viewport offset after scrolling down
+	viewportAfterDown := f.viewportOffset
+	assert.Greater(t, viewportAfterDown, 0, "viewport should have scrolled down")
+
+	// Now move up multiple times
+	for i := 0; i < 8; i++ {
+		tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+		time.Sleep(30 * time.Millisecond)
+	}
+
+	// Cursor should be at position 2 (10 - 8)
+	assert.Equal(t, 2, f.cursor, "cursor should be at position 2 after moving up")
+
+	// Viewport should have scrolled up to keep cursor visible
+	assert.Less(t, f.viewportOffset, viewportAfterDown, "viewport should have scrolled up")
+	assert.LessOrEqual(t, f.viewportOffset, f.cursor, "viewport should show cursor")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_CtrlUpDown verifies that Ctrl+K and Ctrl+J
+// also work as alternative up/down navigation keys.
+func TestFilterable_ArrowNavigation_CtrlUpDown(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("ctrl+j moves down", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		assert.Equal(t, 0, f.cursor, "initial cursor should be 0")
+
+		// Ctrl+J should move down
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlJ})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, f.cursor, "cursor should move to 1 after Ctrl+J")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("ctrl+k moves up", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Move down first
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 2, f.cursor, "cursor should be at 2")
+
+		// Ctrl+K should move up
+		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlK})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, f.cursor, "cursor should move to 1 after Ctrl+K")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+}
+
+// TestFilterable_ArrowNavigation_EmptyList verifies that navigation doesn't
+// crash or misbehave with an empty options list.
+func TestFilterable_ArrowNavigation_EmptyList(t *testing.T) {
+	f := NewFilterable("test", "Select option", "", []Option{})
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	// With empty list, cursor should be -1 or operations should be no-ops
+	initialCursor := f.cursor
+
+	// These should not crash or change state dramatically
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify no crash occurred and we can still quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Cursor should remain unchanged with empty list
+	assert.Equal(t, initialCursor, f.cursor, "cursor should not change with empty list")
+}
+
+// TestFilterable_ArrowNavigation_SingleOption verifies navigation behavior
+// with just a single option.
+func TestFilterable_ArrowNavigation_SingleOption(t *testing.T) {
+	options := []Option{
+		{Label: "Only Option", Value: "only"},
+	}
+
+	f := NewFilterable("test", "Select option", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select option"))
+	}, teatest.WithDuration(time.Second))
+
+	assert.Equal(t, 0, f.cursor, "initial cursor should be 0")
+
+	// Down should wrap back to 0
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0 with single option")
+
+	// Up should also wrap back to 0
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0 with single option")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestFilterable_ArrowNavigation_AfterFiltering verifies that navigation works
+// correctly after filtering reduces the options list.
+func TestFilterable_ArrowNavigation_AfterFiltering(t *testing.T) {
+	options := []Option{
+		{Label: "Apple", Value: "apple"},
+		{Label: "Apricot", Value: "apricot"},
+		{Label: "Banana", Value: "banana"},
+		{Label: "Cherry", Value: "cherry"},
+	}
+
+	f := NewFilterable("fruit", "Select fruit", "", options)
+	model := newFieldModel(f, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select fruit"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initially 4 options
+	assert.Equal(t, 4, len(f.filtered), "should have 4 options initially")
+
+	// Type 'ap' to filter to Apple and Apricot
+	tm.Type("ap")
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 2, len(f.filtered), "should have 2 options after filtering")
+	assert.Equal(t, 0, f.cursor, "cursor should reset to 0 after filter")
+
+	// Navigate down
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 1, f.cursor, "cursor should be at 1")
+	assert.Equal(t, "Apricot", f.filtered[f.cursor].Label, "should be on Apricot")
+
+	// Navigate down again - should wrap to 0
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, f.cursor, "cursor should wrap to 0")
+	assert.Equal(t, "Apple", f.filtered[f.cursor].Label, "should be on Apple")
+
+	// Navigate up - should wrap to 1 (last in filtered list)
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 1, f.cursor, "cursor should wrap to 1")
+	assert.Equal(t, "Apricot", f.filtered[f.cursor].Label, "should be on Apricot")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
 
 // TestFilterable_CustomValue_EmptyInputHandling verifies that empty input
