@@ -816,3 +816,230 @@ func TestTextInput_EmptySubmission(t *testing.T) {
 	assert.True(t, ti.IsComplete(), "empty submission should complete")
 	assert.Equal(t, "", ti.GetValue(), "GetValue() should return empty string")
 }
+
+// =============================================================================
+// TT-017: Confirm Enter submission tests
+// =============================================================================
+
+// TestConfirm_EnterWithYesSelected verifies that pressing Enter with Yes
+// selected completes the field with value true and sends NextStepMsg.
+func TestConfirm_EnterWithYesSelected(t *testing.T) {
+	c := NewConfirm("proceed", "Do you want to proceed?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Do you want to proceed?"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify initial state: Yes is selected by default
+	assert.True(t, c.selected, "Yes should be selected by default")
+	assert.False(t, c.IsComplete(), "should not be complete before Enter")
+	assert.False(t, c.IsCancelled(), "should not be cancelled before Enter")
+
+	// Press Enter to confirm Yes selection
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Model should quit on completion (fieldModel checks IsComplete)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify confirmation with Yes
+	assert.True(t, c.IsComplete(), "IsComplete() should be true after Enter")
+	assert.False(t, c.IsCancelled(), "IsCancelled() should be false for Yes")
+	assert.Equal(t, true, c.GetValue(), "GetValue() should return true for Yes")
+}
+
+// TestConfirm_EnterWithNoSelected verifies that pressing Enter with No
+// selected completes the field with value false and sends CancelMsg.
+func TestConfirm_EnterWithNoSelected(t *testing.T) {
+	c := NewConfirm("proceed", "Do you want to proceed?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Do you want to proceed?"))
+	}, teatest.WithDuration(time.Second))
+
+	// Navigate to No using right arrow
+	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify No is now selected
+	assert.False(t, c.selected, "No should be selected after right arrow")
+
+	// Press Enter to confirm No selection
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Model should quit on completion (fieldModel checks IsCancelled)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify confirmation with No
+	assert.True(t, c.IsComplete(), "IsComplete() should be true after Enter")
+	assert.True(t, c.IsCancelled(), "IsCancelled() should be true for No")
+	assert.Equal(t, false, c.GetValue(), "GetValue() should return false for No")
+}
+
+// TestConfirm_GetValueReturnsCorrectBoolean verifies that GetValue() returns
+// the correct boolean based on which button was selected when Enter was pressed.
+func TestConfirm_GetValueReturnsCorrectBoolean(t *testing.T) {
+	t.Run("returns true when Yes confirmed", func(t *testing.T) {
+		c := NewConfirm("test", "Confirm?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Confirm?"))
+		}, teatest.WithDuration(time.Second))
+
+		// GetValue should return false (zero value) before completion
+		assert.Equal(t, false, c.GetValue(), "GetValue() before completion should be false")
+
+		// Confirm with Yes selected (default)
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.Equal(t, true, c.GetValue(), "GetValue() should be true after Yes confirmed")
+	})
+
+	t.Run("returns false when No confirmed", func(t *testing.T) {
+		c := NewConfirm("test", "Confirm?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Confirm?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to No with tab
+		tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+		time.Sleep(50 * time.Millisecond)
+
+		// Confirm with No selected
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.Equal(t, false, c.GetValue(), "GetValue() should be false after No confirmed")
+	})
+}
+
+// TestConfirm_IsCancelledReflectsNoSelection verifies that IsCancelled()
+// returns true only when No is selected and Enter is pressed.
+func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
+	t.Run("false when Yes confirmed", func(t *testing.T) {
+		c := NewConfirm("test", "Continue?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Continue?"))
+		}, teatest.WithDuration(time.Second))
+
+		// IsCancelled should be false initially
+		assert.False(t, c.IsCancelled(), "IsCancelled() should be false initially")
+
+		// Confirm Yes
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.False(t, c.IsCancelled(), "IsCancelled() should be false when Yes confirmed")
+		assert.True(t, c.IsComplete(), "IsComplete() should be true")
+	})
+
+	t.Run("true when No confirmed", func(t *testing.T) {
+		c := NewConfirm("test", "Continue?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Continue?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to No using vim-style 'l' key
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.False(t, c.selected, "No should be selected after 'l' press")
+
+		// Confirm No
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsCancelled(), "IsCancelled() should be true when No confirmed")
+		assert.True(t, c.IsComplete(), "IsComplete() should also be true")
+	})
+
+	t.Run("true when navigated back to No and confirmed", func(t *testing.T) {
+		c := NewConfirm("test", "Proceed?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Proceed?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate: Yes -> No -> Yes -> No
+		tm.Send(tea.KeyMsg{Type: tea.KeyTab}) // to No
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected)
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyTab}) // back to Yes
+		time.Sleep(50 * time.Millisecond)
+		assert.True(t, c.selected)
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // to No again
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected)
+
+		// Confirm No
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsCancelled(), "IsCancelled() should be true")
+		assert.Equal(t, false, c.GetValue(), "GetValue() should be false")
+	})
+}
+
+// TestConfirm_EnterWithSummary verifies that the Confirm field with summary
+// text works correctly when Enter is pressed.
+func TestConfirm_EnterWithSummary(t *testing.T) {
+	c := NewConfirm("confirm", "Create branch?").WithSummary("This will create a new feature branch")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for render including summary
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create branch?")) &&
+			bytes.Contains(bts, []byte("This will create a new feature branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify field renders correctly with summary
+	view := c.View()
+	assert.Contains(t, view, "Create branch?")
+	assert.Contains(t, view, "This will create a new feature branch")
+
+	// Confirm with Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify completion
+	assert.True(t, c.IsComplete(), "should be complete")
+	assert.Equal(t, true, c.GetValue(), "should confirm with true")
+}

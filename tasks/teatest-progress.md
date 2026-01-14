@@ -54,14 +54,23 @@
   - [x] Test NextStepMsg is sent after submission
   - [x] Test IsComplete() returns true after submission
 
+### TT-017: Confirm Enter submission (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Enter with Yes selected sends NextStepMsg
+  - [x] Test Enter with No selected sends CancelMsg
+  - [x] Test GetValue() returns correct boolean
+  - [x] Test IsCancelled() reflects No selection
+
 ## In Progress
 
 None
 
 ## Pending (Priority 1)
 - TT-022: FeatureWorkflow end-to-end (depends on TT-001, TT-002, TT-003, TT-008, TT-013, TT-017)
-  - Blocker: TT-017 (Confirm Enter submission) not yet complete
+  - All dependencies now complete - ready to implement
 
 ## Summary
 - Priority 1 items: 4 of 5 complete
-- Total items: 7 of 25 complete
+- Total items: 8 of 25 complete

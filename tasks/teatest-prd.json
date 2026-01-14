@@ -258,9 +258,9 @@
         "Test IsCancelled() reflects No selection"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/fields/fields_view_teatest_test.go"
     },
     {
       "id": "TT-018",
