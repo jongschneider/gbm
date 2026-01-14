@@ -44,13 +44,24 @@
   - [x] Test NextStepMsg is sent after selection
   - [x] Test IsComplete() returns true after selection
 
+### TT-013: TextInput typing and submission (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test typing characters updates input value
+  - [x] Test Enter submits current value
+  - [x] Test submitted value is trimmed
+  - [x] Test NextStepMsg is sent after submission
+  - [x] Test IsComplete() returns true after submission
+
 ## In Progress
 
 None
 
 ## Pending (Priority 1)
 - TT-022: FeatureWorkflow end-to-end (depends on TT-001, TT-002, TT-003, TT-008, TT-013, TT-017)
+  - Blocker: TT-017 (Confirm Enter submission) not yet complete
 
 ## Summary
 - Priority 1 items: 4 of 5 complete
-- Total items: 6 of 25 complete
+- Total items: 7 of 25 complete

@@ -605,3 +605,214 @@ func TestFilterable_ValueStoredAfterSelection(t *testing.T) {
 	assert.Equal(t, "value-2", f.GetValue(), "GetValue() should return the selected option's Value field")
 	assert.Equal(t, f.selected, f.GetValue().(string), "GetValue() should match internal selected field")
 }
+
+// =============================================================================
+// TT-013: TextInput typing and submission tests
+// =============================================================================
+
+// TestTextInput_TypingUpdatesValue verifies that typing characters updates
+// the internal input value correctly.
+func TestTextInput_TypingUpdatesValue(t *testing.T) {
+	ti := NewTextInput("name", "Enter name", "Your full name")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify initial state
+	assert.Equal(t, "", ti.textInput.Value(), "initial text input should be empty")
+
+	// Type some characters
+	tm.Type("John Doe")
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify typed text is in the input
+	assert.Equal(t, "John Doe", ti.textInput.Value(), "typed text should be in input")
+	assert.False(t, ti.IsComplete(), "should not be complete until Enter pressed")
+
+	// Quit without submitting
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_EnterSubmitsValue verifies that pressing Enter submits
+// the current input value and marks the field as complete.
+func TestTextInput_EnterSubmitsValue(t *testing.T) {
+	ti := NewTextInput("name", "Enter name", "")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Type a value
+	tm.Type("Alice Smith")
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify not complete before Enter
+	assert.False(t, ti.IsComplete(), "should not be complete before Enter")
+	assert.Equal(t, "", ti.GetValue(), "GetValue should be empty before submission")
+
+	// Press Enter to submit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Model should quit on completion (fieldModel checks IsComplete)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify submission
+	assert.True(t, ti.IsComplete(), "IsComplete() should be true after Enter")
+	assert.Equal(t, "Alice Smith", ti.GetValue(), "GetValue() should return submitted value")
+}
+
+// TestTextInput_SubmittedValueIsTrimmed verifies that whitespace is trimmed
+// from the submitted value.
+func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
+	t.Run("leading and trailing whitespace trimmed", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type value with leading and trailing spaces
+		tm.Type("  Bob Jones  ")
+		time.Sleep(100 * time.Millisecond)
+
+		// Press Enter to submit
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify trimmed value
+		assert.Equal(t, "Bob Jones", ti.GetValue(), "submitted value should be trimmed")
+		assert.True(t, ti.IsComplete(), "should be complete")
+	})
+
+	t.Run("only whitespace becomes empty string", func(t *testing.T) {
+		ti := NewTextInput("name", "Enter name", "")
+		model := newFieldModel(ti, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter name"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type only spaces
+		tm.Type("   ")
+		time.Sleep(100 * time.Millisecond)
+
+		// Press Enter to submit
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify trimmed to empty
+		assert.Equal(t, "", ti.GetValue(), "whitespace-only input should become empty string")
+		assert.True(t, ti.IsComplete(), "should be complete")
+	})
+}
+
+// TestTextInput_NextStepMsgSentOnEnter verifies that NextStepMsg is sent
+// when Enter is pressed, which is detected by fieldModel returning tea.Quit.
+func TestTextInput_NextStepMsgSentOnEnter(t *testing.T) {
+	ti := NewTextInput("test", "Test Input", "")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Test Input"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify field is not complete
+	assert.False(t, ti.IsComplete(), "should not be complete before Enter")
+
+	// Type something
+	tm.Type("test value")
+	time.Sleep(100 * time.Millisecond)
+
+	// Press Enter - this triggers NextStepMsg which causes fieldModel to quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// The model should finish because fieldModel.Update checks IsComplete()
+	// and returns tea.Quit when the field completes
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify completion - the fact that WaitFinished succeeded confirms
+	// the message flow worked correctly (NextStepMsg -> IsComplete -> tea.Quit)
+	assert.True(t, ti.IsComplete(), "IsComplete() should be true, indicating NextStepMsg flow")
+	assert.Equal(t, "test value", ti.GetValue(), "submitted value should be stored")
+}
+
+// TestTextInput_IsCompleteAfterSubmission verifies that IsComplete() returns
+// true after successful submission and false before.
+func TestTextInput_IsCompleteAfterSubmission(t *testing.T) {
+	ti := NewTextInput("field", "Enter text", "Some description")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter text"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial state
+	assert.False(t, ti.IsComplete(), "IsComplete() should be false initially")
+	assert.False(t, ti.IsCancelled(), "IsCancelled() should be false")
+
+	// Type and submit
+	tm.Type("my value")
+	time.Sleep(100 * time.Millisecond)
+
+	// Still not complete until Enter
+	assert.False(t, ti.IsComplete(), "IsComplete() should still be false before Enter")
+
+	// Submit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Now complete
+	assert.True(t, ti.IsComplete(), "IsComplete() should be true after submission")
+	assert.False(t, ti.IsCancelled(), "IsCancelled() should still be false")
+}
+
+// TestTextInput_EmptySubmission verifies behavior when submitting empty input.
+func TestTextInput_EmptySubmission(t *testing.T) {
+	ti := NewTextInput("optional", "Optional field", "Leave blank if not needed")
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Optional field"))
+	}, teatest.WithDuration(time.Second))
+
+	// Don't type anything, just press Enter
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify empty submission works
+	assert.True(t, ti.IsComplete(), "empty submission should complete")
+	assert.Equal(t, "", ti.GetValue(), "GetValue() should return empty string")
+}
