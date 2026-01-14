@@ -92,6 +92,15 @@
   - [x] Test Current() returns top model
   - [x] Test empty stack returns nil from Current()
 
+### TT-007: Navigator message-based navigation (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/navigator_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test NavigateMsg pushes target model onto stack
+  - [x] Test target model's Init() is called after push
+  - [x] Test View() delegates to newly pushed model
+  - [x] Test Update() delegates to current model
+
 ## In Progress
 
 None
@@ -102,4 +111,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 11 of 25 complete
+- Total items: 12 of 25 complete

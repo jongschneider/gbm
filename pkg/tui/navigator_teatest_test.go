@@ -329,3 +329,315 @@ func TestNavigator_NilPushIsIgnored(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
+
+// =============================================================================
+// TT-007: Navigator message-based navigation tests
+// =============================================================================
+
+// navigatorMsgTestModel is a model that can trigger NavigateMsg via a command.
+// It responds to specific key presses to trigger navigation.
+type navigatorMsgTestModel struct {
+	name        string
+	initCalled  bool
+	navigateTo  tea.Model
+	initCommand tea.Cmd
+}
+
+func newNavigatorMsgTestModel(name string) *navigatorMsgTestModel {
+	return &navigatorMsgTestModel{name: name}
+}
+
+func (m *navigatorMsgTestModel) WithNavigateTarget(target tea.Model) *navigatorMsgTestModel {
+	m.navigateTo = target
+	return m
+}
+
+func (m *navigatorMsgTestModel) WithInitCommand(cmd tea.Cmd) *navigatorMsgTestModel {
+	m.initCommand = cmd
+	return m
+}
+
+func (m *navigatorMsgTestModel) Init() tea.Cmd {
+	m.initCalled = true
+	return m.initCommand
+}
+
+func (m *navigatorMsgTestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		// 'n' key triggers navigation to the target model
+		if keyMsg.Type == tea.KeyRunes && len(keyMsg.Runes) > 0 && keyMsg.Runes[0] == 'n' {
+			if m.navigateTo != nil {
+				return m, func() tea.Msg {
+					return NewNavigateMsg(m.navigateTo)
+				}
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m *navigatorMsgTestModel) View() string {
+	return "MSG_SCREEN_" + m.name + "\n"
+}
+
+// navigatorMsgWrapper wraps Navigator for testing NavigateMsg handling.
+type navigatorMsgWrapper struct {
+	nav *Navigator
+}
+
+func newNavigatorMsgWrapper(nav *Navigator) *navigatorMsgWrapper {
+	return &navigatorMsgWrapper{nav: nav}
+}
+
+func (w *navigatorMsgWrapper) Init() tea.Cmd {
+	return w.nav.Init()
+}
+
+func (w *navigatorMsgWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle Ctrl+C to quit
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.Type == tea.KeyCtrlC {
+		return w, tea.Quit
+	}
+	_, cmd := w.nav.Update(msg)
+	return w, cmd
+}
+
+func (w *navigatorMsgWrapper) View() string {
+	return w.nav.View()
+}
+
+// TestNavigator_NavigateMsgPushesTargetOntoStack verifies that NavigateMsg pushes
+// the target model onto the navigation stack.
+func TestNavigator_NavigateMsgPushesTargetOntoStack(t *testing.T) {
+	targetModel := newNavigatorMsgTestModel("TARGET")
+	initialModel := newNavigatorMsgTestModel("INITIAL").WithNavigateTarget(targetModel)
+	nav := NewNavigator(initialModel)
+
+	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MSG_SCREEN_INITIAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify initial state
+	assert.Equal(t, 1, nav.Depth(), "Initial depth should be 1")
+	assert.Contains(t, nav.View(), "MSG_SCREEN_INITIAL")
+
+	// Send 'n' to trigger navigation
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+
+	// Wait for navigation to complete - look for target screen
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MSG_SCREEN_TARGET"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify target is now on stack
+	assert.Equal(t, 2, nav.Depth(), "Depth should be 2 after navigation")
+	assert.Contains(t, nav.View(), "MSG_SCREEN_TARGET",
+		"View() should delegate to newly pushed target model")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// initTrackerMsg is sent by initTrackerModel to verify Init() was called.
+type initTrackerMsg struct {
+	modelName string
+}
+
+// initTrackerModel tracks whether Init() was called via a message.
+type initTrackerModel struct {
+	name       string
+	initCalled bool
+}
+
+func newInitTrackerModel(name string) *initTrackerModel {
+	return &initTrackerModel{name: name}
+}
+
+func (m *initTrackerModel) Init() tea.Cmd {
+	m.initCalled = true
+	return func() tea.Msg {
+		return initTrackerMsg{modelName: m.name}
+	}
+}
+
+func (m *initTrackerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+
+func (m *initTrackerModel) View() string {
+	return "TRACKER_" + m.name + "\n"
+}
+
+// TestNavigator_TargetInitIsCalledAfterPush verifies that the target model's Init()
+// is called after it is pushed onto the stack via NavigateMsg.
+func TestNavigator_TargetInitIsCalledAfterPush(t *testing.T) {
+	targetModel := newInitTrackerModel("TARGET")
+	initialModel := newNavigatorMsgTestModel("INITIAL").WithNavigateTarget(targetModel)
+	nav := NewNavigator(initialModel)
+
+	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MSG_SCREEN_INITIAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify target Init() not called yet
+	assert.False(t, targetModel.initCalled, "Target Init() should not be called before navigation")
+
+	// Send 'n' to trigger navigation
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+
+	// Wait for the target model to appear
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("TRACKER_TARGET"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify target Init() was called
+	assert.True(t, targetModel.initCalled, "Target Init() should be called after navigation")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestNavigator_ViewDelegatesToNewlyPushedModel verifies that View() delegates
+// to the newly pushed model after NavigateMsg.
+func TestNavigator_ViewDelegatesToNewlyPushedModel(t *testing.T) {
+	targetModel := newNavigatorMsgTestModel("SECOND_SCREEN")
+	initialModel := newNavigatorMsgTestModel("FIRST_SCREEN").WithNavigateTarget(targetModel)
+	nav := NewNavigator(initialModel)
+
+	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MSG_SCREEN_FIRST_SCREEN"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify initial view
+	assert.Contains(t, nav.View(), "MSG_SCREEN_FIRST_SCREEN")
+	assert.NotContains(t, nav.View(), "MSG_SCREEN_SECOND_SCREEN")
+
+	// Send 'n' to trigger navigation
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+
+	// Wait for navigation to complete
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MSG_SCREEN_SECOND_SCREEN"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify view now shows target model
+	assert.Contains(t, nav.View(), "MSG_SCREEN_SECOND_SCREEN",
+		"View() should show newly pushed model")
+	assert.NotContains(t, nav.View(), "MSG_SCREEN_FIRST_SCREEN",
+		"View() should NOT show the previous model")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// updateDelegatingModel is a model that tracks whether Update() receives messages.
+type updateDelegatingModel struct {
+	name            string
+	lastMsg         tea.Msg
+	updateCallCount int
+	navigateTo      tea.Model
+}
+
+func newUpdateDelegatingModel(name string) *updateDelegatingModel {
+	return &updateDelegatingModel{name: name}
+}
+
+func (m *updateDelegatingModel) WithNavigateTarget(target tea.Model) *updateDelegatingModel {
+	m.navigateTo = target
+	return m
+}
+
+func (m *updateDelegatingModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m *updateDelegatingModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.updateCallCount++
+	m.lastMsg = msg
+
+	// 'n' key triggers navigation
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.Type == tea.KeyRunes && len(keyMsg.Runes) > 0 && keyMsg.Runes[0] == 'n' {
+			if m.navigateTo != nil {
+				return m, func() tea.Msg {
+					return NewNavigateMsg(m.navigateTo)
+				}
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m *updateDelegatingModel) View() string {
+	return "UPDATE_MODEL_" + m.name + "\n"
+}
+
+// TestNavigator_UpdateDelegatesToCurrentModel verifies that Update() delegates
+// messages to the current (top) model on the stack.
+func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
+	targetModel := newUpdateDelegatingModel("TARGET")
+	initialModel := newUpdateDelegatingModel("INITIAL").WithNavigateTarget(targetModel)
+	nav := NewNavigator(initialModel)
+
+	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("UPDATE_MODEL_INITIAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Reset call count after init
+	initialModel.updateCallCount = 0
+	targetModel.updateCallCount = 0
+
+	// Send a message to initial model
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+
+	// Give time for update to process
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify initial model received the message
+	assert.Greater(t, initialModel.updateCallCount, 0, "Initial model should receive Update() calls")
+	assert.Equal(t, 0, targetModel.updateCallCount, "Target model should not receive Update() calls yet")
+
+	// Navigate to target
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+
+	// Wait for navigation
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("UPDATE_MODEL_TARGET"))
+	}, teatest.WithDuration(time.Second))
+
+	// Reset counters
+	initialModel.updateCallCount = 0
+	targetModel.updateCallCount = 0
+
+	// Send a message - should now go to target
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	// Give time for update to process
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify target model receives the message now
+	assert.Greater(t, targetModel.updateCallCount, 0, "Target model should receive Update() calls after navigation")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}

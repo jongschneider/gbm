@@ -104,9 +104,9 @@
         "Test Update() delegates to current model"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-006"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/navigator_teatest_test.go"
     },
     {
       "id": "TT-008",
