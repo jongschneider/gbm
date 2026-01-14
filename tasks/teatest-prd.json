@@ -303,9 +303,9 @@
         "Test multiple async cells in same row work"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-019"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/table_teatest_test.go. Tests cover spinner display during loading, value display after loading, IsLoading() state lifecycle, and multiple async cells in same row."
     },
     {
       "id": "TT-021",

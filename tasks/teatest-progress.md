@@ -234,6 +234,16 @@
   - [x] Test SetCursor() programmatically sets position
 - **Notes**: Tests verify arrow key navigation moves cursor correctly, Cursor() returns the correct index after navigation, SelectedRow() returns the correct row data for current position, and SetCursor() can programmatically set position. Also includes tests for single row tables, empty tables (fixed SelectedRow() bug with negative cursor index), mixed navigation patterns, and View() newline consistency. Fixed bug in table.go where SelectedRow() didn't handle negative cursor values from empty tables.
 
+### TT-020: Table async cell rendering (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/table_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test spinner shows while cell is loading
+  - [x] Test value displays after cell loads
+  - [x] Test IsLoading() returns correct state
+  - [x] Test multiple async cells in same row work
+- **Notes**: Tests verify spinner is displayed while async cell is loading (before cmd execution completes), value is displayed after loading completes, IsLoading() correctly returns loading state throughout lifecycle (before start, during load, after completion), and multiple async cells in the same row can load independently. Also includes tests for AsyncRow.IsLoading(), AsyncRow.Tick() for spinner animation, and Table.Update() ticking async rows.
+
 ## In Progress
 
 None
@@ -242,6 +252,12 @@ None
 
 None - All priority 1 items complete!
 
+## All Items Complete
+
+All 25 teatest user stories have been implemented and verified.
+
 ## Summary
 - Priority 1 items: 5 of 5 complete
+- Priority 2 items: 14 of 14 complete
+- Priority 3 items: 6 of 6 complete
 - Total items: 25 of 25 complete
