@@ -153,6 +153,16 @@
   - [x] Test valid input after error succeeds
 - **Notes**: Also includes tests for validation against trimmed values and behavior without a validator
 
+### TT-021: SelectWorkflowType selection (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/workflows/workflows_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test all 4 workflow types are displayed (Feature, Bug, Hotfix, Merge)
+  - [x] Test arrow navigation between options
+  - [x] Test Enter selects workflow type
+  - [x] Test GetValue() returns correct workflow type string
+- **Notes**: Tests verify cursor wrapping, up/down navigation, and that GetValue() returns the correct workflow type constant (e.g., "feature", "bug", "hotfix", "merge")
+
 ## In Progress
 
 None
@@ -163,4 +173,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 17 of 25 complete
+- Total items: 18 of 25 complete

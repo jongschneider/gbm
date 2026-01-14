@@ -318,9 +318,9 @@
         "Test GetValue() returns correct workflow type string"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/workflows/workflows_teatest_test.go"
     },
     {
       "id": "TT-022",
