@@ -349,6 +349,12 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		ticket.Description = parseDescription(jiraResponse.Fields.Description)
 	}
 
+	// Build a set of child keys for deduplication
+	childKeys := make(map[string]bool)
+	for _, child := range ticket.Children {
+		childKeys[child.Key] = true
+	}
+
 	// Parse issue links
 	ticket.IssueLinks = make([]IssueLink, 0, len(jiraResponse.Fields.IssueLinks))
 	for _, rawLink := range jiraResponse.Fields.IssueLinks {
@@ -386,17 +392,22 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 			}
 		}
 
+		// Get the linked issue key for deduplication checks
+		linkedKey := ""
+		if link.InwardIssue != nil {
+			linkedKey = link.InwardIssue.Key
+		} else if link.OutwardIssue != nil {
+			linkedKey = link.OutwardIssue.Key
+		}
+
 		// Skip links that reference the parent issue (deduplicate parent from linked issues)
-		if ticket.Parent != nil {
-			linkedKey := ""
-			if link.InwardIssue != nil {
-				linkedKey = link.InwardIssue.Key
-			} else if link.OutwardIssue != nil {
-				linkedKey = link.OutwardIssue.Key
-			}
-			if linkedKey == ticket.Parent.Key {
-				continue
-			}
+		if ticket.Parent != nil && linkedKey == ticket.Parent.Key {
+			continue
+		}
+
+		// Skip links that reference child issues (deduplicate children from linked issues)
+		if childKeys[linkedKey] {
+			continue
 		}
 
 		ticket.IssueLinks = append(ticket.IssueLinks, link)

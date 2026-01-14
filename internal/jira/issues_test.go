@@ -591,6 +591,243 @@ func TestChildWithLinkedIssuesDepth(t *testing.T) {
 	}
 }
 
+// TestChildrenDeduplicatedFromLinkedIssues tests that child issues are removed from linked issues
+func TestChildrenDeduplicatedFromLinkedIssues(t *testing.T) {
+	tests := []struct {
+		name              string
+		children          []LinkedIssue
+		issueLinks        []IssueLink
+		expectLinkCount   int
+		expectFilteredKey string
+	}{
+		{
+			name: "child appears as inward issue link - should be removed",
+			children: []LinkedIssue{
+				{Key: "CHILD-100", Summary: "Child Task"},
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:   "Parent",
+						Inward: "is parent of",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "CHILD-100",
+						Summary: "Child Task",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "OTHER-200",
+						Summary: "Other Issue",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "OTHER-200",
+		},
+		{
+			name: "child appears as outward issue link - should be removed",
+			children: []LinkedIssue{
+				{Key: "CHILD-100", Summary: "Child Task"},
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Parent",
+						Outward: "is parent of",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "CHILD-100",
+						Summary: "Child Task",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:   "Relates",
+						Inward: "relates to",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "OTHER-300",
+						Summary: "Related Issue",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "OTHER-300",
+		},
+		{
+			name:     "no children - all links preserved",
+			children: nil,
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "ISSUE-100",
+						Summary: "Issue 100",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:   "Relates",
+						Inward: "relates to",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "ISSUE-200",
+						Summary: "Issue 200",
+					},
+				},
+			},
+			expectLinkCount:   2,
+			expectFilteredKey: "",
+		},
+		{
+			name: "multiple children - all should be removed from links",
+			children: []LinkedIssue{
+				{Key: "CHILD-100", Summary: "Child 1"},
+				{Key: "CHILD-200", Summary: "Child 2"},
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:   "Parent",
+						Inward: "is parent of",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "CHILD-100",
+						Summary: "Child 1",
+					},
+				},
+				{
+					ID: "2",
+					Type: IssueLinkType{
+						Name:    "Parent",
+						Outward: "is parent of",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "CHILD-200",
+						Summary: "Child 2",
+					},
+				},
+				{
+					ID: "3",
+					Type: IssueLinkType{
+						Name:   "Relates",
+						Inward: "relates to",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "OTHER-300",
+						Summary: "Other Issue",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "OTHER-300",
+		},
+		{
+			name: "children not in links - all links preserved",
+			children: []LinkedIssue{
+				{Key: "CHILD-999", Summary: "Child Not In Links"},
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:    "Blocks",
+						Outward: "blocks",
+					},
+					OutwardIssue: &LinkedIssue{
+						Key:     "ISSUE-100",
+						Summary: "Issue 100",
+					},
+				},
+			},
+			expectLinkCount:   1,
+			expectFilteredKey: "ISSUE-100",
+		},
+		{
+			name: "child is only link - empty links after dedup",
+			children: []LinkedIssue{
+				{Key: "CHILD-100", Summary: "Child Task"},
+			},
+			issueLinks: []IssueLink{
+				{
+					ID: "1",
+					Type: IssueLinkType{
+						Name:   "Parent",
+						Inward: "is parent of",
+					},
+					InwardIssue: &LinkedIssue{
+						Key:     "CHILD-100",
+						Summary: "Child Task",
+					},
+				},
+			},
+			expectLinkCount:   0,
+			expectFilteredKey: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build child keys set for deduplication (same logic as GetJiraIssue)
+			childKeys := make(map[string]bool)
+			for _, child := range tt.children {
+				childKeys[child.Key] = true
+			}
+
+			// Simulate the deduplication logic from GetJiraIssue
+			filteredLinks := make([]IssueLink, 0, len(tt.issueLinks))
+			for _, link := range tt.issueLinks {
+				linkedKey := ""
+				if link.InwardIssue != nil {
+					linkedKey = link.InwardIssue.Key
+				} else if link.OutwardIssue != nil {
+					linkedKey = link.OutwardIssue.Key
+				}
+
+				// Skip links that reference child issues
+				if childKeys[linkedKey] {
+					continue
+				}
+				filteredLinks = append(filteredLinks, link)
+			}
+
+			assert.Len(t, filteredLinks, tt.expectLinkCount,
+				"filtered link count should match expected")
+
+			// If we expect a specific key to remain, verify it
+			if tt.expectFilteredKey != "" && len(filteredLinks) > 0 {
+				var foundKey string
+				if filteredLinks[0].InwardIssue != nil {
+					foundKey = filteredLinks[0].InwardIssue.Key
+				} else if filteredLinks[0].OutwardIssue != nil {
+					foundKey = filteredLinks[0].OutwardIssue.Key
+				}
+				assert.Equal(t, tt.expectFilteredKey, foundKey,
+					"remaining link key should match expected")
+			}
+
+			t.Logf("✓ %s: %d links → %d links after dedup",
+				tt.name, len(tt.issueLinks), len(filteredLinks))
+		})
+	}
+}
+
 // TestParentDeduplicatedFromLinkedIssues tests that parent issues are removed from linked issues
 func TestParentDeduplicatedFromLinkedIssues(t *testing.T) {
 	tests := []struct {
