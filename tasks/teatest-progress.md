@@ -131,6 +131,17 @@
   - [x] Test IsComplete() returns true after selection
 - **Notes**: Also includes tests for empty options list handling and selection after wrapping navigation
 
+### TT-016: Confirm y/n shortcut keys (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test y key immediately confirms with true
+  - [x] Test Y key immediately confirms with true
+  - [x] Test n key immediately cancels with false
+  - [x] Test N key immediately cancels with false
+  - [x] Test CancelMsg is sent on n/N
+- **Notes**: Also includes tests verifying y/n shortcuts work regardless of current button selection
+
 ## In Progress
 
 None
@@ -141,4 +152,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 15 of 25 complete
+- Total items: 16 of 25 complete

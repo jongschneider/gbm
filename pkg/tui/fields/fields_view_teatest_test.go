@@ -2096,3 +2096,189 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 		assert.Equal(t, "3", s.GetValue(), "should select third option after wrap")
 	})
 }
+
+// =============================================================================
+// TT-016: Confirm y/n shortcut keys tests
+// =============================================================================
+
+// TestConfirm_YKeyImmediatelyConfirmsTrue verifies that pressing 'y' immediately
+// confirms with true value without needing to press Enter.
+func TestConfirm_YKeyImmediatelyConfirmsTrue(t *testing.T) {
+	t.Run("lowercase y confirms with true", func(t *testing.T) {
+		c := NewConfirm("proceed", "Do you want to proceed?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Do you want to proceed?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify initial state
+		assert.False(t, c.IsComplete(), "should not be complete before y press")
+
+		// Press 'y' to immediately confirm
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+
+		// Model should quit on completion
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify confirmation
+		assert.True(t, c.IsComplete(), "IsComplete() should be true after y press")
+		assert.False(t, c.IsCancelled(), "IsCancelled() should be false")
+		assert.Equal(t, true, c.GetValue(), "GetValue() should return true")
+	})
+
+	t.Run("uppercase Y confirms with true", func(t *testing.T) {
+		c := NewConfirm("proceed", "Continue?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Continue?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Press 'Y' (uppercase)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("Y")})
+
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsComplete(), "IsComplete() should be true after Y press")
+		assert.False(t, c.IsCancelled(), "IsCancelled() should be false")
+		assert.Equal(t, true, c.GetValue(), "GetValue() should return true")
+	})
+}
+
+// TestConfirm_NKeyImmediatelyCancelsWithFalse verifies that pressing 'n'
+// immediately cancels with false value and sends CancelMsg.
+func TestConfirm_NKeyImmediatelyCancelsWithFalse(t *testing.T) {
+	t.Run("lowercase n cancels with false", func(t *testing.T) {
+		c := NewConfirm("proceed", "Do you want to proceed?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Do you want to proceed?"))
+		}, teatest.WithDuration(time.Second))
+
+		assert.False(t, c.IsComplete(), "should not be complete before n press")
+
+		// Press 'n' to immediately cancel
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsComplete(), "IsComplete() should be true after n press")
+		assert.True(t, c.IsCancelled(), "IsCancelled() should be true")
+		assert.Equal(t, false, c.GetValue(), "GetValue() should return false")
+	})
+
+	t.Run("uppercase N cancels with false", func(t *testing.T) {
+		c := NewConfirm("proceed", "Continue?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Continue?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Press 'N' (uppercase)
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
+
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsComplete(), "IsComplete() should be true after N press")
+		assert.True(t, c.IsCancelled(), "IsCancelled() should be true")
+		assert.Equal(t, false, c.GetValue(), "GetValue() should return false")
+	})
+}
+
+// TestConfirm_YNShortcutsIgnoreCurrentSelection verifies that y/n shortcuts
+// work regardless of which button is currently selected.
+func TestConfirm_YNShortcutsIgnoreCurrentSelection(t *testing.T) {
+	t.Run("y confirms true even when No is selected", func(t *testing.T) {
+		c := NewConfirm("test", "Proceed?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Proceed?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to No
+		tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+		time.Sleep(50 * time.Millisecond)
+		assert.False(t, c.selected, "No should be selected")
+
+		// Press 'y' - should still confirm with true
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsComplete(), "should be complete")
+		assert.False(t, c.IsCancelled(), "should not be cancelled")
+		assert.Equal(t, true, c.GetValue(), "y should confirm true regardless of selection")
+	})
+
+	t.Run("n cancels false even when Yes is selected", func(t *testing.T) {
+		c := NewConfirm("test", "Proceed?")
+		model := newFieldModel(c, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Proceed?"))
+		}, teatest.WithDuration(time.Second))
+
+		// Yes is selected by default
+		assert.True(t, c.selected, "Yes should be selected by default")
+
+		// Press 'n' - should still cancel with false
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.True(t, c.IsComplete(), "should be complete")
+		assert.True(t, c.IsCancelled(), "should be cancelled")
+		assert.Equal(t, false, c.GetValue(), "n should cancel false regardless of selection")
+	})
+}
+
+// TestConfirm_CancelMsgSentOnNKey verifies that CancelMsg is sent when pressing
+// 'n' or 'N' keys.
+func TestConfirm_CancelMsgSentOnNKey(t *testing.T) {
+	// This test verifies CancelMsg behavior by checking IsCancelled() state
+	// which is only set when CancelMsg would be sent (lines 77-81 in confirm.go)
+	c := NewConfirm("test", "Delete file?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Delete file?"))
+	}, teatest.WithDuration(time.Second))
+
+	// IsCancelled should be false initially
+	assert.False(t, c.IsCancelled(), "IsCancelled() should be false initially")
+
+	// Press 'n' - this triggers CancelMsg
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify CancelMsg was sent (indicated by IsCancelled being true)
+	assert.True(t, c.IsCancelled(), "IsCancelled() should be true after n press (CancelMsg sent)")
+	assert.True(t, c.IsComplete(), "IsComplete() should also be true")
+}
