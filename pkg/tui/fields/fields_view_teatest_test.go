@@ -819,6 +819,280 @@ func TestTextInput_EmptySubmission(t *testing.T) {
 }
 
 // =============================================================================
+// TT-014: TextInput validation tests
+// =============================================================================
+
+// TestTextInput_ValidatorCalledOnEnter verifies that the validator function
+// is called when Enter is pressed.
+func TestTextInput_ValidatorCalledOnEnter(t *testing.T) {
+	validatorCalled := false
+	validator := func(value string) error {
+		validatorCalled = true
+		return nil
+	}
+
+	ti := NewTextInput("name", "Enter name", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify validator not called yet
+	assert.False(t, validatorCalled, "validator should not be called before Enter")
+
+	// Type a value
+	tm.Type("test value")
+	time.Sleep(100 * time.Millisecond)
+
+	// Validator still not called
+	assert.False(t, validatorCalled, "validator should not be called on typing")
+
+	// Press Enter - this should trigger validator
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Validator should now be called
+	assert.True(t, validatorCalled, "validator should be called on Enter")
+	assert.True(t, ti.IsComplete(), "should complete with valid input")
+}
+
+// TestTextInput_ValidationErrorPreventsSubmission verifies that validation errors
+// prevent the field from completing and the value from being submitted.
+func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
+	validator := func(value string) error {
+		if len(value) < 5 {
+			return fmt.Errorf("value must be at least 5 characters")
+		}
+		return nil
+	}
+
+	ti := NewTextInput("name", "Enter name", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Type a short value (less than 5 chars)
+	tm.Type("abc")
+	time.Sleep(100 * time.Millisecond)
+
+	// Press Enter - this should fail validation
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify field is NOT complete
+	assert.False(t, ti.IsComplete(), "should not complete with invalid input")
+	assert.Equal(t, "", ti.GetValue(), "value should not be set on validation failure")
+	assert.NotNil(t, ti.err, "error should be set")
+	assert.Contains(t, ti.err.Error(), "at least 5 characters")
+
+	// Quit the test
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_ErrorMessageDisplayedInView verifies that validation error
+// messages are displayed in the View() output.
+func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
+	validator := func(value string) error {
+		if value == "" {
+			return fmt.Errorf("name is required")
+		}
+		return nil
+	}
+
+	ti := NewTextInput("name", "Enter name", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter with empty input - should fail validation
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify error is set
+	assert.NotNil(t, ti.err, "error should be set after validation failure")
+
+	// Check that View() contains the error message
+	view := ti.View()
+	assert.Contains(t, view, "name is required", "View() should display error message")
+	assert.True(t, strings.HasSuffix(view, "\n"), "View() should still end with newline")
+
+	// Quit the test
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_ErrorClearsOnTyping verifies that validation errors are cleared
+// when the user starts typing again.
+func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
+	validator := func(value string) error {
+		if value == "" {
+			return fmt.Errorf("value required")
+		}
+		return nil
+	}
+
+	ti := NewTextInput("name", "Enter name", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter with empty input - should fail validation
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify error is set
+	assert.NotNil(t, ti.err, "error should be set after validation failure")
+	assert.Contains(t, ti.View(), "value required", "View() should show error")
+
+	// Start typing - error should clear
+	tm.Type("a")
+	time.Sleep(100 * time.Millisecond)
+
+	// Error should be cleared
+	assert.Nil(t, ti.err, "error should be cleared after typing")
+	assert.NotContains(t, ti.View(), "value required", "View() should not show error after typing")
+
+	// Quit the test
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTextInput_ValidInputAfterErrorSucceeds verifies that after a validation
+// error, correcting the input and pressing Enter again succeeds.
+func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
+	validator := func(value string) error {
+		if len(value) < 3 {
+			return fmt.Errorf("minimum 3 characters required")
+		}
+		return nil
+	}
+
+	ti := NewTextInput("code", "Enter code", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter code"))
+	}, teatest.WithDuration(time.Second))
+
+	// Type short value and submit
+	tm.Type("ab")
+	time.Sleep(100 * time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(100 * time.Millisecond)
+
+	// Should fail validation
+	assert.False(t, ti.IsComplete(), "should not complete with short input")
+	assert.NotNil(t, ti.err, "error should be set")
+
+	// Add more characters to make valid
+	tm.Type("cdef")
+	time.Sleep(100 * time.Millisecond)
+
+	// Error should be cleared
+	assert.Nil(t, ti.err, "error should be cleared after typing")
+
+	// Now submit again - should succeed
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Should now be complete with the full value
+	assert.True(t, ti.IsComplete(), "should complete with valid input")
+	assert.Equal(t, "abcdef", ti.GetValue(), "value should be the corrected input")
+	assert.Nil(t, ti.err, "no error should remain")
+}
+
+// TestTextInput_ValidationWithTrimmedValue verifies that validation is run
+// against the trimmed value, matching what gets stored.
+func TestTextInput_ValidationWithTrimmedValue(t *testing.T) {
+	var validatedValue string
+	validator := func(value string) error {
+		validatedValue = value
+		if value == "" {
+			return fmt.Errorf("empty not allowed")
+		}
+		return nil
+	}
+
+	ti := NewTextInput("name", "Enter name", "").WithValidator(validator)
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Enter name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Type value with whitespace
+	tm.Type("  hello  ")
+	time.Sleep(100 * time.Millisecond)
+
+	// Submit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Validator should receive trimmed value
+	assert.Equal(t, "hello", validatedValue, "validator should receive trimmed value")
+	assert.Equal(t, "hello", ti.GetValue(), "stored value should be trimmed")
+	assert.True(t, ti.IsComplete(), "should complete")
+}
+
+// TestTextInput_NoValidatorAllowsAnyInput verifies that without a validator,
+// any input (including empty) is accepted.
+func TestTextInput_NoValidatorAllowsAnyInput(t *testing.T) {
+	ti := NewTextInput("optional", "Optional field", "")
+	// No validator set
+	model := newFieldModel(ti, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Optional field"))
+	}, teatest.WithDuration(time.Second))
+
+	// Submit empty value
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Should succeed without any validator
+	assert.True(t, ti.IsComplete(), "should complete without validator")
+	assert.Equal(t, "", ti.GetValue(), "empty value should be accepted")
+	assert.Nil(t, ti.err, "no error should be set")
+}
+
+// =============================================================================
 // TT-017: Confirm Enter submission tests
 // =============================================================================
 

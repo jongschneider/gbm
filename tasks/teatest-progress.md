@@ -142,6 +142,17 @@
   - [x] Test CancelMsg is sent on n/N
 - **Notes**: Also includes tests verifying y/n shortcuts work regardless of current button selection
 
+### TT-014: TextInput validation (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test validator function is called on Enter
+  - [x] Test validation error prevents submission
+  - [x] Test error message is displayed in View()
+  - [x] Test error clears when user types
+  - [x] Test valid input after error succeeds
+- **Notes**: Also includes tests for validation against trimmed values and behavior without a validator
+
 ## In Progress
 
 None
@@ -152,4 +163,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 16 of 25 complete
+- Total items: 17 of 25 complete
