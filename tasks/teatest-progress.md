@@ -185,6 +185,15 @@
   - [x] Test auto-generated branch name (merge/{source-to-target})
 - **Notes**: Tests verify merge workflow stores custom fields ("source_branch", "target_branch") in WorkflowState.CustomFields. Also fixed Wizard.storeFieldValue() to store unknown keys to CustomFields for flexibility with custom workflow fields. Includes tests for arrow navigation, filtering, and back navigation.
 
+### TT-005: Wizard window resize propagation (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/wizard_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test WindowSizeMsg updates wizard context width/height
+  - [x] Test current field receives WithWidth/WithHeight calls
+  - [x] Test field re-renders with new dimensions
+- **Notes**: Added `resizeTrackingField` test helper that tracks all width/height calls. Tests verify context dimensions are updated, field methods are called with correct values, and resize doesn't interfere with step navigation. Includes test for multiple consecutive resize messages.
+
 ## In Progress
 
 None
@@ -195,4 +204,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 20 of 25 complete
+- Total items: 21 of 25 complete

@@ -73,9 +73,9 @@
         "Test field re-renders with new dimensions"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-001"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/wizard_teatest_test.go"
     },
     {
       "id": "TT-006",

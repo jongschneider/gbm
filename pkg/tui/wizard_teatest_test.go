@@ -1094,3 +1094,282 @@ func TestWizard_FieldRemainsFocusedAfterBackBoundary(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
+
+// =============================================================================
+// TT-005: Wizard window resize propagation tests
+// =============================================================================
+
+// resizeTrackingField tracks width/height updates for testing window resize propagation.
+type resizeTrackingField struct {
+	key         string
+	title       string
+	width       int
+	height      int
+	widthCalls  []int
+	heightCalls []int
+	complete    bool
+	focused     bool
+}
+
+func newResizeTrackingField(key, title string) *resizeTrackingField {
+	return &resizeTrackingField{
+		key:         key,
+		title:       title,
+		width:       80,
+		height:      24,
+		widthCalls:  []int{},
+		heightCalls: []int{},
+	}
+}
+
+func (f *resizeTrackingField) Init() tea.Cmd { return nil }
+
+func (f *resizeTrackingField) Update(msg tea.Msg) (Field, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.Type == tea.KeyEnter {
+			f.complete = true
+			return f, func() tea.Msg { return NextStepMsg{} }
+		}
+	}
+	return f, nil
+}
+
+func (f *resizeTrackingField) View() string {
+	return f.title + "\n"
+}
+
+func (f *resizeTrackingField) Focus() tea.Cmd           { f.focused = true; return nil }
+func (f *resizeTrackingField) Blur() tea.Cmd            { f.focused = false; return nil }
+func (f *resizeTrackingField) IsComplete() bool         { return f.complete }
+func (f *resizeTrackingField) IsCancelled() bool        { return false }
+func (f *resizeTrackingField) Error() error             { return nil }
+func (f *resizeTrackingField) Skip() bool               { return false }
+func (f *resizeTrackingField) WithTheme(t *Theme) Field { return f }
+func (f *resizeTrackingField) WithWidth(w int) Field {
+	f.width = w
+	f.widthCalls = append(f.widthCalls, w)
+	return f
+}
+func (f *resizeTrackingField) WithHeight(h int) Field {
+	f.height = h
+	f.heightCalls = append(f.heightCalls, h)
+	return f
+}
+func (f *resizeTrackingField) GetKey() string { return f.key }
+func (f *resizeTrackingField) GetValue() any  { return "" }
+func (f *resizeTrackingField) SetValue(v any) {}
+
+// TestWizard_WindowSizeMsgUpdatesContextDimensions verifies that WindowSizeMsg
+// updates the wizard context width and height.
+func TestWizard_WindowSizeMsgUpdatesContextDimensions(t *testing.T) {
+	step1Field := newResizeTrackingField("step1", "STEP_ONE")
+
+	ctx := NewContext()
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial dimensions from teatest
+	assert.Equal(t, 80, ctx.Width, "Initial context width should be 80")
+	assert.Equal(t, 24, ctx.Height, "Initial context height should be 24")
+
+	// Send window resize message
+	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Give time for message to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify context dimensions are updated
+	assert.Equal(t, 120, ctx.Width, "Context width should be updated to 120 after WindowSizeMsg")
+	assert.Equal(t, 40, ctx.Height, "Context height should be updated to 40 after WindowSizeMsg")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_WindowSizeMsgCallsFieldWithWidthHeight verifies that WindowSizeMsg
+// calls WithWidth and WithHeight on the current field.
+func TestWizard_WindowSizeMsgCallsFieldWithWidthHeight(t *testing.T) {
+	step1Field := newResizeTrackingField("step1", "STEP_ONE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Record initial call counts
+	initialWidthCalls := len(step1Field.widthCalls)
+	initialHeightCalls := len(step1Field.heightCalls)
+
+	// Send window resize message
+	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	// Give time for message to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify WithWidth and WithHeight were called
+	assert.Greater(t, len(step1Field.widthCalls), initialWidthCalls,
+		"WithWidth should be called after WindowSizeMsg")
+	assert.Greater(t, len(step1Field.heightCalls), initialHeightCalls,
+		"WithHeight should be called after WindowSizeMsg")
+
+	// Verify the new dimensions were passed
+	if len(step1Field.widthCalls) > initialWidthCalls {
+		lastWidthCall := step1Field.widthCalls[len(step1Field.widthCalls)-1]
+		assert.Equal(t, 100, lastWidthCall, "WithWidth should receive new width 100")
+	}
+	if len(step1Field.heightCalls) > initialHeightCalls {
+		lastHeightCall := step1Field.heightCalls[len(step1Field.heightCalls)-1]
+		assert.Equal(t, 30, lastHeightCall, "WithHeight should receive new height 30")
+	}
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_FieldReRendersWithNewDimensions verifies that after a window resize,
+// the field's dimensions are updated and reflected in subsequent renders.
+func TestWizard_FieldReRendersWithNewDimensions(t *testing.T) {
+	step1Field := newResizeTrackingField("step1", "RESIZE_TEST")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("RESIZE_TEST"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify field has initial dimensions
+	assert.Equal(t, 80, step1Field.width, "Field should have initial width 80")
+	assert.Equal(t, 24, step1Field.height, "Field should have initial height 24")
+
+	// Send window resize message
+	tm.Send(tea.WindowSizeMsg{Width: 150, Height: 50})
+
+	// Give time for message to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify field dimensions are updated
+	assert.Equal(t, 150, step1Field.width, "Field width should be updated to 150")
+	assert.Equal(t, 50, step1Field.height, "Field height should be updated to 50")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_MultipleResizeMessages verifies that multiple consecutive resize messages
+// are all processed correctly.
+func TestWizard_MultipleResizeMessages(t *testing.T) {
+	step1Field := newResizeTrackingField("step1", "MULTI_RESIZE")
+
+	ctx := NewContext()
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("MULTI_RESIZE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Send multiple resize messages
+	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.WindowSizeMsg{Width: 160, Height: 60})
+
+	// Give time for all messages to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify final dimensions match the last resize message
+	assert.Equal(t, 160, ctx.Width, "Context width should match final resize")
+	assert.Equal(t, 60, ctx.Height, "Context height should match final resize")
+	assert.Equal(t, 160, step1Field.width, "Field width should match final resize")
+	assert.Equal(t, 60, step1Field.height, "Field height should match final resize")
+
+	// Verify all resize messages were processed (check call counts)
+	assert.GreaterOrEqual(t, len(step1Field.widthCalls), 3,
+		"WithWidth should be called at least 3 times for 3 resize messages")
+	assert.GreaterOrEqual(t, len(step1Field.heightCalls), 3,
+		"WithHeight should be called at least 3 times for 3 resize messages")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_ResizeDoesNotAffectStepNavigation verifies that window resize messages
+// don't interfere with step navigation.
+func TestWizard_ResizeDoesNotAffectStepNavigation(t *testing.T) {
+	step1Field := newResizeTrackingField("step1", "STEP_ONE_NAV")
+	step2Field := newResizeTrackingField("step2", "STEP_TWO_NAV")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE_NAV"))
+	}, teatest.WithDuration(time.Second))
+
+	// Send resize message
+	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
+	time.Sleep(50 * time.Millisecond)
+
+	// Navigate to Step 2
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 2
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_TWO_NAV"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify navigation worked correctly
+	assert.Contains(t, wizard.View(), "STEP_TWO_NAV",
+		"Should be at Step 2 after navigation despite resize message")
+	assert.NotContains(t, wizard.View(), "STEP_ONE_NAV",
+		"Step 1 should not be visible after navigation")
+
+	// Send another resize and verify Step 2 field gets the update
+	tm.Send(tea.WindowSizeMsg{Width: 200, Height: 80})
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 200, step2Field.width, "Step 2 field should receive resize after navigation")
+	assert.Equal(t, 80, step2Field.height, "Step 2 field should receive resize after navigation")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
