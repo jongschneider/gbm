@@ -1043,3 +1043,312 @@ func TestConfirm_EnterWithSummary(t *testing.T) {
 	assert.True(t, c.IsComplete(), "should be complete")
 	assert.Equal(t, true, c.GetValue(), "should confirm with true")
 }
+
+// =============================================================================
+// TT-009: Filterable custom value entry tests
+// =============================================================================
+
+// TestFilterable_CustomValue_NoMatchesMessage verifies that typing non-matching
+// text shows the 'No matches' message in the view.
+func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
+	options := []Option{
+		{Label: "Apple", Value: "apple"},
+		{Label: "Banana", Value: "banana"},
+		{Label: "Cherry", Value: "cherry"},
+	}
+
+	t.Run("shows no matches message for non-matching input", func(t *testing.T) {
+		f := NewFilterable("fruit", "Select fruit", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select fruit"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify initial state shows all 3 options
+		assert.Equal(t, 3, len(f.filtered), "initial state should show all 3 options")
+
+		// Type text that doesn't match any option
+		tm.Type("xyz")
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify no matches state
+		assert.Equal(t, 0, len(f.filtered), "filter should have no matches for 'xyz'")
+
+		// Verify the view shows the no matches message with the custom value hint
+		view := f.View()
+		assert.Contains(t, view, "No matches")
+		assert.Contains(t, view, "xyz", "should show the typed value in the message")
+
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	})
+
+	t.Run("shows plain no matches for empty filtered input", func(t *testing.T) {
+		f := NewFilterable("fruit", "Select fruit", "", options)
+		f.Focus()
+		f.textInput.Focus()
+
+		// Set value then clear it, simulating backspace scenario
+		f.textInput.SetValue("xyz")
+		f.filterOptions()
+
+		// Verify we have no matches with non-empty input
+		assert.Equal(t, 0, len(f.filtered))
+		view := f.View()
+		assert.Contains(t, view, "No matches")
+		assert.Contains(t, view, `"xyz"`)
+
+		// Now clear the input
+		f.textInput.SetValue("")
+		f.filterOptions()
+
+		// With empty input, should show all options again
+		assert.Equal(t, 3, len(f.filtered), "empty input should show all options")
+	})
+}
+
+// TestFilterable_CustomValue_EnterSubmitsTypedText verifies that pressing Enter
+// when there are no matches uses the typed text as a custom value.
+func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
+	options := []Option{
+		{Label: "Apple", Value: "apple"},
+		{Label: "Banana", Value: "banana"},
+	}
+
+	t.Run("enter submits custom value when no matches", func(t *testing.T) {
+		f := NewFilterable("fruit", "Select fruit", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select fruit"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify field is not complete
+		assert.False(t, f.IsComplete(), "should not be complete before Enter")
+
+		// Type a custom value that doesn't match any option
+		tm.Type("Orange")
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify no matches
+		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'Orange'")
+
+		// Press Enter to submit custom value
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+		// Model should quit on completion
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify custom value was submitted
+		assert.True(t, f.IsComplete(), "should be complete after Enter")
+		assert.Equal(t, "Orange", f.GetValue(), "GetValue() should return the custom typed value")
+	})
+
+	t.Run("custom value works with partial match that becomes no match", func(t *testing.T) {
+		f := NewFilterable("fruit", "Select fruit", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select fruit"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type 'a' - should match Apple
+		tm.Type("a")
+		time.Sleep(100 * time.Millisecond)
+		assert.Equal(t, 2, len(f.filtered), "should match Apple and Banana")
+
+		// Type more to make it not match anything
+		tm.Type("xyz")
+		time.Sleep(100 * time.Millisecond)
+		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'axyz'")
+
+		// Press Enter to submit custom value
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify custom value was submitted
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "axyz", f.GetValue(), "GetValue() should return 'axyz'")
+	})
+}
+
+// TestFilterable_CustomValue_IsTrimmed verifies that custom values are trimmed
+// of leading and trailing whitespace before being stored.
+func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
+	options := []Option{
+		{Label: "Option A", Value: "a"},
+	}
+
+	t.Run("leading and trailing spaces are trimmed", func(t *testing.T) {
+		f := NewFilterable("custom", "Enter value", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter value"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type value with leading and trailing spaces
+		tm.Type("  custom value  ")
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify no matches (so custom value will be used)
+		assert.Equal(t, 0, len(f.filtered), "should have no matches")
+
+		// Press Enter to submit
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify value is trimmed
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "custom value", f.GetValue(), "GetValue() should return trimmed value")
+	})
+
+	t.Run("internal spaces are preserved", func(t *testing.T) {
+		f := NewFilterable("custom", "Enter value", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Enter value"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type value with internal spaces
+		tm.Type("hello   world")
+		time.Sleep(100 * time.Millisecond)
+
+		// Press Enter to submit
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify internal spaces preserved
+		assert.Equal(t, "hello   world", f.GetValue(), "internal spaces should be preserved")
+	})
+}
+
+// TestFilterable_CustomValue_EmptyInputHandling verifies that empty input
+// is handled gracefully when pressing Enter.
+func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
+	options := []Option{
+		{Label: "Option A", Value: "a"},
+		{Label: "Option B", Value: "b"},
+	}
+
+	t.Run("empty input selects first option", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify options are shown (empty input shows all)
+		assert.Equal(t, 2, len(f.filtered), "should show all options with empty input")
+
+		// Press Enter without typing anything - should select first option
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify first option was selected (not empty string)
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "a", f.GetValue(), "should select first option value when input is empty")
+	})
+
+	t.Run("whitespace-only input with matches selects highlighted option", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", options)
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type only spaces - this still shows all options since trim is applied to filter
+		tm.Type("   ")
+		time.Sleep(100 * time.Millisecond)
+
+		// Move to second option
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+
+		// Press Enter - should select highlighted option
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify second option was selected
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "b", f.GetValue(), "should select second option")
+	})
+
+	t.Run("empty options list with empty input returns empty string", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", []Option{})
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Press Enter with no options and no input
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify empty string result
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "", f.GetValue(), "should return empty string with no options and no input")
+	})
+
+	t.Run("empty options list with custom input uses custom value", func(t *testing.T) {
+		f := NewFilterable("test", "Select option", "", []Option{})
+		model := newFieldModel(f, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Type custom value
+		tm.Type("custom")
+		time.Sleep(100 * time.Millisecond)
+
+		// Press Enter
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify custom value used
+		assert.True(t, f.IsComplete(), "should be complete")
+		assert.Equal(t, "custom", f.GetValue(), "should return custom value")
+	})
+}

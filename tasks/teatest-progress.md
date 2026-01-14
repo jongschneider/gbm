@@ -101,6 +101,15 @@
   - [x] Test View() delegates to newly pushed model
   - [x] Test Update() delegates to current model
 
+### TT-009: Filterable custom value entry (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test typing non-matching text shows 'No matches' message
+  - [x] Test Enter with no matches uses text input as custom value
+  - [x] Test custom value is trimmed before storing
+  - [x] Test empty input is handled gracefully
+
 ## In Progress
 
 None
@@ -111,4 +120,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 12 of 25 complete
+- Total items: 13 of 25 complete
