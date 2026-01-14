@@ -89,9 +89,9 @@
         "Test empty stack returns nil from Current()"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/navigator_teatest_test.go"
     },
     {
       "id": "TT-007",

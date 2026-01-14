@@ -82,6 +82,16 @@
   - [x] Test wizard remains at step 0 after BackBoundaryMsg
   - [x] Test current field remains focused after BackBoundaryMsg
 
+### TT-006: Navigator stack push/pop (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/navigator_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Push() adds model to stack
+  - [x] Test Pop() removes and returns top model
+  - [x] Test Depth() reflects current stack size
+  - [x] Test Current() returns top model
+  - [x] Test empty stack returns nil from Current()
+
 ## In Progress
 
 None
@@ -92,4 +102,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 10 of 25 complete
+- Total items: 11 of 25 complete
