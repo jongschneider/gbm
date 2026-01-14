@@ -94,7 +94,7 @@ func TestNavigator_PushAddsModelToStack(t *testing.T) {
 	assert.Equal(t, 2, nav.Depth(), "Navigator should have depth 2 after push")
 
 	// Give time for any pending updates
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify the new model is now current
 	assert.Contains(t, nav.View(), "SCREEN_TWO",
@@ -610,7 +610,7 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
 
 	// Give time for update to process
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify initial model received the message
 	assert.Greater(t, initialModel.updateCallCount, 0, "Initial model should receive Update() calls")
@@ -632,7 +632,7 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Give time for update to process
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify target model receives the message now
 	assert.Greater(t, targetModel.updateCallCount, 0, "Target model should receive Update() calls after navigation")

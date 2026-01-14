@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
+	"testing/synctest"
 )
 
 func TestEval_FirstGet_FetchesValue(t *testing.T) {
@@ -131,50 +131,52 @@ func TestEval_Invalidate_ClearsCache(t *testing.T) {
 }
 
 func TestEval_ConcurrentGet_OnlyFetchesOnce(t *testing.T) {
-	// Concurrent Gets before first fetch completes should not cause multiple fetches
-	callCount := atomic.Int32{}
-	blockFetch := make(chan struct{})
-	defer close(blockFetch)
+	synctest.Test(t, func(t *testing.T) {
+		// Concurrent Gets before first fetch completes should not cause multiple fetches
+		callCount := atomic.Int32{}
+		blockFetch := make(chan struct{})
+		defer close(blockFetch)
 
-	fetch := func() (string, error) {
-		callCount.Add(1)
-		<-blockFetch // Block until test unblocks
-		return "value", nil
-	}
+		fetch := func() (string, error) {
+			callCount.Add(1)
+			<-blockFetch // Block until test unblocks
+			return "value", nil
+		}
 
-	eval := New(fetch)
+		eval := New(fetch)
 
-	// Start multiple Get() calls concurrently
-	var wg sync.WaitGroup
-	results := make([]string, 5)
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			value, _ := eval.Get()
-			results[idx] = value
-		}(i)
-	}
+		// Start multiple Get() calls concurrently
+		var wg sync.WaitGroup
+		results := make([]string, 5)
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				value, _ := eval.Get()
+				results[idx] = value
+			}(i)
+		}
 
-	// Give goroutines time to start competing for lock
-	time.Sleep(50 * time.Millisecond)
+		// Wait for goroutines to be durably blocked (competing for lock or waiting on channel)
+		synctest.Wait()
 
-	// First caller acquires lock, starts fetch, releases lock
-	// Other callers should block on first lock acquisition, see loading=true, return error
-	// When first fetch completes, subsequent calls use cache
+		// First caller acquires lock, starts fetch, releases lock
+		// Other callers should block on first lock acquisition, see loading=true, return error
+		// When first fetch completes, subsequent calls use cache
 
-	// Unblock the fetch
-	blockFetch <- struct{}{}
+		// Unblock the fetch
+		blockFetch <- struct{}{}
 
-	wg.Wait()
+		wg.Wait()
 
-	// At least the first Get should succeed (it does the fetch)
-	// The exact number of calls depends on timing, but it should be minimal
-	// The key is that we don't call fetch 5 times
-	t.Logf("Fetch called %d times for 5 concurrent Gets", callCount.Load())
-	if callCount.Load() > 2 {
-		t.Fatalf("fetch called %d times, want 1 or 2 (first caller + possible timing)", callCount.Load())
-	}
+		// At least the first Get should succeed (it does the fetch)
+		// The exact number of calls depends on timing, but it should be minimal
+		// The key is that we don't call fetch 5 times
+		t.Logf("Fetch called %d times for 5 concurrent Gets", callCount.Load())
+		if callCount.Load() > 2 {
+			t.Fatalf("fetch called %d times, want 1 or 2 (first caller + possible timing)", callCount.Load())
+		}
+	})
 }
 
 func TestEval_ErrorCaching(t *testing.T) {

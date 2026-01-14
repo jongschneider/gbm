@@ -3,7 +3,6 @@ package async
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -88,7 +87,6 @@ func TestFetchCmd(t *testing.T) {
 		{
 			name: "command executes asynchronously",
 			fetch: func() (string, error) {
-				time.Sleep(10 * time.Millisecond)
 				return "delayed", nil
 			},
 			expectMsg: func(t *testing.T, msg FetchMsg[string]) {
@@ -124,7 +122,6 @@ func TestFetchCmdNonBlocking(t *testing.T) {
 	t.Run("command returns quickly without blocking", func(t *testing.T) {
 		// Track whether fetch was called
 		fetchCalled := false
-		startTime := time.Now()
 
 		cmd := FetchCmd(func() (string, error) {
 			fetchCalled = true
@@ -134,7 +131,6 @@ func TestFetchCmdNonBlocking(t *testing.T) {
 
 		// Execute the command
 		msg := cmd()
-		elapsed := time.Since(startTime)
 
 		// The command should have executed (fetch was called)
 		assert.True(t, fetchCalled, "fetch function should be called during cmd() execution")
@@ -147,7 +143,6 @@ func TestFetchCmdNonBlocking(t *testing.T) {
 		// For reference: tea.Cmd functions execute synchronously in the test,
 		// but in a real Bubble Tea application, they would be executed asynchronously
 		// by the runtime to avoid blocking the event loop.
-		_ = elapsed
 	})
 }
 

@@ -2,7 +2,6 @@ package tui
 
 import (
 	"testing"
-	"time"
 
 	"gbm/pkg/tui/async"
 	"github.com/charmbracelet/bubbles/table"
@@ -168,7 +167,6 @@ func TestAsyncRow_Tick_UpdatesSpinner(t *testing.T) {
 	ar := NewAsyncRow("static")
 
 	eval := async.New(func() (string, error) {
-		time.Sleep(50 * time.Millisecond)
 		return "loaded", nil
 	})
 	cell := async.NewCell(eval)
@@ -242,7 +240,6 @@ func TestTable_Update_TicksAsyncRows(t *testing.T) {
 
 	// Add async cell
 	eval := async.New(func() (string, error) {
-		time.Sleep(50 * time.Millisecond)
 		return "loaded", nil
 	})
 	cell := async.NewCell(eval)

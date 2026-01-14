@@ -91,14 +91,14 @@ func TestTable_DownArrowMovesCursorDown(t *testing.T) {
 
 	// Press down arrow
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify cursor moved to 1
 	assert.Equal(t, 1, tbl.Cursor(), "cursor should be at index 1 after down press")
 
 	// Press down again
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify cursor moved to 2
 	assert.Equal(t, 2, tbl.Cursor(), "cursor should be at index 2 after second down press")
@@ -144,14 +144,14 @@ func TestTable_UpArrowMovesCursorUp(t *testing.T) {
 
 	// Press up arrow
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify cursor moved to 1
 	assert.Equal(t, 1, tbl.Cursor(), "cursor should be at index 1 after up press")
 
 	// Press up again
 	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify cursor moved to 0
 	assert.Equal(t, 0, tbl.Cursor(), "cursor should be at index 0 after second up press")
@@ -205,7 +205,7 @@ func TestTable_CursorReturnsCorrectRowIndex(t *testing.T) {
 
 	for i, tc := range testCases {
 		tm.Send(tea.KeyMsg{Type: tc.key})
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 
 		assert.Equal(t, tc.expected, tbl.Cursor(),
 			"step %d: Cursor() should return %d after %v", i+1, tc.expected, tc.key)
@@ -252,7 +252,7 @@ func TestTable_SelectedRowReturnsCorrectRowData(t *testing.T) {
 
 	// Navigate to second row
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	selectedRow = tbl.SelectedRow()
 	assert.NotNil(t, selectedRow, "SelectedRow() should not return nil after navigation")
@@ -261,7 +261,7 @@ func TestTable_SelectedRowReturnsCorrectRowData(t *testing.T) {
 
 	// Navigate to third row
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	selectedRow = tbl.SelectedRow()
 	assert.NotNil(t, selectedRow, "SelectedRow() should not return nil")
@@ -361,7 +361,7 @@ func TestTable_NavigationWithSingleRow(t *testing.T) {
 
 	// Press down - cursor should stay at 0 (or wrap depending on implementation)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// With single row, cursor stays at 0
 	assert.Equal(t, 0, tbl.Cursor(), "cursor should remain at index 0 with single row")
@@ -402,7 +402,7 @@ func TestTable_NavigationWithEmptyTable(t *testing.T) {
 
 	// Press down - should not crash
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// SelectedRow should return nil for empty table
 	selectedRow := tbl.SelectedRow()
@@ -482,7 +482,7 @@ func TestTable_MixedNavigation(t *testing.T) {
 
 	for i, key := range keys {
 		tm.Send(tea.KeyMsg{Type: key})
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 
 		assert.Equal(t, expectedPositions[i], tbl.Cursor(),
 			"after key %d (%v), cursor should be at %d", i, key, expectedPositions[i])

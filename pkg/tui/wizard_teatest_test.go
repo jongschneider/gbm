@@ -283,7 +283,7 @@ func TestWizard_ViewDelegatesToCurrentFieldView(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	// Verify Step 2's content is NOT shown
-	time.Sleep(50 * time.Millisecond) // Small delay to ensure no extra render
+	time.Sleep(10 * time.Millisecond) // Small delay to ensure no extra render
 	// Check current view does NOT contain step 2
 	assert.Contains(t, wizard.View(), "UNIQUE_STEP1_MARKER",
 		"View() should show step 1 content")
@@ -1003,7 +1003,7 @@ func TestWizard_BackBoundaryMsgSentAtStep0(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
 
 	// Give time for message to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify BackBoundaryMsg was received
 	assert.True(t, backBoundaryReceived, "BackBoundaryMsg should be sent when pressing Esc at step 0")
@@ -1038,7 +1038,7 @@ func TestWizard_RemainsAtStep0AfterBackBoundary(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
 
 	// Give time for messages to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify we're still at step 0 - view should still show first step content
 	assert.Contains(t, wizard.View(), "UNIQUE_FIRST_STEP",
@@ -1080,7 +1080,7 @@ func TestWizard_FieldRemainsFocusedAfterBackBoundary(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
 
 	// Give time for message to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify field is still focused after BackBoundaryMsg
 	// The wizardTestField shows "> " prefix when focused
@@ -1185,7 +1185,7 @@ func TestWizard_WindowSizeMsgUpdatesContextDimensions(t *testing.T) {
 	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	// Give time for message to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify context dimensions are updated
 	assert.Equal(t, 120, ctx.Width, "Context width should be updated to 120 after WindowSizeMsg")
@@ -1221,7 +1221,7 @@ func TestWizard_WindowSizeMsgCallsFieldWithWidthHeight(t *testing.T) {
 	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
 
 	// Give time for message to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify WithWidth and WithHeight were called
 	assert.Greater(t, len(step1Field.widthCalls), initialWidthCalls,
@@ -1269,7 +1269,7 @@ func TestWizard_FieldReRendersWithNewDimensions(t *testing.T) {
 	tm.Send(tea.WindowSizeMsg{Width: 150, Height: 50})
 
 	// Give time for message to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify field dimensions are updated
 	assert.Equal(t, 150, step1Field.width, "Field width should be updated to 150")
@@ -1300,13 +1300,13 @@ func TestWizard_MultipleResizeMessages(t *testing.T) {
 
 	// Send multiple resize messages
 	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	tm.Send(tea.WindowSizeMsg{Width: 160, Height: 60})
 
 	// Give time for all messages to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify final dimensions match the last resize message
 	assert.Equal(t, 160, ctx.Width, "Context width should match final resize")
@@ -1346,7 +1346,7 @@ func TestWizard_ResizeDoesNotAffectStepNavigation(t *testing.T) {
 
 	// Send resize message
 	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Navigate to Step 2
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1364,7 +1364,7 @@ func TestWizard_ResizeDoesNotAffectStepNavigation(t *testing.T) {
 
 	// Send another resize and verify Step 2 field gets the update
 	tm.Send(tea.WindowSizeMsg{Width: 200, Height: 80})
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	assert.Equal(t, 200, step2Field.width, "Step 2 field should receive resize after navigation")
 	assert.Equal(t, 80, step2Field.height, "Step 2 field should receive resize after navigation")
