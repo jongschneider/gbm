@@ -1,4 +1,4 @@
-maxIterations = 2
+maxIterations = 8
 agent = "claude"
 tracker = "json"
 autoCommit = true
@@ -6,4 +6,4 @@ autoCommit = true
 [agentOptions]
 [trackerOptions]
 [notifications]
-sound = "ralph"
+sound = "system"

@@ -148,6 +148,7 @@ func (t *TextInput) View() string {
 		b.WriteString(styles.Error.Render(t.err.Error()))
 	}
 
+	b.WriteString("\n")
 	return b.String()
 }
 

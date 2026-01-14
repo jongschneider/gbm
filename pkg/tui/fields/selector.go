@@ -118,9 +118,7 @@ func (s *Selector) View() string {
 		}
 
 		b.WriteString(line)
-		if i < len(s.options)-1 {
-			b.WriteString("\n")
-		}
+		b.WriteString("\n")
 	}
 
 	return b.String()

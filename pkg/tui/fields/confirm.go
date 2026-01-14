@@ -150,6 +150,7 @@ func (c *Confirm) View() string {
 	noBtn := noStyle.Render("No")
 
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Center, yesBtn, noBtn))
+	b.WriteString("\n")
 
 	return b.String()
 }

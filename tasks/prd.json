@@ -41,11 +41,12 @@
         "Both fields are nil/empty when issue has no parent/children"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-001",
         "US-002"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-004",
@@ -57,11 +58,12 @@
         "Parent conversion handles missing optional fields gracefully"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-001",
         "US-003"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-005",
@@ -73,11 +75,12 @@
         "Subtask conversion handles missing optional fields gracefully"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-002",
         "US-003"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-006",
@@ -90,10 +93,11 @@
         "Parent's linked issues are also fetched following MaxDepth rules"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-007",
@@ -106,10 +110,11 @@
         "Child's linked issues are also fetched following MaxDepth rules"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-005"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-008",
@@ -122,11 +127,12 @@
         "Lookup table is keyed by issue key (e.g., 'PROJ-123')"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-006",
         "US-007"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-009",
@@ -139,10 +145,11 @@
         "Section header is '## Parent'"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-010",
@@ -155,10 +162,11 @@
         "Section header is '## Children'"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-005"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-011",
@@ -170,10 +178,11 @@
         "Other linked issues are unaffected"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-009"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-012",
@@ -185,10 +194,11 @@
         "Other linked issues are unaffected"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-010"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-013",
@@ -202,11 +212,12 @@
         "Test nil/empty cases"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-004",
         "US-005"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-014",
@@ -220,10 +231,11 @@
         "Test deep hierarchy exceeding MaxDepth"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-008"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-015",
@@ -237,14 +249,15 @@
         "Test omission when no parent/children exist"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "dependsOn": [
         "US-011",
         "US-012"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-13T20:52:30.016Z"
+    "updatedAt": "2026-01-14T03:37:56.090Z"
   }
 }

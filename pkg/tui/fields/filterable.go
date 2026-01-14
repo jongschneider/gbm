@@ -191,7 +191,8 @@ func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 // filterOptions filters the options list based on the current text input value.
 func (f *Filterable) filterOptions() {
-	query := strings.ToLower(strings.TrimSpace(f.textInput.Value()))
+	rawValue := f.textInput.Value()
+	query := strings.ToLower(strings.TrimSpace(rawValue))
 
 	if query == "" {
 		// No filter, show all options
@@ -201,22 +202,23 @@ func (f *Filterable) filterOptions() {
 		// Filter options that match the query (case-insensitive)
 		f.filtered = []Option{}
 		for _, opt := range f.options {
-			if strings.Contains(strings.ToLower(opt.Label), query) ||
-				strings.Contains(strings.ToLower(opt.Value), query) {
+			labelLower := strings.ToLower(opt.Label)
+			valueLower := strings.ToLower(opt.Value)
+			if strings.Contains(labelLower, query) || strings.Contains(valueLower, query) {
 				f.filtered = append(f.filtered, opt)
 			}
 		}
 	}
 
-	// Reset cursor and viewport to valid positions
-	if f.cursor >= len(f.filtered) {
-		if len(f.filtered) > 0 {
+	// Reset cursor and viewport to valid positions when filter changes
+	if len(f.filtered) > 0 {
+		if f.cursor < 0 || f.cursor >= len(f.filtered) {
 			f.cursor = 0
-		} else {
-			f.cursor = -1
 		}
+	} else {
+		f.cursor = -1
 	}
-	f.viewportOffset = 0 // Reset viewport when filter changes
+	f.viewportOffset = 0
 }
 
 // visibleItemCount returns how many list items can fit in the available height.
@@ -286,13 +288,14 @@ func (f *Filterable) View() string {
 
 	// If loading options asynchronously, show spinner
 	if f.isLoading {
-		b.WriteString(fmt.Sprintf("%s Loading options...", f.spinner.View()))
+		b.WriteString(fmt.Sprintf("%s Loading options...\n", f.spinner.View()))
 		return b.String()
 	}
 
 	// Show any async error
 	if f.loadErr != nil {
 		b.WriteString(styles.Error.Render(fmt.Sprintf("Error loading options: %v", f.loadErr)))
+		b.WriteString("\n")
 		return b.String()
 	}
 
@@ -304,6 +307,7 @@ func (f *Filterable) View() string {
 		} else {
 			b.WriteString(styles.Description.Render("No matches"))
 		}
+		b.WriteString("\n")
 	} else {
 		// Calculate visible range
 		visible := f.visibleItemCount()
@@ -316,26 +320,25 @@ func (f *Filterable) View() string {
 		// Render only visible options
 		for i := start; i < end; i++ {
 			opt := f.filtered[i]
-			cursor := "  " // No cursor for non-selected items
+
+			var line string
 			if i == f.cursor {
-				cursor = f.cursorStyle.Render("▸ ") // Highlighted cursor
-			}
-
-			line := fmt.Sprintf("%s%s", cursor, opt.Label)
-
-			// Apply input style to highlighted option
-			if i == f.cursor && f.focused {
-				line = styles.Input.Render(line)
-			} else if i == f.cursor && !f.focused {
-				// Blurred but still highlighted - use a muted version of input style
-				dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-				line = dimmedStyle.Render(line)
+				// Selected item with cursor
+				line = fmt.Sprintf("▸ %s", opt.Label)
+				if f.focused {
+					line = styles.Input.Render(line)
+				} else {
+					// Blurred but still highlighted - use a muted version
+					dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+					line = dimmedStyle.Render(line)
+				}
+			} else {
+				// Non-selected item - plain text with indent
+				line = fmt.Sprintf("  %s", opt.Label)
 			}
 
 			b.WriteString(line)
-			if i < end-1 {
-				b.WriteString("\n")
-			}
+			b.WriteString("\n")
 		}
 	}
 
