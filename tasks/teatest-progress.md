@@ -12,6 +12,15 @@
   - [x] Test wizard state updates correctly between steps
   - [x] Test View() delegates to current field's View()
 
+### TT-002: Wizard skip logic (Priority 1)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/wizard_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test steps with Skip func returning true are skipped on forward navigation
+  - [x] Test steps with Skip func returning false are shown
+  - [x] Test skipped steps are also skipped on backward navigation
+  - [x] Test skip logic re-evaluates based on current workflow state
+
 ### TT-025: View() newline consistency verification (Priority 1)
 - **Status**: COMPLETE
 - **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
@@ -22,10 +31,9 @@
 None
 
 ## Pending (Priority 1)
-- TT-002: Wizard skip logic (depends on TT-001)
 - TT-003: Wizard completion flow (depends on TT-001)
 - TT-022: FeatureWorkflow end-to-end (depends on TT-001, TT-002, TT-003, TT-008, TT-013, TT-017)
 
 ## Summary
-- Priority 1 items: 3 of 5 complete
-- Total items: 3 of 25 complete
+- Priority 1 items: 4 of 5 complete
+- Total items: 4 of 25 complete

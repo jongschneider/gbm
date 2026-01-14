@@ -403,3 +403,303 @@ func TestWizard_MultipleBackAndForth(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
+
+// =============================================================================
+// TT-002: Wizard skip logic tests
+// =============================================================================
+
+// TestWizard_SkipStepOnForwardNavigation verifies that steps with Skip func returning true
+// are skipped when navigating forward.
+func TestWizard_SkipStepOnForwardNavigation(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE")
+	step2Field := newWizardTestField("step2", "STEP_TWO_SKIPPED")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(_ *WorkflowState) bool { return true }},
+		{Name: "step3", Field: step3Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter - should skip Step 2 and go directly to Step 3
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 3 to appear (Step 2 should be skipped)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_THREE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify Step 2 content is NOT shown
+	assert.NotContains(t, wizard.View(), "STEP_TWO_SKIPPED",
+		"Skipped step should not appear in View()")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_ShowStepWhenSkipReturnsFalse verifies that steps with Skip func returning false
+// are shown normally.
+func TestWizard_ShowStepWhenSkipReturnsFalse(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE")
+	step2Field := newWizardTestField("step2", "STEP_TWO_SHOWN")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(_ *WorkflowState) bool { return false }},
+		{Name: "step3", Field: step3Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter - should go to Step 2 (Skip returns false)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 2 to appear
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_TWO_SHOWN"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify we're at Step 2
+	assert.Contains(t, wizard.View(), "STEP_TWO_SHOWN",
+		"Step with Skip returning false should be shown")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_SkipStepOnBackwardNavigation verifies that skipped steps are also skipped
+// when navigating backward.
+func TestWizard_SkipStepOnBackwardNavigation(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE")
+	step2Field := newWizardTestField("step2", "STEP_TWO_SKIPPED")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(_ *WorkflowState) bool { return true }},
+		{Name: "step3", Field: step3Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter - should skip Step 2 and go to Step 3
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 3
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_THREE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Esc - should skip Step 2 and go back to Step 1
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Wait for Step 1 to reappear (skipping Step 2)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify we're back at Step 1, not Step 2
+	assert.Contains(t, wizard.View(), "STEP_ONE",
+		"Should go back to Step 1, skipping Step 2")
+	assert.NotContains(t, wizard.View(), "STEP_TWO_SKIPPED",
+		"Skipped step should not appear when navigating backward")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_SkipLogicReEvaluatesBasedOnState verifies that skip logic re-evaluates
+// based on current workflow state.
+func TestWizard_SkipLogicReEvaluatesBasedOnState(t *testing.T) {
+	step1Field := newWizardTestField("worktree_name", "STEP_ONE_NAME")
+	step1Field.value = "my-feature"
+
+	step2Field := newWizardTestField("step2", "STEP_TWO_CONDITIONAL")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	ctx := NewContext()
+
+	// Step 2 is skipped only when WorktreeName equals "skip-me"
+	wizard := NewWizard([]Step{
+		{Name: "worktree_name", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(state *WorkflowState) bool {
+			return state.WorktreeName == "skip-me"
+		}},
+		{Name: "step3", Field: step3Field},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE_NAME"))
+	}, teatest.WithDuration(time.Second))
+
+	// Step 1 value is "my-feature", so Step 2 should NOT be skipped
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 2 (should appear because state.WorktreeName != "skip-me")
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_TWO_CONDITIONAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify state was stored
+	assert.Equal(t, "my-feature", ctx.State.WorktreeName,
+		"WorktreeName should be stored in state")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_SkipLogicCausesStepToBeSkipped verifies that changing state causes
+// the skip logic to evaluate differently.
+func TestWizard_SkipLogicCausesStepToBeSkipped(t *testing.T) {
+	step1Field := newWizardTestField("worktree_name", "STEP_ONE_NAME")
+	step1Field.value = "skip-me" // This value will cause Step 2 to be skipped
+
+	step2Field := newWizardTestField("step2", "STEP_TWO_SHOULD_BE_SKIPPED")
+	step3Field := newWizardTestField("step3", "STEP_THREE_FINAL")
+
+	ctx := NewContext()
+
+	// Step 2 is skipped when WorktreeName equals "skip-me"
+	wizard := NewWizard([]Step{
+		{Name: "worktree_name", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(state *WorkflowState) bool {
+			return state.WorktreeName == "skip-me"
+		}},
+		{Name: "step3", Field: step3Field},
+	}, ctx)
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE_NAME"))
+	}, teatest.WithDuration(time.Second))
+
+	// Step 1 value is "skip-me", so Step 2 should be skipped
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 3 (Step 2 should be skipped)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_THREE_FINAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify Step 2 was skipped
+	assert.NotContains(t, wizard.View(), "STEP_TWO_SHOULD_BE_SKIPPED",
+		"Step 2 should be skipped because state.WorktreeName == 'skip-me'")
+	assert.Equal(t, "skip-me", ctx.State.WorktreeName,
+		"WorktreeName should be stored in state")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_SkipFirstStepStartsAtSecond verifies that if the first step is skipped,
+// the wizard starts at the second step.
+func TestWizard_SkipFirstStepStartsAtSecond(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE_SKIPPED")
+	step2Field := newWizardTestField("step2", "STEP_TWO_FIRST")
+	step3Field := newWizardTestField("step3", "STEP_THREE")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field, Skip: func(_ *WorkflowState) bool { return true }},
+		{Name: "step2", Field: step2Field},
+		{Name: "step3", Field: step3Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Should start at Step 2 since Step 1 is skipped
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_TWO_FIRST"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify Step 1 is not shown
+	assert.NotContains(t, wizard.View(), "STEP_ONE_SKIPPED",
+		"First skipped step should not appear")
+	assert.Contains(t, wizard.View(), "STEP_TWO_FIRST",
+		"Wizard should start at first non-skipped step")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestWizard_SkipMultipleConsecutiveSteps verifies that multiple consecutive skipped steps
+// are all bypassed.
+func TestWizard_SkipMultipleConsecutiveSteps(t *testing.T) {
+	step1Field := newWizardTestField("step1", "STEP_ONE")
+	step2Field := newWizardTestField("step2", "STEP_TWO_SKIPPED")
+	step3Field := newWizardTestField("step3", "STEP_THREE_SKIPPED")
+	step4Field := newWizardTestField("step4", "STEP_FOUR_FINAL")
+
+	wizard := NewWizard([]Step{
+		{Name: "step1", Field: step1Field},
+		{Name: "step2", Field: step2Field, Skip: func(_ *WorkflowState) bool { return true }},
+		{Name: "step3", Field: step3Field, Skip: func(_ *WorkflowState) bool { return true }},
+		{Name: "step4", Field: step4Field},
+	}, NewContext())
+
+	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for Step 1
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter - should skip Steps 2 and 3, go directly to Step 4
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for Step 4
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_FOUR_FINAL"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify Steps 2 and 3 are not shown
+	assert.NotContains(t, wizard.View(), "STEP_TWO_SKIPPED")
+	assert.NotContains(t, wizard.View(), "STEP_THREE_SKIPPED")
+	assert.Contains(t, wizard.View(), "STEP_FOUR_FINAL")
+
+	// Press Esc - should skip back over Steps 3 and 2 to Step 1
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("STEP_ONE"))
+	}, teatest.WithDuration(time.Second))
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}

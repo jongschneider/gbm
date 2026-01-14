@@ -30,9 +30,9 @@
         "Test skip logic re-evaluates based on current workflow state"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "dependsOn": ["TT-001"],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/wizard_teatest_test.go"
     },
     {
       "id": "TT-003",
