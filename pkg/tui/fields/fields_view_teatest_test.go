@@ -1798,3 +1798,301 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		assert.Equal(t, "custom", f.GetValue(), "should return custom value")
 	})
 }
+
+// =============================================================================
+// TT-011: Selector Enter selection tests
+// =============================================================================
+
+// TestSelector_EnterSelectsHighlightedOption verifies that pressing Enter
+// selects the currently highlighted option in the Selector.
+func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
+	options := []Option{
+		{Label: "Option Alpha", Value: "alpha"},
+		{Label: "Option Beta", Value: "beta"},
+		{Label: "Option Gamma", Value: "gamma"},
+	}
+
+	t.Run("selects first option by default", func(t *testing.T) {
+		s := NewSelector("test", "Select option", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Verify initial cursor position is 0
+		assert.Equal(t, 0, s.cursor, "initial cursor should be at index 0")
+		assert.False(t, s.IsComplete(), "should not be complete before Enter")
+
+		// Press Enter to select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+		// Model should quit on completion
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify selected value is the first option
+		assert.Equal(t, "alpha", s.selected, "should select Option Alpha's value")
+		assert.Equal(t, "alpha", s.GetValue(), "GetValue() should return selected value")
+		assert.True(t, s.IsComplete(), "IsComplete() should be true after Enter")
+	})
+
+	t.Run("selects second option after down navigation", func(t *testing.T) {
+		s := NewSelector("test", "Select option", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to second option
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 1, s.cursor, "cursor should be at index 1 after down press")
+
+		// Press Enter to select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+		// Model should quit on completion
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify selected value is the second option
+		assert.Equal(t, "beta", s.selected, "should select Option Beta's value")
+		assert.Equal(t, "beta", s.GetValue(), "GetValue() should return selected value")
+		assert.True(t, s.IsComplete(), "IsComplete() should be true after Enter")
+	})
+
+	t.Run("selects third option after two down presses", func(t *testing.T) {
+		s := NewSelector("test", "Select option", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		// Wait for initial render
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select option"))
+		}, teatest.WithDuration(time.Second))
+
+		// Navigate to third option
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, 2, s.cursor, "cursor should be at index 2 after two down presses")
+
+		// Press Enter to select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+		// Model should quit on completion
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		// Verify selected value is the third option
+		assert.Equal(t, "gamma", s.selected, "should select Option Gamma's value")
+		assert.Equal(t, "gamma", s.GetValue(), "GetValue() should return selected value")
+		assert.True(t, s.IsComplete(), "IsComplete() should be true after Enter")
+	})
+}
+
+// TestSelector_SelectedValueMatchesOptionValue verifies that the selected value
+// matches the option's Value field, not the Label.
+func TestSelector_SelectedValueMatchesOptionValue(t *testing.T) {
+	options := []Option{
+		{Label: "Display Name One", Value: "value-1"},
+		{Label: "Display Name Two", Value: "value-2"},
+		{Label: "Display Name Three", Value: "value-3"},
+	}
+
+	s := NewSelector("items", "Select item", options)
+	model := newFieldModel(s, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select item"))
+	}, teatest.WithDuration(time.Second))
+
+	// Navigate to second option and select
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify value is the Value field, not Label
+	assert.Equal(t, "value-2", s.GetValue(), "GetValue() should return Value field, not Label")
+	assert.NotEqual(t, "Display Name Two", s.GetValue(), "should not return the Label")
+}
+
+// TestSelector_NextStepMsgSentOnEnter verifies that NextStepMsg is sent
+// when Enter is pressed, causing the fieldModel to quit (via IsComplete check).
+func TestSelector_NextStepMsgSentOnEnter(t *testing.T) {
+	options := []Option{
+		{Label: "Only Option", Value: "only"},
+	}
+
+	s := NewSelector("test", "Select", options)
+	model := newFieldModel(s, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify field is not complete before Enter
+	assert.False(t, s.IsComplete(), "should not be complete before Enter")
+
+	// Press Enter - this should trigger NextStepMsg which causes fieldModel to quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// The model should finish because fieldModel.Update checks IsComplete()
+	// and returns tea.Quit when the field completes
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify completion state
+	assert.True(t, s.IsComplete(), "IsComplete() should be true, indicating NextStepMsg flow")
+	assert.Equal(t, "only", s.GetValue(), "selected value should be stored")
+}
+
+// TestSelector_IsCompleteAfterSelection verifies that IsComplete() returns
+// true after selection and false before.
+func TestSelector_IsCompleteAfterSelection(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+	}
+
+	s := NewSelector("field", "Choose one", options)
+	model := newFieldModel(s, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Choose one"))
+	}, teatest.WithDuration(time.Second))
+
+	// Initial state
+	assert.False(t, s.IsComplete(), "IsComplete() should be false initially")
+	assert.False(t, s.IsCancelled(), "IsCancelled() should be false")
+	assert.Equal(t, "", s.GetValue(), "GetValue() should be empty before selection")
+
+	// Navigate and check - still not complete
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, s.IsComplete(), "IsComplete() should still be false before Enter")
+
+	// Submit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Now complete
+	assert.True(t, s.IsComplete(), "IsComplete() should be true after selection")
+	assert.False(t, s.IsCancelled(), "IsCancelled() should still be false")
+	assert.Equal(t, "2", s.GetValue(), "GetValue() should return selected value")
+}
+
+// TestSelector_EmptyOptionsDoesNotCrash verifies that pressing Enter
+// with an empty options list doesn't crash and doesn't mark as complete.
+func TestSelector_EmptyOptionsDoesNotCrash(t *testing.T) {
+	s := NewSelector("test", "Select", []Option{})
+	model := newFieldModel(s, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Enter - should not crash and should not complete
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify not complete (no options to select)
+	assert.False(t, s.IsComplete(), "should not be complete with no options")
+	assert.Equal(t, "", s.GetValue(), "GetValue() should be empty")
+
+	// Quit cleanly
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestSelector_NavigationAfterWrapping verifies Enter works correctly
+// after cursor has wrapped around the options list.
+func TestSelector_NavigationAfterWrapping(t *testing.T) {
+	options := []Option{
+		{Label: "First", Value: "1"},
+		{Label: "Second", Value: "2"},
+		{Label: "Third", Value: "3"},
+	}
+
+	t.Run("select after wrapping from bottom to top", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// Move to last item
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 1
+		time.Sleep(50 * time.Millisecond)
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // 2
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should be at index 2")
+
+		// Wrap to first
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // wraps to 0
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 0, s.cursor, "should wrap to index 0")
+
+		// Select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.Equal(t, "1", s.GetValue(), "should select first option after wrap")
+	})
+
+	t.Run("select after wrapping from top to bottom", func(t *testing.T) {
+		s := NewSelector("test", "Select", options)
+		model := newFieldModel(s, 10)
+
+		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+		t.Cleanup(func() { _ = tm.Quit() })
+
+		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+			return bytes.Contains(bts, []byte("Select"))
+		}, teatest.WithDuration(time.Second))
+
+		// At first item, wrap to last
+		tm.Send(tea.KeyMsg{Type: tea.KeyUp}) // wraps to 2
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(t, 2, s.cursor, "should wrap to index 2")
+
+		// Select
+		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+		assert.Equal(t, "3", s.GetValue(), "should select third option after wrap")
+	})
+}

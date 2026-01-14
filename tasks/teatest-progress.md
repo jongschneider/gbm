@@ -121,6 +121,16 @@
   - [x] Test viewport scrolls when cursor moves out of view
 - **Notes**: Also includes tests for Ctrl+J/Ctrl+K navigation, empty list handling, single option behavior, and navigation after filtering
 
+### TT-011: Selector Enter selection (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/fields/fields_view_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Enter selects currently highlighted option
+  - [x] Test selected value matches option's Value field
+  - [x] Test NextStepMsg is sent after selection
+  - [x] Test IsComplete() returns true after selection
+- **Notes**: Also includes tests for empty options list handling and selection after wrapping navigation
+
 ## In Progress
 
 None
@@ -131,4 +141,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 14 of 25 complete
+- Total items: 15 of 25 complete
