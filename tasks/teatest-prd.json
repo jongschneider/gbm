@@ -288,9 +288,9 @@
         "Test SetCursor() programmatically sets position"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependsOn": [],
-      "completionNotes": ""
+      "completionNotes": "Completed - see pkg/tui/table_teatest_test.go. Fixed SelectedRow() bug with negative cursor index for empty tables."
     },
     {
       "id": "TT-020",

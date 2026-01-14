@@ -228,8 +228,10 @@ func (t *Table) Cursor() int {
 
 // SelectedRow returns the currently selected row.
 func (t *Table) SelectedRow() table.Row {
-	if t.model.Cursor() < len(t.model.Rows()) {
-		return t.model.Rows()[t.model.Cursor()]
+	cursor := t.model.Cursor()
+	rows := t.model.Rows()
+	if cursor >= 0 && cursor < len(rows) {
+		return rows[cursor]
 	}
 	return nil
 }

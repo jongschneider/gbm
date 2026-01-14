@@ -224,6 +224,16 @@
   - [x] Test l key selects No (vim-style)
 - **Notes**: Tests verify left/right arrow keys and h/l vim-style keys work correctly for navigating between Yes/No buttons. Includes tests for mixed arrow/vim navigation and boundary behavior (pressing left at Yes or right at No stays at current selection).
 
+### TT-019: Table row navigation (Priority 3)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/table_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test Up/Down arrows move cursor
+  - [x] Test Cursor() returns correct row index
+  - [x] Test SelectedRow() returns correct row data
+  - [x] Test SetCursor() programmatically sets position
+- **Notes**: Tests verify arrow key navigation moves cursor correctly, Cursor() returns the correct index after navigation, SelectedRow() returns the correct row data for current position, and SetCursor() can programmatically set position. Also includes tests for single row tables, empty tables (fixed SelectedRow() bug with negative cursor index), mixed navigation patterns, and View() newline consistency. Fixed bug in table.go where SelectedRow() didn't handle negative cursor values from empty tables.
+
 ## In Progress
 
 None
@@ -234,4 +244,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 24 of 25 complete
+- Total items: 25 of 25 complete
