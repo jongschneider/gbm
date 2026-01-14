@@ -1034,6 +1034,492 @@ func TestSelectWorkflowType_EnterSelectsWorkflowType(t *testing.T) {
 	})
 }
 
+// =============================================================================
+// TT-023: HotfixWorkflow end-to-end tests
+// Tests the full wizard flow: JIRA selection, base branch (mandatory), branch name, confirm
+// =============================================================================
+
+// createHotfixWorkflowWithSyncOptions creates a HotfixWorkflow variant with
+// pre-populated options (no async loading) for reliable testing.
+// HotfixWorkflow steps:
+// 1. JIRA issue selection
+// 2. Base branch (mandatory, no skip)
+// 3. Branch name with hotfix/ prefix
+// 4. Confirmation
+func createHotfixWorkflowWithSyncOptions(ctx *tui.Context, jiraOptions, branchOptions []fields.Option) *tui.Wizard {
+	steps := []tui.Step{
+		// Step 1: JIRA issue selection with pre-populated options
+		{
+			Name: tui.FieldKeyWorktreeName,
+			Field: fields.NewFilterable(
+				tui.FieldKeyWorktreeName,
+				"Select Worktree Name",
+				"Search JIRA issues or enter a custom name",
+				jiraOptions,
+			),
+		},
+
+		// Step 2: Base branch selection (mandatory - NOT skipped for hotfixes)
+		{
+			Name: tui.FieldKeyBaseBranch,
+			Field: fields.NewFilterable(
+				tui.FieldKeyBaseBranch,
+				"Base Branch",
+				"Choose the production or release branch to base this hotfix on",
+				branchOptions,
+			),
+			// No Skip func - hotfixes always require base branch selection
+		},
+
+		// Step 3: Branch name input (with hotfix/ prefix placeholder)
+		{
+			Name: tui.FieldKeyBranchName,
+			Field: fields.NewTextInput(tui.FieldKeyBranchName, "Name for the hotfix branch", "Enter the branch name").
+				WithPlaceholder("hotfix/KEY-description"),
+		},
+
+		// Step 4: Confirmation
+		{
+			Name:  tui.FieldKeyConfirm,
+			Field: fields.NewConfirm(tui.FieldKeyConfirm, "Create Hotfix Branch?"),
+		},
+	}
+
+	return tui.NewWizard(steps, ctx)
+}
+
+// TestHotfixWorkflow_Step1_JIRAIssueSelection verifies step 1 of the HotfixWorkflow:
+// selecting a JIRA issue from the list.
+func TestHotfixWorkflow_Step1_JIRAIssueSelection(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical security fix", Value: "PROD-001"},
+		{Label: "PROD-002 - Database crash fix", Value: "PROD-002"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+		{Label: "release-1.0", Value: "release-1.0"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render with JIRA issue list
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(2*time.Second))
+
+	// Press Enter to select the first JIRA issue (PROD-001)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for step 2 (base branch selection - mandatory for hotfixes)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify JIRA issue key was stored in state
+	assert.Equal(t, "PROD-001", ctx.State.WorktreeName,
+		"WorktreeName should be the JIRA issue key")
+
+	// Cancel the wizard
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestHotfixWorkflow_Step2_BaseBranchMandatory verifies step 2 is always shown
+// (base branch selection is mandatory for hotfixes, unlike feature workflows).
+func TestHotfixWorkflow_Step2_BaseBranchMandatory(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+		{Label: "release-1.0", Value: "release-1.0"},
+		{Label: "release-2.0", Value: "release-2.0"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select JIRA issue
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Base branch should ALWAYS appear (mandatory)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Navigate to release-1.0 (second option) and select
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for step 3 (branch name input)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify base branch was stored
+	assert.Equal(t, "release-1.0", ctx.State.BaseBranch,
+		"BaseBranch should be 'release-1.0'")
+
+	// Cancel the wizard
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestHotfixWorkflow_Step3_BranchNameWithHotfixPrefix verifies step 3 accepts
+// branch names (with hotfix/ prefix placeholder shown).
+func TestHotfixWorkflow_Step3_BranchNameWithHotfixPrefix(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select JIRA issue
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Select base branch
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 3: Enter branch name
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
+	time.Sleep(50 * time.Millisecond)
+	tm.Type("hotfix/prod-001-security-fix")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for step 4 (confirmation)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create Hotfix Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify branch name was stored with hotfix/ prefix
+	assert.Equal(t, "hotfix/prod-001-security-fix", ctx.State.BranchName,
+		"BranchName should have hotfix/ prefix")
+
+	// Cancel the wizard
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestHotfixWorkflow_Step4_ConfirmYes verifies step 4 completes the hotfix workflow
+// when Yes is selected.
+func TestHotfixWorkflow_Step4_ConfirmYes(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select JIRA issue
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Select base branch
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 3: Enter branch name
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
+	time.Sleep(50 * time.Millisecond)
+	tm.Type("hotfix/final-fix")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 4: Confirm
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create Hotfix Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	assert.False(t, wizard.IsComplete(), "wizard should not be complete before confirmation")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm Yes (default)
+
+	// Wait for wizard to complete
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify wizard completed successfully
+	assert.True(t, wizard.IsComplete(), "wizard should be complete after confirmation")
+	assert.False(t, wizard.IsCancelled(), "wizard should not be cancelled")
+
+	// Verify all state values
+	assert.Equal(t, "PROD-001", ctx.State.WorktreeName, "WorktreeName should be JIRA issue key")
+	assert.Equal(t, "hotfix/final-fix", ctx.State.BranchName, "BranchName should have hotfix/ prefix")
+	assert.Equal(t, "main", ctx.State.BaseBranch, "BaseBranch should be 'main'")
+}
+
+// TestHotfixWorkflow_Step4_ConfirmNo verifies step 4 cancels the hotfix workflow
+// when No is selected.
+func TestHotfixWorkflow_Step4_ConfirmNo(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select JIRA issue
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Select base branch
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 3: Enter branch name
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
+	time.Sleep(50 * time.Millisecond)
+	tm.Type("hotfix/to-cancel")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 4: Navigate to No and select
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create Hotfix Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRight}) // Move to No
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm No
+
+	// Wait for wizard to finish (due to CancelMsg)
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify wizard was cancelled
+	assert.True(t, wizard.IsCancelled(), "wizard should be cancelled when No is selected")
+}
+
+// TestHotfixWorkflow_EndToEndComplete tests the full happy path of the HotfixWorkflow.
+func TestHotfixWorkflow_EndToEndComplete(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-100 - Critical security vulnerability", Value: "PROD-100"},
+		{Label: "PROD-101 - Data corruption bug", Value: "PROD-101"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+		{Label: "release-1.0", Value: "release-1.0"},
+		{Label: "release-2.0", Value: "release-2.0"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select second JIRA issue (PROD-101)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-100"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Move to second issue
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Select base branch (release-2.0)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // release-1.0
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // release-2.0
+	time.Sleep(50 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 3: Enter branch name
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
+	time.Sleep(50 * time.Millisecond)
+	tm.Type("hotfix/prod-101-data-fix")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 4: Confirm
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create Hotfix Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm Yes
+
+	// Wait for completion
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify final state
+	assert.True(t, wizard.IsComplete(), "wizard should be complete")
+	assert.False(t, wizard.IsCancelled(), "wizard should not be cancelled")
+	assert.Equal(t, "PROD-101", ctx.State.WorktreeName, "WorktreeName should be PROD-101")
+	assert.Equal(t, "hotfix/prod-101-data-fix", ctx.State.BranchName, "BranchName should match")
+	assert.Equal(t, "release-2.0", ctx.State.BaseBranch, "BaseBranch should be release-2.0")
+}
+
+// TestHotfixWorkflow_BackNavigation verifies Esc key navigates back through steps.
+func TestHotfixWorkflow_BackNavigation(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Select JIRA issue
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Base branch
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press Esc to go back to step 1
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Wait for step 1 to reappear
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Select Worktree Name"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify we're back at step 1
+	assert.Contains(t, wizard.View(), "PROD-001",
+		"Should be back at step 1 showing JIRA issues")
+
+	// Cancel the wizard
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestHotfixWorkflow_CustomWorktreeName verifies hotfix workflow accepts
+// custom worktree names instead of JIRA issues.
+func TestHotfixWorkflow_CustomWorktreeName(t *testing.T) {
+	jiraOptions := []fields.Option{
+		{Label: "PROD-001 - Critical fix", Value: "PROD-001"},
+	}
+	branchOptions := []fields.Option{
+		{Label: "main", Value: "main"},
+	}
+
+	ctx := tui.NewContext()
+	wizard := createHotfixWorkflowWithSyncOptions(ctx, jiraOptions, branchOptions)
+	model := newWorkflowTestModel(wizard)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Step 1: Type custom name (no JIRA issue)
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("PROD-001"))
+	}, teatest.WithDuration(time.Second))
+
+	tm.Type("urgent-security-patch")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 2: Select base branch
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Base Branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 3: Enter branch name
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Name for the hotfix branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // Clear line
+	time.Sleep(50 * time.Millisecond)
+	tm.Type("hotfix/urgent-security-patch")
+	time.Sleep(100 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Step 4: Confirm
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Create Hotfix Branch"))
+	}, teatest.WithDuration(time.Second))
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Wait for completion
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+
+	// Verify custom name was stored (ProcessHotfixWorkflow would prefix with HOTFIX_)
+	assert.Equal(t, "urgent-security-patch", ctx.State.WorktreeName,
+		"WorktreeName should be the custom name entered")
+	assert.True(t, wizard.IsComplete(), "wizard should be complete")
+}
+
+// =============================================================================
+// TT-021: SelectWorkflowType selection tests (continued)
+// =============================================================================
+
 // TestSelectWorkflowType_GetValueReturnsCorrectString verifies that GetValue()
 // returns the correct workflow type string constant for each selection.
 func TestSelectWorkflowType_GetValueReturnsCorrectString(t *testing.T) {

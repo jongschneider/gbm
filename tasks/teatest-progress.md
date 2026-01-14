@@ -163,6 +163,17 @@
   - [x] Test GetValue() returns correct workflow type string
 - **Notes**: Tests verify cursor wrapping, up/down navigation, and that GetValue() returns the correct workflow type constant (e.g., "feature", "bug", "hotfix", "merge")
 
+### TT-023: HotfixWorkflow end-to-end (Priority 2)
+- **Status**: COMPLETE
+- **Tests**: `pkg/tui/workflows/workflows_teatest_test.go`
+- **Acceptance Criteria**:
+  - [x] Test step 1: JIRA issue/custom name selection
+  - [x] Test step 2: Base branch selection (mandatory, not skipped)
+  - [x] Test step 3: Branch name input with hotfix/ prefix
+  - [x] Test step 4: Confirm step shows correct summary
+  - [x] Test worktree name gets HOTFIX_ prefix (via ProcessHotfixWorkflow)
+- **Notes**: Tests verify hotfix workflow differs from feature workflow: base branch is mandatory (step 2, no skip logic), branch name comes after base branch selection. Includes tests for back navigation and custom worktree names.
+
 ## In Progress
 
 None
@@ -173,4 +184,4 @@ None - All priority 1 items complete!
 
 ## Summary
 - Priority 1 items: 5 of 5 complete
-- Total items: 18 of 25 complete
+- Total items: 19 of 25 complete
