@@ -138,14 +138,15 @@ func ClassifyError(op string, err error, output string) error {
 		exitCode = exitErr.ExitCode()
 	}
 
-	stderr := output
-	if exitErr != nil {
-		stderr = string(exitErr.Stderr)
+	// Prefer passed output (from CombinedOutput), fall back to exitErr.Stderr
+	stderr := strings.TrimSpace(output)
+	if stderr == "" && exitErr != nil {
+		stderr = strings.TrimSpace(string(exitErr.Stderr))
 	}
-	stderr = strings.ToLower(strings.TrimSpace(stderr))
+	stderrLower := strings.ToLower(stderr)
 
 	// Try to classify based on stderr content and operation
-	typedErr := classifyByContent(op, stderr)
+	typedErr := classifyByContent(op, stderrLower)
 	if typedErr != nil {
 		return NewGitError(op, typedErr, exitCode, stderr)
 	}

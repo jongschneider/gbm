@@ -155,6 +155,7 @@ type WorktreeTableGitOps interface {
 	PushWorktree(worktreePath string, dryRun bool) error
 	ListBranches(dryRun bool) ([]string, error)
 	BranchExists(name string) (bool, error)
+	DeleteBranch(branchName string, force, dryRun bool) error
 }
 
 // operationState represents the FSM states for the testls TUI.
@@ -164,12 +165,14 @@ const (
 	stateIdle operationState = iota
 	stateConfirming
 	stateOperating
+	stateConfirmingBranchDelete
 )
 
 // operationResultMsg is sent when an async git operation completes.
 type operationResultMsg struct {
 	opType     string // "pull", "push", "delete"
 	targetName string
+	branchName string            // branch name (for delete operations)
 	newStatus  *git.BranchStatus // updated status after operation
 	err        error
 }
@@ -194,11 +197,12 @@ type worktreeListModel struct {
 	currentWorktree *git.Worktree
 
 	// State machine
-	state           operationState
-	currentOp       string        // "pull", "push", "delete"
-	operationTarget string        // worktree name being operated on
-	operationIndex  int           // row index being operated on
-	spinner         spinner.Model // spinner for animation
+	state             operationState
+	currentOp         string        // "pull", "push", "delete"
+	operationTarget   string        // worktree name being operated on
+	operationIndex    int           // row index being operated on
+	spinner           spinner.Model // spinner for animation
+	deletedBranchName string        // branch name from deleted worktree (for branch delete prompt)
 
 	// Output
 	message      string
@@ -388,6 +392,8 @@ func (m *worktreeListModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleIdleKeyMsg(msg)
 	case stateConfirming:
 		return m.handleConfirmingKeyMsg(msg)
+	case stateConfirmingBranchDelete:
+		return m.handleConfirmingBranchDeleteKeyMsg(msg)
 	case stateOperating:
 		// Only allow quit during operation
 		switch msg.String() {
@@ -458,6 +464,33 @@ func (m *worktreeListModel) handleConfirmingKeyMsg(msg tea.KeyMsg) (tea.Model, t
 	return m, nil
 }
 
+// handleConfirmingBranchDeleteKeyMsg handles keys in branch delete confirmation state.
+func (m *worktreeListModel) handleConfirmingBranchDeleteKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y":
+		// Delete the branch
+		branchName := m.deletedBranchName
+		err := m.gitOps.DeleteBranch(branchName, false, false)
+		if err != nil {
+			m.message = fmt.Sprintf("Error deleting branch '%s': %v", branchName, err)
+		} else {
+			m.message = fmt.Sprintf("Deleted branch '%s'", branchName)
+		}
+		m.deletedBranchName = ""
+		m.state = stateIdle
+		m.operationTarget = ""
+		m.operationIndex = 0
+		return m, m.scheduleClearMessage()
+	case "n", "N", "esc":
+		m.deletedBranchName = ""
+		m.state = stateIdle
+		m.operationTarget = ""
+		m.operationIndex = 0
+		return m, m.scheduleClearMessage()
+	}
+	return m, nil
+}
+
 // startOperation initiates an async git operation.
 func (m *worktreeListModel) startOperation(opType string) (tea.Model, tea.Cmd) {
 	cursor := m.table.Cursor()
@@ -505,6 +538,7 @@ func (m *worktreeListModel) createOperationCmd(opType string, wt git.Worktree) t
 		return operationResultMsg{
 			opType:     opType,
 			targetName: wt.Name,
+			branchName: wt.Branch,
 			newStatus:  newStatus,
 			err:        err,
 		}
@@ -528,7 +562,18 @@ func (m *worktreeListModel) handleOperationResult(msg operationResultMsg) (tea.M
 		switch msg.opType {
 		case "delete":
 			m.message = fmt.Sprintf("Deleted worktree '%s'", msg.targetName)
-			// Refresh the worktree list
+			// Check if branch still exists and prompt to delete it
+			if msg.branchName != "" {
+				exists, err := m.gitOps.BranchExists(msg.branchName)
+				if err == nil && exists {
+					m.deletedBranchName = msg.branchName
+					m.state = stateConfirmingBranchDelete
+					// Refresh the worktree list first
+					m.refreshWorktreeList()
+					return m, nil
+				}
+			}
+			// Branch doesn't exist or error checking, just refresh
 			return m.refreshAfterDelete()
 		default:
 			m.message = fmt.Sprintf("Successfully %sed '%s'", msg.opType, msg.targetName)
@@ -581,6 +626,40 @@ func (m *worktreeListModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 	}
 
 	return m, m.scheduleClearMessage()
+}
+
+// refreshWorktreeList reloads the worktree list without scheduling a message clear.
+// Used when transitioning to another state that will handle its own message.
+func (m *worktreeListModel) refreshWorktreeList() {
+	worktrees, err := m.gitOps.ListWorktrees(false)
+	if err != nil {
+		return
+	}
+
+	// Filter out bare worktrees
+	var filtered []git.Worktree
+	for _, wt := range worktrees {
+		if !wt.IsBare {
+			filtered = append(filtered, wt)
+		}
+	}
+	m.worktrees = filtered
+
+	// Rebuild rows
+	rows := make([]table.Row, 0, len(m.worktrees))
+	for _, wt := range m.worktrees {
+		status := m.branchStatuses[wt.Name]
+		rows = append(rows, BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, status))
+	}
+	m.table.SetRows(rows)
+
+	// Update table height to match new row count
+	m.table.SetHeight(CalculateTableHeight(m.ctx.Height, len(m.worktrees)))
+
+	// Adjust cursor if needed
+	if m.table.Cursor() >= len(m.worktrees) {
+		m.table.SetCursor(max(0, len(m.worktrees)-1))
+	}
 }
 
 // updateOperatingRow updates the current row to show spinner.
@@ -664,6 +743,18 @@ func (m *worktreeListModel) View() string {
 			Foreground(lipgloss.Color("208")).
 			Bold(true)
 		confirmMsg := fmt.Sprintf("\n\nDelete worktree '%s'? (y/n): ", m.operationTarget)
+		output += confirmStyle.Render(confirmMsg)
+		return output
+	}
+
+	// Show branch delete confirmation prompt
+	if m.state == stateConfirmingBranchDelete {
+		confirmStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("208")).
+			Bold(true)
+		messageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("120"))
+		output += messageStyle.Render("\n" + m.message)
+		confirmMsg := fmt.Sprintf("\n\nAlso delete local branch '%s'? (y/n): ", m.deletedBranchName)
 		output += confirmStyle.Render(confirmMsg)
 		return output
 	}

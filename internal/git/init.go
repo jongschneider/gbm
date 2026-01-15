@@ -46,8 +46,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to initialize bare repository: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("init bare", err, string(output))
 		}
 	}
 
@@ -56,8 +56,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to set default branch name: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("config init.defaultBranch", err, string(output))
 		}
 	}
 
@@ -75,8 +75,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to create main worktree: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("worktree add", err, string(output))
 		}
 	}
 
@@ -85,8 +85,8 @@ func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to create initial commit: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("commit", err, string(output))
 		}
 	}
 

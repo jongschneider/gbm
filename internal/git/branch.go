@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -58,9 +57,9 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 		return nil
 	}
 
-	_, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to delete branch: %w", err)
+		return ClassifyError("branch delete", err, string(output))
 	}
 
 	return nil
@@ -75,9 +74,9 @@ func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 		return []string{}, nil
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list branches: %w", err)
+		return nil, ClassifyError("branch list", err, string(output))
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -100,9 +99,9 @@ func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessag
 		return nil
 	}
 
-	_, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to merge branch: %w", err)
+		return ClassifyError("branch merge", err, string(output))
 	}
 	return nil
 }

@@ -53,8 +53,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to configure remote origin fetch: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("config remote.origin.fetch", err, string(output))
 		}
 	}
 
@@ -90,8 +90,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	if dryRun {
 		printDryRun(cmd)
 	} else {
-		if _, err := cmd.Output(); err != nil {
-			return fmt.Errorf("failed to create main worktree: %w", err)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return ClassifyError("worktree add", err, string(output))
 		}
 	}
 
@@ -186,12 +186,12 @@ func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 		return "main", nil // Return sensible default for dry-run
 	}
 
-	if _, err := cmd.Output(); err != nil {
+	if _, err := cmd.CombinedOutput(); err != nil {
 		// If that fails, try to get the remote HEAD manually using ls-remote
 		cmd = exec.Command("git", "--git-dir", gitDir, "ls-remote", "--symref", "origin", "HEAD")
-		output, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return "", fmt.Errorf("failed to get default branch: %w", err)
+			return "", ClassifyError("ls-remote", err, string(output))
 		}
 
 		// Parse the output to extract branch name
@@ -213,9 +213,9 @@ func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 
 	// Now try to get the symbolic ref
 	cmd = exec.Command("git", "--git-dir", gitDir, "symbolic-ref", "refs/remotes/origin/HEAD")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get default branch: %w", err)
+		return "", ClassifyError("symbolic-ref", err, string(output))
 	}
 
 	// Parse the output to extract branch name

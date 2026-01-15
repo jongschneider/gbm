@@ -153,8 +153,9 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 		}, nil
 	}
 
-	if _, err := cmd.Output(); err != nil {
-		return nil, fmt.Errorf("failed to add worktree: %w", err)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, ClassifyError("worktree add", err, string(output))
 	}
 
 	// Get the newly created worktree info
@@ -218,9 +219,9 @@ func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 		return []Worktree{}, nil
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+		return nil, ClassifyError("worktree list", err, string(output))
 	}
 
 	return parseWorktrees(string(output)), nil
@@ -257,9 +258,9 @@ func (s *Service) GetWorktreeBranch(worktreePath string) (string, error) {
 
 	// Use git -C to run command in the worktree directory
 	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get branch for worktree: %w", err)
+		return "", ClassifyError("rev-parse branch", err, string(output))
 	}
 
 	// Trim whitespace and newlines from the output
@@ -330,9 +331,9 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 		return nil
 	}
 
-	_, err = cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to move worktree: %w", err)
+		return ClassifyError("worktree move", err, string(output))
 	}
 
 	return nil
@@ -432,9 +433,9 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 		return targetWorktree, nil
 	}
 
-	_, err = cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to remove worktree: %w", err)
+		return nil, ClassifyError("worktree remove", err, string(output))
 	}
 
 	return targetWorktree, nil
