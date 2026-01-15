@@ -260,6 +260,8 @@ func newWorktreeListModel(
 		WithRows(initialRows).
 		WithHeight(tableHeight).
 		WithFocused(true).
+		WithFilterable(true).
+		WithCycling(true).
 		Build()
 
 	// Create spinner with dots style
@@ -407,14 +409,28 @@ func (m *worktreeListModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleIdleKeyMsg handles keys in idle state.
 func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Let table handle filter mode - don't process other keys while filtering
+	if m.table.IsFilterActive() {
+		_, cmd := m.table.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
-	case "q", "ctrl+c", "esc":
+	case "q", "ctrl+c":
+		return m, tea.Quit
+
+	case "esc":
+		// Clear filter if active, otherwise quit
+		if m.table.FilterQuery() != "" {
+			m.table.ClearFilter()
+			return m, nil
+		}
 		return m, tea.Quit
 
 	case " ", "enter":
-		cursor := m.table.Cursor()
-		if cursor >= 0 && cursor < len(m.worktrees) {
-			m.switchOutput = m.worktrees[cursor].Path
+		idx := m.table.OriginalIndex()
+		if idx >= 0 && idx < len(m.worktrees) {
+			m.switchOutput = m.worktrees[idx].Path
 			return m, tea.Quit
 		}
 		return m, nil
@@ -423,9 +439,9 @@ func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m.startOperation("pull")
 
 	case "p":
-		cursor := m.table.Cursor()
-		if cursor >= 0 && cursor < len(m.worktrees) {
-			wt := m.worktrees[cursor]
+		idx := m.table.OriginalIndex()
+		if idx >= 0 && idx < len(m.worktrees) {
+			wt := m.worktrees[idx]
 			if m.trackedBranches[wt.Branch] {
 				m.message = fmt.Sprintf("Cannot push tracked branch '%s'", wt.Branch)
 				return m, m.scheduleClearMessage()
@@ -434,19 +450,17 @@ func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m.startOperation("push")
 
 	case "d":
-		cursor := m.table.Cursor()
-		if cursor >= 0 && cursor < len(m.worktrees) {
-			m.operationTarget = m.worktrees[cursor].Name
-			m.operationIndex = cursor
+		idx := m.table.OriginalIndex()
+		if idx >= 0 && idx < len(m.worktrees) {
+			m.operationTarget = m.worktrees[idx].Name
+			m.operationIndex = idx
 			m.state = stateConfirming
 		}
 		return m, nil
 	}
 
-	// Forward navigation to table
+	// Forward other keys to table (handles /, up, down, j, k)
 	_, cmd := m.table.Update(msg)
-	// Guard against cursor going out of bounds (bubbles/table handles additional keys)
-	m.clampCursor()
 	return m, cmd
 }
 
@@ -493,16 +507,16 @@ func (m *worktreeListModel) handleConfirmingBranchDeleteKeyMsg(msg tea.KeyMsg) (
 
 // startOperation initiates an async git operation.
 func (m *worktreeListModel) startOperation(opType string) (tea.Model, tea.Cmd) {
-	cursor := m.table.Cursor()
-	if cursor < 0 || cursor >= len(m.worktrees) {
+	idx := m.table.OriginalIndex()
+	if idx < 0 || idx >= len(m.worktrees) {
 		return m, nil
 	}
 
-	wt := m.worktrees[cursor]
+	wt := m.worktrees[idx]
 	m.state = stateOperating
 	m.currentOp = opType
 	m.operationTarget = wt.Name
-	m.operationIndex = cursor
+	m.operationIndex = idx
 	m.message = ""
 
 	// Update row to show spinner immediately
@@ -708,19 +722,6 @@ func (m *worktreeListModel) updateRow(index int, row table.Row) {
 	}
 }
 
-// clampCursor ensures the table cursor stays within valid bounds.
-func (m *worktreeListModel) clampCursor() {
-	if len(m.worktrees) == 0 {
-		return
-	}
-	cursor := m.table.Cursor()
-	if cursor < 0 {
-		m.table.SetCursor(0)
-	} else if cursor >= len(m.worktrees) {
-		m.table.SetCursor(len(m.worktrees) - 1)
-	}
-}
-
 // scheduleClearMessage returns a command to clear the message after 2 seconds.
 func (m *worktreeListModel) scheduleClearMessage() tea.Cmd {
 	return tea.Tick(2*time.Second, func(time.Time) tea.Msg {
@@ -765,27 +766,29 @@ func (m *worktreeListModel) View() string {
 		output += messageStyle.Render("\n" + m.message)
 	}
 
-	// Show help text
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	cursor := m.table.Cursor()
-	showPush := true
-	if cursor >= 0 && cursor < len(m.worktrees) {
-		if m.trackedBranches[m.worktrees[cursor].Branch] {
-			showPush = false
+	// Show help text (skip if filter is active - table shows its own UI)
+	if !m.table.IsFilterActive() {
+		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		idx := m.table.OriginalIndex()
+		showPush := true
+		if idx >= 0 && idx < len(m.worktrees) {
+			if m.trackedBranches[m.worktrees[idx].Branch] {
+				showPush = false
+			}
 		}
-	}
 
-	help := "\n↑/↓: navigate • space/enter: switch • l: pull"
-	if showPush {
-		help += " • p: push"
-	}
-	help += " • d: delete • q/esc: quit\n"
+		help := "\n↑/↓: navigate • /: filter • space/enter: switch • l: pull"
+		if showPush {
+			help += " • p: push"
+		}
+		help += " • d: delete • q/esc: quit\n"
 
-	if m.state == stateOperating {
-		help = "\n" + m.spinner.View() + " Operation in progress... (q to quit)\n"
-	}
+		if m.state == stateOperating {
+			help = "\n" + m.spinner.View() + " Operation in progress... (q to quit)\n"
+		}
 
-	output += helpStyle.Render(help)
+		output += helpStyle.Render(help)
+	}
 
 	return output
 }

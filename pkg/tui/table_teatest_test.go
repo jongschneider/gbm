@@ -813,3 +813,960 @@ func TestTable_UpdateTicksAsyncRowsAndRefreshes(t *testing.T) {
 	// The asyncRows map should have been updated
 	assert.Len(t, tbl.asyncRows, 2, "table should have 2 async rows")
 }
+
+// =============================================================================
+// TT-021: Table cycling navigation tests
+// =============================================================================
+
+// TestTable_CyclingNavigation_UpOnFirstRowGoesToLast verifies that pressing up
+// on the first row cycles to the last row when cycling is enabled.
+func TestTable_CyclingNavigation_UpOnFirstRowGoesToLast(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Row 0"},
+		{"Row 1"},
+		{"Row 2"},
+		{"Row 3"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithCycling(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Row 0"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify cursor starts at 0
+	assert.Equal(t, 0, tbl.Cursor(), "initial cursor should be at 0")
+
+	// Press up - should cycle to last row (index 3)
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	waitFor(t, func() bool { return tbl.Cursor() == 3 }, time.Second)
+	assert.Equal(t, 3, tbl.Cursor(), "cursor should cycle to last row")
+
+	// Verify selected row is correct
+	selectedRow := tbl.SelectedRow()
+	assert.Equal(t, "Row 3", selectedRow[0], "selected row should be 'Row 3'")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_CyclingNavigation_DownOnLastRowGoesToFirst verifies that pressing down
+// on the last row cycles to the first row when cycling is enabled.
+func TestTable_CyclingNavigation_DownOnLastRowGoesToFirst(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Row 0"},
+		{"Row 1"},
+		{"Row 2"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithCycling(true).
+		Build()
+
+	// Start at last row
+	tbl.SetCursor(2)
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Row 2"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify cursor is at last row
+	assert.Equal(t, 2, tbl.Cursor(), "cursor should be at last row")
+
+	// Press down - should cycle to first row (index 0)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 0 }, time.Second)
+	assert.Equal(t, 0, tbl.Cursor(), "cursor should cycle to first row")
+
+	// Verify selected row is correct
+	selectedRow := tbl.SelectedRow()
+	assert.Equal(t, "Row 0", selectedRow[0], "selected row should be 'Row 0'")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_CyclingNavigation_JKKeys verifies that j/k keys also cycle.
+func TestTable_CyclingNavigation_JKKeys(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"First"},
+		{"Middle"},
+		{"Last"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithCycling(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("First"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press k (up) at first row - should cycle to last
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	waitFor(t, func() bool { return tbl.Cursor() == 2 }, time.Second)
+	assert.Equal(t, 2, tbl.Cursor(), "k should cycle up to last row")
+
+	// Press j (down) at last row - should cycle to first
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	waitFor(t, func() bool { return tbl.Cursor() == 0 }, time.Second)
+	assert.Equal(t, 0, tbl.Cursor(), "j should cycle down to first row")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_CyclingNavigation_DisabledByDefault verifies cycling is disabled by default.
+func TestTable_CyclingNavigation_DisabledByDefault(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"First"},
+		{"Last"},
+	}
+
+	// No WithCycling() call - should be disabled
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("First"))
+	}, teatest.WithDuration(time.Second))
+
+	// Press up at first row - should stay at 0 (no cycling)
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	// Brief wait - cursor should not change
+	time.Sleep(5 * time.Millisecond)
+	assert.Equal(t, 0, tbl.Cursor(), "cursor should stay at 0 without cycling")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// =============================================================================
+// TT-022: Table filter mode tests
+// =============================================================================
+
+// TestTable_Filter_SlashEntersFilterMode verifies that pressing "/" enters filter mode.
+func TestTable_Filter_SlashEntersFilterMode(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+		{"Gamma"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify not in filter mode initially
+	assert.False(t, tbl.IsFilterActive(), "filter should not be active initially")
+
+	// Press "/" to enter filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	assert.True(t, tbl.IsFilterActive(), "filter should be active after pressing /")
+
+	// Verify filter input is shown in view
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("/"))
+	}, teatest.WithDuration(time.Second))
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_TypingFiltersRows verifies that typing in filter mode filters rows.
+func TestTable_Filter_TypingFiltersRows(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+		{Title: "Type", Width: 15},
+	}
+	rows := []table.Row{
+		{"Apple", "Fruit"},
+		{"Banana", "Fruit"},
+		{"Carrot", "Vegetable"},
+		{"Date", "Fruit"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Apple"))
+	}, teatest.WithDuration(time.Second))
+
+	// Verify all 4 rows visible initially
+	assert.Len(t, tbl.Rows(), 4, "should have 4 rows initially")
+
+	// Enter filter mode and type "fruit"
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	// Type "fruit" to filter
+	for _, r := range "fruit" {
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	// Wait for filter to be applied (rows should be reduced)
+	waitFor(t, func() bool { return len(tbl.Rows()) == 3 }, time.Second)
+
+	// Should have 3 rows matching "fruit" (Apple, Banana, Date)
+	assert.Len(t, tbl.Rows(), 3, "should have 3 rows matching 'fruit'")
+	assert.Equal(t, "fruit", tbl.FilterQuery(), "filter query should be 'fruit'")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_EnterExitsAndClearsFilter verifies that Enter exits filter mode
+// and clears the filter, restoring all rows.
+func TestTable_Filter_EnterExitsAndClearsFilter(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	// Type something
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "a" }, time.Second)
+
+	// Press Enter to exit filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// Filter should be cleared, all rows restored
+	assert.False(t, tbl.IsFilterActive(), "filter mode should be inactive after Enter")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be cleared after Enter")
+	assert.Len(t, tbl.Rows(), 2, "all rows should be visible after Enter")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_EscExitsAndClearsFilter verifies that Esc exits filter mode
+// and clears the filter, restoring all rows.
+func TestTable_Filter_EscExitsAndClearsFilter(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	// Type something
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "b" }, time.Second)
+
+	// Press Esc to exit filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// Filter should be cleared, all rows restored
+	assert.False(t, tbl.IsFilterActive(), "filter mode should be inactive after Esc")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be cleared after Esc")
+	assert.Len(t, tbl.Rows(), 2, "all rows should be visible after Esc")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_BackspaceOnEmptyClearsFilter verifies that Backspace on empty
+// input clears the filter and exits filter mode.
+func TestTable_Filter_BackspaceOnEmptyClearsFilter(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+		{"Gamma"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode and type then delete
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	// Type "ab"
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "ab" }, time.Second)
+
+	// Delete back to empty
+	tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "a" }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "" }, time.Second)
+
+	// Backspace on empty should clear filter and exit
+	tm.Send(tea.KeyMsg{Type: tea.KeyBackspace})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// All rows should be visible again
+	assert.Len(t, tbl.Rows(), 3, "all rows should be visible after clearing filter")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be empty")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_OriginalIndexMapsCorrectly verifies that OriginalIndex()
+// returns the correct original row index when filtering.
+func TestTable_Filter_OriginalIndexMapsCorrectly(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},   // index 0
+		{"Beta"},    // index 1
+		{"Gamma"},   // index 2
+		{"Delta"},   // index 3
+		{"Epsilon"}, // index 4
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Filter to show only rows containing "a" (Alpha, Beta, Gamma, Delta)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 4 }, time.Second)
+
+	// Exit filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// Cursor is at 0 in filtered view (Alpha, original index 0)
+	assert.Equal(t, 0, tbl.Cursor(), "cursor should be at 0")
+	assert.Equal(t, 0, tbl.OriginalIndex(), "original index should be 0 for Alpha")
+
+	// Move to filtered index 1 (Beta, original index 1)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 1 }, time.Second)
+	assert.Equal(t, 1, tbl.OriginalIndex(), "original index should be 1 for Beta")
+
+	// Move to filtered index 2 (Gamma, original index 2)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 2 }, time.Second)
+	assert.Equal(t, 2, tbl.OriginalIndex(), "original index should be 2 for Gamma")
+
+	// Move to filtered index 3 (Delta, original index 3)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 3 }, time.Second)
+	assert.Equal(t, 3, tbl.OriginalIndex(), "original index should be 3 for Delta")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_ClearFilterRestoresAllRows verifies that ClearFilter() restores all rows
+// when called programmatically while filter is active.
+func TestTable_Filter_ClearFilterRestoresAllRows(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"One"},
+		{"Two"},
+		{"Three"},
+		{"Four"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	// Filter to show only "o" matches
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("One"))
+	}, teatest.WithDuration(time.Second))
+
+	// Apply filter (stay in filter mode)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 3 }, time.Second) // One, Two, Four
+
+	// Verify filtered state while still in filter mode
+	assert.Len(t, tbl.Rows(), 3, "should have 3 filtered rows")
+	assert.Equal(t, "o", tbl.FilterQuery(), "filter query should be 'o'")
+	assert.True(t, tbl.IsFilterActive(), "should still be in filter mode")
+
+	// Clear filter programmatically (while still in filter mode)
+	tbl.ClearFilter()
+
+	// All rows should be restored, filter query cleared
+	assert.Len(t, tbl.Rows(), 4, "should have 4 rows after clearing filter")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be empty after clear")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_CaseInsensitive verifies that filtering is case-insensitive.
+func TestTable_Filter_CaseInsensitive(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"UPPER"},
+		{"lower"},
+		{"MiXeD"},
+		{"nomatch"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("UPPER"))
+	}, teatest.WithDuration(time.Second))
+
+	// Filter with lowercase "mix" should match "MiXeD"
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	for _, r := range "mix" {
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	waitFor(t, func() bool { return len(tbl.Rows()) == 1 }, time.Second)
+
+	// Should match MiXeD
+	assert.Len(t, tbl.Rows(), 1, "should have 1 row matching 'mix'")
+	assert.Equal(t, "MiXeD", tbl.Rows()[0][0], "filtered row should be 'MiXeD'")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_DisabledByDefault verifies filtering is disabled by default.
+func TestTable_Filter_DisabledByDefault(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+	}
+
+	// No WithFilterable() call
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		Build()
+
+	// Verify filter methods return defaults
+	assert.False(t, tbl.IsFilterActive(), "filter should not be active by default")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be empty by default")
+	assert.Nil(t, tbl.AllRows(), "AllRows should be nil when filtering disabled")
+
+	// OriginalIndex should just return cursor when filtering disabled
+	assert.Equal(t, tbl.Cursor(), tbl.OriginalIndex(), "OriginalIndex should equal Cursor when filtering disabled")
+}
+
+// TestTable_Filter_SetRowsReappliesFilter verifies that SetRows() reapplies the current filter.
+func TestTable_Filter_SetRowsReappliesFilter(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Apple"},
+		{"Banana"},
+		{"Cherry"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Apple"))
+	}, teatest.WithDuration(time.Second))
+
+	// Apply filter for "an"
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 1 }, time.Second) // Banana
+
+	// Exit with Esc (keeps filter for SetRows test)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// Note: After Esc, filter is cleared and all rows restored
+	// For SetRows test, we need to programmatically set filter
+	// Re-enter filter mode and apply filter again
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 1 }, time.Second)
+
+	// Update rows with SetRows while filter is active - should reapply "an" filter
+	newRows := []table.Row{
+		{"Orange"},
+		{"Mango"},
+		{"Pear"},
+	}
+	tbl.SetRows(newRows)
+
+	// Filter "an" should now match "Orange" and "Mango"
+	assert.Len(t, tbl.Rows(), 2, "should have 2 rows matching 'an' in new data")
+	assert.Equal(t, "an", tbl.FilterQuery(), "filter query should be preserved")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// =============================================================================
+// TT-023: Table filter mode navigation and selection tests
+// =============================================================================
+
+// TestTable_Filter_ArrowKeysNavigateFilteredRows verifies that up/down arrow keys
+// navigate the filtered rows while in filter mode.
+func TestTable_Filter_ArrowKeysNavigateFilteredRows(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Alpha"},
+		{"Beta"},
+		{"Gamma"},
+		{"Delta"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		WithCycling(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Alpha"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode and filter to "a" (Alpha, Beta, Gamma, Delta all match)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	waitFor(t, func() bool { return tbl.FilterQuery() == "a" }, time.Second)
+
+	// Cursor should be at 0
+	assert.Equal(t, 0, tbl.Cursor(), "cursor should start at 0")
+
+	// Press down while in filter mode - should move cursor
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 1 }, time.Second)
+	assert.Equal(t, 1, tbl.Cursor(), "down arrow should move cursor to 1")
+
+	// Press down again
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 2 }, time.Second)
+	assert.Equal(t, 2, tbl.Cursor(), "down arrow should move cursor to 2")
+
+	// Press up - should move back
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	waitFor(t, func() bool { return tbl.Cursor() == 1 }, time.Second)
+	assert.Equal(t, 1, tbl.Cursor(), "up arrow should move cursor to 1")
+
+	// Still in filter mode
+	assert.True(t, tbl.IsFilterActive(), "should still be in filter mode")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_EnterSelectsHighlightedRow verifies that Enter in filter mode
+// selects the currently highlighted row and exits filter mode.
+func TestTable_Filter_EnterSelectsHighlightedRow(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Apple"},
+		{"Apricot"},
+		{"Avocado"},
+		{"Banana"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Apple"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode and filter to "ap" (Apple, Apricot)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 2 }, time.Second)
+
+	// Move to second filtered row (Apricot)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 1 }, time.Second)
+
+	// Verify we're selecting Apricot in filtered view
+	assert.Equal(t, "Apricot", tbl.SelectedRow()[0], "should have Apricot selected")
+
+	// Press Enter to select and exit filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// Filter should be cleared, all rows visible
+	assert.Len(t, tbl.Rows(), 4, "all rows should be visible after Enter")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be cleared after Enter")
+
+	// Cursor should be on Apricot (original index 1)
+	assert.Equal(t, 1, tbl.Cursor(), "cursor should be on Apricot's original index")
+	assert.Equal(t, "Apricot", tbl.SelectedRow()[0], "Apricot should still be selected")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_EscClearsFilterAndRestoresRows verifies that Esc clears
+// the filter and shows all rows again.
+func TestTable_Filter_EscClearsFilterAndRestoresRows(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"One"},
+		{"Two"},
+		{"Three"},
+		{"Four"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("One"))
+	}, teatest.WithDuration(time.Second))
+
+	// Filter to show only "o" matches (One, Two, Four = 3 rows)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 3 }, time.Second)
+
+	assert.Len(t, tbl.Rows(), 3, "should have 3 filtered rows")
+
+	// Press Esc to exit and clear filter
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	waitFor(t, func() bool { return !tbl.IsFilterActive() }, time.Second)
+
+	// All rows should be restored
+	assert.Len(t, tbl.Rows(), 4, "all 4 rows should be visible after Esc")
+	assert.Empty(t, tbl.FilterQuery(), "filter query should be cleared after Esc")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_JKKeysNavigateInFilterMode verifies that j/k keys
+// navigate rows in filter mode (not type into filter).
+func TestTable_Filter_JKKeysNavigateInFilterMode(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Row1"},
+		{"Row2"},
+		{"Row3"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		WithCycling(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Row1"))
+	}, teatest.WithDuration(time.Second))
+
+	// Enter filter mode
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+
+	// Press j - should move cursor down, not type 'j'
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	waitFor(t, func() bool { return tbl.Cursor() == 1 }, time.Second)
+	assert.Equal(t, 1, tbl.Cursor(), "j should navigate down")
+	assert.Empty(t, tbl.FilterQuery(), "j should not type into filter")
+
+	// Press k - should move cursor up
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	waitFor(t, func() bool { return tbl.Cursor() == 0 }, time.Second)
+	assert.Equal(t, 0, tbl.Cursor(), "k should navigate up")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
+// TestTable_Filter_CyclingWorksInFilterMode verifies that cycling navigation
+// works when in filter mode with filtered results.
+func TestTable_Filter_CyclingWorksInFilterMode(t *testing.T) {
+	ctx := NewContext()
+	cols := []Column{
+		{Title: "Name", Width: 20},
+	}
+	rows := []table.Row{
+		{"Cat"},
+		{"Car"},
+		{"Dog"},
+		{"Cap"},
+	}
+
+	tbl := NewTable(ctx).
+		WithColumns(cols).
+		WithRows(rows).
+		WithHeight(10).
+		WithFilterable(true).
+		WithCycling(true).
+		Build()
+
+	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Cat"))
+	}, teatest.WithDuration(time.Second))
+
+	// Filter to "ca" (Cat, Car, Cap = 3 rows)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	waitFor(t, func() bool { return tbl.IsFilterActive() }, time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("c")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	waitFor(t, func() bool { return len(tbl.Rows()) == 3 }, time.Second)
+
+	// Cursor at 0, press up - should cycle to last filtered row (index 2)
+	assert.Equal(t, 0, tbl.Cursor(), "cursor should be at 0")
+	tm.Send(tea.KeyMsg{Type: tea.KeyUp})
+	waitFor(t, func() bool { return tbl.Cursor() == 2 }, time.Second)
+	assert.Equal(t, 2, tbl.Cursor(), "up should cycle to last filtered row")
+
+	// Press down - should cycle back to first (index 0)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	waitFor(t, func() bool { return tbl.Cursor() == 0 }, time.Second)
+	assert.Equal(t, 0, tbl.Cursor(), "down should cycle to first filtered row")
+
+	// Quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
