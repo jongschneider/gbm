@@ -658,6 +658,8 @@ func (m *worktreeListModel) View() string {
 
 	// Show confirmation prompt if in confirming state
 	if m.state == stateConfirming {
+		// Note: Styles created here (not at package level) because the Lipgloss
+		// renderer is configured at TUI startup time, after package initialization.
 		confirmStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("208")).
 			Bold(true)

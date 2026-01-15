@@ -117,6 +117,8 @@ func (c *Confirm) View() string {
 	b.WriteString("\n")
 
 	// Render Yes/No buttons
+	// Note: Styles are created here (not at package level) because the Lipgloss
+	// renderer is configured at TUI startup time, after package initialization.
 	yesStyle := lipgloss.NewStyle().
 		Padding(0, 2).
 		MarginRight(2)

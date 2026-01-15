@@ -77,7 +77,10 @@ func (n *Navigator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			result := cmd()
 			if navMsg, ok := result.(NavigateMsg); ok {
 				n.push(navMsg.target)
-				// Return a command that delegates to the newly pushed model's Init
+				// Return a command that delegates to the newly pushed model's Init.
+				// Note: Init() returns tea.Cmd, but returning it as tea.Msg works
+				// because BubbleTea treats any non-nil message as triggering a render
+				// cycle, which allows the view to update to show the new model.
 				return navMsg.target.Init()
 			}
 			return result
