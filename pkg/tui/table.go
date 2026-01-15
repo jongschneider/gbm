@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	fzf "github.com/koki-develop/go-fzf"
 )
 
 // Table is a reusable table component wrapping bubbles/table with theme support.
@@ -357,26 +358,38 @@ func (t *Table) handleFilterInput(keyMsg tea.KeyMsg) tea.Cmd {
 	}
 }
 
-// applyFilter filters rows based on current filter input.
+// tableRowItems implements fzf.Items for fuzzy searching table rows.
+type tableRowItems struct {
+	rows []table.Row
+}
+
+func (tri tableRowItems) ItemString(i int) string {
+	return strings.Join(tri.rows[i], " ")
+}
+
+func (tri tableRowItems) Len() int {
+	return len(tri.rows)
+}
+
+// applyFilter filters rows based on current filter input using fuzzy matching.
 func (t *Table) applyFilter() {
-	query := strings.ToLower(strings.TrimSpace(t.filterInput.Value()))
+	query := strings.TrimSpace(t.filterInput.Value())
 
 	if query == "" {
 		t.clearFilter()
 		return
 	}
 
-	// Filter rows that match query in any column
-	var filtered []table.Row
-	var mapping []int
-	for i, row := range t.allRows {
-		for _, cell := range row {
-			if strings.Contains(strings.ToLower(cell), query) {
-				filtered = append(filtered, row)
-				mapping = append(mapping, i)
-				break
-			}
-		}
+	// Use fuzzy search to match rows
+	items := tableRowItems{rows: t.allRows}
+	matches := fzf.Search(items, query)
+
+	// Build filtered rows and mapping from matches
+	filtered := make([]table.Row, len(matches))
+	mapping := make([]int, len(matches))
+	for i, match := range matches {
+		filtered[i] = t.allRows[match.Index]
+		mapping[i] = match.Index
 	}
 
 	prevRowCount := len(t.model.Rows())

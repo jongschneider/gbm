@@ -7,8 +7,10 @@ require (
 	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
 	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/x/exp/teatest v0.0.0-20260113142046-c1fa3de7983b
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/go-playground/validator/v10 v10.30.1
+	github.com/koki-develop/go-fzf v0.16.0
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -16,6 +18,8 @@ require (
 	golang.org/x/term v0.38.0
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/koki-develop/go-fzf => ./deps/go-fzf
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
@@ -26,7 +30,6 @@ require (
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91 // indirect
-	github.com/charmbracelet/x/exp/teatest v0.0.0-20260113142046-c1fa3de7983b // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
