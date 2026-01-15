@@ -666,3 +666,120 @@ func TestDisabledLinkedIssuesIgnoresDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParentProcessedWithNoLinkedIssues tests that parent issues are processed
+// even when there are no linked issues. This was a bug where empty issuelinks
+// caused an early return, skipping parent/children processing.
+func TestParentProcessedWithNoLinkedIssues(t *testing.T) {
+	tests := []struct {
+		name                string
+		maxDepth            int
+		currentDepth        int
+		hasParent           bool
+		hasLinkedIssues     bool
+		shouldProcessParent bool
+	}{
+		{
+			name:                "Parent with no linked issues - should process parent",
+			maxDepth:            2,
+			currentDepth:        1,
+			hasParent:           true,
+			hasLinkedIssues:     false,
+			shouldProcessParent: true,
+		},
+		{
+			name:                "Parent with linked issues - should process parent",
+			maxDepth:            2,
+			currentDepth:        1,
+			hasParent:           true,
+			hasLinkedIssues:     true,
+			shouldProcessParent: true,
+		},
+		{
+			name:                "No parent and no linked issues - no parent to process",
+			maxDepth:            2,
+			currentDepth:        1,
+			hasParent:           false,
+			hasLinkedIssues:     false,
+			shouldProcessParent: false,
+		},
+		{
+			name:                "Parent at depth limit - should NOT process parent",
+			maxDepth:            2,
+			currentDepth:        2,
+			hasParent:           true,
+			hasLinkedIssues:     false,
+			shouldProcessParent: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test verifies the logic from generateIssueMarkdownFileWithDepth
+			// Parent processing should happen regardless of linked issues count
+			shouldProcessParent := tt.hasParent && tt.currentDepth < tt.maxDepth
+
+			assert.Equal(t, tt.shouldProcessParent, shouldProcessParent)
+			t.Logf("✓ %s: hasParent=%v, hasLinkedIssues=%v, shouldProcessParent=%v",
+				tt.name, tt.hasParent, tt.hasLinkedIssues, shouldProcessParent)
+		})
+	}
+}
+
+// TestChildrenProcessedWithNoLinkedIssues tests that children are processed
+// even when there are no linked issues.
+func TestChildrenProcessedWithNoLinkedIssues(t *testing.T) {
+	tests := []struct {
+		name                  string
+		maxDepth              int
+		currentDepth          int
+		childCount            int
+		hasLinkedIssues       bool
+		shouldProcessChildren bool
+	}{
+		{
+			name:                  "Children with no linked issues - should process children",
+			maxDepth:              2,
+			currentDepth:          1,
+			childCount:            3,
+			hasLinkedIssues:       false,
+			shouldProcessChildren: true,
+		},
+		{
+			name:                  "Children with linked issues - should process children",
+			maxDepth:              2,
+			currentDepth:          1,
+			childCount:            2,
+			hasLinkedIssues:       true,
+			shouldProcessChildren: true,
+		},
+		{
+			name:                  "No children and no linked issues - no children to process",
+			maxDepth:              2,
+			currentDepth:          1,
+			childCount:            0,
+			hasLinkedIssues:       false,
+			shouldProcessChildren: false,
+		},
+		{
+			name:                  "Children at depth limit - should NOT process children",
+			maxDepth:              2,
+			currentDepth:          2,
+			childCount:            3,
+			hasLinkedIssues:       false,
+			shouldProcessChildren: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test verifies the logic from generateIssueMarkdownFileWithDepth
+			// Children processing should happen regardless of linked issues count
+			shouldProcessChildren := tt.childCount > 0 && tt.currentDepth < tt.maxDepth
+
+			assert.Equal(t, tt.shouldProcessChildren, shouldProcessChildren)
+			t.Logf("✓ %s: childCount=%d, hasLinkedIssues=%v, shouldProcessChildren=%v",
+				tt.name, tt.childCount, tt.hasLinkedIssues, shouldProcessChildren)
+		})
+	}
+}

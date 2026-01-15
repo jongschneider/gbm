@@ -189,82 +189,67 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 	result.MarkdownPath = markdownPath
 
 	// Step 6: Process linked issues if enabled and within depth limit
+	// Note: Parent/children processing (Steps 7-8) should happen regardless of linked issues
 
-	// Early return if linked issues disabled
-	if !opts.IncludeLinkedIssues {
-		return result, nil
-	}
-
-	// Early return if no linked issues
-	if len(details.IssueLinks) == 0 {
-		return result, nil
-	}
-
-	// Early return if depth limit reached
-	if currentDepth >= opts.MaxDepth {
-		if !dryRun {
-			fmt.Fprintf(os.Stderr, "  Skipping %d linked issues (depth limit %d reached)\n",
-				len(details.IssueLinks), opts.MaxDepth)
-		}
-		return result, nil
-	}
-
-	// Process linked issues
+	// Initialize result map for all related issues (linked, parent, children)
 	result.LinkedIssueResults = make(map[string]*IssueMarkdownResult)
 
-	if !dryRun {
-		fmt.Fprintf(os.Stderr, "  Processing %d linked issues at depth %d/%d\n",
-			len(details.IssueLinks), currentDepth+1, opts.MaxDepth)
-	}
-
-	for _, link := range details.IssueLinks {
-		// Determine which linked issue to process
-		var linkedKey string
-		if link.InwardIssue != nil {
-			linkedKey = link.InwardIssue.Key
-		} else if link.OutwardIssue != nil {
-			linkedKey = link.OutwardIssue.Key
+	// Process linked issues only if enabled, have linked issues, and within depth
+	if opts.IncludeLinkedIssues && len(details.IssueLinks) > 0 && currentDepth < opts.MaxDepth {
+		if !dryRun {
+			fmt.Fprintf(os.Stderr, "  Processing %d linked issues at depth %d/%d\n",
+				len(details.IssueLinks), currentDepth+1, opts.MaxDepth)
 		}
 
-		if linkedKey == "" {
-			continue
-		}
-
-		// Skip if already processed (prevents circular dependencies and duplicates)
-		if processedIssues[linkedKey] {
-			if !dryRun {
-				fmt.Fprintf(os.Stderr, "  Skipping %s (already processed)\n", linkedKey)
+		for _, link := range details.IssueLinks {
+			// Determine which linked issue to process
+			var linkedKey string
+			if link.InwardIssue != nil {
+				linkedKey = link.InwardIssue.Key
+			} else if link.OutwardIssue != nil {
+				linkedKey = link.OutwardIssue.Key
 			}
-			continue
-		}
 
-		// Create options for linked issue
-		linkedOpts := IssueMarkdownOptions{
-			WorktreeRoot:        opts.WorktreeRoot,
-			DownloadAttachments: opts.DownloadAttachments,
-			AttachmentConfig:    opts.AttachmentConfig,
-			IncludeComments:     opts.IncludeComments,
-			Filename:            fmt.Sprintf(".jira/%s.md", linkedKey),
-			IncludeLinkedIssues: opts.IncludeLinkedIssues,
-			MaxDepth:            opts.MaxDepth,
-		}
+			if linkedKey == "" {
+				continue
+			}
 
-		// Process linked issue at next depth level
-		linkedResult, err := s.generateIssueMarkdownFileWithDepth(
-			linkedKey,
-			linkedOpts,
-			dryRun,
-			currentDepth+1,
-			processedIssues, // Pass the tracking map to prevent circular dependencies
-		)
-		if err != nil {
-			// Log warning but continue - linked issue failures are not critical
-			fmt.Fprintf(os.Stderr, "Warning: failed to process linked issue %s at depth %d: %v\n",
-				linkedKey, currentDepth+1, err)
-			continue
-		}
+			// Skip if already processed (prevents circular dependencies and duplicates)
+			if processedIssues[linkedKey] {
+				if !dryRun {
+					fmt.Fprintf(os.Stderr, "  Skipping %s (already processed)\n", linkedKey)
+				}
+				continue
+			}
 
-		result.LinkedIssueResults[linkedKey] = linkedResult
+			// Create options for linked issue
+			linkedOpts := IssueMarkdownOptions{
+				WorktreeRoot:        opts.WorktreeRoot,
+				DownloadAttachments: opts.DownloadAttachments,
+				AttachmentConfig:    opts.AttachmentConfig,
+				IncludeComments:     opts.IncludeComments,
+				Filename:            fmt.Sprintf(".jira/%s.md", linkedKey),
+				IncludeLinkedIssues: opts.IncludeLinkedIssues,
+				MaxDepth:            opts.MaxDepth,
+			}
+
+			// Process linked issue at next depth level
+			linkedResult, err := s.generateIssueMarkdownFileWithDepth(
+				linkedKey,
+				linkedOpts,
+				dryRun,
+				currentDepth+1,
+				processedIssues, // Pass the tracking map to prevent circular dependencies
+			)
+			if err != nil {
+				// Log warning but continue - linked issue failures are not critical
+				fmt.Fprintf(os.Stderr, "Warning: failed to process linked issue %s at depth %d: %v\n",
+					linkedKey, currentDepth+1, err)
+				continue
+			}
+
+			result.LinkedIssueResults[linkedKey] = linkedResult
+		}
 	}
 
 	// Step 7: Process parent issue if exists and within depth limit
