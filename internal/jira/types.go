@@ -119,26 +119,6 @@ type JiraFilters struct {
 	CustomArgs []string `yaml:"custom_args,omitempty"` // Additional custom args
 }
 
-// Description represents JIRA's nested content structure for descriptions
-type Description struct {
-	Type    string        `json:"type"`
-	Version int           `json:"version"`
-	Content []ContentNode `json:"content"`
-}
-
-// ContentNode represents a node in JIRA's content tree
-type ContentNode struct {
-	Type    string        `json:"type"`
-	Text    string        `json:"text,omitempty"`
-	Content []ContentNode `json:"content,omitempty"`
-	Attrs   *ContentAttrs `json:"attrs,omitempty"`
-}
-
-// ContentAttrs represents attributes for content nodes (e.g., language for code blocks)
-type ContentAttrs struct {
-	Language string `json:"language,omitempty"`
-}
-
 // jiraRawResponse represents the raw JSON response from JIRA CLI
 type jiraRawResponse struct {
 	Key    string `json:"key"`
@@ -207,7 +187,7 @@ type jiraRawResponse struct {
 				} `json:"issuetype"`
 			} `json:"fields"`
 		} `json:"subtasks"`
-		Description *Description `json:"description"`
+		Description *ADFDocument `json:"description"`
 		Attachment  []struct {
 			ID       string `json:"id"`
 			Filename string `json:"filename"`

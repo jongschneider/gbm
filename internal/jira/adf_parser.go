@@ -68,6 +68,12 @@ func (p *ADFParser) parseNode(node ADFNode, depth int) (string, []string) {
 		return p.parseBlockquote(node, &mediaIDs), mediaIDs
 	case "panel":
 		return p.parsePanel(node, &mediaIDs), mediaIDs
+	case "table":
+		return p.parseTable(node, &mediaIDs), mediaIDs
+	case "mediaSingle":
+		return p.parseMediaSingle(node, &mediaIDs), mediaIDs
+	case "emoji":
+		return p.parseEmoji(node), mediaIDs
 	case "doc":
 		// Handle nested doc nodes
 		var builder strings.Builder
@@ -376,6 +382,165 @@ func (p *ADFParser) parsePanel(node ADFNode, mediaIDs *[]string) string {
 	return builder.String()
 }
 
+// rowspanTracker tracks cells that span multiple rows
+type rowspanTracker struct {
+	// For each column index, tracks remaining rows to span and the content
+	spans map[int]struct {
+		remaining int
+		content   string
+	}
+}
+
+func newRowspanTracker() *rowspanTracker {
+	return &rowspanTracker{
+		spans: make(map[int]struct {
+			remaining int
+			content   string
+		}),
+	}
+}
+
+// decrementSpans reduces the rowspan count for all tracked columns
+// and removes spans that have been fully processed
+func (r *rowspanTracker) decrementSpans() {
+	for col, span := range r.spans {
+		// Delete spans that were exhausted in the previous row
+		if span.remaining <= 0 {
+			delete(r.spans, col)
+			continue
+		}
+		// Decrement for the next row
+		span.remaining--
+		r.spans[col] = span
+	}
+}
+
+// parseTable converts a table node to markdown
+func (p *ADFParser) parseTable(node ADFNode, mediaIDs *[]string) string {
+	var builder strings.Builder
+	var numCols int
+	isFirstRow := true
+	tracker := newRowspanTracker()
+
+	for _, row := range node.Content {
+		if row.Type != "tableRow" {
+			continue
+		}
+
+		// Build cells for this row, accounting for rowspans
+		var cells []string
+		cellIndex := 0 // Index into the actual cells in this row
+
+		// Determine expected number of columns from first row
+		if isFirstRow {
+			numCols = len(row.Content)
+		}
+
+		// Process each column position
+		for colPos := 0; colPos < numCols || cellIndex < len(row.Content); colPos++ {
+			// Check if this column is spanned from a previous row
+			if span, ok := tracker.spans[colPos]; ok && span.remaining > 0 {
+				// Insert empty cell for spanned column (the content is visually merged)
+				cells = append(cells, "")
+				continue
+			}
+
+			// Get the actual cell at this position
+			if cellIndex >= len(row.Content) {
+				cells = append(cells, "")
+				continue
+			}
+
+			cell := row.Content[cellIndex]
+			cellIndex++
+
+			// Parse the cell content
+			cellContent := p.parseTableCell(cell, mediaIDs)
+			cells = append(cells, cellContent)
+
+			// Check for rowspan attribute
+			if cell.Attrs != nil {
+				if rowspan, ok := cell.Attrs["rowspan"].(float64); ok && rowspan > 1 {
+					tracker.spans[colPos] = struct {
+						remaining int
+						content   string
+					}{
+						// Store full rowspan count; decrement happens at end of row
+						// so by the time we check the next row, it will be rowspan-1
+						remaining: int(rowspan),
+						content:   cellContent,
+					}
+				}
+			}
+		}
+
+		// Update numCols if this row had more cells (can happen with complex tables)
+		if len(cells) > numCols {
+			numCols = len(cells)
+		}
+
+		// Write row
+		builder.WriteString("| ")
+		builder.WriteString(strings.Join(cells, " | "))
+		builder.WriteString(" |\n")
+
+		// Add separator after header row
+		if isFirstRow {
+			builder.WriteString("|")
+			for range numCols {
+				builder.WriteString(" --- |")
+			}
+			builder.WriteString("\n")
+			isFirstRow = false
+		}
+
+		// Decrement rowspan counters for next row
+		tracker.decrementSpans()
+	}
+
+	return strings.TrimSuffix(builder.String(), "\n")
+}
+
+// parseTableCell extracts content from a table cell (header or regular cell)
+func (p *ADFParser) parseTableCell(node ADFNode, mediaIDs *[]string) string {
+	var builder strings.Builder
+
+	for _, child := range node.Content {
+		markdown, nodeMediaIDs := p.parseNode(child, 0)
+		*mediaIDs = append(*mediaIDs, nodeMediaIDs...)
+		// Remove newlines within table cells as they break markdown table format
+		markdown = strings.ReplaceAll(markdown, "\n", " ")
+		builder.WriteString(markdown)
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+// parseMediaSingle handles a single media item (image, file, etc.)
+func (p *ADFParser) parseMediaSingle(node ADFNode, mediaIDs *[]string) string {
+	for _, child := range node.Content {
+		if child.Type == "media" {
+			return p.parseMedia(child, mediaIDs)
+		}
+	}
+	return "[attachment]"
+}
+
+// parseEmoji converts an emoji node to its text representation
+func (p *ADFParser) parseEmoji(node ADFNode) string {
+	if node.Attrs != nil {
+		// Try to get the emoji text (the actual emoji character)
+		if text, ok := node.Attrs["text"].(string); ok && text != "" {
+			return text
+		}
+		// Fall back to shortName if available
+		if shortName, ok := node.Attrs["shortName"].(string); ok {
+			return shortName
+		}
+	}
+	return ""
+}
+
 // isBlockNode checks if a node type is a block-level node
 func (p *ADFParser) isBlockNode(nodeType string) bool {
 	blockTypes := map[string]bool{
@@ -388,6 +553,8 @@ func (p *ADFParser) isBlockNode(nodeType string) bool {
 		"panel":       true,
 		"rule":        true,
 		"mediaGroup":  true,
+		"mediaSingle": true,
+		"table":       true,
 	}
 	return blockTypes[nodeType]
 }
