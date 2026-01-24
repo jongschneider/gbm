@@ -129,7 +129,7 @@ Examples:
 			}
 
 			// Prompt user if they want to create a new branch
-			fmt.Printf("Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
+			fmt.Fprintf(os.Stderr, "Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
 
 			reader := bufio.NewReader(os.Stdin)
 			response, err := reader.ReadString('\n')
