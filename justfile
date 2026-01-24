@@ -183,6 +183,13 @@ show-changed:
         echo "No Go files changed"
     fi
 
+# Run the TUI component storybook
+storybook:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting TUI storybook..."
+    go run ./cmd/storybook
+
 # Record VHS demo videos
 vhs-record:
     #!/usr/bin/env bash
