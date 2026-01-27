@@ -34,13 +34,14 @@ type Selector struct {
 
 // NewSelector creates a new Selector with the given title and options.
 func NewSelector(key, title string, options []Option) *Selector {
+	theme := tui.DefaultTheme()
 	return &Selector{
 		key:         key,
 		title:       title,
 		options:     options,
 		cursor:      0,
-		theme:       tui.DefaultTheme(),
-		cursorStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+		theme:       theme,
+		cursorStyle: lipgloss.NewStyle().Foreground(theme.Cursor),
 	}
 }
 
@@ -111,8 +112,8 @@ func (s *Selector) View() string {
 		if i == s.cursor && s.focused {
 			line = styles.Input.Render(line)
 		} else if i == s.cursor && !s.focused {
-			// Blurred but still highlighted - use a muted version of input style
-			dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+			// Blurred but still highlighted - use theme's muted color
+			dimmedStyle := lipgloss.NewStyle().Foreground(s.theme.Muted)
 			line = dimmedStyle.Render(line)
 		}
 

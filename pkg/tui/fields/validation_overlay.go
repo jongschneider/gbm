@@ -100,7 +100,7 @@ func (v *ValidationOverlay) View() string {
 
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("196")).
+		BorderForeground(v.theme.ErrorAccent).
 		Padding(1, 2).
 		Width(boxWidth)
 

@@ -435,13 +435,13 @@ func (t *Table) View() string {
 	// Show filter input if active
 	if t.filterEnabled && t.filterActive {
 		filterStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("212")).
+			Foreground(t.theme.Cursor).
 			Bold(true)
 		output += "\n" + filterStyle.Render("/") + t.filterInput.View()
 	} else if t.filterEnabled && t.filterInput.Value() != "" {
 		// Show filter indicator when filtered but not actively editing
 		filterStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
+			Foreground(t.theme.BlurredMuted)
 		output += "\n" + filterStyle.Render("Filter: "+t.filterInput.Value()+" (/ to edit, backspace to clear)")
 	}
 

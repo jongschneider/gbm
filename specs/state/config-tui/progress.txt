@@ -16,7 +16,7 @@ Task Completion Status:
 - [x] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
 - [x] Worktrees table with add/edit/delete modals
 - [x] Validation error overlays appear on invalid save attempts
-- [ ] Dark and light themes both render correctly
+- [x] Dark and light themes both render correctly
 - [x] Help screen shows keyboard shortcuts via ? key
 - [x] All sections integrated in one ConfigModel with persistent state
 - [ ] Storybook covers >80% of components/sections in multiple states
@@ -226,3 +226,35 @@ Completed Items:
      - Use require.EqualError/require.NoError for error assertions (testifylint rule)
      - Filterable uses Option type (same as Selector) with 4 args: key, title, description, options
      - Help overlay handlers follow same pattern across all forms: dismiss on esc/?/enter
+
+17. Dark and Light Themes Both Render Correctly:
+     - Updated theme.go to use lipgloss.AdaptiveColor for all theme colors
+     - AdaptiveColor automatically detects terminal background (light/dark) and uses appropriate color
+     - Added new adaptive colors to Theme struct: Accent, Muted, Highlight, Border, ErrorAccent,
+       SuccessAccent, SelectedFg, SelectedBg, InputBg, InputFg, BlurredMuted, Cursor
+     - Light theme uses: blue accent, darker grays, amber highlights
+     - Dark theme uses: teal accent, lighter grays, gold highlights
+     - Updated help_overlay.go to use theme.Accent for group headers, theme.Highlight for keys,
+       theme.Border for box borders
+     - Updated validation_overlay.go to use theme.ErrorAccent for border
+     - Updated table.go to use theme.Cursor for filter input, theme.BlurredMuted for filter indicator
+     - Updated confirm.go to use theme.SuccessAccent for "Yes" button, theme.ErrorAccent for "No",
+       theme.InputFg for button text, theme.BlurredMuted for unselected buttons
+     - Updated selector.go to use theme.Cursor for selector indicator, theme.Muted for dimmed style
+     - Updated filterable.go to use theme.Cursor for cursor, theme.BlurredMuted for no-match,
+       theme.Muted for dimmed selected items
+     - All hardcoded ANSI color numbers (e.g., lipgloss.Color("212")) replaced with adaptive colors
+     - All tests passing
+     - Files changed:
+       * pkg/tui/theme.go (major refactor)
+       * pkg/tui/help_overlay.go
+       * pkg/tui/fields/validation_overlay.go
+       * pkg/tui/table.go
+       * pkg/tui/fields/confirm.go
+       * pkg/tui/fields/selector.go
+       * pkg/tui/fields/filterable.go
+     **Learnings:**
+     - lipgloss.AdaptiveColor{Light: "#...", Dark: "#..."} automatically detects terminal background
+     - Use hex colors (e.g., "#0077b6") for consistency and readability
+     - Theme struct should expose adaptive colors for use by components that build custom styles
+     - Keep color definitions centralized in DefaultTheme() for easy adjustment

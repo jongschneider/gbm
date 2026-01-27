@@ -50,6 +50,7 @@ func NewFilterable(key, title, description string, options []Option) *Filterable
 	filtered := make([]Option, len(options))
 	copy(filtered, options)
 
+	theme := tui.DefaultTheme()
 	return &Filterable{
 		key:          key,
 		title:        title,
@@ -58,9 +59,9 @@ func NewFilterable(key, title, description string, options []Option) *Filterable
 		filtered:     filtered,
 		cursor:       0,
 		textInput:    ti,
-		theme:        tui.DefaultTheme(),
-		cursorStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
-		noMatchStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true),
+		theme:        theme,
+		cursorStyle:  lipgloss.NewStyle().Foreground(theme.Cursor),
+		noMatchStyle: lipgloss.NewStyle().Foreground(theme.BlurredMuted).Italic(true),
 		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 }
@@ -340,8 +341,8 @@ func (f *Filterable) View() string {
 				if f.focused {
 					line = styles.Input.Render(line)
 				} else {
-					// Blurred but still highlighted - use a muted version
-					dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+					// Blurred but still highlighted - use theme's muted color
+					dimmedStyle := lipgloss.NewStyle().Foreground(f.theme.Muted)
 					line = dimmedStyle.Render(line)
 				}
 			} else {

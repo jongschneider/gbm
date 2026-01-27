@@ -169,7 +169,7 @@
         "Test in both light and dark terminal backgrounds",
         "Modal and error overlays visible in both themes"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

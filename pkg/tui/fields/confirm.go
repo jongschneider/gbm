@@ -125,33 +125,34 @@ func (c *Confirm) View() string {
 	// Render Yes/No buttons
 	// Note: Styles are created here (not at package level) because the Lipgloss
 	// renderer is configured at TUI startup time, after package initialization.
+	// Uses theme's adaptive colors for proper light/dark background support.
 	yesStyle := lipgloss.NewStyle().
 		Padding(0, 2).
 		MarginRight(2)
 	noStyle := lipgloss.NewStyle().
 		Padding(0, 2)
 
-	// Highlight selected button
+	// Highlight selected button using theme's adaptive colors
 	if c.focused {
 		if c.selected {
 			yesStyle = yesStyle.
 				Bold(true).
-				Foreground(lipgloss.Color("255")).
-				Background(lipgloss.Color("62"))
+				Foreground(c.theme.InputFg).
+				Background(c.theme.SuccessAccent)
 			noStyle = noStyle.
-				Foreground(lipgloss.Color("240"))
+				Foreground(c.theme.BlurredMuted)
 		} else {
 			yesStyle = yesStyle.
-				Foreground(lipgloss.Color("240"))
+				Foreground(c.theme.BlurredMuted)
 			noStyle = noStyle.
 				Bold(true).
-				Foreground(lipgloss.Color("255")).
-				Background(lipgloss.Color("196"))
+				Foreground(c.theme.InputFg).
+				Background(c.theme.ErrorAccent)
 		}
 	} else {
 		// Blurred state - both buttons muted
-		yesStyle = yesStyle.Foreground(lipgloss.Color("240"))
-		noStyle = noStyle.Foreground(lipgloss.Color("240"))
+		yesStyle = yesStyle.Foreground(c.theme.BlurredMuted)
+		noStyle = noStyle.Foreground(c.theme.BlurredMuted)
 	}
 
 	yesBtn := yesStyle.Render("Yes")

@@ -141,16 +141,16 @@ func (h *HelpOverlay) View() string {
 	// Title style - focused cyan
 	titleStyle := h.theme.Focused.Title
 
-	// Group header style
+	// Group header style - use theme's accent color for adaptive coloring
 	groupStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("86")).
+		Foreground(h.theme.Accent).
 		MarginTop(1)
 
-	// Key style - bright
+	// Key style - use theme's highlight color for adaptive coloring
 	keyStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("229")).
+		Foreground(h.theme.Highlight).
 		Width(12)
 
 	// Description style - muted
@@ -167,7 +167,7 @@ func (h *HelpOverlay) View() string {
 
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240")).
+		BorderForeground(h.theme.Border).
 		Padding(1, 2).
 		Width(boxWidth)
 
