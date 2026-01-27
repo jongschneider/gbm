@@ -4,6 +4,7 @@ package config
 import (
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -18,9 +19,9 @@ type FileCopyRule struct {
 
 // FileCopyFormConfig holds configuration for the FileCopy form.
 type FileCopyFormConfig struct {
-	Rules  []FileCopyRule
 	OnSave func(rules []FileCopyRule) error
 	Theme  *tui.Theme
+	Rules  []FileCopyRule
 }
 
 // ModalState represents the current modal being displayed.
@@ -37,22 +38,22 @@ const (
 
 // FileCopyForm renders a table of file copy rules with add/edit/delete modals.
 type FileCopyForm struct {
-	theme           *tui.Theme
+	sourceField     tui.Field
+	confirmField    tui.Field
+	filesField      tui.Field
 	onSave          func(rules []FileCopyRule) error
 	table           *tui.Table
+	theme           *tui.Theme
+	filepickerField *fields.FilePicker
 	rules           []FileCopyRule
 	modalState      ModalState
-	prevModalState  ModalState
-	editingIdx      int
-	width           int
 	height          int
+	width           int
+	editingIdx      int
+	prevModalState  ModalState
+	modalFocusIdx   int
 	submitted       bool
 	cancelled       bool
-	sourceField     tui.Field
-	filesField      tui.Field
-	confirmField    tui.Field
-	filepickerField *fields.FilePicker
-	modalFocusIdx   int
 }
 
 // NewFileCopyForm creates a new FileCopy configuration form.
@@ -471,12 +472,7 @@ func (f *FileCopyForm) handleFilePickerModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // containsPath checks if a path exists in a slice.
 func containsPath(paths []string, path string) bool {
-	for _, p := range paths {
-		if p == path {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(paths, path)
 }
 
 // save persists the rules via the OnSave callback.

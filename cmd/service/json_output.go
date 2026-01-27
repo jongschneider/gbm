@@ -8,10 +8,10 @@ import (
 // JSONOutput represents a standardized JSON response structure used by all commands.
 // This provides consistent JSON output across the entire CLI for easy scripting and parsing.
 type JSONOutput struct {
-	Success bool   `json:"success"`
 	Data    any    `json:"data,omitempty"`
 	Error   string `json:"error,omitempty"`
 	Message string `json:"message,omitempty"`
+	Success bool   `json:"success"`
 }
 
 // OutputJSON marshals data to JSON and outputs to stdout.

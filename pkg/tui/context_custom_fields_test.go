@@ -75,12 +75,12 @@ func TestWorkflowState_SetField(t *testing.T) {
 
 func TestWorkflowState_GetField(t *testing.T) {
 	testCases := []struct {
-		name        string
 		setup       func() *WorkflowState
-		key         string
-		expectFound bool
 		expect      func(t *testing.T, val any)
+		name        string
+		key         string
 		description string
+		expectFound bool
 	}{
 		{
 			name: "get existing field",

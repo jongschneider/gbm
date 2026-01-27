@@ -3,10 +3,10 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
 	"net/url"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,57 +14,53 @@ import (
 
 // JiraFormConfig holds configuration for the JIRA form.
 type JiraFormConfig struct {
-	Enabled                    bool
+	Theme                      *tui.Theme
+	OnSave                     func(data map[string]any) error
+	MarkdownFilenamePattern    string
 	Host                       string
 	Username                   string
 	APIToken                   string
-	FiltersStatus              []string
 	FiltersPriority            string
 	FiltersType                string
-	AttachmentsEnabled         bool
-	AttachmentsMaxSize         int
 	AttachmentsDir             string
-	MarkdownIncludeComments    bool
+	FiltersStatus              []string
+	AttachmentsMaxSize         int
 	MarkdownIncludeAttachments bool
 	MarkdownUseRelativeLinks   bool
-	MarkdownFilenamePattern    string
-	OnSave                     func(data map[string]any) error
-	Theme                      *tui.Theme
+	MarkdownIncludeComments    bool
+	Enabled                    bool
+	AttachmentsEnabled         bool
 }
 
 // JiraForm renders a form for editing JIRA configuration with enable/disable toggle.
 // When disabled, all subsection fields are hidden.
 type JiraForm struct {
-	theme        *tui.Theme
-	onSave       func(data map[string]any) error
-	enableField  tui.Field
-	discardField tui.Field
-	// Server fields
-	serverHostField  tui.Field
-	serverUserField  tui.Field
-	serverTokenField tui.Field
-	// Filters fields
-	filtersStatusField   tui.Field
-	filtersPriorityField tui.Field
-	filtersTypeField     tui.Field
-	// Attachments fields
-	attachmentsEnabledField tui.Field
-	attachmentsMaxSizeField tui.Field
-	attachmentsDirField     tui.Field
-	// Markdown fields
-	markdownIncludeCommentsField    tui.Field
+	attachmentsDirField             tui.Field
+	filtersTypeField                tui.Field
+	enableField                     tui.Field
+	discardField                    tui.Field
+	serverHostField                 tui.Field
+	serverUserField                 tui.Field
+	serverTokenField                tui.Field
+	filtersStatusField              tui.Field
+	filtersPriorityField            tui.Field
 	markdownIncludeAttachmentsField tui.Field
-	markdownUseRelativeLinksField   tui.Field
+	attachmentsEnabledField         tui.Field
+	attachmentsMaxSizeField         tui.Field
 	markdownFilenamePatternField    tui.Field
+	markdownUseRelativeLinksField   tui.Field
+	markdownIncludeCommentsField    tui.Field
+	onSave                          func(data map[string]any) error
+	theme                           *tui.Theme
+	activeSection                   string
+	focusedFieldIdx                 int
 	width                           int
 	height                          int
-	focusedFieldIdx                 int
+	sectionIdx                      int
 	submitted                       bool
 	cancelled                       bool
-	showConfirmDiscard              bool
 	enabled                         bool
-	activeSection                   string // "server", "filters", "attachments", "markdown"
-	sectionIdx                      int    // Index within current section
+	showConfirmDiscard              bool
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -181,7 +177,7 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 		"Maximum attachment size in MB",
 	)
 	attachmentsMaxSizeField := attachmentsMaxSizeFieldPtr.
-		WithDefault(fmt.Sprintf("%d", config.AttachmentsMaxSize)).
+		WithDefault(strconv.Itoa(config.AttachmentsMaxSize)).
 		WithTheme(config.Theme)
 
 	attachmentsDirFieldPtr := fields.NewTextInput(

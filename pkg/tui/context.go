@@ -32,12 +32,12 @@ type JiraIssue struct {
 // Standard fields (WorkflowType, WorktreeName, etc) are stored directly.
 // Custom fields added dynamically are stored in CustomFields map.
 type WorkflowState struct {
+	JiraIssue    *JiraIssue
+	CustomFields map[string]any
 	WorkflowType string
 	WorktreeName string
 	BranchName   string
 	BaseBranch   string
-	JiraIssue    *JiraIssue
-	CustomFields map[string]any
 }
 
 // SetField stores a custom field in the workflow state.
@@ -62,13 +62,13 @@ func (ws *WorkflowState) GetField(key string) any {
 
 // Context provides shared state accessible to all TUI components.
 type Context struct {
-	Width       int
-	Height      int
-	Theme       *Theme
-	State       *WorkflowState
 	GitService  GitService
 	JiraService JiraService
 	Config      RepoConfig
+	Theme       *Theme
+	State       *WorkflowState
+	Width       int
+	Height      int
 }
 
 // NewContext creates a new Context with default values.

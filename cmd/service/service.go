@@ -17,32 +17,32 @@ import (
 // JiraConfig represents JIRA-specific configuration.
 // This holds all JIRA integration settings including filters, attachment downloads, and markdown generation.
 type JiraConfig struct {
-	Me          string           `yaml:"me,omitempty"`          // Cached JIRA username
-	Filters     jira.JiraFilters `yaml:"filters,omitempty"`     // Issue list filters
-	Attachments AttachmentConfig `yaml:"attachments,omitempty"` // Attachment download settings
-	Markdown    MarkdownConfig   `yaml:"markdown,omitempty"`    // Markdown generation settings
+	Me          string           `yaml:"me,omitempty"`
+	Filters     jira.JiraFilters `yaml:"filters,omitempty"`
+	Markdown    MarkdownConfig   `yaml:"markdown,omitempty"`
+	Attachments AttachmentConfig `yaml:"attachments,omitempty"`
 }
 
 // AttachmentConfig holds configuration for JIRA attachment downloads.
 // These settings control how attachments are downloaded when creating worktrees from JIRA issues.
 type AttachmentConfig struct {
-	Enabled            bool   `yaml:"enabled"`                  // Enable attachment downloads
-	MaxSizeMB          int64  `yaml:"max_size_mb"`              // Maximum file size in MB
-	Directory          string `yaml:"directory"`                // Directory relative to worktree root
-	DownloadTimeoutSec int    `yaml:"download_timeout_seconds"` // HTTP timeout in seconds
-	RetryAttempts      int    `yaml:"retry_attempts"`           // Number of retry attempts
-	RetryBackoffMs     int    `yaml:"retry_backoff_ms"`         // Initial retry backoff in milliseconds
+	Directory          string `yaml:"directory"`
+	MaxSizeMB          int64  `yaml:"max_size_mb"`
+	DownloadTimeoutSec int    `yaml:"download_timeout_seconds"`
+	RetryAttempts      int    `yaml:"retry_attempts"`
+	RetryBackoffMs     int    `yaml:"retry_backoff_ms"`
+	Enabled            bool   `yaml:"enabled"`
 }
 
 // MarkdownConfig holds configuration for JIRA markdown generation.
 // Controls how JIRA issue information is formatted and exported to markdown files.
 type MarkdownConfig struct {
-	IncludeComments     bool   `yaml:"include_comments"`      // Include comments in markdown
-	IncludeAttachments  bool   `yaml:"include_attachments"`   // Include attachments section
-	UseRelativeLinks    bool   `yaml:"use_relative_links"`    // Use relative paths for attachments
-	FilenamePattern     string `yaml:"filename_pattern"`      // Output filename pattern
-	IncludeLinkedIssues bool   `yaml:"include_linked_issues"` // Process linked issues (default: true)
-	MaxDepth            int    `yaml:"max_depth"`             // Max depth for linked issues (default: 2)
+	FilenamePattern     string `yaml:"filename_pattern"`
+	MaxDepth            int    `yaml:"max_depth"`
+	IncludeComments     bool   `yaml:"include_comments"`
+	IncludeAttachments  bool   `yaml:"include_attachments"`
+	UseRelativeLinks    bool   `yaml:"use_relative_links"`
+	IncludeLinkedIssues bool   `yaml:"include_linked_issues"`
 }
 
 // FileCopyRule defines files to copy from a source worktree.
@@ -65,11 +65,11 @@ type FileCopyRule struct {
 //	    - "*.log"
 //	    - "node_modules/"
 type AutoFileCopyConfig struct {
-	Enabled        bool     `yaml:"enabled"`         // Enable automatic copying
-	SourceWorktree string   `yaml:"source_worktree"` // Where to copy from (default: "{default}")
-	CopyIgnored    bool     `yaml:"copy_ignored"`    // Copy .gitignore'd files
-	CopyUntracked  bool     `yaml:"copy_untracked"`  // Copy untracked files
-	Exclude        []string `yaml:"exclude"`         // Patterns to exclude (gitignore syntax)
+	SourceWorktree string   `yaml:"source_worktree"`
+	Exclude        []string `yaml:"exclude"`
+	Enabled        bool     `yaml:"enabled"`
+	CopyIgnored    bool     `yaml:"copy_ignored"`
+	CopyUntracked  bool     `yaml:"copy_untracked"`
 }
 
 // FileCopyConfig holds file copying rules for new worktrees.
@@ -112,11 +112,11 @@ func (wc *WorktreeConfig) GetMergeInto() string {
 //	    enabled: true
 //	    source_worktree: "{default}"
 type Config struct {
+	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
 	DefaultBranch string                    `yaml:"default_branch"      validate:"required,min=1"`
 	WorktreesDir  string                    `yaml:"worktrees_dir"       validate:"required,min=1"`
-	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
-	Jira          JiraConfig                `yaml:"jira,omitempty"`
 	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
+	Jira          JiraConfig                `yaml:"jira,omitempty"`
 }
 
 // GetWorktrees implements tui.RepoConfig.GetWorktrees.
@@ -136,9 +136,9 @@ func (c *Config) GetWorktrees() map[string]tui.WorktreeConfig {
 // This file stores runtime state like the current worktree and cached JIRA issues.
 // It's automatically managed and can be safely deleted.
 type State struct {
+	CurrentWorktree  string           `yaml:"current_worktree,omitempty"`
+	PreviousWorktree string           `yaml:"previous_worktree,omitempty"`
 	Jira             jira.IssuesCache `yaml:"jira"`
-	CurrentWorktree  string           `yaml:"current_worktree,omitempty"`  // Last worktree we switched to
-	PreviousWorktree string           `yaml:"previous_worktree,omitempty"` // Worktree before current
 }
 
 // Service wraps the git and jira services and provides configuration management.
@@ -154,10 +154,10 @@ type State struct {
 type Service struct {
 	Git         *git.Service
 	Jira        *jira.Service
-	WorktreeDir string
-	RepoRoot    string
 	config      *Config
 	state       *State
+	WorktreeDir string
+	RepoRoot    string
 }
 
 // cacheStore implements jira.CacheStore using the CLI's state file.

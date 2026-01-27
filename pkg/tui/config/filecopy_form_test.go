@@ -208,7 +208,7 @@ func TestFileCopyForm_DeleteConfirm(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	time.Sleep(50 * time.Millisecond)
 
-	assert.Len(t, form.GetRules(), 0, "Rule should be deleted")
+	assert.Empty(t, form.GetRules(), "Rule should be deleted")
 	assert.Equal(t, ModalNone, form.GetModalState(), "Modal should be closed")
 }
 
@@ -394,9 +394,9 @@ func TestFileCopyForm_EscapeModalClosesModal(t *testing.T) {
 
 func TestFormatFilesPreview(t *testing.T) {
 	testCases := []struct {
+		expect func(t *testing.T, got string)
 		name   string
 		files  []string
-		expect func(t *testing.T, got string)
 	}{
 		{
 			name:  "empty files",
@@ -438,9 +438,9 @@ func TestFormatFilesPreview(t *testing.T) {
 
 func TestParseFilesList(t *testing.T) {
 	testCases := []struct {
+		expect func(t *testing.T, got []string)
 		name   string
 		input  string
-		expect func(t *testing.T, got []string)
 	}{
 		{
 			name:  "empty string",
@@ -549,10 +549,10 @@ func TestFileCopyForm_FilePickerEscapeReturnsToEditModal(t *testing.T) {
 
 func TestContainsPath(t *testing.T) {
 	testCases := []struct {
-		name   string
-		paths  []string
-		path   string
 		expect func(t *testing.T, got bool)
+		name   string
+		path   string
+		paths  []string
 	}{
 		{
 			name:  "empty paths",

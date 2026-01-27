@@ -436,7 +436,7 @@ func TestTable_ViewEndsWithNewline(t *testing.T) {
 		Build()
 
 	view := tbl.View()
-	assert.Positive(t, len(view), "View() should not be empty")
+	assert.NotEmpty(t, view, "View() should not be empty")
 	// Note: The bubbles/table component handles its own newline handling,
 	// and the theme Base wrapper may add additional styling.
 	// We verify the table renders without crashing and contains expected content.

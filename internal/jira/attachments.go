@@ -64,9 +64,9 @@ func NewAttachmentService(config AttachmentConfig) *AttachmentService {
 // DownloadResult represents the result of a download operation.
 type DownloadResult struct {
 	Error      error
-	Attachment Attachment
 	LocalPath  string
 	SkipReason string
+	Attachment Attachment
 	Skipped    bool
 }
 
@@ -171,7 +171,7 @@ func (s *AttachmentService) downloadWithRetry(url, destPath string) error {
 // downloadFile downloads a single file from URL to destination path.
 func (s *AttachmentService) downloadFile(url, destPath string) error {
 	// Create HTTP request
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

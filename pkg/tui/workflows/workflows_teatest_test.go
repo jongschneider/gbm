@@ -1582,7 +1582,7 @@ func TestSelectWorkflowType_GetValueReturnsCorrectString(t *testing.T) {
 			}, teatest.WithDuration(time.Second))
 
 			// Navigate to the target option
-			for i := 0; i < tc.navigateSteps; i++ {
+			for range tc.navigateSteps {
 				tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 				time.Sleep(2 * time.Millisecond)
 			}

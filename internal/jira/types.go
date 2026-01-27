@@ -42,14 +42,14 @@ type User struct {
 
 // Comment represents a JIRA comment.
 type Comment struct {
-	ID          string
+	Timestamp   time.Time
 	Author      User
-	Body        ADFDocument // Full ADF structure
-	Content     string      // Deprecated: use Body for new code, kept for compatibility
+	ID          string
+	Content     string
 	Created     string
 	Updated     string
-	Timestamp   time.Time // Deprecated: use Created for new code, kept for compatibility
-	Attachments []string  // Media IDs referenced in comment body
+	Attachments []string
+	Body        ADFDocument
 }
 
 // Attachment represents a JIRA file attachment.

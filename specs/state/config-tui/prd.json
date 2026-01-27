@@ -143,7 +143,7 @@
         "New worktrees persist to config on save",
         "Invalid worktree names are rejected with error message"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

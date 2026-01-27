@@ -4,6 +4,7 @@ package fields
 import (
 	"gbm/pkg/tui"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/filepicker"
@@ -12,23 +13,23 @@ import (
 
 // FilePicker is a field that allows the user to select files from the filesystem.
 type FilePicker struct {
+	filepicker    filepicker.Model
 	err           error
 	theme         *tui.Theme
-	title         string
-	description   string
+	onSelect      func(path string)
+	currentDir    string
 	key           string
-	filepicker    filepicker.Model
+	description   string
+	title         string
 	selectedFiles []string
+	allowedTypes  []string
 	width         int
 	height        int
 	focused       bool
 	cancelled     bool
 	complete      bool
-	currentDir    string
-	allowedTypes  []string
 	dirAllowed    bool
 	multiSelect   bool
-	onSelect      func(path string)
 }
 
 // NewFilePicker creates a new FilePicker field with the given title and description.
@@ -155,12 +156,7 @@ func (f *FilePicker) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 // isAlreadySelected checks if a path is already in the selected files list.
 func (f *FilePicker) isAlreadySelected(path string) bool {
-	for _, p := range f.selectedFiles {
-		if p == path {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.selectedFiles, path)
 }
 
 // View implements Field.View.

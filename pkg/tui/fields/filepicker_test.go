@@ -10,8 +10,8 @@ import (
 
 func TestFilePicker_Create(t *testing.T) {
 	testCases := []struct {
-		name   string
 		expect func(t *testing.T, fp *FilePicker)
+		name   string
 	}{
 		{
 			name: "creates with default values",
@@ -207,7 +207,7 @@ func TestFilePicker_Skip(t *testing.T) {
 func TestFilePicker_Error(t *testing.T) {
 	fp := NewFilePicker("key", "Title", "Desc")
 
-	assert.Nil(t, fp.Error())
+	assert.NoError(t, fp.Error())
 }
 
 func TestFilePicker_WithWidth(t *testing.T) {

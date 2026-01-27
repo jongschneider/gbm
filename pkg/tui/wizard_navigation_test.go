@@ -9,17 +9,17 @@ import (
 
 // mockField is a simple test field that can be configured for testing.
 type mockField struct {
+	value       any
+	err         error
+	theme       *Theme
 	key         string
 	title       string
-	value       any
-	complete    bool
-	cancelled   bool
-	err         error
-	focused     bool
 	width       int
 	height      int
-	theme       *Theme
-	nextOnEnter bool // if true, pressing Enter generates NextStepMsg
+	complete    bool
+	cancelled   bool
+	focused     bool
+	nextOnEnter bool
 }
 
 func newMockField(key, title string) *mockField {
@@ -737,14 +737,14 @@ func TestWizardBranchNamePreFill_BugWorkflow_CustomName(t *testing.T) {
 
 // mockBranchNameField is a mock field that tracks WithDefault calls.
 type mockBranchNameField struct {
+	value        any
+	theme        *Theme
 	key          string
 	title        string
-	value        any
 	defaultValue string
-	complete     bool
 	width        int
 	height       int
-	theme        *Theme
+	complete     bool
 }
 
 func (m *mockBranchNameField) Init() tea.Cmd { return nil }

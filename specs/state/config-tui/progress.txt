@@ -14,7 +14,7 @@ Task Completion Status:
 - [x] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
 - [x] FileCopy Rules table renders with add/edit/delete modals
 - [x] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
-- [ ] Worktrees table with add/edit/delete modals
+- [x] Worktrees table with add/edit/delete modals
 - [ ] Validation error overlays appear on invalid save attempts
 - [ ] Dark and light themes both render correctly
 - [ ] Help screen shows keyboard shortcuts via ? key
@@ -82,4 +82,19 @@ Completed Items:
      - Multi-select mode with Space to add files, Enter to confirm
      - Selected files display in filepicker view and populate files field
      - Tests: 24 FilePicker unit tests, 2 integration tests for FileCopyForm
+     - All tests passing
+
+10. Worktrees Table with Add/Edit/Delete Modals:
+     - Created WorktreesForm component (pkg/tui/config/worktrees_form.go)
+     - Table displays name, branch, merge_into columns using existing Table component
+     - WorktreeModalState enum tracks modal state (None, Add, Edit, Delete, Discard)
+     - 'a' key opens Add modal with name, branch, merge_into, description fields
+     - 'e' key opens Edit modal with pre-populated values from selected worktree
+     - 'd' key opens Delete confirmation modal
+     - Escape in modal closes without changes
+     - Validation: name required (alphanumeric, -, _), branch required, duplicate name check
+     - Validation errors displayed inline in modal
+     - Tab/Shift+Tab cycles through 4 modal fields
+     - Save/discard flows match existing form patterns
+     - Tests: 25 tests covering render, modals, validation, save/delete/discard flows
      - All tests passing
