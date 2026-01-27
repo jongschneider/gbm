@@ -5,9 +5,7 @@ import (
 )
 
 func newCloneCommand(svc *Service) *cobra.Command {
-	var (
-		name string
-	)
+	var name string
 
 	cmd := &cobra.Command{
 		Use:   "clone <repo-url> [name]",

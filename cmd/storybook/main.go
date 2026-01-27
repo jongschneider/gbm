@@ -3,11 +3,10 @@ package main
 
 import (
 	"errors"
-	"log"
-	"time"
-
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
+	"log"
+	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"

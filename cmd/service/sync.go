@@ -3,10 +3,9 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"gbm/internal/git"
 	"os"
 	"strings"
-
-	"gbm/internal/git"
 
 	"github.com/spf13/cobra"
 )

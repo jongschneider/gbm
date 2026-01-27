@@ -2,11 +2,11 @@ package workflows
 
 import (
 	"fmt"
-	"testing"
-
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
 	"gbm/testutil"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 

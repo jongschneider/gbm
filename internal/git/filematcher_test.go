@@ -23,13 +23,13 @@ func TestListIgnoredFiles(t *testing.T) {
 	// Create a .gitignore file
 	gitignoreContent := "*.log\nnode_modules/\n.env\n"
 	gitignorePath := filepath.Join(repoPath, ".gitignore")
-	err = os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644)
+	err = os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o644)
 	require.NoError(t, err)
 
 	// Create some ignored files
-	err = os.WriteFile(filepath.Join(repoPath, "app.log"), []byte("log content"), 0644)
+	err = os.WriteFile(filepath.Join(repoPath, "app.log"), []byte("log content"), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(repoPath, ".env"), []byte("SECRET=123"), 0644)
+	err = os.WriteFile(filepath.Join(repoPath, ".env"), []byte("SECRET=123"), 0o644)
 	require.NoError(t, err)
 
 	// Add gitignore to git
@@ -62,9 +62,9 @@ func TestListUntrackedFiles(t *testing.T) {
 	repoPath := filepath.Join(tempDir, "worktrees", "main")
 
 	// Create some untracked files
-	err = os.WriteFile(filepath.Join(repoPath, "newfile.txt"), []byte("content"), 0644)
+	err = os.WriteFile(filepath.Join(repoPath, "newfile.txt"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(repoPath, "another.md"), []byte("# Title"), 0644)
+	err = os.WriteFile(filepath.Join(repoPath, "another.md"), []byte("# Title"), 0o644)
 	require.NoError(t, err)
 
 	// Test ListUntrackedFiles

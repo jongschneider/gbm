@@ -2,9 +2,8 @@ package fields
 
 import (
 	"errors"
-	"testing"
-
 	"gbm/pkg/tui/async"
+	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"

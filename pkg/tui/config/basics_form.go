@@ -3,10 +3,10 @@ package config
 
 import (
 	"errors"
-	"strings"
-
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 

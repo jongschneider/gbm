@@ -2,10 +2,9 @@ package service
 
 import (
 	"fmt"
+	"gbm/internal/jira"
 	"strings"
 	"time"
-
-	"gbm/internal/jira"
 )
 
 // extractAcceptanceCriteria searches for "Acceptance Criteria" heading in parsed description

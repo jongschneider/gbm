@@ -1,9 +1,8 @@
 package tui
 
 import (
-	"strings"
-
 	"gbm/pkg/tui/async"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"

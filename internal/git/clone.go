@@ -2,12 +2,11 @@ package git
 
 import (
 	"fmt"
+	"gbm/internal/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"gbm/internal/utils"
 )
 
 // Clone clones a remote git repository with worktree structure:
@@ -154,7 +153,7 @@ jira:
 	if dryRun {
 		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
 	} else {
-		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 			return fmt.Errorf("failed to create config.yaml: %w", err)
 		}
 	}

@@ -18,7 +18,6 @@ func TestEval_FirstGet_FetchesValue(t *testing.T) {
 
 	eval := New(fetch)
 	value, err := eval.Get()
-
 	if err != nil {
 		t.Fatalf("Get() should not error on first call: %v", err)
 	}

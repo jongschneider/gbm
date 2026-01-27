@@ -2,13 +2,12 @@ package git
 
 import (
 	"fmt"
+	"gbm/internal/utils"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"gbm/internal/utils"
 )
 
 // Service provides git operations via shell commands.

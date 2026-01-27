@@ -1,10 +1,9 @@
 package testing
 
 import (
+	"gbm/pkg/tui"
 	"testing"
 	"time"
-
-	"gbm/pkg/tui"
 
 	"github.com/stretchr/testify/assert"
 )

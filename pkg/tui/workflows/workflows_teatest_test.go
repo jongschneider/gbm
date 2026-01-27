@@ -2,11 +2,10 @@ package workflows
 
 import (
 	"bytes"
-	"testing"
-	"time"
-
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
+	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

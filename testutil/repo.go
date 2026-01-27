@@ -33,7 +33,7 @@ func NewTestRepo(t testing.TB) *TestRepo {
 	}
 
 	repoDir := filepath.Join(parentDir, "repo")
-	if err := os.Mkdir(repoDir, 0755); err != nil {
+	if err := os.Mkdir(repoDir, 0o755); err != nil {
 		_ = os.RemoveAll(parentDir)
 		t.Fatalf("failed to create repo dir: %v", err)
 	}
@@ -86,11 +86,11 @@ func (r *TestRepo) CreateFile(path, content string) {
 
 	// Create parent directories if needed
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		r.t.Fatalf("failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
 		r.t.Fatalf("failed to create file %s: %v", path, err)
 	}
 }

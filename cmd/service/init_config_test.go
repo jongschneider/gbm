@@ -55,11 +55,11 @@ func TestGenerateExampleConfig_ValidYAML(t *testing.T) {
 func TestGenerateExampleConfig_AlreadyExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	gbmDir := filepath.Join(tmpDir, ".gbm")
-	err := os.MkdirAll(gbmDir, 0755)
+	err := os.MkdirAll(gbmDir, 0o755)
 	require.NoError(t, err)
 
 	configPath := filepath.Join(gbmDir, "config.yaml")
-	err = os.WriteFile(configPath, []byte("existing"), 0644)
+	err = os.WriteFile(configPath, []byte("existing"), 0o644)
 	require.NoError(t, err)
 
 	// Try to generate (should fail)

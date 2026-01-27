@@ -1,9 +1,9 @@
 package config
 
 import (
+	"gbm/pkg/tui"
 	"testing"
 
-	"gbm/pkg/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )

@@ -2,9 +2,8 @@
 package fields
 
 import (
-	"strings"
-
 	"gbm/pkg/tui"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

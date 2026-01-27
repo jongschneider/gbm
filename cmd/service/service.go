@@ -2,15 +2,14 @@ package service
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"gbm/internal/git"
 	"gbm/internal/jira"
 	"gbm/internal/utils"
 	"gbm/pkg/tui"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -413,7 +412,7 @@ func (s *Service) SaveConfig() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -470,7 +469,7 @@ func (s *Service) SaveState() error {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	if err := os.WriteFile(statePath, data, 0644); err != nil {
+	if err := os.WriteFile(statePath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write state: %w", err)
 	}
 
@@ -757,7 +756,7 @@ func (s *Service) copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, fi
 func (s *Service) copyFile(sourcePath, targetPath string) error {
 	// Create target directory if it doesn't exist
 	targetDir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -790,7 +789,7 @@ func (s *Service) copyFile(sourcePath, targetPath string) error {
 // copyDirectory recursively copies a directory from source to target
 func (s *Service) copyDirectory(sourcePath, targetPath string) error {
 	// Create target directory
-	if err := os.MkdirAll(targetPath, 0755); err != nil {
+	if err := os.MkdirAll(targetPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 

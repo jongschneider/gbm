@@ -3,11 +3,10 @@ package service
 import (
 	"bufio"
 	"fmt"
-	"os"
-	"strings"
-
 	"gbm/internal/jira"
 	"gbm/internal/utils"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )

@@ -3,11 +3,10 @@ package workflows
 
 import (
 	"fmt"
+	"gbm/pkg/tui"
 	"regexp"
 	"strings"
 	"unicode"
-
-	"gbm/pkg/tui"
 )
 
 // slugify converts a string to a URL-friendly slug.

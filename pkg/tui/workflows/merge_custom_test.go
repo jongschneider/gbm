@@ -1,10 +1,11 @@
 package workflows
 
 import (
+	"gbm/pkg/tui"
 	"testing"
 
 	mocktest "gbm/internal/testing"
-	"gbm/pkg/tui"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

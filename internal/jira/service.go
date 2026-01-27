@@ -3,11 +3,10 @@ package jira
 import (
 	"errors"
 	"fmt"
+	"gbm/internal/utils"
 	"log"
 	"os"
 	"os/exec"
-
-	"gbm/internal/utils"
 )
 
 // ErrJiraCliNotFound is returned when the JIRA CLI is not available

@@ -1,9 +1,9 @@
 package tui
 
 import (
+	"gbm/pkg/tui/async"
 	"testing"
 
-	"gbm/pkg/tui/async"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/stretchr/testify/assert"
 )

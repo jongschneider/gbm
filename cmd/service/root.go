@@ -6,9 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	logFile *os.File
-)
+var logFile *os.File
 
 func newRootCommand() *cobra.Command {
 	// Create flags struct to bind command-line flags

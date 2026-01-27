@@ -2,13 +2,12 @@ package main
 
 import (
 	"bytes"
+	"gbm/testutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"gbm/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +75,7 @@ func setupGBMRepo(t *testing.T) (*testRepo, string) {
 	require.NoError(t, err, "failed to resolve symlinks")
 
 	repoDir := filepath.Join(parentDir, "repo")
-	err = os.Mkdir(repoDir, 0755)
+	err = os.Mkdir(repoDir, 0o755)
 	require.NoError(t, err, "failed to create repo dir")
 
 	repo := &testRepo{Root: repoDir}
@@ -100,7 +99,7 @@ func setupGBMRepo(t *testing.T) (*testRepo, string) {
 
 	// Create a file in main worktree
 	readmePath := filepath.Join(mainWorktreePath, "README.md")
-	err = os.WriteFile(readmePath, []byte("# Test"), 0600)
+	err = os.WriteFile(readmePath, []byte("# Test"), 0o600)
 	require.NoError(t, err, "failed to create README")
 
 	// Commit in main worktree
@@ -265,7 +264,7 @@ func TestE2E_Init_CreatesStructure(t *testing.T) {
 	// Create a temp directory for the test - require (setup)
 	tempDir := t.TempDir()
 	repoDir := filepath.Join(tempDir, "test-repo")
-	err := os.Mkdir(repoDir, 0755)
+	err := os.Mkdir(repoDir, 0o755)
 	require.NoError(t, err, "failed to create repo dir")
 
 	// Run gbm init - require (critical)
@@ -518,13 +517,13 @@ func TestE2E_TemplateVariableExpansion_CustomPath(t *testing.T) {
 		"worktrees_dir: ../{gitroot}-worktrees",
 		1,
 	)
-	require.NoError(t, os.WriteFile(configPath, []byte(modifiedConfig), 0644))
+	require.NoError(t, os.WriteFile(configPath, []byte(modifiedConfig), 0o644))
 
 	// Get parent directory and expected worktrees path
 	parentDir := filepath.Dir(repo.Root)
 	repoName := filepath.Base(repo.Root)
 	templateExpanded := filepath.Join(parentDir, repoName+"-worktrees")
-	require.NoError(t, os.Mkdir(templateExpanded, 0755), "failed to create template-expanded worktree dir")
+	require.NoError(t, os.Mkdir(templateExpanded, 0o755), "failed to create template-expanded worktree dir")
 
 	// Verify we can still list/operate on worktrees
 	stdout, _, err := runGBMStdout(t, binPath, repo.Root, "wt", "add", "test-custom", "test-custom", "-b")
@@ -594,7 +593,7 @@ func TestE2E_InitConfig_Force(t *testing.T) {
 
 	// Write custom content
 	originalContent := []byte("custom: value\n")
-	err := os.WriteFile(configPath, originalContent, 0644)
+	err := os.WriteFile(configPath, originalContent, 0o644)
 	require.NoError(t, err)
 
 	// Run init-config --force

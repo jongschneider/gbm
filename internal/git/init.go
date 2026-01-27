@@ -2,11 +2,10 @@ package git
 
 import (
 	"fmt"
+	"gbm/internal/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"gbm/internal/utils"
 )
 
 // Init creates a new git repository with worktree structure:

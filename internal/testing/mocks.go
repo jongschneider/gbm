@@ -3,10 +3,9 @@ package testing
 
 import (
 	"fmt"
+	"gbm/pkg/tui"
 	"math/rand"
 	"time"
-
-	"gbm/pkg/tui"
 )
 
 // applyJitter adds random jitter to a duration (±25% of the base delay).

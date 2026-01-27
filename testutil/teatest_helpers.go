@@ -2,10 +2,9 @@
 package testutil
 
 import (
+	"gbm/pkg/tui"
 	"strings"
 	"time"
-
-	"gbm/pkg/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -1150,6 +1150,7 @@ func (f *resizeTrackingField) WithWidth(w int) Field {
 	f.widthCalls = append(f.widthCalls, w)
 	return f
 }
+
 func (f *resizeTrackingField) WithHeight(h int) Field {
 	f.height = h
 	f.heightCalls = append(f.heightCalls, h)

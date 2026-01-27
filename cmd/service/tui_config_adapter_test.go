@@ -1,9 +1,9 @@
 package service
 
 import (
+	"gbm/pkg/tui"
 	"testing"
 
-	"gbm/pkg/tui"
 	"github.com/stretchr/testify/assert"
 )
 

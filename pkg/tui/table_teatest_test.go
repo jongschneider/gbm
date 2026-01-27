@@ -2,11 +2,10 @@ package tui
 
 import (
 	"bytes"
+	"gbm/pkg/tui/async"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"gbm/pkg/tui/async"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"

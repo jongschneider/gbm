@@ -3,10 +3,9 @@ package fields
 
 import (
 	"fmt"
-	"strings"
-
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/async"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"

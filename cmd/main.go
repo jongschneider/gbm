@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"gbm/cmd/service"
+	"os"
 )
 
 func main() {

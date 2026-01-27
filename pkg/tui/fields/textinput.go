@@ -2,9 +2,8 @@
 package fields
 
 import (
-	"strings"
-
 	"gbm/pkg/tui"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,6 +28,7 @@ type TextInput struct {
 	height       int
 	validator    ValidatorFunc
 	err          error
+	masked       bool // If true, display value as asterisks
 }
 
 // NewTextInput creates a new TextInput field with the given title and description.
@@ -62,6 +62,17 @@ func (t *TextInput) WithValidator(validator ValidatorFunc) *TextInput {
 // WithPlaceholder sets a custom placeholder text.
 func (t *TextInput) WithPlaceholder(placeholder string) *TextInput {
 	t.textInput.Placeholder = placeholder
+	return t
+}
+
+// SetMasked sets whether the input value should be masked (displayed as asterisks).
+func (t *TextInput) SetMasked(masked bool) *TextInput {
+	t.masked = masked
+	if masked {
+		t.textInput.EchoMode = textinput.EchoPassword
+	} else {
+		t.textInput.EchoMode = textinput.EchoNormal
+	}
 	return t
 }
 

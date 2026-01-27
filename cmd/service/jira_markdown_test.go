@@ -2,12 +2,11 @@ package service
 
 import (
 	"flag"
+	"gbm/internal/jira"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"gbm/internal/jira"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -363,12 +362,12 @@ The authentication module needs refactoring for better maintainability.
 			if *update {
 				// Create directory if it doesn't exist
 				dir := filepath.Dir(goldenFile)
-				if err := os.MkdirAll(dir, 0755); err != nil {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
 					t.Fatalf("failed to create testdata directory: %v", err)
 				}
 
 				// Write golden file
-				if err := os.WriteFile(goldenFile, []byte(got), 0644); err != nil {
+				if err := os.WriteFile(goldenFile, []byte(got), 0o644); err != nil {
 					t.Fatalf("failed to write golden file: %v", err)
 				}
 			}

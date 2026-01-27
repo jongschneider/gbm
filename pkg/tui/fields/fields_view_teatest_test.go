@@ -3,11 +3,10 @@ package fields
 import (
 	"bytes"
 	"fmt"
+	"gbm/pkg/tui"
 	"strings"
 	"testing"
 	"time"
-
-	"gbm/pkg/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

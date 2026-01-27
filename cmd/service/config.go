@@ -186,7 +186,7 @@ func GenerateExampleConfig(path string) error {
 
 	// Create directory
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -194,7 +194,7 @@ func GenerateExampleConfig(path string) error {
 	configYAML := generateExampleConfigYAML()
 
 	// Write example config
-	if err := os.WriteFile(path, []byte(configYAML), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(configYAML), 0o644); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 

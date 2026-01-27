@@ -90,7 +90,7 @@ func (s *AttachmentService) DownloadAttachment(
 	}
 
 	// Create destination directory
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		result.Error = fmt.Errorf("failed to create directory: %w", err)
 		return result, result.Error
 	}

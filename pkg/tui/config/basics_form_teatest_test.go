@@ -1,10 +1,10 @@
 package config
 
 import (
+	"gbm/pkg/tui"
 	"testing"
 	"time"
 
-	"gbm/pkg/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"

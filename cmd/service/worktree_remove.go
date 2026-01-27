@@ -10,9 +10,7 @@ import (
 )
 
 func newWorktreeRemoveCommand(svc *Service) *cobra.Command {
-	var (
-		force bool
-	)
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:     "remove <name>",

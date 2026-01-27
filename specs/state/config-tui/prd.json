@@ -85,7 +85,7 @@
         "Subsections only show fields when parent is enabled",
         "Save config reflects enabled/disabled state in .gbm/config.yaml"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

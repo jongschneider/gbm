@@ -2,10 +2,9 @@ package service
 
 import (
 	"fmt"
-	"time"
-
 	"gbm/internal/git"
 	"gbm/pkg/tui"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"

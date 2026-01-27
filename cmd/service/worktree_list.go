@@ -2,10 +2,9 @@ package service
 
 import (
 	"fmt"
+	"gbm/internal/git"
 	"os"
 	"path/filepath"
-
-	"gbm/internal/git"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

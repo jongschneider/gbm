@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-
 	"gbm/pkg/tui"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )

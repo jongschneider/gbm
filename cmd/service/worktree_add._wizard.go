@@ -3,12 +3,11 @@ package service
 import (
 	"bufio"
 	"fmt"
-	"os"
-	"strings"
-
 	"gbm/internal/jira"
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/workflows"
+	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

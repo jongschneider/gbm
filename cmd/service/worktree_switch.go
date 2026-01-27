@@ -2,9 +2,8 @@ package service
 
 import (
 	"fmt"
-	"os"
-
 	"gbm/internal/git"
+	"os"
 
 	"github.com/spf13/cobra"
 )
