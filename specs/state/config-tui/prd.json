@@ -13,7 +13,7 @@
         "←→ keys collapse/expand sections correctly",
         "Enter key selects section and transitions to form view"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
@@ -25,7 +25,7 @@
         "Config state persists across navigation transitions",
         "Back button (Escape) properly pops navigation stack"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
@@ -36,7 +36,7 @@
         "Terminal clears and shows fullscreen interface",
         "Quit key (q) exits TUI cleanly"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
@@ -48,7 +48,7 @@
         "Current config values pre-populate the fields",
         "Tab key moves between fields correctly"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
@@ -60,7 +60,7 @@
         "Enter valid directory path: no error",
         "Attempt to save with invalid fields: Save button disabled, error overlay shows"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
