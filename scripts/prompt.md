@@ -40,7 +40,7 @@ Before committing, run ALL applicable:
 DO NOT commit if any fail. Fix issues first.
 
 ## 6. Update PRD (REQUIRED - DO NOT SKIP)
-CRITICAL: Update specs/state/config-tui/prd.json:
+CRITICAL: Update the prd.json file in specs/state/{prd-name}/:
 - Find the task description that matches what you just completed
 - Change "passes": false to "passes": true
 - This must happen BEFORE the final commit
