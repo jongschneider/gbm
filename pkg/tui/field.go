@@ -1,7 +1,9 @@
 // Package tui provides reusable terminal UI components for wizard-style forms.
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // Field defines the interface for form components in a wizard.
 // Each Field is a Bubble Tea Model with additional lifecycle and state methods.

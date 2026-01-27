@@ -40,7 +40,7 @@ func runGBM(t *testing.T, binPath, dir string, args ...string) (string, error) {
 
 // runGBMStdout runs gbm command and returns stdout and stderr separately.
 // This is important for shell integration tests where only stdout is captured.
-func runGBMStdout(t *testing.T, binPath, dir string, args ...string) (stdout string, stderr string, err error) {
+func runGBMStdout(t *testing.T, binPath, dir string, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	cmd := exec.Command(binPath, args...)
@@ -67,7 +67,8 @@ func setupGBMRepo(t *testing.T) (*testRepo, string) {
 	parentDir, err := os.MkdirTemp("", "gbm-e2e-test-*")
 	require.NoError(t, err, "failed to create temp dir")
 	t.Cleanup(func() {
-		_ = os.RemoveAll(parentDir)
+		//nolint:errcheck // Best-effort cleanup in test
+		os.RemoveAll(parentDir)
 	})
 
 	// Resolve symlinks (macOS /var -> /private/var issue)
@@ -315,13 +316,13 @@ func TestE2E_ShellIntegration_ExitCodes(t *testing.T) {
 	cmd := exec.Command(binPath, "wt", "switch", "success-test")
 	cmd.Dir = repo.Root
 	err = cmd.Run()
-	assert.NoError(t, err, "successful switch should have exit code 0")
+	require.NoError(t, err, "successful switch should have exit code 0")
 
 	// Test failure case (exit code non-zero)
 	cmd = exec.Command(binPath, "wt", "switch", "non-existent-worktree")
 	cmd.Dir = repo.Root
 	err = cmd.Run()
-	assert.Error(t, err, "failed switch should have non-zero exit code")
+	require.Error(t, err, "failed switch should have non-zero exit code")
 
 	// Verify it's an ExitError with non-zero code
 	var exitErr *exec.ExitError
@@ -730,7 +731,7 @@ func TestE2E_JSON_ErrorHandling(t *testing.T) {
 
 	// Try to switch to non-existent worktree with JSON
 	// This should either fail or return an error in the JSON response
-	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "switch", "nonexistent-wt-xyz")
+	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "worktree", "switch", "nonexistent-wt-xyz") //nolint:errcheck // Test expects error case
 
 	// Verify error is in JSON format
 	assert.NotEmpty(t, stdout, "stdout should contain error JSON")
@@ -846,7 +847,7 @@ func TestE2E_NoInput_WorktreeAddTUI_JSON(t *testing.T) {
 
 	// Try to run worktree add with no args (TUI mode), --no-input, and --json
 	// In JSON mode, errors are returned as JSON output (success:false) but may not return shell error
-	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "--no-input", "worktree", "add")
+	stdout, _, _ := runGBMStdout(t, binPath, repo.Root, "--json", "--no-input", "worktree", "add") //nolint:errcheck // Test expects error case
 
 	// Verify JSON error output indicates failure
 	assert.Contains(t, stdout, "\"success\":false", "JSON output should indicate failure")

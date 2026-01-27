@@ -369,7 +369,7 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 //	    return err // "worktree 'feature-x' not found"
 //	}
 //	fmt.Printf("Removed worktree: %s\n", removed.Name)
-func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (*Worktree, error) {
+func (s *Service) RemoveWorktree(worktreeName string, force, dryRun bool) (*Worktree, error) {
 	if worktreeName == "" {
 		return nil, ErrWorktreeNameEmpty
 	}
@@ -413,7 +413,8 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 			err := trashbox.MoveToTrash(renamedPath)
 			if err != nil {
 				// Failed to trash - rename back and warn (best effort, ignore errors)
-				_ = os.Rename(renamedPath, targetWorktree.Path)
+				//nolint:errcheck // Best-effort restore after trash failure
+				os.Rename(renamedPath, targetWorktree.Path)
 				fmt.Fprintf(os.Stderr, "Warning: Could not move worktree to Trash: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Proceeding with removal...\n")
 			} else {

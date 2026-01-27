@@ -1,6 +1,8 @@
 package jira
 
-import "time"
+import (
+	"time"
+)
 
 // JiraIssue represents a basic JIRA issue with key information.
 type JiraIssue struct {

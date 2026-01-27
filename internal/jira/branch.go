@@ -54,7 +54,7 @@ func (s *Service) GenerateBranchFromJira(key string, dryRun bool) (string, error
 	// Load cache from store
 	var cache *IssuesCache
 	if s.store != nil {
-		cache, _, _ = s.store.Load() // Ignore errors
+		cache, _, _ = s.store.Load() //nolint:errcheck // Cache miss is expected
 	}
 
 	// Try to find in cached issues first (much faster)

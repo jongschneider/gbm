@@ -27,7 +27,7 @@ func TestJSONOutput_OutputJSON(t *testing.T) {
 
 	// Act: Output JSON
 	outputErr := OutputJSON(testData)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -62,7 +62,7 @@ func TestJSONOutput_OutputJSONError(t *testing.T) {
 	// Act: Output error JSON
 	errMessage := "worktree not found"
 	outputErr := OutputJSONError(errMessage)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -99,7 +99,7 @@ func TestJSONOutput_OutputJSONWithMessage(t *testing.T) {
 
 	// Act
 	outputErr := OutputJSONWithMessage(testData, message)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -135,7 +135,7 @@ func TestJSONOutput_OutputJSONArray(t *testing.T) {
 
 	// Act
 	outputErr := OutputJSONArray(testArray)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -168,7 +168,7 @@ func TestJSONOutput_OutputRawJSON(t *testing.T) {
 
 	// Act
 	outputErr := OutputRawJSON(testData)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -221,7 +221,7 @@ func TestJSONOutput_HandleOutput(t *testing.T) {
 
 		// Act
 		err = HandleOutput(testData)
-		_ = w.Close()
+		require.NoError(t, w.Close())
 
 		// Restore stdout
 		os.Stdout = oldStdout
@@ -269,7 +269,7 @@ func TestJSONOutput_HandleError(t *testing.T) {
 
 		// Act
 		err = HandleError(errMsg)
-		_ = w.Close()
+		require.NoError(t, w.Close())
 
 		// Restore stdout
 		os.Stdout = oldStdout
@@ -299,7 +299,7 @@ func TestJSONOutput_HandleError(t *testing.T) {
 
 		// Act
 		err = HandleError(errMsg)
-		_ = w.Close()
+		require.NoError(t, w.Close())
 
 		// Restore stderr
 		os.Stderr = oldStderr
@@ -340,7 +340,7 @@ func TestJSONOutput_ComplexDataStructure(t *testing.T) {
 
 	// Act
 	outputErr := OutputJSON(complexData)
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -376,7 +376,7 @@ func TestJSONOutput_EmptyData(t *testing.T) {
 
 	// Act: Output empty map
 	outputErr := OutputJSON(map[string]any{})
-	_ = w.Close()
+	require.NoError(t, w.Close())
 
 	// Restore stdout
 	os.Stdout = oldStdout
@@ -407,11 +407,16 @@ func TestJSONOutput_ValidJSON(t *testing.T) {
 		{
 			name: "OutputJSON",
 			testFn: func() (string, error) {
-				r, w, _ := os.Pipe()
+				r, w, err := os.Pipe()
+				if err != nil {
+					return "", err
+				}
 				oldStdout := os.Stdout
 				os.Stdout = w
 
+				//nolint:errcheck // Test helper - output validation is the focus
 				_ = OutputJSON(map[string]string{"test": "data"})
+				//nolint:errcheck // Test helper - output validation is the focus
 				_ = w.Close()
 				os.Stdout = oldStdout
 
@@ -424,11 +429,16 @@ func TestJSONOutput_ValidJSON(t *testing.T) {
 		{
 			name: "OutputJSONError",
 			testFn: func() (string, error) {
-				r, w, _ := os.Pipe()
+				r, w, err := os.Pipe()
+				if err != nil {
+					return "", err
+				}
 				oldStdout := os.Stdout
 				os.Stdout = w
 
+				//nolint:errcheck // Test helper - output validation is the focus
 				_ = OutputJSONError("test error")
+				//nolint:errcheck // Test helper - output validation is the focus
 				_ = w.Close()
 				os.Stdout = oldStdout
 

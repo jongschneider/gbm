@@ -92,7 +92,10 @@ func TestTable_DownArrowMovesCursorDown(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -139,7 +142,10 @@ func TestTable_UpArrowMovesCursorUp(t *testing.T) {
 	tbl.SetCursor(2)
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -185,7 +191,10 @@ func TestTable_CursorReturnsCorrectRowIndex(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -238,7 +247,10 @@ func TestTable_SelectedRowReturnsCorrectRowData(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -296,7 +308,10 @@ func TestTable_SetCursorProgrammaticallySetsPosition(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -350,7 +365,10 @@ func TestTable_NavigationWithSingleRow(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -392,7 +410,10 @@ func TestTable_NavigationWithEmptyTable(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -465,7 +486,10 @@ func TestTable_MixedNavigation(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -839,7 +863,10 @@ func TestTable_CyclingNavigation_UpOnFirstRowGoesToLast(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -887,7 +914,10 @@ func TestTable_CyclingNavigation_DownOnLastRowGoesToFirst(t *testing.T) {
 	tbl.SetCursor(2)
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -931,7 +961,10 @@ func TestTable_CyclingNavigation_JKKeys(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -972,7 +1005,10 @@ func TestTable_CyclingNavigation_DisabledByDefault(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1014,7 +1050,10 @@ func TestTable_Filter_SlashEntersFilterMode(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1061,7 +1100,10 @@ func TestTable_Filter_TypingFiltersRows(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1112,7 +1154,10 @@ func TestTable_Filter_EnterExitsAndClearsFilter(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1161,7 +1206,10 @@ func TestTable_Filter_EscExitsAndClearsFilter(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1211,7 +1259,10 @@ func TestTable_Filter_BackspaceOnEmptyClearsFilter(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1269,7 +1320,10 @@ func TestTable_Filter_OriginalIndexMapsCorrectly(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1333,7 +1387,10 @@ func TestTable_Filter_ClearFilterRestoresAllRows(t *testing.T) {
 
 	// Filter to show only "o" matches
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("One"))
@@ -1383,7 +1440,10 @@ func TestTable_Filter_CaseInsensitive(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("UPPER"))
@@ -1454,7 +1514,10 @@ func TestTable_Filter_SetRowsReappliesFilter(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Apple"))
@@ -1524,7 +1587,10 @@ func TestTable_Filter_ArrowKeysNavigateFilteredRows(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Alpha"))
@@ -1584,7 +1650,10 @@ func TestTable_Filter_EnterSelectsHighlightedRow(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Apple"))
@@ -1643,7 +1712,10 @@ func TestTable_Filter_EscClearsFilterAndRestoresRows(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("One"))
@@ -1692,7 +1764,10 @@ func TestTable_Filter_JKKeysNavigateInFilterMode(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Row1"))
@@ -1741,7 +1816,10 @@ func TestTable_Filter_CyclingWorksInFilterMode(t *testing.T) {
 		Build()
 
 	tm := teatest.NewTestModel(t, newTableModel(tbl), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Cat"))

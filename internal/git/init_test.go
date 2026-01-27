@@ -59,7 +59,10 @@ func TestInitWithDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
-	defer func() { _ = os.Chdir(oldWd) }()
+	defer func() {
+		//nolint:errcheck // Best-effort restore in test cleanup
+		os.Chdir(oldWd)
+	}()
 
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)

@@ -291,10 +291,10 @@ func TestErrorChaining(t *testing.T) {
 	classifiedErr := ClassifyError("branch delete", errors.New("exit 1"), "fatal: branch 'test' not found")
 
 	// Should be able to use errors.Is to check the underlying type
-	assert.ErrorIs(t, classifiedErr, ErrBranchNotFound)
+	require.ErrorIs(t, classifiedErr, ErrBranchNotFound)
 
 	// Should be able to unwrap and inspect
 	var gErr *GitError
-	assert.ErrorAs(t, classifiedErr, &gErr)
+	require.ErrorAs(t, classifiedErr, &gErr)
 	assert.Equal(t, "branch delete", gErr.Op)
 }

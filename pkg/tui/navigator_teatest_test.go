@@ -76,7 +76,10 @@ func TestNavigator_PushAddsModelToStack(t *testing.T) {
 	nav := NewNavigator(model1)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render showing model 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -117,7 +120,10 @@ func TestNavigator_PopRemovesAndReturnsTopModel(t *testing.T) {
 	nav.Push(model2)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for render showing model 2 (top of stack)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -156,7 +162,10 @@ func TestNavigator_DepthReflectsStackSize(t *testing.T) {
 	nav := NewNavigator(model1)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -205,7 +214,10 @@ func TestNavigator_CurrentReturnsTopModel(t *testing.T) {
 	nav.Push(model2)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for render showing top model
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -260,7 +272,10 @@ func TestNavigator_PushPopSequence(t *testing.T) {
 	nav := NewNavigator(model1)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -307,7 +322,10 @@ func TestNavigator_NilPushIsIgnored(t *testing.T) {
 	nav := NewNavigator(model1)
 
 	tm := teatest.NewTestModel(t, newNavigatorWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -414,7 +432,10 @@ func TestNavigator_NavigateMsgPushesTargetOntoStack(t *testing.T) {
 	nav := NewNavigator(initialModel)
 
 	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -481,7 +502,10 @@ func TestNavigator_TargetInitIsCalledAfterPush(t *testing.T) {
 	nav := NewNavigator(initialModel)
 
 	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -515,7 +539,10 @@ func TestNavigator_ViewDelegatesToNewlyPushedModel(t *testing.T) {
 	nav := NewNavigator(initialModel)
 
 	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -595,7 +622,10 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	nav := NewNavigator(initialModel)
 
 	tm := teatest.NewTestModel(t, newNavigatorMsgWrapper(nav), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {

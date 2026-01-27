@@ -116,7 +116,10 @@ func TestWizard_EnterAdvancesToNextStep(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render showing Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -156,7 +159,10 @@ func TestWizard_EscGoesBackToPreviousStep(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render showing Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -197,7 +203,10 @@ func TestWizard_CtrlCCancelsAndSetsIsCancelled(t *testing.T) {
 	assert.False(t, wizard.IsCancelled(), "wizard should not be cancelled initially")
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -231,7 +240,10 @@ func TestWizard_StateUpdatesCorrectlyBetweenSteps(t *testing.T) {
 
 	// Use wrapper model that quits on WorkflowCompleteMsg
 	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -275,7 +287,10 @@ func TestWizard_ViewDelegatesToCurrentFieldView(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render - should show Step 1's unique marker
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -322,7 +337,10 @@ func TestWizard_CompletionSendsWorkflowCompleteMsg(t *testing.T) {
 
 	// Use wrapper model that quits on WorkflowCompleteMsg
 	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -362,7 +380,10 @@ func TestWizard_MultipleBackAndForth(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -422,7 +443,10 @@ func TestWizard_SkipStepOnForwardNavigation(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -460,7 +484,10 @@ func TestWizard_ShowStepWhenSkipReturnsFalse(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -498,7 +525,10 @@ func TestWizard_SkipStepOnBackwardNavigation(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -553,7 +583,10 @@ func TestWizard_SkipLogicReEvaluatesBasedOnState(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -598,7 +631,10 @@ func TestWizard_SkipLogicCausesStepToBeSkipped(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -638,7 +674,10 @@ func TestWizard_SkipFirstStepStartsAtSecond(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Should start at Step 2 since Step 1 is skipped
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -672,7 +711,10 @@ func TestWizard_SkipMultipleConsecutiveSteps(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -728,7 +770,10 @@ func TestWizard_WorkflowCompleteMsgSentAfterLastStep(t *testing.T) {
 	}
 
 	tm := teatest.NewTestModel(t, wrapperModel, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for first step
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -792,7 +837,10 @@ func TestWizard_IsCompleteAfterAllSteps(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Initial state: not complete
 	assert.False(t, wizard.IsComplete(), "wizard should not be complete initially")
@@ -847,7 +895,10 @@ func TestWizard_AllFieldValuesStoredInState(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Initial state: all values should be empty
 	assert.Empty(t, ctx.State.WorktreeName, "WorktreeName should be empty initially")
@@ -896,7 +947,10 @@ func TestWizard_EmptyStepsListCompletesImmediately(t *testing.T) {
 	assert.False(t, wizard.IsComplete(), "wizard should not be complete before Init")
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for program to finish (should happen immediately)
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
@@ -921,7 +975,10 @@ func TestWizard_SingleStepCompletesOnEnter(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, newWizardModel(wizard), teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for the single step
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -992,7 +1049,10 @@ func TestWizard_BackBoundaryMsgSentAtStep0(t *testing.T) {
 	}
 
 	tm := teatest.NewTestModel(t, wrapperModel, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for first step
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1025,7 +1085,10 @@ func TestWizard_RemainsAtStep0AfterBackBoundary(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for first step
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1065,7 +1128,10 @@ func TestWizard_FieldRemainsFocusedAfterBackBoundary(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for first step - should show focused indicator "> "
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1171,7 +1237,10 @@ func TestWizard_WindowSizeMsgUpdatesContextDimensions(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1207,7 +1276,10 @@ func TestWizard_WindowSizeMsgCallsFieldWithWidthHeight(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1255,7 +1327,10 @@ func TestWizard_FieldReRendersWithNewDimensions(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1292,7 +1367,10 @@ func TestWizard_MultipleResizeMessages(t *testing.T) {
 	}, ctx)
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1338,7 +1416,10 @@ func TestWizard_ResizeDoesNotAffectStepNavigation(t *testing.T) {
 	}, NewContext())
 
 	tm := teatest.NewTestModel(t, wizard, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for Step 1
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {

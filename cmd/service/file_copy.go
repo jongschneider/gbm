@@ -133,15 +133,19 @@ func (s *Service) autoCopyFiles(targetWorktreeName string) error {
 	fileMap := make(map[string]struct{})
 
 	if config.FileCopy.Auto.CopyIgnored {
-		ignored, _ := s.Git.ListIgnoredFiles(sourceWorktree.Path)
-		for _, f := range ignored {
-			fileMap[f] = struct{}{}
+		ignored, err := s.Git.ListIgnoredFiles(sourceWorktree.Path)
+		if err == nil {
+			for _, f := range ignored {
+				fileMap[f] = struct{}{}
+			}
 		}
 	}
 	if config.FileCopy.Auto.CopyUntracked {
-		untracked, _ := s.Git.ListUntrackedFiles(sourceWorktree.Path)
-		for _, f := range untracked {
-			fileMap[f] = struct{}{}
+		untracked, err := s.Git.ListUntrackedFiles(sourceWorktree.Path)
+		if err == nil {
+			for _, f := range untracked {
+				fileMap[f] = struct{}{}
+			}
 		}
 	}
 
@@ -171,7 +175,7 @@ func (s *Service) autoCopyFiles(targetWorktreeName string) error {
 }
 
 // filterFiles removes files that match any of the exclude patterns.
-func filterFiles(files []string, excludePatterns []string) []string {
+func filterFiles(files, excludePatterns []string) []string {
 	if len(excludePatterns) == 0 {
 		return files
 	}

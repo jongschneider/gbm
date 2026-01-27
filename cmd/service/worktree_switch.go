@@ -93,14 +93,14 @@ func runWorktreeSwitch(svc *Service, worktreeName string) error {
 // detectCurrentWorktree gets the current worktree from env var or working directory.
 func detectCurrentWorktree(svc *Service) *git.Worktree {
 	if envCurrentWt := os.Getenv("GBM_CURRENT_WORKTREE"); envCurrentWt != "" {
-		wts, _ := svc.Git.ListWorktrees(false)
+		wts, _ := svc.Git.ListWorktrees(false) //nolint:errcheck // Best-effort lookup
 		for i, wt := range wts {
 			if wt.Name == envCurrentWt {
 				return &wts[i]
 			}
 		}
 	}
-	current, _ := svc.Git.GetCurrentWorktree()
+	current, _ := svc.Git.GetCurrentWorktree() //nolint:errcheck // May not be in a worktree
 	return current
 }
 
@@ -150,7 +150,8 @@ func updateWorktreeState(svc *Service, current, target *git.Worktree) {
 		state.PreviousWorktree = current.Name
 	}
 	state.CurrentWorktree = target.Name
-	_ = svc.SaveState()
+	//nolint:errcheck // State save is best-effort
+	svc.SaveState()
 }
 
 // outputSwitchResult handles the output after switching worktrees.

@@ -204,7 +204,7 @@ func (t *Table) Init() tea.Cmd {
 
 // SetAsyncCell sets an async cell at the given row and column indices.
 // Creates or updates the AsyncRow if needed.
-func (t *Table) SetAsyncCell(rowIdx int, colIdx int, cell *async.Cell[string]) {
+func (t *Table) SetAsyncCell(rowIdx, colIdx int, cell *async.Cell[string]) {
 	// Ensure AsyncRow exists
 	if _, ok := t.asyncRows[rowIdx]; !ok {
 		// Create new AsyncRow and populate with existing static cells from table row

@@ -1,6 +1,8 @@
 package utils
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 // GetStringFlagOrConfig returns the flag value if explicitly set, otherwise returns the config value.
 // This implements the flag override pattern: explicit flags > config file > defaults.
@@ -12,9 +14,9 @@ import "github.com/spf13/cobra"
 //	// If --base not set: uses config.DefaultBranch
 //
 // This allows users to override config values without modifying the config file.
-func GetStringFlagOrConfig(cmd *cobra.Command, flagName string, configValue string) string {
+func GetStringFlagOrConfig(cmd *cobra.Command, flagName, configValue string) string {
 	if cmd.Flags().Changed(flagName) {
-		val, _ := cmd.Flags().GetString(flagName)
+		val, _ := cmd.Flags().GetString(flagName) //nolint:errcheck // Flag exists since Changed() returned true
 		return val
 	}
 	return configValue
@@ -30,7 +32,7 @@ func GetStringFlagOrConfig(cmd *cobra.Command, flagName string, configValue stri
 //	// If --dry-run not set: uses config.DryRun
 func GetBoolFlagOrConfig(cmd *cobra.Command, flagName string, configValue bool) bool {
 	if cmd.Flags().Changed(flagName) {
-		val, _ := cmd.Flags().GetBool(flagName)
+		val, _ := cmd.Flags().GetBool(flagName) //nolint:errcheck // Flag exists since Changed() returned true
 		return val
 	}
 	return configValue
@@ -46,7 +48,7 @@ func GetBoolFlagOrConfig(cmd *cobra.Command, flagName string, configValue bool) 
 //	// If --timeout not set: uses config.Timeout
 func GetIntFlagOrConfig(cmd *cobra.Command, flagName string, configValue int) int {
 	if cmd.Flags().Changed(flagName) {
-		val, _ := cmd.Flags().GetInt(flagName)
+		val, _ := cmd.Flags().GetInt(flagName) //nolint:errcheck // Flag exists since Changed() returned true
 		return val
 	}
 	return configValue

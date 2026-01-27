@@ -5,7 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Cell[T] represents a table cell that may be loading async data.
+// Cell represents a table cell that may be loading async data.
 // It wraps an Eval[T] and adds spinner state for visual feedback during loading.
 type Cell[T any] struct {
 	eval      *Eval[T]
@@ -13,7 +13,7 @@ type Cell[T any] struct {
 	isStarted bool // tracks if StartLoading() was called
 }
 
-// New creates a new Cell with an Eval that fetches data asynchronously.
+// NewCell creates a new Cell with an Eval that fetches data asynchronously.
 func NewCell[T any](eval *Eval[T]) *Cell[T] {
 	return &Cell[T]{
 		eval:    eval,
@@ -31,7 +31,7 @@ func (c *Cell[T]) View() string {
 
 	if c.eval.IsLoaded() {
 		// Loaded successfully - GetValue should not error since IsLoaded() checks for nil error
-		value, _ := c.eval.Get()
+		value, _ := c.eval.Get() //nolint:errcheck // IsLoaded() guarantees no error
 		// Convert to string - caller responsible for providing proper string conversion
 		// through Eval that returns string or has Stringer interface
 		return stringifyValue(value)

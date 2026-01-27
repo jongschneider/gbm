@@ -51,7 +51,8 @@ By default, fails if config already exists. Use --force to overwrite.`,
 				}
 			} else {
 				// With --force, remove existing config if it exists
-				_ = os.Remove(configPath)
+				//nolint:errcheck // Ignore remove error - we're about to create a new file anyway
+				os.Remove(configPath)
 			}
 
 			// Generate config

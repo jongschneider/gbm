@@ -143,7 +143,7 @@ func PrintInfo(message string) {
 
 // ColorText applies ANSI color codes to text if colors are enabled.
 // Returns plain text if colors are disabled.
-func ColorText(text string, colorCode string) string {
+func ColorText(text, colorCode string) string {
 	if !ShouldUseColor() {
 		return text
 	}

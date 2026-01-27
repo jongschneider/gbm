@@ -41,7 +41,7 @@ func (s *Service) BranchExistsInPath(worktreePath, branchName string) (bool, err
 }
 
 // DeleteBranch deletes a git branch.
-func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error {
+func (s *Service) DeleteBranch(branchName string, force, dryRun bool) error {
 	if branchName == "" {
 		return ErrBranchNameEmpty
 	}

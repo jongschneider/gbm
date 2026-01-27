@@ -358,7 +358,10 @@ func getIntFromString(data map[string]any, key string) int {
 	if s == "" {
 		return 0
 	}
-	n, _ := strconv.Atoi(s)
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
 	return n
 }
 

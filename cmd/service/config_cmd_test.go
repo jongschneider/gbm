@@ -14,7 +14,8 @@ func TestNewConfigCommand(t *testing.T) {
 	}{
 		{
 			name: "creates command with correct use and short description",
-			expect: func(t *testing.T, svc *Service, cmd any) {
+			expect: func(t *testing.T, _ *Service, cmd any) {
+				t.Helper()
 				cobraCmd := cmd.(*cobra.Command)
 				assert.Equal(t, "config", cobraCmd.Use)
 				assert.Equal(t, "Manage GBM configuration interactively", cobraCmd.Short)
@@ -22,7 +23,8 @@ func TestNewConfigCommand(t *testing.T) {
 		},
 		{
 			name: "command has RunE handler",
-			expect: func(t *testing.T, svc *Service, cmd any) {
+			expect: func(t *testing.T, _ *Service, cmd any) {
+				t.Helper()
 				cobraCmd := cmd.(*cobra.Command)
 				assert.NotNil(t, cobraCmd.RunE)
 			},

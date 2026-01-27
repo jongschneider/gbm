@@ -69,7 +69,7 @@ func TestJiraForm_DisabledInitialRender(t *testing.T) {
 	finalOutput := ""
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		finalOutput = string(bts)
-		return len(finalOutput) > 0
+		return finalOutput != ""
 	}, teatest.WithDuration(100*time.Millisecond))
 
 	assert.Contains(t, finalOutput, "JIRA Configuration")
@@ -119,7 +119,7 @@ func TestJiraForm_EnabledInitialRender(t *testing.T) {
 	finalOutput := ""
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		finalOutput = string(bts)
-		return len(finalOutput) > 0
+		return finalOutput != ""
 	}, teatest.WithDuration(100*time.Millisecond))
 
 	// When enabled, verify that subsections are at least partially visible

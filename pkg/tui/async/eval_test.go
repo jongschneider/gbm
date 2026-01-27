@@ -87,7 +87,8 @@ func TestEval_IsLoaded_ReflectsState(t *testing.T) {
 		t.Fatal("IsLoaded() should return false before first Get()")
 	}
 
-	_, _ = eval.Get()
+	//nolint:errcheck // Test intentionally ignores error to verify IsLoaded state change
+	eval.Get()
 
 	if !eval.IsLoaded() {
 		t.Fatal("IsLoaded() should return true after successful Get()")
@@ -107,7 +108,7 @@ func TestEval_Invalidate_ClearsCache(t *testing.T) {
 	eval := New(fetch)
 
 	// First Get() triggers fetch
-	value1, _ := eval.Get()
+	value1, _ := eval.Get() //nolint:errcheck // Test verifies value content
 	if value1 != "value-1" {
 		t.Fatalf("first Get() returned %q, want value-1", value1)
 	}
@@ -120,7 +121,7 @@ func TestEval_Invalidate_ClearsCache(t *testing.T) {
 	}
 
 	// Next Get() should trigger another fetch
-	value2, _ := eval.Get()
+	value2, _ := eval.Get() //nolint:errcheck // Test verifies value content
 	if value2 != "value-2" {
 		t.Fatalf("second Get() returned %q, want value-2", value2)
 	}
@@ -152,7 +153,7 @@ func TestEval_ConcurrentGet_OnlyFetchesOnce(t *testing.T) {
 			wg.Add(1)
 			go func(idx int) {
 				defer wg.Done()
-				value, _ := eval.Get()
+				value, _ := eval.Get() //nolint:errcheck // Test verifies concurrency behavior
 				results[idx] = value
 			}(i)
 		}
@@ -261,7 +262,8 @@ func TestEval_IsLoading_DuringFetch(t *testing.T) {
 	// Start Get in a goroutine
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, _ = eval.Get()
+		//nolint:errcheck // Test verifies IsLoading state
+		eval.Get()
 	})
 
 	// Wait for fetch to start

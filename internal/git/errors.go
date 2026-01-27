@@ -196,7 +196,7 @@ var errorPatterns = []errorPattern{
 }
 
 // classifyByContent analyzes output content and returns typed errors.
-func classifyByContent(op string, stderr string) error {
+func classifyByContent(op, stderr string) error {
 	for _, pattern := range errorPatterns {
 		if matchesPattern(pattern, op, stderr) {
 			return pattern.err

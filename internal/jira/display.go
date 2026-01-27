@@ -8,7 +8,10 @@ import (
 
 // IsJiraKey checks if a string matches the JIRA key pattern (PROJECT-NUMBER).
 func IsJiraKey(s string) bool {
-	matched, _ := regexp.MatchString(`^[A-Z]+-\d+$`, s)
+	matched, err := regexp.MatchString(`^[A-Z]+-\d+$`, s)
+	if err != nil {
+		return false
+	}
 	return matched
 }
 

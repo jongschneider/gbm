@@ -44,8 +44,8 @@ Examples:
 				return nil
 			}
 
-			// Get current worktree first
-			currentWorktree, _ := svc.Git.GetCurrentWorktree()
+			// Get current worktree first (ignore error - may not be in a worktree)
+			currentWorktree, _ := svc.Git.GetCurrentWorktree() //nolint:errcheck // May not be in a worktree
 
 			// Get config to identify tracked worktrees
 			config := svc.GetConfig()
@@ -140,8 +140,8 @@ func newWorktreeTableTUI(
 		trackedBranches[wtConfig.Branch] = true
 	}
 
-	// Get current worktree
-	currentWorktree, _ := gitOps.GetCurrentWorktree()
+	// Get current worktree (ignore error - may not be in a worktree)
+	currentWorktree, _ := gitOps.GetCurrentWorktree() //nolint:errcheck // May not be in a worktree
 
 	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
 	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
@@ -158,7 +158,8 @@ func handleWorktreeTableTUI(svc WorktreeConfigService, gitOps WorktreeTableGitOp
 		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
 	}
 	defer func() {
-		_ = tty.Close()
+		//nolint:errcheck // Best-effort cleanup
+		tty.Close()
 	}()
 
 	// Set up color renderer BEFORE creating the model, so styles are created with the correct renderer

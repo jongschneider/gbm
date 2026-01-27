@@ -60,6 +60,7 @@ func Execute() error {
 // CloseLogFile closes the log file if it was opened.
 func CloseLogFile() {
 	if logFile != nil {
-		_ = logFile.Close()
+		//nolint:errcheck // Best-effort cleanup during shutdown
+		logFile.Close()
 	}
 }

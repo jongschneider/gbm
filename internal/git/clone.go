@@ -65,7 +65,8 @@ func cloneBareRepo(repoURL, gitDir, absPath string, dryRun bool) error {
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
-		_ = os.RemoveAll(absPath)
+		//nolint:errcheck // Best-effort cleanup on clone failure
+		os.RemoveAll(absPath)
 		return fmt.Errorf("failed to clone bare repository: %w", err)
 	}
 	return nil

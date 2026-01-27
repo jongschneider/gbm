@@ -522,12 +522,12 @@ func (m *worktreeListModel) createOperationCmd(opType string, wt git.Worktree) t
 		case "pull":
 			err = m.gitOps.PullWorktree(wt.Path, false)
 			if err == nil {
-				newStatus, _ = m.gitOps.GetBranchStatus(wt.Path)
+				newStatus, _ = m.gitOps.GetBranchStatus(wt.Path) //nolint:errcheck // Status refresh is best-effort
 			}
 		case "push":
 			err = m.gitOps.PushWorktree(wt.Path, false)
 			if err == nil {
-				newStatus, _ = m.gitOps.GetBranchStatus(wt.Path)
+				newStatus, _ = m.gitOps.GetBranchStatus(wt.Path) //nolint:errcheck // Status refresh is best-effort
 			}
 		case "delete":
 			_, err = m.gitOps.RemoveWorktree(wt.Name, false, false)

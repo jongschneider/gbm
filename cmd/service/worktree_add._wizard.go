@@ -171,7 +171,8 @@ func runWorktreeAddWizardTUI(svc *Service) error {
 		return fmt.Errorf("failed to open /dev/tty: %w (TUI requires an interactive terminal)", err)
 	}
 	defer func() {
-		_ = tty.Close()
+		//nolint:errcheck // Best-effort cleanup
+		tty.Close()
 	}()
 
 	// Set up color renderer BEFORE creating the model, so styles are created with the correct renderer

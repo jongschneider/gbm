@@ -215,7 +215,8 @@ func (s *AttachmentService) downloadFile(url, destPath string) error {
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		// Clean up partial file on error
-		_ = os.Remove(destPath) // Ignore error on cleanup
+		//nolint:errcheck // Best-effort cleanup of partial download
+		os.Remove(destPath)
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
