@@ -99,7 +99,7 @@
         "All fields accept input and update in-memory config",
         "Validation shows errors for invalid JIRA URLs"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
