@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMockGitService(t *testing.T) {
@@ -45,9 +46,9 @@ func TestMockGitService(t *testing.T) {
 			branches, err := svc.ListBranches(false)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotEmpty(t, branches)
 			}
 		})
@@ -92,9 +93,9 @@ func TestMockGitServiceBranchExists(t *testing.T) {
 			exists, err := svc.BranchExists(tc.branch)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expect, exists)
 			}
 		})
@@ -140,9 +141,9 @@ func TestMockJiraService(t *testing.T) {
 			issues, err := svc.FetchIssues()
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotEmpty(t, issues)
 			}
 		})
@@ -152,8 +153,8 @@ func TestMockJiraService(t *testing.T) {
 func TestMockJiraServiceCopyProtection(t *testing.T) {
 	svc := NewMockJiraService()
 
-	issues1, _ := svc.FetchIssues()
-	issues2, _ := svc.FetchIssues()
+	issues1, _ := svc.FetchIssues() //nolint:errcheck // Test intentionally ignores error
+	issues2, _ := svc.FetchIssues() //nolint:errcheck // Test intentionally ignores error
 
 	// Modify first result
 	if len(issues1) > 0 {
@@ -171,7 +172,7 @@ func TestErrorMockGitService(t *testing.T) {
 
 	branches, err := svc.ListBranches(false)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, branches)
 }
 
@@ -180,7 +181,7 @@ func TestErrorMockJiraService(t *testing.T) {
 
 	issues, err := svc.FetchIssues()
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, issues)
 }
 

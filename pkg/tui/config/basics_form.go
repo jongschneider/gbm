@@ -206,7 +206,7 @@ func (f *BasicsForm) handleDiscardConfirmation(msg tea.Msg) (tea.Model, tea.Cmd)
 
 // handleKeyMsg processes keyboard input for form navigation and actions.
 func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
+	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
 		f.focusedField().Blur()
 		f.focusedFieldIdx = (f.focusedFieldIdx + 1) % 2

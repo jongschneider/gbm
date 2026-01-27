@@ -19,6 +19,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 			key:   "merge_strategy",
 			value: "squash",
 			expect: func(t *testing.T, ws *WorkflowState) {
+				t.Helper()
 				assert.Equal(t, "squash", ws.GetField("merge_strategy"))
 			},
 			description: "should store and retrieve string custom field",
@@ -28,6 +29,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 			key:   "review_count",
 			value: 3,
 			expect: func(t *testing.T, ws *WorkflowState) {
+				t.Helper()
 				val := ws.GetField("review_count")
 				assert.Equal(t, 3, val)
 			},
@@ -38,6 +40,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 			key:   "auto_assign",
 			value: true,
 			expect: func(t *testing.T, ws *WorkflowState) {
+				t.Helper()
 				assert.Equal(t, true, ws.GetField("auto_assign"))
 			},
 			description: "should store and retrieve bool custom field",
@@ -47,6 +50,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 			key:   "metadata",
 			value: struct{ name string }{name: "test"},
 			expect: func(t *testing.T, ws *WorkflowState) {
+				t.Helper()
 				val := ws.GetField("metadata")
 				assert.NotNil(t, val)
 			},
@@ -57,6 +61,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 			key:   "version",
 			value: "1.0",
 			expect: func(t *testing.T, ws *WorkflowState) {
+				t.Helper()
 				ws.SetField("version", "2.0")
 				assert.Equal(t, "2.0", ws.GetField("version"))
 			},
@@ -92,6 +97,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			key:         "color",
 			expectFound: true,
 			expect: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Equal(t, "blue", val)
 			},
 			description: "should retrieve existing field",
@@ -104,6 +110,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			key:         "missing",
 			expectFound: false,
 			expect: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Nil(t, val)
 			},
 			description: "should return nil for missing field",
@@ -117,6 +124,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			key:         "any_key",
 			expectFound: false,
 			expect: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Nil(t, val)
 			},
 			description: "should return nil when CustomFields is nil",

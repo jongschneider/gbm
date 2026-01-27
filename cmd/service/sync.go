@@ -207,7 +207,6 @@ func performSync(
 	dryRun bool,
 	confirmFunc func(message string) bool,
 ) error {
-	config := svc.GetConfig()
 	worktreesDir, err := svc.GetWorktreesPath()
 	if err != nil {
 		return err
@@ -215,7 +214,26 @@ func performSync(
 
 	// Handle worktree moves FIRST (rename/move worktrees)
 	// This preserves uncommitted work when adopting ad-hoc worktrees into config
-	for _, move := range status.WorktreeMoves {
+	if err := performWorktreeMoves(svc, status.WorktreeMoves, dryRun, confirmFunc); err != nil {
+		return err
+	}
+
+	// Handle missing worktrees (create them)
+	if err := createMissingWorktrees(svc, status.MissingWorktrees, worktreesDir, dryRun); err != nil {
+		return err
+	}
+
+	// Handle branch changes (destructive - requires confirmation)
+	if err := handleBranchChanges(svc, status.BranchChanges, worktreesDir, dryRun, confirmFunc); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// performWorktreeMoves handles moving/renaming worktrees.
+func performWorktreeMoves(svc *Service, moves []WorktreeMove, dryRun bool, confirmFunc func(string) bool) error {
+	for _, move := range moves {
 		message := fmt.Sprintf("Move worktree '%s' to '%s' (branch: %s)?", move.OldName, move.NewName, move.Branch)
 
 		if !dryRun && confirmFunc != nil && !confirmFunc(message) {
@@ -229,7 +247,6 @@ func performSync(
 			continue
 		}
 
-		// Perform the move
 		err := svc.Git.MoveWorktree(move.OldName, move.NewName, dryRun)
 		if err != nil {
 			return fmt.Errorf("failed to move worktree '%s' to '%s': %w", move.OldName, move.NewName, err)
@@ -237,9 +254,14 @@ func performSync(
 
 		PrintSuccess(fmt.Sprintf("Moved worktree '%s' → '%s' (branch: %s)", move.OldName, move.NewName, move.Branch))
 	}
+	return nil
+}
 
-	// Handle missing worktrees (create them)
-	for _, name := range status.MissingWorktrees {
+// createMissingWorktrees creates worktrees that are defined in config but don't exist on disk.
+func createMissingWorktrees(svc *Service, missing []string, worktreesDir string, dryRun bool) error {
+	config := svc.GetConfig()
+
+	for _, name := range missing {
 		configEntry := config.Worktrees[name]
 
 		if dryRun {
@@ -247,25 +269,27 @@ func performSync(
 			continue
 		}
 
-		// Check if branch exists by listing branches
 		branchExists, err := svc.Git.BranchExists(configEntry.Branch)
 		if err != nil {
 			return fmt.Errorf("failed to check if branch '%s' exists: %w", configEntry.Branch, err)
 		}
 
-		// Create worktree for existing branch or create new branch
 		createBranch := !branchExists
 		baseBranch := config.DefaultBranch
-		_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, baseBranch, dryRun)
-		if err != nil {
+		if _, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, baseBranch, dryRun); err != nil {
 			return fmt.Errorf("failed to create worktree '%s': %w", name, err)
 		}
 
 		PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", name, configEntry.Branch))
 	}
+	return nil
+}
 
-	// Handle branch changes (destructive - requires confirmation)
-	for name, change := range status.BranchChanges {
+// handleBranchChanges handles worktrees that need to be recreated with a different branch.
+func handleBranchChanges(svc *Service, changes map[string]BranchChange, worktreesDir string, dryRun bool, confirmFunc func(string) bool) error {
+	config := svc.GetConfig()
+
+	for name, change := range changes {
 		message := fmt.Sprintf("Worktree '%s' is on branch '%s' but config specifies '%s'. Remove and recreate?",
 			name, change.CurrentBranch, change.DesiredBranch)
 
@@ -280,27 +304,21 @@ func performSync(
 			continue
 		}
 
-		// Remove the worktree
-		_, err := svc.Git.RemoveWorktree(name, true, dryRun)
-		if err != nil {
+		if _, err := svc.Git.RemoveWorktree(name, true, dryRun); err != nil {
 			return fmt.Errorf("failed to remove worktree '%s': %w", name, err)
 		}
 
-		// Recreate with correct branch
 		configEntry := config.Worktrees[name]
-		_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, false, "", dryRun)
+		_, err := svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, false, "", dryRun)
 		if err != nil {
-			// If branch doesn't exist, create it
 			baseBranch := config.DefaultBranch
-			_, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, true, baseBranch, dryRun)
-			if err != nil {
+			if _, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, true, baseBranch, dryRun); err != nil {
 				return fmt.Errorf("failed to recreate worktree '%s': %w", name, err)
 			}
 		}
 
 		PrintSuccess(fmt.Sprintf("Updated worktree '%s' to branch '%s'", name, configEntry.Branch))
 	}
-
 	return nil
 }
 

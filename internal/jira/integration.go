@@ -78,52 +78,84 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 		}
 		return result, nil
 	}
-
-	// Mark this issue as being processed
 	processedIssues[issueKey] = true
 
-	// Step 1: Fetch full issue details
+	// Fetch issue details
 	details, err := s.GetJiraIssue(issueKey, dryRun)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch issue %s: %w", issueKey, err)
 	}
 
-	// Step 2: Download attachments if enabled
-	var attachmentResults []DownloadResult
-	if opts.DownloadAttachments && len(details.Attachments) > 0 {
-		attachmentDir := GenerateAttachmentPath(opts.WorktreeRoot, issueKey)
+	// Download attachments
+	attachmentResults := s.downloadAttachments(issueKey, details, opts, dryRun, result)
 
-		if !dryRun {
-			attachmentService := NewAttachmentService(opts.AttachmentConfig)
-			attachmentResults, err = attachmentService.DownloadAllAttachments(
-				details.Attachments,
-				attachmentDir,
-				opts.WorktreeRoot,
-			)
-			if err != nil {
-				// Log warning but continue - attachment downloads are not critical
-				fmt.Fprintf(os.Stderr, "Warning: some attachments failed to download: %v\n", err)
-			}
-
-			// Count results
-			for _, ar := range attachmentResults {
-				if ar.Skipped {
-					result.AttachmentsSkipped++
-				} else if ar.Error != nil {
-					result.AttachmentsFailed++
-				} else {
-					result.AttachmentsDownloaded++
-				}
-			}
-		} else {
-			fmt.Printf("[DRY RUN] Would download %d attachments to %s\n",
-				len(details.Attachments), attachmentDir)
-		}
+	// Generate and write markdown
+	if err := s.generateAndWriteMarkdown(issueKey, details, opts, attachmentResults, dryRun, result); err != nil {
+		return nil, err
 	}
 
-	result.AttachmentResults = attachmentResults
+	// Process related issues
+	result.LinkedIssueResults = make(map[string]*IssueMarkdownResult)
+	s.processRelatedIssues(details, opts, dryRun, currentDepth, processedIssues, result)
 
-	// Step 3: Generate markdown
+	return result, nil
+}
+
+// downloadAttachments downloads attachments for an issue if enabled.
+func (s *Service) downloadAttachments(
+	issueKey string,
+	details *JiraTicketDetails,
+	opts IssueMarkdownOptions,
+	dryRun bool,
+	result *IssueMarkdownResult,
+) []DownloadResult {
+	if !opts.DownloadAttachments || len(details.Attachments) == 0 {
+		return nil
+	}
+
+	attachmentDir := GenerateAttachmentPath(opts.WorktreeRoot, issueKey)
+
+	if dryRun {
+		fmt.Printf("[DRY RUN] Would download %d attachments to %s\n", len(details.Attachments), attachmentDir)
+		return nil
+	}
+
+	attachmentService := NewAttachmentService(opts.AttachmentConfig)
+	attachmentResults, err := attachmentService.DownloadAllAttachments(
+		details.Attachments, attachmentDir, opts.WorktreeRoot,
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: some attachments failed to download: %v\n", err)
+	}
+
+	countAttachmentResults(attachmentResults, result)
+	result.AttachmentResults = attachmentResults
+	return attachmentResults
+}
+
+// countAttachmentResults counts downloaded, skipped, and failed attachments.
+func countAttachmentResults(results []DownloadResult, result *IssueMarkdownResult) {
+	for _, ar := range results {
+		switch {
+		case ar.Skipped:
+			result.AttachmentsSkipped++
+		case ar.Error != nil:
+			result.AttachmentsFailed++
+		default:
+			result.AttachmentsDownloaded++
+		}
+	}
+}
+
+// generateAndWriteMarkdown generates the markdown content and writes it to a file.
+func (s *Service) generateAndWriteMarkdown(
+	issueKey string,
+	details *JiraTicketDetails,
+	opts IssueMarkdownOptions,
+	attachmentResults []DownloadResult,
+	dryRun bool,
+	result *IssueMarkdownResult,
+) error {
 	generator := NewMarkdownGenerator()
 	markdown, err := generator.GenerateIssueMarkdown(details, MarkdownOptions{
 		IncludeComments:    opts.IncludeComments,
@@ -133,192 +165,143 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 		UseRelativeLinks:   true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate markdown: %w", err)
+		return fmt.Errorf("failed to generate markdown: %w", err)
 	}
 
-	// Step 4: Determine output filename
 	filename := opts.Filename
 	if filename == "" {
 		filename = issueKey + ".md"
 	}
 	markdownPath := filepath.Join(opts.WorktreeRoot, filename)
 
-	// Step 5: Write markdown file
-	if !dryRun {
-		// Ensure parent directory exists
-		markdownDir := filepath.Dir(markdownPath)
-		err := os.MkdirAll(markdownDir, 0o755)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create markdown directory: %w", err)
-		}
-
-		err = os.WriteFile(markdownPath, []byte(markdown), 0o644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write markdown file: %w", err)
-		}
-	} else {
+	if dryRun {
 		fmt.Printf("[DRY RUN] Would write markdown to %s\n", markdownPath)
+	} else {
+		err := os.MkdirAll(filepath.Dir(markdownPath), 0o755)
+		if err != nil {
+			return fmt.Errorf("failed to create markdown directory: %w", err)
+		}
+		err := os.WriteFile(markdownPath, []byte(markdown), 0o644)
+		if err != nil {
+			return fmt.Errorf("failed to write markdown file: %w", err)
+		}
 	}
 
 	result.MarkdownPath = markdownPath
+	return nil
+}
 
-	// Step 6: Process linked issues if enabled and within depth limit
-	// Note: Parent/children processing (Steps 7-8) should happen regardless of linked issues
-
-	// Initialize result map for all related issues (linked, parent, children)
-	result.LinkedIssueResults = make(map[string]*IssueMarkdownResult)
-
-	// Process linked issues only if enabled, have linked issues, and within depth
-	if opts.IncludeLinkedIssues && len(details.IssueLinks) > 0 && currentDepth < opts.MaxDepth {
-		if !dryRun {
-			fmt.Fprintf(os.Stderr, "  Processing %d linked issues at depth %d/%d\n",
-				len(details.IssueLinks), currentDepth+1, opts.MaxDepth)
-		}
-
-		for _, link := range details.IssueLinks {
-			// Determine which linked issue to process
-			var linkedKey string
-			if link.InwardIssue != nil {
-				linkedKey = link.InwardIssue.Key
-			} else if link.OutwardIssue != nil {
-				linkedKey = link.OutwardIssue.Key
-			}
-
-			if linkedKey == "" {
-				continue
-			}
-
-			// Skip if already processed (prevents circular dependencies and duplicates)
-			if processedIssues[linkedKey] {
-				if !dryRun {
-					fmt.Fprintf(os.Stderr, "  Skipping %s (already processed)\n", linkedKey)
-				}
-				continue
-			}
-
-			// Create options for linked issue
-			linkedOpts := IssueMarkdownOptions{
-				WorktreeRoot:        opts.WorktreeRoot,
-				DownloadAttachments: opts.DownloadAttachments,
-				AttachmentConfig:    opts.AttachmentConfig,
-				IncludeComments:     opts.IncludeComments,
-				Filename:            fmt.Sprintf(".jira/%s.md", linkedKey),
-				IncludeLinkedIssues: opts.IncludeLinkedIssues,
-				MaxDepth:            opts.MaxDepth,
-			}
-
-			// Process linked issue at next depth level
-			linkedResult, err := s.generateIssueMarkdownFileWithDepth(
-				linkedKey,
-				linkedOpts,
-				dryRun,
-				currentDepth+1,
-				processedIssues, // Pass the tracking map to prevent circular dependencies
-			)
-			if err != nil {
-				// Log warning but continue - linked issue failures are not critical
-				fmt.Fprintf(os.Stderr, "Warning: failed to process linked issue %s at depth %d: %v\n",
-					linkedKey, currentDepth+1, err)
-				continue
-			}
-
-			result.LinkedIssueResults[linkedKey] = linkedResult
-		}
+// processRelatedIssues processes linked issues, parent, and children.
+func (s *Service) processRelatedIssues(
+	details *JiraTicketDetails,
+	opts IssueMarkdownOptions,
+	dryRun bool,
+	currentDepth int,
+	processedIssues map[string]bool,
+	result *IssueMarkdownResult,
+) {
+	if currentDepth >= opts.MaxDepth {
+		return
 	}
 
-	// Step 7: Process parent issue if exists and within depth limit
-	if details.Parent != nil && currentDepth < opts.MaxDepth {
-		parentKey := details.Parent.Key
-
-		// Skip if already processed (prevents circular dependencies)
-		if processedIssues[parentKey] {
-			if !dryRun {
-				fmt.Fprintf(os.Stderr, "  Skipping parent %s (already processed)\n", parentKey)
-			}
-		} else {
-			if !dryRun {
-				fmt.Fprintf(os.Stderr, "  Processing parent issue %s at depth %d/%d\n",
-					parentKey, currentDepth+1, opts.MaxDepth)
-			}
-
-			// Create options for parent issue
-			parentOpts := IssueMarkdownOptions{
-				WorktreeRoot:        opts.WorktreeRoot,
-				DownloadAttachments: opts.DownloadAttachments,
-				AttachmentConfig:    opts.AttachmentConfig,
-				IncludeComments:     opts.IncludeComments,
-				Filename:            fmt.Sprintf(".jira/%s.md", parentKey),
-				IncludeLinkedIssues: opts.IncludeLinkedIssues,
-				MaxDepth:            opts.MaxDepth,
-			}
-
-			// Process parent issue at next depth level
-			parentResult, err := s.generateIssueMarkdownFileWithDepth(
-				parentKey,
-				parentOpts,
-				dryRun,
-				currentDepth+1,
-				processedIssues, // Pass the tracking map to prevent circular dependencies
-			)
-			if err != nil {
-				// Log warning but continue - parent issue failure is not critical
-				fmt.Fprintf(os.Stderr, "Warning: failed to process parent issue %s at depth %d: %v\n",
-					parentKey, currentDepth+1, err)
-			} else {
-				result.LinkedIssueResults[parentKey] = parentResult
-			}
-		}
+	// Process linked issues
+	if opts.IncludeLinkedIssues && len(details.IssueLinks) > 0 {
+		s.processLinkedIssues(details.IssueLinks, opts, dryRun, currentDepth, processedIssues, result)
 	}
 
-	// Step 8: Process children (subtasks) if exists and within depth limit
-	if len(details.Children) > 0 && currentDepth < opts.MaxDepth {
+	// Process parent
+	if details.Parent != nil {
+		s.processRelatedIssue(details.Parent.Key, "parent", opts, dryRun, currentDepth, processedIssues, result)
+	}
+
+	// Process children
+	if len(details.Children) > 0 {
 		if !dryRun {
 			fmt.Fprintf(os.Stderr, "  Processing %d children at depth %d/%d\n",
 				len(details.Children), currentDepth+1, opts.MaxDepth)
 		}
-
 		for _, child := range details.Children {
-			childKey := child.Key
-
-			// Skip if already processed (prevents circular dependencies)
-			if processedIssues[childKey] {
-				if !dryRun {
-					fmt.Fprintf(os.Stderr, "  Skipping child %s (already processed)\n", childKey)
-				}
-				continue
-			}
-
-			// Create options for child issue
-			childOpts := IssueMarkdownOptions{
-				WorktreeRoot:        opts.WorktreeRoot,
-				DownloadAttachments: opts.DownloadAttachments,
-				AttachmentConfig:    opts.AttachmentConfig,
-				IncludeComments:     opts.IncludeComments,
-				Filename:            fmt.Sprintf(".jira/%s.md", childKey),
-				IncludeLinkedIssues: opts.IncludeLinkedIssues,
-				MaxDepth:            opts.MaxDepth,
-			}
-
-			// Process child issue at next depth level
-			childResult, err := s.generateIssueMarkdownFileWithDepth(
-				childKey,
-				childOpts,
-				dryRun,
-				currentDepth+1,
-				processedIssues, // Pass the tracking map to prevent circular dependencies
-			)
-			if err != nil {
-				// Log warning but continue - child issue failure is not critical
-				fmt.Fprintf(os.Stderr, "Warning: failed to process child issue %s at depth %d: %v\n",
-					childKey, currentDepth+1, err)
-				continue
-			}
-
-			result.LinkedIssueResults[childKey] = childResult
+			s.processRelatedIssue(child.Key, "child", opts, dryRun, currentDepth, processedIssues, result)
 		}
 	}
+}
 
-	return result, nil
+// processLinkedIssues processes issue links.
+func (s *Service) processLinkedIssues(
+	issueLinks []IssueLink,
+	opts IssueMarkdownOptions,
+	dryRun bool,
+	currentDepth int,
+	processedIssues map[string]bool,
+	result *IssueMarkdownResult,
+) {
+	if !dryRun {
+		fmt.Fprintf(os.Stderr, "  Processing %d linked issues at depth %d/%d\n",
+			len(issueLinks), currentDepth+1, opts.MaxDepth)
+	}
+
+	for _, link := range issueLinks {
+		linkedKey := getLinkKeyFromIssueLink(link)
+		if linkedKey == "" {
+			continue
+		}
+		s.processRelatedIssue(linkedKey, "linked issue", opts, dryRun, currentDepth, processedIssues, result)
+	}
+}
+
+// getLinkKeyFromIssueLink extracts the key from an issue link.
+func getLinkKeyFromIssueLink(link IssueLink) string {
+	if link.InwardIssue != nil {
+		return link.InwardIssue.Key
+	}
+	if link.OutwardIssue != nil {
+		return link.OutwardIssue.Key
+	}
+	return ""
+}
+
+// processRelatedIssue processes a single related issue (linked, parent, or child).
+func (s *Service) processRelatedIssue(
+	issueKey string,
+	issueType string,
+	opts IssueMarkdownOptions,
+	dryRun bool,
+	currentDepth int,
+	processedIssues map[string]bool,
+	result *IssueMarkdownResult,
+) {
+	if processedIssues[issueKey] {
+		if !dryRun {
+			fmt.Fprintf(os.Stderr, "  Skipping %s %s (already processed)\n", issueType, issueKey)
+		}
+		return
+	}
+
+	if !dryRun && issueType == "parent" {
+		fmt.Fprintf(os.Stderr, "  Processing parent issue %s at depth %d/%d\n",
+			issueKey, currentDepth+1, opts.MaxDepth)
+	}
+
+	childOpts := IssueMarkdownOptions{
+		WorktreeRoot:        opts.WorktreeRoot,
+		DownloadAttachments: opts.DownloadAttachments,
+		AttachmentConfig:    opts.AttachmentConfig,
+		IncludeComments:     opts.IncludeComments,
+		Filename:            fmt.Sprintf(".jira/%s.md", issueKey),
+		IncludeLinkedIssues: opts.IncludeLinkedIssues,
+		MaxDepth:            opts.MaxDepth,
+	}
+
+	childResult, err := s.generateIssueMarkdownFileWithDepth(
+		issueKey, childOpts, dryRun, currentDepth+1, processedIssues,
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to process %s %s at depth %d: %v\n",
+			issueType, issueKey, currentDepth+1, err)
+		return
+	}
+
+	result.LinkedIssueResults[issueKey] = childResult
 }
 
 // PrintMarkdownResult prints a summary of the markdown generation results.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFetchMsg(t *testing.T) {
@@ -21,6 +22,7 @@ func TestFetchMsg(t *testing.T) {
 			value: "hello",
 			err:   nil,
 			expect: func(t *testing.T, msg FetchMsg[string]) {
+				t.Helper()
 				assert.Equal(t, "hello", msg.Value)
 				assert.NoError(t, msg.Err)
 			},
@@ -30,8 +32,9 @@ func TestFetchMsg(t *testing.T) {
 			value: "",
 			err:   errors.New("fetch failed"),
 			expect: func(t *testing.T, msg FetchMsg[string]) {
+				t.Helper()
 				assert.Empty(t, msg.Value)
-				assert.Error(t, msg.Err)
+				require.Error(t, msg.Err)
 				assert.Equal(t, "fetch failed", msg.Err.Error())
 			},
 		},
@@ -61,10 +64,12 @@ func TestFetchCmd(t *testing.T) {
 				return "success", nil
 			},
 			expectMsg: func(t *testing.T, msg FetchMsg[string]) {
+				t.Helper()
 				assert.Equal(t, "success", msg.Value)
 				assert.NoError(t, msg.Err)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 			description: "FetchCmd should return FetchMsg with value when fetch succeeds",
@@ -75,11 +80,13 @@ func TestFetchCmd(t *testing.T) {
 				return "", errors.New("network error")
 			},
 			expectMsg: func(t *testing.T, msg FetchMsg[string]) {
+				t.Helper()
 				assert.Empty(t, msg.Value)
-				assert.Error(t, msg.Err)
+				require.Error(t, msg.Err)
 				assert.Equal(t, "network error", msg.Err.Error())
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 			description: "FetchCmd should return FetchMsg with error when fetch fails",
@@ -90,10 +97,12 @@ func TestFetchCmd(t *testing.T) {
 				return "delayed", nil
 			},
 			expectMsg: func(t *testing.T, msg FetchMsg[string]) {
+				t.Helper()
 				assert.Equal(t, "delayed", msg.Value)
 				assert.NoError(t, msg.Err)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 			description: "FetchCmd should execute fetch function asynchronously",

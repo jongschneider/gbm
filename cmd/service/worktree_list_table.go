@@ -399,59 +399,53 @@ func (m *worktreeListModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleIdleKeyMsg handles keys in idle state.
 func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Let table handle filter mode - don't process other keys while filtering
 	if m.table.IsFilterActive() {
 		_, cmd := m.table.Update(msg)
 		return m, cmd
 	}
-
 	switch msg.String() {
-	case "q", "ctrl+c":
-		return m, tea.Quit
-
-	case "esc":
-		// Clear filter if active, otherwise quit
-		if m.table.FilterQuery() != "" {
+	case "q", "ctrl+c", "esc":
+		if msg.String() == "esc" && m.table.FilterQuery() != "" {
 			m.table.ClearFilter()
 			return m, nil
 		}
 		return m, tea.Quit
-
 	case " ", "enter":
-		idx := m.table.OriginalIndex()
-		if idx >= 0 && idx < len(m.worktrees) {
-			m.switchOutput = m.worktrees[idx].Path
-			return m, tea.Quit
-		}
-		return m, nil
-
+		return m.handleSelectWorktree()
 	case "l":
 		return m.startOperation("pull")
-
 	case "p":
-		idx := m.table.OriginalIndex()
-		if idx >= 0 && idx < len(m.worktrees) {
-			wt := m.worktrees[idx]
-			if m.trackedBranches[wt.Branch] {
-				m.message = fmt.Sprintf("Cannot push tracked branch '%s'", wt.Branch)
-				return m, m.scheduleClearMessage()
-			}
-		}
-		return m.startOperation("push")
-
+		return m.handlePush()
 	case "d":
-		idx := m.table.OriginalIndex()
-		if idx >= 0 && idx < len(m.worktrees) {
-			m.operationTarget = m.worktrees[idx].Name
-			m.operationIndex = idx
-			m.state = stateConfirming
-		}
-		return m, nil
+		return m.handleDeleteInit()
 	}
-
-	// Forward other keys to table (handles /, up, down, j, k)
 	_, cmd := m.table.Update(msg)
 	return m, cmd
+}
+
+func (m *worktreeListModel) handleSelectWorktree() (tea.Model, tea.Cmd) {
+	if idx := m.table.OriginalIndex(); idx >= 0 && idx < len(m.worktrees) {
+		m.switchOutput = m.worktrees[idx].Path
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m *worktreeListModel) handlePush() (tea.Model, tea.Cmd) {
+	if idx := m.table.OriginalIndex(); idx >= 0 && idx < len(m.worktrees) && m.trackedBranches[m.worktrees[idx].Branch] {
+		m.message = fmt.Sprintf("Cannot push tracked branch '%s'", m.worktrees[idx].Branch)
+		return m, m.scheduleClearMessage()
+	}
+	return m.startOperation("push")
+}
+
+func (m *worktreeListModel) handleDeleteInit() (tea.Model, tea.Cmd) {
+	if idx := m.table.OriginalIndex(); idx >= 0 && idx < len(m.worktrees) {
+		m.operationTarget = m.worktrees[idx].Name
+		m.operationIndex = idx
+		m.state = stateConfirming
+	}
+	return m, nil
 }
 
 // handleConfirmingKeyMsg handles keys in confirmation state.

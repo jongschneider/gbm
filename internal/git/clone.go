@@ -14,96 +14,139 @@ import (
 // - <name>/worktrees/<defaultBranch>/ (main worktree)
 // - <name>/.gbm/config.yaml (configuration file).
 func (s *Service) Clone(repoURL, name string, dryRun bool) error {
-	// Extract repository name from URL if name is not provided
 	if name == "" {
 		name = extractRepoName(repoURL)
 	}
 
-	// Convert to absolute path
 	absPath, err := filepath.Abs(name)
 	if err != nil {
 		return fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
 
-	// Create root directory if it doesn't exist
 	if err := utils.MkdirAll(absPath, dryRun); err != nil {
 		return err
 	}
 
-	// Create .git directory path
 	gitDir := filepath.Join(absPath, ".git")
 
-	// Clone bare repository to .git
-	cmd := exec.Command("git", "clone", "--bare", repoURL, gitDir)
-	if dryRun {
-		printDryRun(cmd)
-	} else {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err := cmd.Run()
-		if err != nil {
-			// Clean up the directory if cloning fails
-			_ = os.RemoveAll(absPath)
-			return fmt.Errorf("failed to clone bare repository: %w", err)
-		}
+	// Clone and configure bare repository
+	if err := cloneBareRepo(repoURL, gitDir, absPath, dryRun); err != nil {
+		return err
+	}
+	if err := configureRemoteFetch(gitDir, dryRun); err != nil {
+		return err
+	}
+	if err := fetchFromOrigin(gitDir, dryRun); err != nil {
+		return err
 	}
 
-	// Set remote origin fetch configuration
-	cmd = exec.Command("git", "--git-dir", gitDir, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
-	if dryRun {
-		printDryRun(cmd)
-	} else {
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return ClassifyError("config remote.origin.fetch", err, string(output))
-		}
-	}
-
-	// Fetch all branches from remote
-	cmd = exec.Command("git", "--git-dir", gitDir, "fetch", "origin")
-	if dryRun {
-		printDryRun(cmd)
-	} else {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("failed to fetch from origin: %w", err)
-		}
-	}
-
-	// Get the default branch from remote
+	// Get the default branch and create worktree structure
 	defaultBranch, err := s.getDefaultBranch(gitDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("failed to determine default branch: %w", err)
 	}
 
-	// Create worktrees directory structure
-	worktreesDir := filepath.Join(absPath, "worktrees")
-	if err := utils.MkdirAll(worktreesDir, dryRun); err != nil {
+	if err := setupWorktreeStructure(absPath, gitDir, defaultBranch, dryRun); err != nil {
 		return err
 	}
 
-	// Create main worktree path
-	mainWorktreePath := filepath.Join(worktreesDir, defaultBranch)
+	return createGbmConfig(absPath, defaultBranch, dryRun)
+}
 
-	// Add worktree for the default branch
-	cmd = exec.Command("git", "--git-dir", gitDir, "worktree", "add", mainWorktreePath, defaultBranch)
+// cloneBareRepo clones a bare repository to the specified directory.
+func cloneBareRepo(repoURL, gitDir, absPath string, dryRun bool) error {
+	cmd := exec.Command("git", "clone", "--bare", repoURL, gitDir)
 	if dryRun {
 		printDryRun(cmd)
-	} else {
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return ClassifyError("worktree add", err, string(output))
-		}
+		return nil
 	}
 
-	// Create .gbm directory and config.yaml
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		_ = os.RemoveAll(absPath)
+		return fmt.Errorf("failed to clone bare repository: %w", err)
+	}
+	return nil
+}
+
+// configureRemoteFetch sets the remote origin fetch configuration.
+func configureRemoteFetch(gitDir string, dryRun bool) error {
+	cmd := exec.Command("git", "--git-dir", gitDir, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return ClassifyError("config remote.origin.fetch", err, string(output))
+	}
+	return nil
+}
+
+// fetchFromOrigin fetches all branches from the origin remote.
+func fetchFromOrigin(gitDir string, dryRun bool) error {
+	cmd := exec.Command("git", "--git-dir", gitDir, "fetch", "origin")
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to fetch from origin: %w", err)
+	}
+	return nil
+}
+
+// setupWorktreeStructure creates the worktrees directory and main worktree.
+func setupWorktreeStructure(absPath, gitDir, defaultBranch string, dryRun bool) error {
+	worktreesDir := filepath.Join(absPath, "worktrees")
+	err := utils.MkdirAll(worktreesDir, dryRun)
+	if err != nil {
+		return err
+	}
+
+	mainWorktreePath := filepath.Join(worktreesDir, defaultBranch)
+	cmd := exec.Command("git", "--git-dir", gitDir, "worktree", "add", mainWorktreePath, defaultBranch)
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return ClassifyError("worktree add", err, string(output))
+	}
+	return nil
+}
+
+// createGbmConfig creates the .gbm directory and config.yaml file.
+func createGbmConfig(absPath, defaultBranch string, dryRun bool) error {
 	gbmDir := filepath.Join(absPath, ".gbm")
-	if err := utils.MkdirAll(gbmDir, dryRun); err != nil {
+	err := utils.MkdirAll(gbmDir, dryRun)
+	if err != nil {
 		return err
 	}
 
 	configPath := filepath.Join(gbmDir, "config.yaml")
-	configContent := fmt.Sprintf(`# Git Branch Manager Configuration
+	configContent := generateConfigContent(defaultBranch)
+
+	if dryRun {
+		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
+		return nil
+	}
+
+	err = os.WriteFile(configPath, []byte(configContent), 0o644)
+	if err != nil {
+		return fmt.Errorf("failed to create config.yaml: %w", err)
+	}
+	return nil
+}
+
+// generateConfigContent generates the default config.yaml content.
+func generateConfigContent(defaultBranch string) string {
+	return fmt.Sprintf(`# Git Branch Manager Configuration
 default_branch: %s
 worktrees_dir: worktrees
 
@@ -151,17 +194,6 @@ jira:
 #         - config/
 #         - .vscode/settings.json
 `, defaultBranch, defaultBranch)
-
-	if dryRun {
-		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
-	} else {
-		err := os.WriteFile(configPath, []byte(configContent), 0o644)
-		if err != nil {
-			return fmt.Errorf("failed to create config.yaml: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // extractRepoName extracts the repository name from a Git URL.

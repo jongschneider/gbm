@@ -155,64 +155,69 @@ func ClassifyError(op string, err error, output string) error {
 	return NewGitError(op, err, exitCode, stderr)
 }
 
+// errorPattern defines a pattern to match in stderr and the corresponding error.
+type errorPattern struct {
+	err      error
+	opMatch  string
+	patterns []string
+}
+
+// errorPatterns defines the patterns used to classify git errors.
+// Patterns are checked in order; the first match wins.
+var errorPatterns = []errorPattern{
+	// Branch not found patterns
+	{patterns: []string{"no such branch"}, err: ErrBranchNotFound},
+	// Worktree not found patterns
+	{patterns: []string{"no such worktree"}, err: ErrWorktreeNotFound},
+	{patterns: []string{"is not a working tree"}, err: ErrWorktreeNotFound},
+	{patterns: []string{"not found"}, opMatch: "worktree", err: ErrWorktreeNotFound},
+	// Branch not found (must check after worktree patterns)
+	{patterns: []string{"not found"}, opMatch: "branch", err: ErrBranchNotFound},
+	{patterns: []string{"not found"}, opMatch: "delete", err: ErrBranchNotFound},
+	// Already exists patterns
+	{patterns: []string{"already exists"}, opMatch: "branch", err: ErrBranchExists},
+	{patterns: []string{"already exists"}, opMatch: "worktree", err: ErrWorktreeExists},
+	// Not merged patterns
+	{patterns: []string{"not fully merged"}, err: ErrNotMerged},
+	{patterns: []string{"not merged"}, err: ErrNotMerged},
+	// Dirty worktree patterns
+	{patterns: []string{"dirty"}, err: ErrDirtyWorktree},
+	{patterns: []string{"uncommitted"}, err: ErrDirtyWorktree},
+	// No upstream patterns
+	{patterns: []string{"no remote tracking branch"}, err: ErrNoRemoteTrackingBranch},
+	{patterns: []string{"no upstream"}, err: ErrNoUpstream},
+	{patterns: []string{"no tracking"}, err: ErrNoUpstream},
+	// Remote not found
+	{patterns: []string{"no such remote"}, err: ErrRemoteNotFound},
+	{patterns: []string{"unknown remote"}, err: ErrRemoteNotFound},
+	// Not a repository
+	{patterns: []string{"not a git repository"}, err: ErrNotAGitRepository},
+	{patterns: []string{"fatal:", "not git repository"}, err: ErrNotAGitRepository},
+}
+
 // classifyByContent analyzes output content and returns typed errors.
 func classifyByContent(op string, stderr string) error {
-	// Branch not found patterns
-	if strings.Contains(stderr, "not found") && (strings.Contains(op, "branch") || strings.Contains(op, "delete")) {
-		return ErrBranchNotFound
+	for _, pattern := range errorPatterns {
+		if matchesPattern(pattern, op, stderr) {
+			return pattern.err
+		}
 	}
-	if strings.Contains(stderr, "no such branch") {
-		return ErrBranchNotFound
-	}
-
-	// Worktree not found patterns
-	if strings.Contains(stderr, "no such worktree") {
-		return ErrWorktreeNotFound
-	}
-	if strings.Contains(stderr, "is not a working tree") {
-		return ErrWorktreeNotFound
-	}
-	if strings.Contains(stderr, "not found") && strings.Contains(op, "worktree") {
-		return ErrWorktreeNotFound
-	}
-
-	// Already exists patterns
-	if strings.Contains(stderr, "already exists") && strings.Contains(op, "branch") {
-		return ErrBranchExists
-	}
-	if strings.Contains(stderr, "already exists") && strings.Contains(op, "worktree") {
-		return ErrWorktreeExists
-	}
-
-	// Not merged patterns
-	if strings.Contains(stderr, "not fully merged") || strings.Contains(stderr, "not merged") {
-		return ErrNotMerged
-	}
-
-	// Dirty worktree patterns
-	if strings.Contains(stderr, "dirty") || strings.Contains(stderr, "uncommitted") {
-		return ErrDirtyWorktree
-	}
-
-	// No upstream patterns
-	if strings.Contains(stderr, "no upstream") || strings.Contains(stderr, "no tracking") {
-		return ErrNoUpstream
-	}
-	if strings.Contains(stderr, "no remote tracking branch") {
-		return ErrNoRemoteTrackingBranch
-	}
-
-	// Remote not found
-	if strings.Contains(stderr, "no such remote") || strings.Contains(stderr, "unknown remote") {
-		return ErrRemoteNotFound
-	}
-
-	// Not a repository
-	if strings.Contains(stderr, "not a git repository") || strings.Contains(stderr, "fatal:") && strings.Contains(stderr, "not git repository") {
-		return ErrNotAGitRepository
-	}
-
 	return nil
+}
+
+// matchesPattern checks if the given stderr and operation match the pattern.
+func matchesPattern(p errorPattern, op, stderr string) bool {
+	// Check operation match if specified
+	if p.opMatch != "" && !strings.Contains(op, p.opMatch) {
+		return false
+	}
+	// All patterns must match
+	for _, pat := range p.patterns {
+		if !strings.Contains(stderr, pat) {
+			return false
+		}
+	}
+	return true
 }
 
 // Wrap wraps an error with git operation context, using ClassifyError for typing

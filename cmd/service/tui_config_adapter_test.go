@@ -18,10 +18,12 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 			name:   "nil config returns empty map",
 			config: nil,
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
+				t.Helper()
 				assert.NotNil(t, got)
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -33,10 +35,12 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 				Worktrees:     nil,
 			},
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
+				t.Helper()
 				assert.NotNil(t, got)
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -59,6 +63,7 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 				},
 			},
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
+				t.Helper()
 				assert.Len(t, got, 2)
 
 				// Check feature-x
@@ -74,6 +79,7 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 				assert.Equal(t, "main", hotfixY.GetMergeInto())
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -100,9 +106,11 @@ func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 			name:   "nil config returns empty string",
 			config: nil,
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -113,9 +121,11 @@ func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 				MergeInto: "develop",
 			},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, "feature/new-feature", got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -126,9 +136,11 @@ func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 				MergeInto: "main",
 			},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -155,9 +167,11 @@ func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 			name:   "nil config returns empty string",
 			config: nil,
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -168,9 +182,11 @@ func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 				MergeInto: "develop",
 			},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, "develop", got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -181,9 +197,11 @@ func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 				MergeInto: "",
 			},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -207,14 +225,14 @@ func TestMockRepoConfig(t *testing.T) {
 		name      string
 	}{
 		{
-			name: "new mock config is empty",
-			setup: func() *MockRepoConfig {
-				return NewMockRepoConfig()
-			},
+			name:  "new mock config is empty",
+			setup: NewMockRepoConfig,
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -226,6 +244,7 @@ func TestMockRepoConfig(t *testing.T) {
 					WithWorktree("hotfix-b", "hotfix/hotfix-b", "main")
 			},
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
+				t.Helper()
 				assert.Len(t, got, 2)
 
 				featureA, ok := got["feature-a"]
@@ -239,6 +258,7 @@ func TestMockRepoConfig(t *testing.T) {
 				assert.Equal(t, "main", hotfixB.GetMergeInto())
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},

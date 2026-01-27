@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSlugify(t *testing.T) {
@@ -235,9 +236,9 @@ func TestProcessFeatureWorkflow(t *testing.T) {
 			err := ProcessFeatureWorkflow(wizard, ctx)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectBranch, wizard.State().BranchName)
 			}
 		})
@@ -325,9 +326,9 @@ func TestProcessHotfixWorkflow(t *testing.T) {
 			err := ProcessHotfixWorkflow(wizard, ctx)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectBranch, wizard.State().BranchName)
 				assert.Equal(t, tc.expectWorktreeName, wizard.State().WorktreeName)
 			}
@@ -402,7 +403,7 @@ func TestGetWorkflowSteps_Feature(t *testing.T) {
 	ctx := tui.NewContext()
 	steps, err := GetWorkflowSteps(tui.WorkflowTypeFeature, ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, steps, 4)
 	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
 	assert.Equal(t, tui.FieldKeyBranchName, steps[1].Name)
@@ -414,7 +415,7 @@ func TestGetWorkflowSteps_Bug(t *testing.T) {
 	ctx := tui.NewContext()
 	steps, err := GetWorkflowSteps(tui.WorkflowTypeBug, ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, steps, 4)
 	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
 	assert.Equal(t, tui.FieldKeyBranchName, steps[1].Name)
@@ -426,7 +427,7 @@ func TestGetWorkflowSteps_Hotfix(t *testing.T) {
 	ctx := tui.NewContext()
 	steps, err := GetWorkflowSteps(tui.WorkflowTypeHotfix, ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, steps, 4)
 	assert.Equal(t, tui.FieldKeyWorktreeName, steps[0].Name)
 	assert.Equal(t, tui.FieldKeyBaseBranch, steps[1].Name)
@@ -438,7 +439,7 @@ func TestGetWorkflowSteps_Merge(t *testing.T) {
 	ctx := tui.NewContext()
 	steps, err := GetWorkflowSteps(tui.WorkflowTypeMerge, ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, steps, 3)
 	assert.Equal(t, "source_branch", steps[0].Name)
 	assert.Equal(t, "target_branch", steps[1].Name)
@@ -449,7 +450,7 @@ func TestGetWorkflowSteps_Unknown(t *testing.T) {
 	ctx := tui.NewContext()
 	steps, err := GetWorkflowSteps("unknown", ctx)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, steps)
 	assert.Equal(t, "unknown workflow type: unknown", err.Error())
 }
@@ -492,7 +493,7 @@ func TestProcessBugWorkflow_WithIssue(t *testing.T) {
 
 	err := ProcessBugWorkflow(wizard, ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "BUG-123", state.WorktreeName)
 	assert.Equal(t, "bug/BUG-123-fix-database-connection", state.BranchName)
 	assert.NotNil(t, state.JiraIssue)

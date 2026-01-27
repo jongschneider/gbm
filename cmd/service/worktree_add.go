@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"gbm/internal/git"
 	"gbm/internal/jira"
 	"gbm/internal/utils"
 	"os"
@@ -11,6 +12,112 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// runTUIMode launches the interactive TUI workflow.
+func runTUIMode(svc *Service) error {
+	if !ShouldAllowInput() {
+		if ShouldUseJSON() {
+			return HandleError("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
+		}
+		return errors.New("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
+	}
+	return runWorktreeAddWizardTUI(svc)
+}
+
+// runCLIMode runs the command-line worktree add workflow.
+func runCLIMode(svc *Service, worktreeName, branchName string, createBranch bool, baseBranch string) error {
+	worktreesDir, err := svc.GetWorktreesPath()
+	if err != nil {
+		return handleAddError(fmt.Sprintf("failed to get worktrees directory: %v", err), err)
+	}
+
+	if err := utils.MkdirAll(worktreesDir, ShouldUseDryRun()); err != nil {
+		return handleAddError(err.Error(), err)
+	}
+
+	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, ShouldUseDryRun())
+	if err == nil {
+		return outputWorktreeCreated(wt)
+	}
+
+	// Check if branch doesn't exist and we can prompt to create it
+	if shouldPromptForBranchCreation(err, createBranch) {
+		return promptAndCreateBranch(svc, worktreesDir, worktreeName, branchName, baseBranch)
+	}
+
+	return handleAddError(err.Error(), err)
+}
+
+// shouldPromptForBranchCreation checks if we should offer to create a missing branch.
+func shouldPromptForBranchCreation(err error, alreadyCreating bool) bool {
+	if alreadyCreating {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "invalid reference")
+}
+
+// promptAndCreateBranch prompts the user to create a missing branch and retries.
+func promptAndCreateBranch(svc *Service, worktreesDir, worktreeName, branchName, baseBranch string) error {
+	if !ShouldAllowInput() {
+		if ShouldUseJSON() {
+			return HandleError(fmt.Sprintf("Branch '%s' does not exist and --no-input mode prevents prompting", branchName))
+		}
+		return fmt.Errorf("branch '%s' does not exist. Use -b to create it", branchName)
+	}
+
+	fmt.Fprintf(os.Stderr, "Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return handleAddError(fmt.Sprintf("failed to read user input: %v", err), err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "y" && response != "yes" {
+		return ErrBranchCreationCancelled
+	}
+
+	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, ShouldUseDryRun())
+	if err != nil {
+		return handleAddError(err.Error(), err)
+	}
+	return outputWorktreeCreated(wt)
+}
+
+// outputWorktreeCreated handles the output after successfully creating a worktree.
+func outputWorktreeCreated(wt *git.Worktree) error {
+	if ShouldUseDryRun() {
+		return nil
+	}
+
+	if ShouldUseJSON() {
+		response := WorktreeAddResponse{
+			Worktree: WorktreeResponse{
+				Name:   wt.Name,
+				Path:   wt.Path,
+				Branch: wt.Branch,
+			},
+			Created: true,
+		}
+		return OutputJSONWithMessage(response, fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
+	}
+
+	fmt.Println(wt.Path)
+	PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
+	return nil
+}
+
+// handleAddError returns an error, formatting for JSON output if needed.
+func handleAddError(msg string, err error) error {
+	if ShouldUseJSON() {
+		return HandleError(msg)
+	}
+	if err != nil {
+		return err
+	}
+	return errors.New(msg)
+}
 
 func newWorktreeAddCommand(svc *Service) *cobra.Command {
 	var (
@@ -50,127 +157,15 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// If no args provided, launch TUI mode
 			if len(args) == 0 {
-				// TUI mode requires interactive input
-				if !ShouldAllowInput() {
-					if ShouldUseJSON() {
-						return HandleError("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
-					}
-					return errors.New("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
-				}
-				return runWorktreeAddWizardTUI(svc)
+				return runTUIMode(svc)
 			}
 
-			// CLI mode (existing behavior)
-			worktreeName := args[0]
-			branchName := args[1]
-
-			// Get worktrees directory from service (reads from config)
-			worktreesDir, err := svc.GetWorktreesPath()
-			if err != nil {
-				if ShouldUseJSON() {
-					return HandleError(fmt.Sprintf("failed to get worktrees directory: %v", err))
-				}
-				return fmt.Errorf("failed to get worktrees directory: %w", err)
-			}
-
-			// Create worktrees directory if it doesn't exist
-			if err := utils.MkdirAll(worktreesDir, ShouldUseDryRun()); err != nil {
-				if ShouldUseJSON() {
-					return HandleError(err.Error())
-				}
-				return err
-			}
-
-			// Flag override pattern: explicit flag > config > default
+			// CLI mode
 			baseBranch = utils.GetStringFlagOrConfig(cmd, "base", svc.GetConfig().DefaultBranch)
 			if baseBranch == "" {
-				baseBranch = "master" // Ultimate fallback
+				baseBranch = "master"
 			}
-
-			// Try to add the worktree
-			wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, ShouldUseDryRun())
-			if err == nil {
-				if !ShouldUseDryRun() {
-					if ShouldUseJSON() {
-						response := WorktreeAddResponse{
-							Worktree: WorktreeResponse{
-								Name:   wt.Name,
-								Path:   wt.Path,
-								Branch: wt.Branch,
-							},
-							Created: true,
-						}
-						return OutputJSONWithMessage(response, fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
-					}
-
-					// Text output: path to stdout, message to stderr
-					fmt.Println(wt.Path)
-					PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
-				}
-				return nil
-			}
-
-			// If it's not a "branch doesn't exist" error, or user already specified -b, return the error
-			errMsg := err.Error()
-			isBranchNotExist := strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "invalid reference")
-			if !isBranchNotExist || createBranch {
-				if ShouldUseJSON() {
-					return HandleError(errMsg)
-				}
-				return err
-			}
-
-			// Handle no-input mode
-			if !ShouldAllowInput() {
-				if ShouldUseJSON() {
-					return HandleError(fmt.Sprintf("Branch '%s' does not exist and --no-input mode prevents prompting", branchName))
-				}
-				return fmt.Errorf("branch '%s' does not exist. Use -b to create it", branchName)
-			}
-
-			// Prompt user if they want to create a new branch
-			fmt.Fprintf(os.Stderr, "Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
-
-			reader := bufio.NewReader(os.Stdin)
-			response, err := reader.ReadString('\n')
-			if err != nil {
-				if ShouldUseJSON() {
-					return HandleError(fmt.Sprintf("failed to read user input: %v", err))
-				}
-				return fmt.Errorf("failed to read user input: %w", err)
-			}
-
-			response = strings.TrimSpace(strings.ToLower(response))
-			if response != "y" && response != "yes" {
-				return ErrBranchCreationCancelled
-			}
-
-			// Retry with createBranch = true
-			wt, err = svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, ShouldUseDryRun())
-			if err != nil {
-				if ShouldUseJSON() {
-					return HandleError(err.Error())
-				}
-				return err
-			}
-			if !ShouldUseDryRun() {
-				if ShouldUseJSON() {
-					response := WorktreeAddResponse{
-						Worktree: WorktreeResponse{
-							Name:   wt.Name,
-							Path:   wt.Path,
-							Branch: wt.Branch,
-						},
-						Created: true,
-					}
-					return OutputJSONWithMessage(response, fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
-				}
-
-				// Text output: path to stdout, message to stderr
-				fmt.Println(wt.Path)
-				PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
-			}
-			return nil
+			return runCLIMode(svc, args[0], args[1], createBranch, baseBranch)
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip PostRunE in TUI mode (no args) - TUI already handles file copying

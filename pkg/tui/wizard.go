@@ -64,7 +64,7 @@ func (w *Wizard) Init() tea.Cmd {
 func (w *Wizard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle global key events
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 		case tea.KeyCtrlC:
 			w.cancelled = true
 			return w, tea.Quit

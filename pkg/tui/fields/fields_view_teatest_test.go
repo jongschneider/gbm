@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -284,7 +285,10 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -329,7 +333,10 @@ func TestSelector_Interactive_Navigation(t *testing.T) {
 	model := newFieldModel(s, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -361,7 +368,10 @@ func TestConfirm_Interactive_Toggle(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Initial state should be Yes selected
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -404,7 +414,10 @@ func TestFilterable_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -432,7 +445,10 @@ func TestFilterable_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -462,7 +478,10 @@ func TestFilterable_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -505,7 +524,10 @@ func TestFilterable_EnterWithFilteredResults(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -551,7 +573,10 @@ func TestFilterable_NextStepMsgSentOnEnter(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -586,7 +611,10 @@ func TestFilterable_ValueStoredAfterSelection(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -619,7 +647,10 @@ func TestTextInput_TypingUpdatesValue(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -649,7 +680,10 @@ func TestTextInput_EnterSubmitsValue(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -683,7 +717,10 @@ func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -708,7 +745,10 @@ func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -736,7 +776,10 @@ func TestTextInput_NextStepMsgSentOnEnter(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -770,7 +813,10 @@ func TestTextInput_IsCompleteAfterSubmission(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -803,7 +849,10 @@ func TestTextInput_EmptySubmission(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -836,7 +885,10 @@ func TestTextInput_ValidatorCalledOnEnter(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -876,7 +928,10 @@ func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -894,7 +949,7 @@ func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 	// Verify field is NOT complete
 	assert.False(t, ti.IsComplete(), "should not complete with invalid input")
 	assert.Empty(t, ti.GetValue(), "value should not be set on validation failure")
-	assert.Error(t, ti.err, "error should be set")
+	require.Error(t, ti.err, "error should be set")
 	assert.Contains(t, ti.err.Error(), "at least 5 characters")
 
 	// Quit the test
@@ -916,7 +971,10 @@ func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -928,7 +986,7 @@ func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
-	assert.Error(t, ti.err, "error should be set after validation failure")
+	require.Error(t, ti.err, "error should be set after validation failure")
 
 	// Check that View() contains the error message
 	view := ti.View()
@@ -954,7 +1012,10 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -966,7 +1027,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
-	assert.Error(t, ti.err, "error should be set after validation failure")
+	require.Error(t, ti.err, "error should be set after validation failure")
 	assert.Contains(t, ti.View(), "value required", "View() should show error")
 
 	// Start typing - error should clear
@@ -974,7 +1035,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
-	assert.NoError(t, ti.err, "error should be cleared after typing")
+	require.NoError(t, ti.err, "error should be cleared after typing")
 	assert.NotContains(t, ti.View(), "value required", "View() should not show error after typing")
 
 	// Quit the test
@@ -996,7 +1057,10 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1012,14 +1076,14 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 
 	// Should fail validation
 	assert.False(t, ti.IsComplete(), "should not complete with short input")
-	assert.Error(t, ti.err, "error should be set")
+	require.Error(t, ti.err, "error should be set")
 
 	// Add more characters to make valid
 	tm.Type("cdef")
 	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
-	assert.NoError(t, ti.err, "error should be cleared after typing")
+	require.NoError(t, ti.err, "error should be cleared after typing")
 
 	// Now submit again - should succeed
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1047,7 +1111,10 @@ func TestTextInput_ValidationWithTrimmedValue(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1076,7 +1143,10 @@ func TestTextInput_NoValidatorAllowsAnyInput(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1105,7 +1175,10 @@ func TestTextInput_WithDefaultSetsValueOnFocus(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1132,7 +1205,10 @@ func TestTextInput_CursorAtEndOfDefault(t *testing.T) {
 	model := newFieldModel(ti, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1156,7 +1232,10 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1187,7 +1266,10 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1216,7 +1298,10 @@ func TestTextInput_DefaultValueCanBeEdited(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1249,7 +1334,10 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1276,7 +1364,10 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 		model := newFieldModel(ti, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1309,7 +1400,10 @@ func TestConfirm_EnterWithYesSelected(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1340,7 +1434,10 @@ func TestConfirm_EnterWithNoSelected(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1374,7 +1471,10 @@ func TestConfirm_GetValueReturnsCorrectBoolean(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Confirm?"))
@@ -1395,7 +1495,10 @@ func TestConfirm_GetValueReturnsCorrectBoolean(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Confirm?"))
@@ -1421,7 +1524,10 @@ func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Continue?"))
@@ -1443,7 +1549,10 @@ func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Continue?"))
@@ -1468,7 +1577,10 @@ func TestConfirm_IsCancelledReflectsNoSelection(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Proceed?"))
@@ -1503,7 +1615,10 @@ func TestConfirm_EnterWithSummary(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for render including summary
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1543,7 +1658,10 @@ func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1606,7 +1724,10 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1639,7 +1760,10 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1678,7 +1802,10 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1706,7 +1833,10 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1743,7 +1873,10 @@ func TestFilterable_ArrowNavigation_UpMovesUp(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1789,7 +1922,10 @@ func TestFilterable_ArrowNavigation_DownMovesDown(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1831,7 +1967,10 @@ func TestFilterable_ArrowNavigation_WrapTopToBottom(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1865,7 +2004,10 @@ func TestFilterable_ArrowNavigation_WrapBottomToTop(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1910,7 +2052,10 @@ func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 10))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render - look for the first option
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -1957,7 +2102,10 @@ func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 10))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render - look for the first option
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2005,7 +2153,10 @@ func TestFilterable_ArrowNavigation_CtrlUpDown(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select option"))
@@ -2028,7 +2179,10 @@ func TestFilterable_ArrowNavigation_CtrlUpDown(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select option"))
@@ -2060,7 +2214,10 @@ func TestFilterable_ArrowNavigation_EmptyList(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2095,7 +2252,10 @@ func TestFilterable_ArrowNavigation_SingleOption(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2132,7 +2292,10 @@ func TestFilterable_ArrowNavigation_AfterFiltering(t *testing.T) {
 	model := newFieldModel(f, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2184,7 +2347,10 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2208,7 +2374,10 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2237,7 +2406,10 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2258,7 +2430,10 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		model := newFieldModel(f, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2297,7 +2472,10 @@ func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2325,7 +2503,10 @@ func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2355,7 +2536,10 @@ func TestSelector_EnterSelectsHighlightedOption(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2396,7 +2580,10 @@ func TestSelector_SelectedValueMatchesOptionValue(t *testing.T) {
 	model := newFieldModel(s, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2426,7 +2613,10 @@ func TestSelector_NextStepMsgSentOnEnter(t *testing.T) {
 	model := newFieldModel(s, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2460,7 +2650,10 @@ func TestSelector_IsCompleteAfterSelection(t *testing.T) {
 	model := newFieldModel(s, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2494,7 +2687,10 @@ func TestSelector_EmptyOptionsDoesNotCrash(t *testing.T) {
 	model := newFieldModel(s, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2528,7 +2724,10 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2558,7 +2757,10 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2595,7 +2797,10 @@ func TestSelector_JKeyMovesCursorDown(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2625,7 +2830,10 @@ func TestSelector_JKeyMovesCursorDown(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2663,7 +2871,10 @@ func TestSelector_KKeyMovesCursorUp(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2697,7 +2908,10 @@ func TestSelector_KKeyMovesCursorUp(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2729,7 +2943,10 @@ func TestSelector_CtrlJMovesCursorDown(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2752,7 +2969,10 @@ func TestSelector_CtrlJMovesCursorDown(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2789,7 +3009,10 @@ func TestSelector_CtrlKMovesCursorUp(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2817,7 +3040,10 @@ func TestSelector_CtrlKMovesCursorUp(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2850,7 +3076,10 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2873,7 +3102,10 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2896,7 +3128,10 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 		model := newFieldModel(s, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Select"))
@@ -2932,7 +3167,10 @@ func TestConfirm_YKeyImmediatelyConfirmsTrue(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		// Wait for initial render
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -2959,7 +3197,10 @@ func TestConfirm_YKeyImmediatelyConfirmsTrue(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Continue?"))
@@ -2984,7 +3225,10 @@ func TestConfirm_NKeyImmediatelyCancelsWithFalse(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Do you want to proceed?"))
@@ -3007,7 +3251,10 @@ func TestConfirm_NKeyImmediatelyCancelsWithFalse(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Continue?"))
@@ -3032,7 +3279,10 @@ func TestConfirm_YNShortcutsIgnoreCurrentSelection(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Proceed?"))
@@ -3058,7 +3308,10 @@ func TestConfirm_YNShortcutsIgnoreCurrentSelection(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Proceed?"))
@@ -3087,7 +3340,10 @@ func TestConfirm_CancelMsgSentOnNKey(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Delete file?"))
@@ -3117,7 +3373,10 @@ func TestConfirm_LeftArrowSelectsYes(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Proceed?"))
@@ -3148,7 +3407,10 @@ func TestConfirm_RightArrowSelectsNo(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Continue?"))
@@ -3177,7 +3439,10 @@ func TestConfirm_HKeySelectsYes(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Save changes?"))
@@ -3207,7 +3472,10 @@ func TestConfirm_LKeySelectsNo(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Delete file?"))
@@ -3237,7 +3505,10 @@ func TestConfirm_MixedArrowAndVimNavigation(t *testing.T) {
 	model := newFieldModel(c, 10)
 
 	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-	t.Cleanup(func() { _ = tm.Quit() })
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Confirm action?"))
@@ -3279,7 +3550,10 @@ func TestConfirm_LeftRightAtBoundaries(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Confirm?"))
@@ -3307,7 +3581,10 @@ func TestConfirm_LeftRightAtBoundaries(t *testing.T) {
 		model := newFieldModel(c, 10)
 
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-		t.Cleanup(func() { _ = tm.Quit() })
+		t.Cleanup(func() {
+			//nolint:errcheck // Best-effort cleanup in test
+			tm.Quit()
+		})
 
 		teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 			return bytes.Contains(bts, []byte("Confirm?"))

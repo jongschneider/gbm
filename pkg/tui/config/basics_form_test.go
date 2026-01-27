@@ -9,6 +9,7 @@ import (
 )
 
 func TestBasicsForm_Create(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		config BasicsFormConfig
 		expect func(t *testing.T, form *BasicsForm)
@@ -143,6 +144,7 @@ func TestBasicsForm_Cancelled(t *testing.T) {
 }
 
 func TestBasicsForm_Validate(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		config     BasicsFormConfig
@@ -226,6 +228,7 @@ func TestBasicsForm_ValidationOverlay(t *testing.T) {
 }
 
 func TestBasicsForm_ValidationOverlayDismiss(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		key  tea.KeyMsg

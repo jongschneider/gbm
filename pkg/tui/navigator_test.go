@@ -40,6 +40,7 @@ func TestNewNavigator(t *testing.T) {
 			name:    "creates navigator with initial model",
 			initial: &mockModel{name: "initial"},
 			expect: func(t *testing.T, nav *Navigator) {
+				t.Helper()
 				assert.NotNil(t, nav, "navigator should be created")
 				assert.Equal(t, 1, nav.Depth(), "should have one model on stack")
 				assert.False(t, nav.IsEmpty(), "should not be empty")
@@ -50,6 +51,7 @@ func TestNewNavigator(t *testing.T) {
 			name:    "creates navigator with nil initial",
 			initial: nil,
 			expect: func(t *testing.T, nav *Navigator) {
+				t.Helper()
 				assert.NotNil(t, nav, "navigator should be created")
 				assert.Equal(t, 0, nav.Depth(), "should have empty stack")
 				assert.True(t, nav.IsEmpty(), "should be empty")
@@ -80,6 +82,7 @@ func TestNavigator_Init(t *testing.T) {
 				initCmd: func() tea.Msg { return nil },
 			},
 			expect: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assert.NotNil(t, cmd, "should return command from model")
 			},
 			description: "Init should delegate to current model",
@@ -88,6 +91,7 @@ func TestNavigator_Init(t *testing.T) {
 			name:    "returns nil for empty stack",
 			initial: nil,
 			expect: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assert.Nil(t, cmd, "should return nil for empty stack")
 			},
 			description: "Init should return nil when stack is empty",
@@ -145,6 +149,7 @@ func TestNavigator_View(t *testing.T) {
 			name:    "delegates View to current model",
 			initial: &mockModel{name: "test"},
 			expect: func(t *testing.T, view string) {
+				t.Helper()
 				assert.Contains(t, view, "Model: test", "should render current model's view")
 			},
 			description: "View should delegate to current model",
@@ -153,6 +158,7 @@ func TestNavigator_View(t *testing.T) {
 			name:    "returns empty for empty stack",
 			initial: nil,
 			expect: func(t *testing.T, view string) {
+				t.Helper()
 				assert.Empty(t, view, "should return empty string for empty stack")
 			},
 			description: "View should return empty string when stack is empty",
@@ -206,6 +212,7 @@ func TestNavigator_Pop(t *testing.T) {
 				return nav
 			},
 			expect: func(t *testing.T, popped tea.Model, nav *Navigator) {
+				t.Helper()
 				assert.NotNil(t, popped, "should return popped model")
 				mockModel := popped.(*mockModel)
 				assert.Equal(t, "model2", mockModel.name, "should pop the last added model")
@@ -219,6 +226,7 @@ func TestNavigator_Pop(t *testing.T) {
 				return NewNavigator(nil)
 			},
 			expect: func(t *testing.T, popped tea.Model, nav *Navigator) {
+				t.Helper()
 				assert.Nil(t, popped, "should return nil for empty stack")
 				assert.Equal(t, 0, nav.Depth(), "depth should remain 0")
 			},
@@ -232,6 +240,7 @@ func TestNavigator_Pop(t *testing.T) {
 				return nav
 			},
 			expect: func(t *testing.T, popped tea.Model, nav *Navigator) {
+				t.Helper()
 				nav.Pop() // Pop second
 				nav.Pop() // Pop first
 				assert.Equal(t, 0, nav.Depth(), "should be empty after popping all")

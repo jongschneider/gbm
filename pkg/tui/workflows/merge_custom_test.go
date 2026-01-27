@@ -87,9 +87,9 @@ func TestMergeCustomWorkflow_ProcessMergeCustom(t *testing.T) {
 			err := ProcessMergeCustomWorkflow(wizard)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectWt, state.WorktreeName)
 				assert.Equal(t, tc.expectBr, state.BranchName)
 				assert.Equal(t, tc.strategy, state.GetField("merge_strategy_selected"))
@@ -111,7 +111,7 @@ func TestMergeCustomWorkflow_MissingStrategy(t *testing.T) {
 	state.SetField("target_branch", "develop")
 
 	err := ProcessMergeCustomWorkflow(wizard)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "merge strategy not selected")
 }
 
@@ -128,7 +128,7 @@ func TestMergeCustomWorkflow_MissingBranches(t *testing.T) {
 	// Don't set branches
 
 	err := ProcessMergeCustomWorkflow(wizard)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "source or target branch not selected")
 }
 
@@ -149,7 +149,7 @@ func TestMergeCustomWorkflow_CustomFieldStorage(t *testing.T) {
 
 	// Process the workflow
 	err := ProcessMergeCustomWorkflow(wizard)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify custom field storage
 	assert.Equal(t, "rebase", state.GetField("merge_strategy_selected"))

@@ -37,65 +37,86 @@ func (p *ADFParser) ParseToMarkdown(doc ADFDocument) (string, []string, error) {
 func (p *ADFParser) parseNode(node ADFNode, depth int) (string, []string) {
 	var mediaIDs []string
 
+	// Handle simple node types first
+	if result, ok := p.parseSimpleNode(node); ok {
+		return result, mediaIDs
+	}
+
+	// Handle nodes that collect media IDs
+	if result, ids, ok := p.parseMediaNode(node, depth); ok {
+		return result, ids
+	}
+
+	// Handle container nodes (doc and unknown types)
+	return p.parseContainerNode(node, depth)
+}
+
+// parseSimpleNode handles node types that don't collect media IDs.
+func (p *ADFParser) parseSimpleNode(node ADFNode) (string, bool) {
+	switch node.Type {
+	case "text":
+		return p.parseText(node), true
+	case "mention":
+		return p.parseMention(node), true
+	case "inlineCard":
+		return p.parseInlineCard(node), true
+	case "codeBlock":
+		return p.parseCodeBlock(node), true
+	case "hardBreak":
+		return "\n", true
+	case "rule":
+		return "---", true
+	case "emoji":
+		return p.parseEmoji(node), true
+	}
+	return "", false
+}
+
+// parseMediaNode handles node types that collect media IDs.
+func (p *ADFParser) parseMediaNode(node ADFNode, depth int) (string, []string, bool) {
+	var mediaIDs []string
+
 	switch node.Type {
 	case "paragraph":
-		return p.parseParagraph(node, &mediaIDs), mediaIDs
-	case "text":
-		return p.parseText(node), mediaIDs
-	case "mention":
-		return p.parseMention(node), mediaIDs
+		return p.parseParagraph(node, &mediaIDs), mediaIDs, true
 	case "mediaGroup":
-		return p.parseMediaGroup(node, &mediaIDs), mediaIDs
+		return p.parseMediaGroup(node, &mediaIDs), mediaIDs, true
 	case "media":
-		return p.parseMedia(node, &mediaIDs), mediaIDs
-	case "inlineCard":
-		return p.parseInlineCard(node), mediaIDs
+		return p.parseMedia(node, &mediaIDs), mediaIDs, true
 	case "orderedList":
-		return p.parseOrderedList(node, depth, &mediaIDs), mediaIDs
+		return p.parseOrderedList(node, depth, &mediaIDs), mediaIDs, true
 	case "bulletList":
-		return p.parseBulletList(node, depth, &mediaIDs), mediaIDs
+		return p.parseBulletList(node, depth, &mediaIDs), mediaIDs, true
 	case "listItem":
-		return p.parseListItem(node, depth, &mediaIDs), mediaIDs
+		return p.parseListItem(node, depth, &mediaIDs), mediaIDs, true
 	case "heading":
-		return p.parseHeading(node, &mediaIDs), mediaIDs
-	case "codeBlock":
-		return p.parseCodeBlock(node), mediaIDs
-	case "hardBreak":
-		return "\n", mediaIDs
-	case "rule":
-		return "---", mediaIDs
+		return p.parseHeading(node, &mediaIDs), mediaIDs, true
 	case "blockquote":
-		return p.parseBlockquote(node, &mediaIDs), mediaIDs
+		return p.parseBlockquote(node, &mediaIDs), mediaIDs, true
 	case "panel":
-		return p.parsePanel(node, &mediaIDs), mediaIDs
+		return p.parsePanel(node, &mediaIDs), mediaIDs, true
 	case "table":
-		return p.parseTable(node, &mediaIDs), mediaIDs
+		return p.parseTable(node, &mediaIDs), mediaIDs, true
 	case "mediaSingle":
-		return p.parseMediaSingle(node, &mediaIDs), mediaIDs
-	case "emoji":
-		return p.parseEmoji(node), mediaIDs
-	case "doc":
-		// Handle nested doc nodes
-		var builder strings.Builder
-		for _, child := range node.Content {
-			markdown, nodeMediaIDs := p.parseNode(child, depth)
-			mediaIDs = append(mediaIDs, nodeMediaIDs...)
-			builder.WriteString(markdown)
-		}
-		return builder.String(), mediaIDs
-	default:
-		// For unknown node types, try to parse content if it exists
-		if len(node.Content) > 0 {
-			var builder strings.Builder
-			for _, child := range node.Content {
-				markdown, nodeMediaIDs := p.parseNode(child, depth)
-				mediaIDs = append(mediaIDs, nodeMediaIDs...)
-				builder.WriteString(markdown)
-			}
-			return builder.String(), mediaIDs
-		}
-		return "", mediaIDs
+		return p.parseMediaSingle(node, &mediaIDs), mediaIDs, true
 	}
+	return "", nil, false
+}
+
+// parseContainerNode handles doc nodes and unknown types by parsing children.
+func (p *ADFParser) parseContainerNode(node ADFNode, depth int) (string, []string) {
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	var mediaIDs []string
+	var builder strings.Builder
+	for _, child := range node.Content {
+		markdown, nodeMediaIDs := p.parseNode(child, depth)
+		mediaIDs = append(mediaIDs, nodeMediaIDs...)
+		builder.WriteString(markdown)
+	}
+	return builder.String(), mediaIDs
 }
 
 // parseParagraph converts a paragraph node to markdown.
@@ -122,37 +143,64 @@ func (p *ADFParser) parseText(node ADFNode) string {
 
 	// Apply text marks (bold, italic, code, etc.)
 	for _, mark := range node.Marks {
-		if markType, ok := mark["type"].(string); ok {
-			switch markType {
-			case "strong":
-				text = "**" + text + "**"
-			case "em":
-				text = "*" + text + "*"
-			case "code":
-				text = "`" + text + "`"
-			case "strike":
-				text = "~~" + text + "~~"
-			case "underline":
-				text = "_" + text + "_"
-			case "link":
-				if href, ok := mark["attrs"].(map[string]any)["href"].(string); ok {
-					text = "[" + text + "](" + href + ")"
-				}
-			case "subsup":
-				if attrs, ok := mark["attrs"].(map[string]any); ok {
-					if supType, ok := attrs["type"].(string); ok {
-						switch supType {
-						case "sup":
-							text = "^" + text + "^"
-						case "sub":
-							text = "~" + text + "~"
-						}
-					}
-				}
-			}
-		}
+		text = p.applyMark(text, mark)
 	}
 	return text
+}
+
+// applyMark applies a single formatting mark to the text.
+func (p *ADFParser) applyMark(text string, mark map[string]any) string {
+	markType, ok := mark["type"].(string)
+	if !ok {
+		return text
+	}
+
+	switch markType {
+	case "strong":
+		return "**" + text + "**"
+	case "em":
+		return "*" + text + "*"
+	case "code":
+		return "`" + text + "`"
+	case "strike":
+		return "~~" + text + "~~"
+	case "underline":
+		return "_" + text + "_"
+	case "link":
+		return p.applyLinkMark(text, mark)
+	case "subsup":
+		return p.applySubSupMark(text, mark)
+	default:
+		return text
+	}
+}
+
+// applyLinkMark applies a link mark to the text.
+func (p *ADFParser) applyLinkMark(text string, mark map[string]any) string {
+	if href, ok := mark["attrs"].(map[string]any)["href"].(string); ok {
+		return "[" + text + "](" + href + ")"
+	}
+	return text
+}
+
+// applySubSupMark applies a superscript or subscript mark to the text.
+func (p *ADFParser) applySubSupMark(text string, mark map[string]any) string {
+	attrs, ok := mark["attrs"].(map[string]any)
+	if !ok {
+		return text
+	}
+	supType, ok := attrs["type"].(string)
+	if !ok {
+		return text
+	}
+	switch supType {
+	case "sup":
+		return "^" + text + "^"
+	case "sub":
+		return "~" + text + "~"
+	default:
+		return text
+	}
 }
 
 // parseMention converts a mention node to markdown.

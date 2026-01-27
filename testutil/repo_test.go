@@ -47,9 +47,9 @@ func TestGit(t *testing.T) {
 func TestGitE(t *testing.T) {
 	repo := NewTestRepo(t)
 
-	// Test successful command - use assert
+	// Test successful command
 	out, err := repo.GitE("status")
-	assert.NoError(t, err, "status command should succeed")
+	require.NoError(t, err, "status command should succeed")
 	assert.Contains(t, out, "On branch main", "status should show current branch")
 
 	// Test failing command - use assert

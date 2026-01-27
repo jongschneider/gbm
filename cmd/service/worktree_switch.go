@@ -38,97 +38,7 @@ Examples:
   path=$(gbm worktree switch feature-x 2>/dev/null)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			worktreeName := args[0]
-
-			// Get current worktree to track for history
-			var currentWorktree *git.Worktree
-
-			// First check if parent process passed the current worktree via env var
-			// This is used when switching from the TUI table
-			if envCurrentWt := os.Getenv("GBM_CURRENT_WORKTREE"); envCurrentWt != "" {
-				// Look up the worktree by name to get full info
-				wts, _ := svc.Git.ListWorktrees(false)
-				for i, wt := range wts {
-					if wt.Name == envCurrentWt {
-						currentWorktree = &wts[i]
-						break
-					}
-				}
-			} else {
-				// Otherwise, detect from working directory
-				currentWorktree, _ = svc.Git.GetCurrentWorktree() // Ignore error if not in a worktree
-			}
-
-			// Handle "-" to switch to previous worktree
-			if worktreeName == "-" {
-				state := svc.GetState()
-				if state.PreviousWorktree == "" {
-					if ShouldUseJSON() {
-						return HandleError(ErrNoPreviousWorktree.Error())
-					}
-					return ErrNoPreviousWorktree
-				}
-				worktreeName = state.PreviousWorktree
-				PrintMessage("Switching to previous worktree: %s\n", worktreeName)
-			}
-
-			// List all worktrees to find the target
-			worktrees, err := svc.Git.ListWorktrees(false)
-			if err != nil {
-				if ShouldUseJSON() {
-					return HandleError(fmt.Sprintf("failed to list worktrees: %v", err))
-				}
-				return fmt.Errorf("failed to list worktrees: %w", err)
-			}
-
-			// Find the worktree by name
-			var targetWorktree *git.Worktree
-			for i, wt := range worktrees {
-				if wt.Name == worktreeName {
-					targetWorktree = &worktrees[i]
-					break
-				}
-			}
-
-			if targetWorktree == nil {
-				if ShouldUseJSON() {
-					return HandleError(fmt.Sprintf("worktree '%s' not found", worktreeName))
-				}
-				return fmt.Errorf("worktree '%s' not found", worktreeName)
-			}
-
-			// Update state to track worktree history
-			state := svc.GetState()
-			if currentWorktree != nil && currentWorktree.Name != targetWorktree.Name {
-				// Save current worktree as previous before switching
-				state.PreviousWorktree = currentWorktree.Name
-			}
-			state.CurrentWorktree = targetWorktree.Name
-			_ = svc.SaveState() // Ignore errors - state tracking is optional
-
-			// Handle output based on format
-			if ShouldUseJSON() {
-				response := WorktreeSwitchResponse{
-					Worktree: WorktreeResponse{
-						Name:   targetWorktree.Name,
-						Path:   targetWorktree.Path,
-						Branch: targetWorktree.Branch,
-					},
-					Previous: state.PreviousWorktree,
-				}
-				return OutputJSONWithMessage(response, fmt.Sprintf("Switched to worktree '%s'", worktreeName))
-			}
-
-			// Universal pattern: Always output path to stdout, messages to stderr
-			// This enables shell integration without environment variables
-			// Users can suppress the message with: gbm wt switch foo 2>/dev/null
-
-			// Always output path to stdout (machine-readable)
-			fmt.Println(targetWorktree.Path)
-
-			// Always output message to stderr (human-readable)
-			PrintSuccess(fmt.Sprintf("Switched to worktree '%s'", worktreeName))
-			return nil
+			return runWorktreeSwitch(svc, args[0])
 		},
 	}
 
@@ -156,4 +66,108 @@ Examples:
 	}
 
 	return cmd
+}
+
+// runWorktreeSwitch handles the worktree switch logic.
+func runWorktreeSwitch(svc *Service, worktreeName string) error {
+	currentWorktree := detectCurrentWorktree(svc)
+
+	// Handle "-" to switch to previous worktree
+	var err error
+	worktreeName, err = resolvePreviousWorktree(svc, worktreeName)
+	if err != nil {
+		return err
+	}
+
+	// Find the target worktree
+	targetWorktree, err := findWorktreeByName(svc, worktreeName)
+	if err != nil {
+		return err
+	}
+
+	// Update state and output result
+	updateWorktreeState(svc, currentWorktree, targetWorktree)
+	return outputSwitchResult(targetWorktree, svc.GetState().PreviousWorktree)
+}
+
+// detectCurrentWorktree gets the current worktree from env var or working directory.
+func detectCurrentWorktree(svc *Service) *git.Worktree {
+	if envCurrentWt := os.Getenv("GBM_CURRENT_WORKTREE"); envCurrentWt != "" {
+		wts, _ := svc.Git.ListWorktrees(false)
+		for i, wt := range wts {
+			if wt.Name == envCurrentWt {
+				return &wts[i]
+			}
+		}
+	}
+	current, _ := svc.Git.GetCurrentWorktree()
+	return current
+}
+
+// resolvePreviousWorktree resolves "-" to the previous worktree name.
+func resolvePreviousWorktree(svc *Service, name string) (string, error) {
+	if name != "-" {
+		return name, nil
+	}
+
+	state := svc.GetState()
+	if state.PreviousWorktree == "" {
+		if ShouldUseJSON() {
+			return "", HandleError(ErrNoPreviousWorktree.Error())
+		}
+		return "", ErrNoPreviousWorktree
+	}
+	PrintMessage("Switching to previous worktree: %s\n", state.PreviousWorktree)
+	return state.PreviousWorktree, nil
+}
+
+// findWorktreeByName finds a worktree by name from the list.
+func findWorktreeByName(svc *Service, name string) (*git.Worktree, error) {
+	worktrees, err := svc.Git.ListWorktrees(false)
+	if err != nil {
+		if ShouldUseJSON() {
+			return nil, HandleError(fmt.Sprintf("failed to list worktrees: %v", err))
+		}
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	for i, wt := range worktrees {
+		if wt.Name == name {
+			return &worktrees[i], nil
+		}
+	}
+
+	if ShouldUseJSON() {
+		return nil, HandleError(fmt.Sprintf("worktree '%s' not found", name))
+	}
+	return nil, fmt.Errorf("worktree '%s' not found", name)
+}
+
+// updateWorktreeState updates the state with current and previous worktree info.
+func updateWorktreeState(svc *Service, current, target *git.Worktree) {
+	state := svc.GetState()
+	if current != nil && current.Name != target.Name {
+		state.PreviousWorktree = current.Name
+	}
+	state.CurrentWorktree = target.Name
+	_ = svc.SaveState()
+}
+
+// outputSwitchResult handles the output after switching worktrees.
+func outputSwitchResult(target *git.Worktree, previous string) error {
+	if ShouldUseJSON() {
+		response := WorktreeSwitchResponse{
+			Worktree: WorktreeResponse{
+				Name:   target.Name,
+				Path:   target.Path,
+				Branch: target.Branch,
+			},
+			Previous: previous,
+		}
+		return OutputJSONWithMessage(response, fmt.Sprintf("Switched to worktree '%s'", target.Name))
+	}
+
+	fmt.Println(target.Path)
+	PrintSuccess(fmt.Sprintf("Switched to worktree '%s'", target.Name))
+	return nil
 }

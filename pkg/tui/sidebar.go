@@ -52,7 +52,7 @@ func (s *Sidebar) Init() tea.Cmd {
 func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.Type {
+		switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 		case tea.KeyUp:
 			if s.focusedIdx > 0 {
 				s.focusedIdx--
@@ -111,7 +111,7 @@ func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
 
 	// Add error badge if section has validation errors
 	if section.HasError {
-		label = label + " ⚠"
+		label += " ⚠"
 	}
 
 	// Apply focus styling

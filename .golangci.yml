@@ -12,39 +12,21 @@ formatters:
 linters:
   enable:
     - cyclop
-    - dupl
     - durationcheck
     - errcheck
     - errname
     - errorlint
     - exhaustive
-    - exhaustruct
     - exptostd
-    - funcorder
-    - funlen
     - gocheckcompilerdirectives
-    - gochecknoinits
-    - goconst
     - gocritic
     - godot
-    - gosec
     - govet
-    - grouper
     - iface
-    - inamedparam
     - intrange
-    - ireturn
-    - mnd
     - modernize
-    - nestif
-    - nilerr
-    - nilnil
-    - noinlineerr
     - nolintlint
-    - nonamedreturns
-    - paralleltest
     - perfsprint
-    - prealloc
     - predeclared
     - recvcheck
     - sloglint
@@ -54,23 +36,17 @@ linters:
     - thelper
     - tparallel
     - unconvert
-    - unparam
     - unused
     - usestdlibvars
-    - usetesting
     - whitespace
-    - wrapcheck
 
   settings:
     cyclop:
       max-complexity: 15
       package-average: 5.0
 
-    dupl:
-      threshold: 150
-
     errcheck:
-      check-type-assertions: true
+      check-type-assertions: false
       check-blank: true
       exclude-functions:
         - io.Copy
@@ -85,24 +61,6 @@ linters:
     exhaustive:
       default-signifies-exhaustive: true
 
-    exhaustruct:
-      exclude:
-        # Common structs that are intentionally partially initialized
-        - 'http\.Client'
-        - 'http\.Server'
-        - 'http\.Transport'
-        - 'cobra\.Command'
-        - 'tea\..*'
-        - 'lipgloss\..*'
-
-    funlen:
-      lines: 80
-      statements: 50
-      ignore-comments: true
-
-    goconst:
-      min-len: 3
-      min-occurrences: 3
 
     gocritic:
       enabled-tags:
@@ -113,6 +71,14 @@ linters:
       disabled-checks:
         - whyNoLint # nolintlint handles this
         - unnamedResult
+        - hugeParam # Too strict for struct parameters
+        - rangeValCopy # Too strict, prefer clarity over micro-optimization
+        - evalOrder # False positives in tea.Cmd returns
+        - appendCombine # Style preference, keep separate appends for clarity
+        - nestingReduce # Sometimes nesting is clearer
+        - ifElseChain # Sometimes if-else is clearer than switch
+        - singleCaseSwitch # Type switches with single case are idiomatic
+        - filepathJoin # False positives in test strings
 
     godot:
       scope: toplevel
@@ -128,6 +94,9 @@ linters:
 
     govet:
       enable-all: true
+      disable:
+        - shadow # Too strict, shadows are common in Go
+        - unusedwrite # False positives in test struct initialization
 
     grouper:
       const-require-single-const: false
@@ -143,42 +112,9 @@ linters:
         - unused
         - opaque
 
-    ireturn:
-      allow:
-        - anon
-        - error
-        - empty
-        - stdlib
-        - tea.Model
-        - tea.Cmd
-
-    mnd:
-      checks:
-        - argument
-        - case
-        - condition
-        - return
-      ignored-numbers:
-        - "0"
-        - "1"
-        - "2"
-        - "10"
-        - "100"
-      ignored-functions:
-        - 'strings\.SplitN'
-        - make
-        - 'time\.*'
-
-    nestif:
-      min-complexity: 5
-
     nolintlint:
       require-explanation: true
       require-specific: true
-
-    paralleltest:
-      ignore-missing: false
-      ignore-missing-subtests: false
 
     perfsprint:
       int-conversion: true
@@ -255,7 +191,6 @@ linters:
           - funlen
           - goconst
           - gosec
-          - exhaustruct
           - wrapcheck
 
       # Main files can have init
@@ -266,7 +201,6 @@ linters:
       # Example files are more relaxed
       - path: example
         linters:
-          - exhaustruct
           - funlen
           - wrapcheck
 

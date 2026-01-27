@@ -6,11 +6,17 @@ import (
 )
 
 func main() {
+	exitCode := run()
+	os.Exit(exitCode)
+}
+
+func run() int {
 	defer service.CloseLogFile()
 
 	err := service.Execute()
 	if err != nil {
 		service.PrintError("%v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

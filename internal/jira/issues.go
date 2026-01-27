@@ -1,3 +1,4 @@
+// Package jira provides JIRA API integration for fetching issues and generating branch names.
 package jira
 
 import (
@@ -88,7 +89,7 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 	var cache *IssuesCache
 	var cachedUser string
 	if s.store != nil {
-		cache, cachedUser, _ = s.store.Load() // Ignore errors
+		cache, cachedUser, _ = s.store.Load() //nolint:errcheck // Cache miss is expected
 	}
 
 	// Try to use cache first if valid
@@ -149,7 +150,8 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 
 	// Persist the cache through the store
 	if s.store != nil {
-		_ = s.store.Save(freshCache, user) // Ignore errors - caching is optional
+		//nolint:errcheck // Caching is optional - errors are non-fatal
+		s.store.Save(freshCache, user)
 	}
 
 	return issues, nil
@@ -158,21 +160,15 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 // GetJiraIssue fetches detailed information for a specific JIRA issue using --raw JSON output
 // Returns fully populated JiraTicketDetails.
 func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, error) {
-	// Check if JIRA CLI is available
 	if !s.IsJiraCliAvailable() {
 		return nil, ErrJiraCliNotFound
 	}
 
-	// Get raw JSON data using jira CLI
 	cmd := exec.Command("jira", "issue", "view", key, "--raw")
 
 	if dryRun {
 		printDryRun(cmd)
-		return &JiraTicketDetails{
-			Key:     key,
-			Summary: "Sample ticket",
-			Status:  "Open",
-		}, nil
+		return &JiraTicketDetails{Key: key, Summary: "Sample ticket", Status: "Open"}, nil
 	}
 
 	output, err := cmd.Output()
@@ -180,78 +176,88 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 		return nil, fmt.Errorf("failed to get JIRA issue: %w", err)
 	}
 
-	// Parse the JSON response
 	var jiraResponse jiraRawResponse
 	if err := json.Unmarshal(output, &jiraResponse); err != nil {
 		return nil, fmt.Errorf("failed to parse JIRA response: %w", err)
 	}
 
-	// Build the ticket details from parsed JSON
+	return buildTicketDetails(&jiraResponse), nil
+}
+
+// buildTicketDetails constructs a JiraTicketDetails from the raw API response.
+func buildTicketDetails(resp *jiraRawResponse) *JiraTicketDetails {
 	ticket := &JiraTicketDetails{
-		Key:     jiraResponse.Key,
-		Summary: jiraResponse.Fields.Summary,
-		Status:  jiraResponse.Fields.Status.Name,
-		URL:     formatJiraURL(jiraResponse.Self, jiraResponse.Key),
+		Key:     resp.Key,
+		Summary: resp.Fields.Summary,
+		Status:  resp.Fields.Status.Name,
+		URL:     formatJiraURL(resp.Self, resp.Key),
+		Labels:  resp.Fields.Labels,
 	}
 
-	// Parse created date
-	if jiraResponse.Fields.Created != "" {
-		if createdDate, err := time.Parse(time.RFC3339, jiraResponse.Fields.Created); err == nil {
+	parseBasicFields(ticket, resp)
+	parseParentAndChildren(ticket, resp)
+	ticket.Attachments = parseAttachments(resp.Fields.Attachment)
+	ticket.Comments = parseComments(resp.Fields.Comment.Comments)
+	setLatestComment(ticket)
+
+	if resp.Fields.Description != nil {
+		ticket.Description = parseDescription(resp.Fields.Description)
+	}
+
+	ticket.IssueLinks = parseIssueLinks(resp.Fields.IssueLinks, ticket.Parent, ticket.Children)
+	return ticket
+}
+
+// parseBasicFields parses dates, priority, reporter, and assignee.
+func parseBasicFields(ticket *JiraTicketDetails, resp *jiraRawResponse) {
+	if resp.Fields.Created != "" {
+		if createdDate, err := time.Parse(time.RFC3339, resp.Fields.Created); err == nil {
 			ticket.Created = createdDate
 		}
 	}
 
-	// Add priority
-	if jiraResponse.Fields.Priority.Name != "" {
-		ticket.Priority = jiraResponse.Fields.Priority.Name
+	if resp.Fields.Priority.Name != "" {
+		ticket.Priority = resp.Fields.Priority.Name
 	}
 
-	// Add reporter
-	if jiraResponse.Fields.Reporter.DisplayName != "" {
-		reporter := jiraResponse.Fields.Reporter.DisplayName
-		if jiraResponse.Fields.Reporter.EmailAddress != "" {
-			reporter += " (" + jiraResponse.Fields.Reporter.EmailAddress + ")"
-		}
-		ticket.Reporter = reporter
+	if resp.Fields.Reporter.DisplayName != "" {
+		ticket.Reporter = formatUserFromRaw(resp.Fields.Reporter)
 	}
 
-	// Add assignee (can be null)
-	if jiraResponse.Fields.Assignee != nil {
-		assignee := jiraResponse.Fields.Assignee.DisplayName
-		if jiraResponse.Fields.Assignee.EmailAddress != "" {
-			assignee += " (" + jiraResponse.Fields.Assignee.EmailAddress + ")"
-		}
-		ticket.Assignee = assignee
+	if resp.Fields.Assignee != nil {
+		ticket.Assignee = formatUserFromRaw(*resp.Fields.Assignee)
 	}
 
-	// Add due date (can be null)
-	if jiraResponse.Fields.DueDate != nil && *jiraResponse.Fields.DueDate != "" {
-		if dueDate, err := time.Parse("2006-01-02", *jiraResponse.Fields.DueDate); err == nil {
+	if resp.Fields.DueDate != nil && *resp.Fields.DueDate != "" {
+		if dueDate, err := time.Parse("2006-01-02", *resp.Fields.DueDate); err == nil {
 			ticket.DueDate = &dueDate
 		}
 	}
+}
 
-	// Add epic information (backward compatibility)
-	if jiraResponse.Fields.Parent != nil {
-		ticket.Epic = jiraResponse.Fields.Parent.Key
+// formatUserFromRaw formats a jiraRawAuthor to a display string.
+func formatUserFromRaw(author jiraRawAuthor) string {
+	return formatUserWithEmail(author.DisplayName, author.EmailAddress)
+}
+
+// formatUserWithEmail formats a display name with optional email.
+func formatUserWithEmail(displayName, email string) string {
+	if email != "" {
+		return displayName + " (" + email + ")"
+	}
+	return displayName
+}
+
+// parseParentAndChildren parses parent issue and subtasks.
+func parseParentAndChildren(ticket *JiraTicketDetails, resp *jiraRawResponse) {
+	if resp.Fields.Parent != nil {
+		ticket.Epic = resp.Fields.Parent.Key
+		ticket.Parent = parseLinkedIssueFromParent(resp.Fields.Parent)
 	}
 
-	// Parse parent issue
-	if jiraResponse.Fields.Parent != nil {
-		ticket.Parent = &LinkedIssue{
-			ID:        jiraResponse.Fields.Parent.ID,
-			Key:       jiraResponse.Fields.Parent.Key,
-			Summary:   jiraResponse.Fields.Parent.Fields.Summary,
-			Status:    jiraResponse.Fields.Parent.Fields.Status.Name,
-			Priority:  jiraResponse.Fields.Parent.Fields.Priority.Name,
-			IssueType: jiraResponse.Fields.Parent.Fields.IssueType.Name,
-		}
-	}
-
-	// Parse children (subtasks)
-	if len(jiraResponse.Fields.Subtasks) > 0 {
-		ticket.Children = make([]LinkedIssue, 0, len(jiraResponse.Fields.Subtasks))
-		for _, subtask := range jiraResponse.Fields.Subtasks {
+	if len(resp.Fields.Subtasks) > 0 {
+		ticket.Children = make([]LinkedIssue, 0, len(resp.Fields.Subtasks))
+		for _, subtask := range resp.Fields.Subtasks {
 			ticket.Children = append(ticket.Children, LinkedIssue{
 				ID:        subtask.ID,
 				Key:       subtask.Key,
@@ -262,158 +268,181 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 			})
 		}
 	}
+}
 
-	// Parse labels
-	ticket.Labels = jiraResponse.Fields.Labels
+// parseLinkedIssueFromParent converts a parent issue to LinkedIssue.
+func parseLinkedIssueFromParent(parent *jiraParent) *LinkedIssue {
+	return &LinkedIssue{
+		ID:        parent.ID,
+		Key:       parent.Key,
+		Summary:   parent.Fields.Summary,
+		Status:    parent.Fields.Status.Name,
+		Priority:  parent.Fields.Priority.Name,
+		IssueType: parent.Fields.IssueType.Name,
+	}
+}
 
-	// Parse attachments
-	ticket.Attachments = make([]Attachment, 0, len(jiraResponse.Fields.Attachment))
-	for _, rawAttachment := range jiraResponse.Fields.Attachment {
-		attachment := Attachment{
-			ID:       rawAttachment.ID,
-			Filename: rawAttachment.Filename,
-			Author: User{
-				DisplayName: rawAttachment.Author.DisplayName,
-				Email:       rawAttachment.Author.EmailAddress,
-				AccountID:   rawAttachment.Author.AccountID,
-				AvatarURL:   rawAttachment.Author.AvatarURLs.Px48,
-			},
-			Created:  rawAttachment.Created,
-			Size:     rawAttachment.Size,
-			MimeType: rawAttachment.MimeType,
-			Content:  rawAttachment.Content,
-		}
-		ticket.Attachments = append(ticket.Attachments, attachment)
+// parseAttachments converts raw attachments to Attachment slice.
+func parseAttachments(rawAttachments []jiraRawAttachment) []Attachment {
+	attachments := make([]Attachment, 0, len(rawAttachments))
+	for _, raw := range rawAttachments {
+		attachments = append(attachments, Attachment{
+			ID:       raw.ID,
+			Filename: raw.Filename,
+			Author:   userFromRawAuthor(raw.Author),
+			Created:  raw.Created,
+			Size:     raw.Size,
+			MimeType: raw.MimeType,
+			Content:  raw.Content,
+		})
+	}
+	return attachments
+}
+
+// userFromRawAuthor converts a jiraRawAuthor to a User.
+func userFromRawAuthor(author jiraRawAuthor) User {
+	return User{
+		DisplayName: author.DisplayName,
+		Email:       author.EmailAddress,
+		AccountID:   author.AccountID,
+		AvatarURL:   author.AvatarURLs.Px48,
+	}
+}
+
+// parseComments converts raw comments to Comment slice.
+func parseComments(rawComments []jiraRawComment) []Comment {
+	comments := make([]Comment, 0, len(rawComments))
+	for _, raw := range rawComments {
+		comments = append(comments, parseComment(raw))
+	}
+	return comments
+}
+
+// parseComment converts a single raw comment to Comment.
+func parseComment(raw jiraRawComment) Comment {
+	comment := Comment{
+		ID:      raw.ID,
+		Author:  userFromRawAuthor(raw.Author),
+		Body:    raw.Body,
+		Created: raw.Created,
+		Updated: raw.Updated,
 	}
 
-	// Parse all comments (not just latest)
-	ticket.Comments = make([]Comment, 0, len(jiraResponse.Fields.Comment.Comments))
-	for _, rawComment := range jiraResponse.Fields.Comment.Comments {
-		comment := Comment{
-			ID: rawComment.ID,
-			Author: User{
-				DisplayName: rawComment.Author.DisplayName,
-				Email:       rawComment.Author.EmailAddress,
-				AccountID:   rawComment.Author.AccountID,
-				AvatarURL:   rawComment.Author.AvatarURLs.Px48,
-			},
-			Body:    rawComment.Body,
-			Created: rawComment.Created,
-			Updated: rawComment.Updated,
+	if raw.Created != "" {
+		if timestamp, err := time.Parse(time.RFC3339, raw.Created); err == nil {
+			comment.Timestamp = timestamp
 		}
+	}
 
-		// Parse timestamp for backward compatibility
-		if rawComment.Created != "" {
-			if timestamp, err := time.Parse(time.RFC3339, rawComment.Created); err == nil {
-				comment.Timestamp = timestamp
+	comment.Content = extractCommentText(raw.Body)
+
+	parser := NewADFParser()
+	_, mediaIDs, _ := parser.ParseToMarkdown(raw.Body) //nolint:errcheck // Best-effort markdown parsing
+	comment.Attachments = mediaIDs
+
+	return comment
+}
+
+// extractCommentText extracts plain text from ADF body.
+func extractCommentText(body ADFDocument) string {
+	var builder strings.Builder
+	for _, content := range body.Content {
+		for _, textContent := range content.Content {
+			if textContent.Text != "" {
+				builder.WriteString(textContent.Text)
 			}
 		}
-
-		// Extract plain text content for backward compatibility
-		var commentText strings.Builder
-		for _, content := range rawComment.Body.Content {
-			for _, textContent := range content.Content {
-				if textContent.Text != "" {
-					commentText.WriteString(textContent.Text)
-				}
-			}
-		}
-		comment.Content = commentText.String()
-
-		// Extract media IDs from comment body
-		parser := NewADFParser()
-		_, mediaIDs, _ := parser.ParseToMarkdown(rawComment.Body)
-		comment.Attachments = mediaIDs
-
-		ticket.Comments = append(ticket.Comments, comment)
 	}
+	return builder.String()
+}
 
-	// Set latest comment for backward compatibility
-	if len(ticket.Comments) > 0 {
-		// Create a pointer copy of the last comment
-		latest := ticket.Comments[len(ticket.Comments)-1]
-		ticket.LatestComment = &Comment{
-			ID:          latest.ID,
-			Author:      latest.Author,
-			Content:     latest.Content,
-			Timestamp:   latest.Timestamp,
-			Body:        latest.Body,
-			Created:     latest.Created,
-			Updated:     latest.Updated,
-			Attachments: latest.Attachments,
-		}
+// setLatestComment sets the latest comment for backward compatibility.
+func setLatestComment(ticket *JiraTicketDetails) {
+	if len(ticket.Comments) == 0 {
+		return
 	}
-
-	// Parse description
-	if jiraResponse.Fields.Description != nil {
-		ticket.Description = parseDescription(jiraResponse.Fields.Description)
+	latest := ticket.Comments[len(ticket.Comments)-1]
+	ticket.LatestComment = &Comment{
+		ID:          latest.ID,
+		Author:      latest.Author,
+		Content:     latest.Content,
+		Timestamp:   latest.Timestamp,
+		Body:        latest.Body,
+		Created:     latest.Created,
+		Updated:     latest.Updated,
+		Attachments: latest.Attachments,
 	}
+}
 
-	// Build a set of child keys for deduplication
+// parseIssueLinks converts raw issue links with deduplication.
+func parseIssueLinks(rawLinks []jiraRawIssueLink, parent *LinkedIssue, children []LinkedIssue) []IssueLink {
 	childKeys := make(map[string]bool)
-	for _, child := range ticket.Children {
+	for _, child := range children {
 		childKeys[child.Key] = true
 	}
 
-	// Parse issue links
-	ticket.IssueLinks = make([]IssueLink, 0, len(jiraResponse.Fields.IssueLinks))
-	for _, rawLink := range jiraResponse.Fields.IssueLinks {
-		link := IssueLink{
-			ID: rawLink.ID,
-			Type: IssueLinkType{
-				ID:      rawLink.Type.ID,
-				Name:    rawLink.Type.Name,
-				Inward:  rawLink.Type.Inward,
-				Outward: rawLink.Type.Outward,
-			},
-		}
+	links := make([]IssueLink, 0, len(rawLinks))
+	for _, raw := range rawLinks {
+		link := parseIssueLink(raw)
+		linkedKey := getLinkKey(link)
 
-		// Parse inward issue (issue this ticket links to)
-		if rawLink.InwardIssue != nil {
-			link.InwardIssue = &LinkedIssue{
-				ID:        rawLink.InwardIssue.ID,
-				Key:       rawLink.InwardIssue.Key,
-				Summary:   rawLink.InwardIssue.Fields.Summary,
-				Status:    rawLink.InwardIssue.Fields.Status.Name,
-				Priority:  rawLink.InwardIssue.Fields.Priority.Name,
-				IssueType: rawLink.InwardIssue.Fields.IssueType.Name,
-			}
-		}
-
-		// Parse outward issue (issue that links to this ticket)
-		if rawLink.OutwardIssue != nil {
-			link.OutwardIssue = &LinkedIssue{
-				ID:        rawLink.OutwardIssue.ID,
-				Key:       rawLink.OutwardIssue.Key,
-				Summary:   rawLink.OutwardIssue.Fields.Summary,
-				Status:    rawLink.OutwardIssue.Fields.Status.Name,
-				Priority:  rawLink.OutwardIssue.Fields.Priority.Name,
-				IssueType: rawLink.OutwardIssue.Fields.IssueType.Name,
-			}
-		}
-
-		// Get the linked issue key for deduplication checks
-		linkedKey := ""
-		if link.InwardIssue != nil {
-			linkedKey = link.InwardIssue.Key
-		} else if link.OutwardIssue != nil {
-			linkedKey = link.OutwardIssue.Key
-		}
-
-		// Skip links that reference the parent issue (deduplicate parent from linked issues)
-		if ticket.Parent != nil && linkedKey == ticket.Parent.Key {
+		// Skip duplicates (parent or children)
+		if parent != nil && linkedKey == parent.Key {
 			continue
 		}
-
-		// Skip links that reference child issues (deduplicate children from linked issues)
 		if childKeys[linkedKey] {
 			continue
 		}
 
-		ticket.IssueLinks = append(ticket.IssueLinks, link)
+		links = append(links, link)
+	}
+	return links
+}
+
+// parseIssueLink converts a single raw issue link.
+func parseIssueLink(raw jiraRawIssueLink) IssueLink {
+	link := IssueLink{
+		ID: raw.ID,
+		Type: IssueLinkType{
+			ID:      raw.Type.ID,
+			Name:    raw.Type.Name,
+			Inward:  raw.Type.Inward,
+			Outward: raw.Type.Outward,
+		},
 	}
 
-	return ticket, nil
+	if raw.InwardIssue != nil {
+		link.InwardIssue = linkedIssueFromRaw(raw.InwardIssue)
+	}
+
+	if raw.OutwardIssue != nil {
+		link.OutwardIssue = linkedIssueFromRaw(raw.OutwardIssue)
+	}
+
+	return link
+}
+
+// linkedIssueFromRaw converts a jiraRawLinkedIssue to a LinkedIssue.
+func linkedIssueFromRaw(raw *jiraRawLinkedIssue) *LinkedIssue {
+	return &LinkedIssue{
+		ID:        raw.ID,
+		Key:       raw.Key,
+		Summary:   raw.Fields.Summary,
+		Status:    raw.Fields.Status.Name,
+		Priority:  raw.Fields.Priority.Name,
+		IssueType: raw.Fields.IssueType.Name,
+	}
+}
+
+// getLinkKey returns the key of the linked issue.
+func getLinkKey(link IssueLink) string {
+	if link.InwardIssue != nil {
+		return link.InwardIssue.Key
+	}
+	if link.OutwardIssue != nil {
+		return link.OutwardIssue.Key
+	}
+	return ""
 }
 
 // parseDescription converts a JIRA ADF document to clean markdown format
@@ -424,6 +453,6 @@ func parseDescription(desc *ADFDocument) string {
 	}
 
 	parser := NewADFParser()
-	markdown, _, _ := parser.ParseToMarkdown(*desc)
+	markdown, _, _ := parser.ParseToMarkdown(*desc) //nolint:errcheck // Best-effort markdown parsing
 	return markdown
 }

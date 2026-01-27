@@ -58,7 +58,6 @@ type JiraForm struct {
 	focusedFieldIdx                 int
 	width                           int
 	height                          int
-	sectionIdx                      int
 	submitted                       bool
 	cancelled                       bool
 	enabled                         bool
@@ -430,7 +429,7 @@ func (f *JiraForm) View() string {
 
 // handleKeyMsg processes keyboard input.
 func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
+	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
 		// Navigate to next field based on enabled state
 		f.focusedField().Blur()
@@ -588,6 +587,26 @@ func (f *JiraForm) Validate() []string {
 	return errs
 }
 
+// allFields returns all form fields in order for index-based access.
+func (f *JiraForm) allFields() []tui.Field {
+	return []tui.Field{
+		f.enableField,                     // 0
+		f.serverHostField,                 // 1
+		f.serverUserField,                 // 2
+		f.serverTokenField,                // 3
+		f.filtersStatusField,              // 4
+		f.filtersPriorityField,            // 5
+		f.filtersTypeField,                // 6
+		f.attachmentsEnabledField,         // 7
+		f.attachmentsMaxSizeField,         // 8
+		f.attachmentsDirField,             // 9
+		f.markdownIncludeCommentsField,    // 10
+		f.markdownIncludeAttachmentsField, // 11
+		f.markdownUseRelativeLinksField,   // 12
+		f.markdownFilenamePatternField,    // 13
+	}
+}
+
 // focusedField returns the currently focused field.
 func (f *JiraForm) focusedField() tui.Field {
 	if !f.enabled && f.focusedFieldIdx != 0 {
@@ -595,42 +614,11 @@ func (f *JiraForm) focusedField() tui.Field {
 		return f.enableField
 	}
 
-	switch f.focusedFieldIdx {
-	case 0:
-		return f.enableField
-	// Server fields (1-3)
-	case 1:
-		return f.serverHostField
-	case 2:
-		return f.serverUserField
-	case 3:
-		return f.serverTokenField
-	// Filters fields (4-6)
-	case 4:
-		return f.filtersStatusField
-	case 5:
-		return f.filtersPriorityField
-	case 6:
-		return f.filtersTypeField
-	// Attachments fields (7-9)
-	case 7:
-		return f.attachmentsEnabledField
-	case 8:
-		return f.attachmentsMaxSizeField
-	case 9:
-		return f.attachmentsDirField
-	// Markdown fields (10-13)
-	case 10:
-		return f.markdownIncludeCommentsField
-	case 11:
-		return f.markdownIncludeAttachmentsField
-	case 12:
-		return f.markdownUseRelativeLinksField
-	case 13:
-		return f.markdownFilenamePatternField
-	default:
-		return f.enableField
+	allFields := f.allFields()
+	if f.focusedFieldIdx >= 0 && f.focusedFieldIdx < len(allFields) {
+		return allFields[f.focusedFieldIdx]
 	}
+	return f.enableField
 }
 
 // updateFocusedField updates the focused field after Update.
@@ -673,7 +661,7 @@ func (f *JiraForm) GetValue() map[string]any {
 	data["jira_enabled"] = f.enabled
 
 	if f.enabled {
-		// Server
+		// Type assertion failures return zero value which is acceptable
 		hostVal, _ := f.serverHostField.GetValue().(string)
 		userVal, _ := f.serverUserField.GetValue().(string)
 		tokenVal, _ := f.serverTokenField.GetValue().(string)
@@ -681,7 +669,7 @@ func (f *JiraForm) GetValue() map[string]any {
 		data["jira_username"] = userVal
 		data["jira_api_token"] = tokenVal
 
-		// Filters
+		// Type assertion failures return zero value which is acceptable
 		statusVal, _ := f.filtersStatusField.GetValue().(string)
 		priorityVal, _ := f.filtersPriorityField.GetValue().(string)
 		typeVal, _ := f.filtersTypeField.GetValue().(string)
@@ -689,7 +677,7 @@ func (f *JiraForm) GetValue() map[string]any {
 		data["jira_filters_priority"] = priorityVal
 		data["jira_filters_type"] = typeVal
 
-		// Attachments
+		// Type assertion failures return zero value which is acceptable
 		attachEnabledVal, _ := f.attachmentsEnabledField.GetValue().(bool)
 		attachMaxVal, _ := f.attachmentsMaxSizeField.GetValue().(string)
 		attachDirVal, _ := f.attachmentsDirField.GetValue().(string)
@@ -697,7 +685,7 @@ func (f *JiraForm) GetValue() map[string]any {
 		data["jira_attachments_max_size"] = attachMaxVal
 		data["jira_attachments_dir"] = attachDirVal
 
-		// Markdown
+		// Type assertion failures return zero value which is acceptable
 		mdCommentsVal, _ := f.markdownIncludeCommentsField.GetValue().(bool)
 		mdAttachVal, _ := f.markdownIncludeAttachmentsField.GetValue().(bool)
 		mdRelativeLinkVal, _ := f.markdownUseRelativeLinksField.GetValue().(bool)

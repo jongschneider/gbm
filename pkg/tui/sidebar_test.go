@@ -15,6 +15,7 @@ func TestSidebar_Create(t *testing.T) {
 		{
 			name: "new sidebar has 4 sections",
 			expect: func(t *testing.T, sb *Sidebar) {
+				t.Helper()
 				assert.Len(t, sb.sections, 4)
 				assert.Equal(t, "Basics", sb.sections[0].Name)
 				assert.Equal(t, "JIRA", sb.sections[1].Name)
@@ -25,12 +26,14 @@ func TestSidebar_Create(t *testing.T) {
 		{
 			name: "basics section is expanded by default",
 			expect: func(t *testing.T, sb *Sidebar) {
+				t.Helper()
 				assert.True(t, sb.sections[0].Expanded)
 			},
 		},
 		{
 			name: "focused index starts at 0",
 			expect: func(t *testing.T, sb *Sidebar) {
+				t.Helper()
 				assert.Equal(t, 0, sb.focusedIdx)
 			},
 		},

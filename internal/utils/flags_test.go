@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetStringFlagOrConfig(t *testing.T) {
@@ -58,7 +59,7 @@ func TestGetStringFlagOrConfig(t *testing.T) {
 
 			if tt.setFlag {
 				err := cmd.Flags().Set("test-flag", tt.flagValue)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			result := GetStringFlagOrConfig(cmd, "test-flag", tt.configValue)
@@ -114,7 +115,7 @@ func TestGetBoolFlagOrConfig(t *testing.T) {
 					val = "true"
 				}
 				err := cmd.Flags().Set("test-flag", val)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			result := GetBoolFlagOrConfig(cmd, "test-flag", tt.configValue)
@@ -180,7 +181,7 @@ func TestGetIntFlagOrConfig(t *testing.T) {
 
 			if tt.setFlag {
 				err := cmd.Flags().Set("test-flag", strconv.Itoa(tt.flagValue))
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			result := GetIntFlagOrConfig(cmd, "test-flag", tt.configValue)

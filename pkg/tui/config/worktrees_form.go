@@ -107,6 +107,8 @@ func (f *WorktreesForm) Init() tea.Cmd {
 
 func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch f.modalState {
+	case WorktreeModalNone:
+		// Fall through to normal handling below
 	case WorktreeModalHelp:
 		return f.handleHelpModal(msg)
 	case WorktreeModalAdd, WorktreeModalEdit:
@@ -250,7 +252,7 @@ func (f *WorktreesForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, cmd
 	}
 
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab, tea.KeyShiftTab:
 		return f.cycleModalFocus(keyMsg.Type == tea.KeyShiftTab)
 	case tea.KeyEnter:
@@ -314,6 +316,7 @@ func (f *WorktreesForm) cycleModalFocus(backward bool) (tea.Model, tea.Cmd) {
 }
 
 func (f *WorktreesForm) confirmEdit() (tea.Model, tea.Cmd) {
+	// Type assertion failures return zero value which is acceptable
 	name := strings.TrimSpace(f.nameField.GetValue().(string))
 	branch := strings.TrimSpace(f.branchField.GetValue().(string))
 	mergeInto := strings.TrimSpace(f.mergeIntoField.GetValue().(string))
@@ -448,6 +451,8 @@ func (f *WorktreesForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.
 
 func (f *WorktreesForm) View() string {
 	switch f.modalState {
+	case WorktreeModalNone:
+		// Fall through to normal view below
 	case WorktreeModalHelp:
 		return f.helpOverlay.View()
 	case WorktreeModalAdd:

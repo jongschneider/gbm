@@ -1,3 +1,4 @@
+// Package utils provides shared utility functions for the gbm CLI.
 package utils
 
 import (
@@ -50,7 +51,7 @@ func GetTemplateVars(repoRoot string) map[string]string {
 //	ExpandPath("~/dev/branches", "/path/to/repo") → "/home/user/dev/branches"
 //	ExpandPath("../worktrees", "/path/to/repo") → "/path/to/worktrees"
 //	ExpandPath("/absolute/path", "/path/to/repo") → "/absolute/path"
-func ExpandPath(path string, repoRoot string) string {
+func ExpandPath(path, repoRoot string) string {
 	// Expand ~
 	if strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()

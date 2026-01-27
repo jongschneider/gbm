@@ -15,6 +15,7 @@ func TestConfigModel_Create(t *testing.T) {
 		{
 			name: "creates with sidebar as initial model",
 			expect: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
 				assert.NotNil(t, m.sidebar)
 				assert.NotNil(t, m.nav)
 				assert.NotNil(t, m.theme)
@@ -23,6 +24,7 @@ func TestConfigModel_Create(t *testing.T) {
 		{
 			name: "navigator has sidebar on stack",
 			expect: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
 				assert.Equal(t, 1, m.nav.Depth())
 				assert.Equal(t, m.sidebar, m.nav.Current())
 			},
@@ -30,6 +32,7 @@ func TestConfigModel_Create(t *testing.T) {
 		{
 			name: "creates with empty state by default",
 			expect: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
 				assert.NotNil(t, m.state)
 				assert.Empty(t, m.state.DefaultBranch)
 			},

@@ -119,6 +119,77 @@ type JiraFilters struct {
 	Reverse    bool     `yaml:"reverse,omitempty"`
 }
 
+// jiraRawAuthor represents author information in raw JIRA responses.
+type jiraRawAuthor struct {
+	DisplayName  string `json:"displayName"`
+	EmailAddress string `json:"emailAddress"`
+	AccountID    string `json:"accountId"`
+	AvatarURLs   struct {
+		Px48 string `json:"48x48"`
+	} `json:"avatarUrls"`
+}
+
+// jiraRawIssueFields represents common fields for parent/subtask/linked issues.
+type jiraRawIssueFields struct {
+	Summary string `json:"summary"`
+	Status  struct {
+		Name string `json:"name"`
+	} `json:"status"`
+	Priority struct {
+		Name string `json:"name"`
+	} `json:"priority"`
+	IssueType struct {
+		Name string `json:"name"`
+	} `json:"issuetype"`
+}
+
+// jiraParent represents a parent issue in raw JIRA responses.
+type jiraParent struct {
+	ID     string             `json:"id"`
+	Key    string             `json:"key"`
+	Fields jiraRawIssueFields `json:"fields"`
+}
+
+// jiraRawAttachment represents an attachment in raw JIRA responses.
+type jiraRawAttachment struct {
+	Author   jiraRawAuthor `json:"author"`
+	ID       string        `json:"id"`
+	Filename string        `json:"filename"`
+	Created  string        `json:"created"`
+	MimeType string        `json:"mimeType"`
+	Content  string        `json:"content"`
+	Size     int64         `json:"size"`
+}
+
+// jiraRawComment represents a comment in raw JIRA responses.
+type jiraRawComment struct {
+	Author  jiraRawAuthor `json:"author"`
+	ID      string        `json:"id"`
+	Created string        `json:"created"`
+	Updated string        `json:"updated"`
+	Body    ADFDocument   `json:"body"`
+}
+
+// jiraRawLinkedIssue represents an inward/outward issue in a link.
+type jiraRawLinkedIssue struct {
+	ID     string             `json:"id"`
+	Key    string             `json:"key"`
+	Fields jiraRawIssueFields `json:"fields"`
+}
+
+// jiraRawIssueLink represents an issue link in raw JIRA responses.
+type jiraRawIssueLink struct {
+	InwardIssue  *jiraRawLinkedIssue `json:"inwardIssue,omitempty"`
+	OutwardIssue *jiraRawLinkedIssue `json:"outwardIssue,omitempty"`
+	Type         struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Inward  string `json:"inward"`
+		Outward string `json:"outward"`
+	} `json:"type"`
+	ID string `json:"id"`
+}
+
 // jiraRawResponse represents the raw JSON response from JIRA CLI.
 type jiraRawResponse struct {
 	Key    string `json:"key"`
@@ -139,127 +210,15 @@ type jiraRawResponse struct {
 		Priority struct {
 			Name string `json:"name"`
 		} `json:"priority"`
-		Reporter struct {
-			DisplayName  string `json:"displayName"`
-			EmailAddress string `json:"emailAddress"`
-			AccountID    string `json:"accountId"`
-			AvatarURLs   struct {
-				Px48 string `json:"48x48"`
-			} `json:"avatarUrls"`
-		} `json:"reporter"`
-		Assignee *struct {
-			DisplayName  string `json:"displayName"`
-			EmailAddress string `json:"emailAddress"`
-			AccountID    string `json:"accountId"`
-			AvatarURLs   struct {
-				Px48 string `json:"48x48"`
-			} `json:"avatarUrls"`
-		} `json:"assignee"`
-		Parent *struct {
-			ID     string `json:"id"`
-			Key    string `json:"key"`
-			Fields struct {
-				Summary string `json:"summary"`
-				Status  struct {
-					Name string `json:"name"`
-				} `json:"status"`
-				Priority struct {
-					Name string `json:"name"`
-				} `json:"priority"`
-				IssueType struct {
-					Name string `json:"name"`
-				} `json:"issuetype"`
-			} `json:"fields"`
-		} `json:"parent"`
-		Subtasks []struct {
-			ID     string `json:"id"`
-			Key    string `json:"key"`
-			Fields struct {
-				Summary string `json:"summary"`
-				Status  struct {
-					Name string `json:"name"`
-				} `json:"status"`
-				Priority struct {
-					Name string `json:"name"`
-				} `json:"priority"`
-				IssueType struct {
-					Name string `json:"name"`
-				} `json:"issuetype"`
-			} `json:"fields"`
-		} `json:"subtasks"`
-		Description *ADFDocument `json:"description"`
-		Attachment  []struct {
-			Author struct {
-				DisplayName  string `json:"displayName"`
-				EmailAddress string `json:"emailAddress"`
-				AccountID    string `json:"accountId"`
-				AvatarURLs   struct {
-					Px48 string `json:"48x48"`
-				} `json:"avatarUrls"`
-			} `json:"author"`
-			ID       string `json:"id"`
-			Filename string `json:"filename"`
-			Created  string `json:"created"`
-			MimeType string `json:"mimeType"`
-			Content  string `json:"content"`
-			Size     int64  `json:"size"`
-		} `json:"attachment"`
-		Comment struct {
-			Comments []struct {
-				Author struct {
-					DisplayName  string `json:"displayName"`
-					EmailAddress string `json:"emailAddress"`
-					AccountID    string `json:"accountId"`
-					AvatarURLs   struct {
-						Px48 string `json:"48x48"`
-					} `json:"avatarUrls"`
-				} `json:"author"`
-				ID      string      `json:"id"`
-				Created string      `json:"created"`
-				Updated string      `json:"updated"`
-				Body    ADFDocument `json:"body"`
-			} `json:"comments"`
+		Reporter    jiraRawAuthor       `json:"reporter"`
+		Assignee    *jiraRawAuthor      `json:"assignee"`
+		Parent      *jiraParent         `json:"parent"`
+		Subtasks    []jiraParent        `json:"subtasks"`
+		Description *ADFDocument        `json:"description"`
+		Attachment  []jiraRawAttachment `json:"attachment"`
+		Comment     struct {
+			Comments []jiraRawComment `json:"comments"`
 		} `json:"comment"`
-		IssueLinks []struct {
-			InwardIssue *struct {
-				ID     string `json:"id"`
-				Key    string `json:"key"`
-				Fields struct {
-					Summary string `json:"summary"`
-					Status  struct {
-						Name string `json:"name"`
-					} `json:"status"`
-					Priority struct {
-						Name string `json:"name"`
-					} `json:"priority"`
-					IssueType struct {
-						Name string `json:"name"`
-					} `json:"issuetype"`
-				} `json:"fields"`
-			} `json:"inwardIssue,omitempty"`
-			OutwardIssue *struct {
-				ID     string `json:"id"`
-				Key    string `json:"key"`
-				Fields struct {
-					Summary string `json:"summary"`
-					Status  struct {
-						Name string `json:"name"`
-					} `json:"status"`
-					Priority struct {
-						Name string `json:"name"`
-					} `json:"priority"`
-					IssueType struct {
-						Name string `json:"name"`
-					} `json:"issuetype"`
-				} `json:"fields"`
-			} `json:"outwardIssue,omitempty"`
-			Type struct {
-				ID      string `json:"id"`
-				Name    string `json:"name"`
-				Inward  string `json:"inward"`
-				Outward string `json:"outward"`
-			} `json:"type"`
-			ID string `json:"id"`
-		} `json:"issuelinks"`
+		IssueLinks []jiraRawIssueLink `json:"issuelinks"`
 	} `json:"fields"`
 }

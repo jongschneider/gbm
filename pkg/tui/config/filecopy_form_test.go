@@ -62,7 +62,7 @@ func TestFileCopyForm_EmptyRulesRender(t *testing.T) {
 	finalOutput := ""
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		finalOutput = string(bts)
-		return len(finalOutput) > 0
+		return finalOutput != ""
 	}, teatest.WithDuration(100*time.Millisecond))
 
 	assert.Contains(t, finalOutput, "File Copy Rules")
@@ -93,7 +93,7 @@ func TestFileCopyForm_WithRulesRender(t *testing.T) {
 	finalOutput := ""
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		finalOutput = string(bts)
-		return len(finalOutput) > 0
+		return finalOutput != ""
 	}, teatest.WithDuration(100*time.Millisecond))
 
 	assert.Contains(t, finalOutput, "File Copy Rules")
@@ -402,6 +402,7 @@ func TestFormatFilesPreview(t *testing.T) {
 			name:  "empty files",
 			files: nil,
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, "(no files)", got)
 			},
 		},
@@ -409,6 +410,7 @@ func TestFormatFilesPreview(t *testing.T) {
 			name:  "single file",
 			files: []string{".env"},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, ".env", got)
 			},
 		},
@@ -416,6 +418,7 @@ func TestFormatFilesPreview(t *testing.T) {
 			name:  "two files",
 			files: []string{".env", "config/"},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, ".env, config/", got)
 			},
 		},
@@ -423,6 +426,7 @@ func TestFormatFilesPreview(t *testing.T) {
 			name:  "three or more files",
 			files: []string{".env", "config/", ".envrc"},
 			expect: func(t *testing.T, got string) {
+				t.Helper()
 				assert.Equal(t, ".env, config/, ...", got)
 			},
 		},
@@ -446,6 +450,7 @@ func TestParseFilesList(t *testing.T) {
 			name:  "empty string",
 			input: "",
 			expect: func(t *testing.T, got []string) {
+				t.Helper()
 				assert.Nil(t, got)
 			},
 		},
@@ -453,6 +458,7 @@ func TestParseFilesList(t *testing.T) {
 			name:  "single file",
 			input: ".env",
 			expect: func(t *testing.T, got []string) {
+				t.Helper()
 				assert.Equal(t, []string{".env"}, got)
 			},
 		},
@@ -460,6 +466,7 @@ func TestParseFilesList(t *testing.T) {
 			name:  "multiple files with spaces",
 			input: ".env, config/, .envrc",
 			expect: func(t *testing.T, got []string) {
+				t.Helper()
 				assert.Equal(t, []string{".env", "config/", ".envrc"}, got)
 			},
 		},
@@ -467,6 +474,7 @@ func TestParseFilesList(t *testing.T) {
 			name:  "files with extra whitespace",
 			input: "  .env  ,  config/  ",
 			expect: func(t *testing.T, got []string) {
+				t.Helper()
 				assert.Equal(t, []string{".env", "config/"}, got)
 			},
 		},
@@ -559,6 +567,7 @@ func TestContainsPath(t *testing.T) {
 			paths: []string{},
 			path:  "/test",
 			expect: func(t *testing.T, got bool) {
+				t.Helper()
 				assert.False(t, got)
 			},
 		},
@@ -567,6 +576,7 @@ func TestContainsPath(t *testing.T) {
 			paths: []string{"/path1", "/path2"},
 			path:  "/path2",
 			expect: func(t *testing.T, got bool) {
+				t.Helper()
 				assert.True(t, got)
 			},
 		},
@@ -575,6 +585,7 @@ func TestContainsPath(t *testing.T) {
 			paths: []string{"/path1", "/path2"},
 			path:  "/path3",
 			expect: func(t *testing.T, got bool) {
+				t.Helper()
 				assert.False(t, got)
 			},
 		},

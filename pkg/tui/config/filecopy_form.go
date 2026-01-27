@@ -122,6 +122,8 @@ func (f *FileCopyForm) Init() tea.Cmd {
 // Update implements tea.Model.
 func (f *FileCopyForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch f.modalState {
+	case ModalNone:
+		// Fall through to normal handling below
 	case ModalHelp:
 		return f.handleHelpModal(msg)
 	case ModalAdd, ModalEdit:
@@ -280,7 +282,7 @@ func (f *FileCopyForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, cmd
 	}
 
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
 		f.focusedModalField().Blur()
 		f.modalFocusIdx = (f.modalFocusIdx + 1) % 2
@@ -437,6 +439,7 @@ func (f *FileCopyForm) openFilePicker() (tea.Model, tea.Cmd) {
 		"Select Files",
 		"Navigate and select files to copy",
 	)
+
 	f.filepickerField = f.filepickerField.
 		WithDirAllowed(true).
 		WithMultiSelect(true).
@@ -452,7 +455,7 @@ func (f *FileCopyForm) openFilePicker() (tea.Model, tea.Cmd) {
 // handleFilePickerModal processes input in the file picker modal.
 func (f *FileCopyForm) handleFilePickerModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 		case tea.KeyEsc:
 			f.modalState = f.prevModalState
 			return f, f.filesField.Focus()
@@ -538,6 +541,8 @@ func (f *FileCopyForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.C
 // View implements tea.Model.
 func (f *FileCopyForm) View() string {
 	switch f.modalState {
+	case ModalNone:
+		// Fall through to normal view below
 	case ModalHelp:
 		return f.helpOverlay.View()
 	case ModalAdd:
@@ -598,7 +603,7 @@ func (f *FileCopyForm) IsCancelled() bool {
 	return f.cancelled
 }
 
-// ModalState returns the current modal state.
+// GetModalState returns the current modal state.
 func (f *FileCopyForm) GetModalState() ModalState {
 	return f.modalState
 }

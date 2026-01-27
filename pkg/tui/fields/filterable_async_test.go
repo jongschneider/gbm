@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFilterable_Init_WithAsyncOptions(t *testing.T) {
@@ -22,6 +23,7 @@ func TestFilterable_Init_WithAsyncOptions(t *testing.T) {
 				return []Option{{Label: "A", Value: "a"}}, nil
 			},
 			expect: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assert.NotNil(t, cmd, "Init should return a command when async options are configured")
 				// Execute the command to verify it returns a FetchMsg
 				msg := cmd()
@@ -34,6 +36,7 @@ func TestFilterable_Init_WithAsyncOptions(t *testing.T) {
 			name:         "Init returns textinput.Blink when no async options",
 			optionsFetch: nil,
 			expect: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assert.NotNil(t, cmd, "Init should return a command (textinput.Blink)")
 			},
 			description: "Init should return textinput.Blink for static options",
@@ -71,6 +74,7 @@ func TestFilterable_Update_HandlesFetchMsg(t *testing.T) {
 				Err: nil,
 			},
 			expect: func(t *testing.T, f *Filterable) {
+				t.Helper()
 				assert.False(t, f.isLoading, "should not be loading after FetchMsg")
 				assert.Len(t, f.options, 2, "options should be updated")
 				assert.Equal(t, "a", f.options[0].Value)
@@ -86,9 +90,10 @@ func TestFilterable_Update_HandlesFetchMsg(t *testing.T) {
 				Err:   errors.New("network error"),
 			},
 			expect: func(t *testing.T, f *Filterable) {
+				t.Helper()
 				assert.False(t, f.isLoading, "should not be loading after FetchMsg with error")
 				assert.Empty(t, f.options, "options should remain empty on error")
-				assert.Error(t, f.loadErr)
+				require.Error(t, f.loadErr)
 				assert.Equal(t, "network error", f.loadErr.Error())
 			},
 			description: "failed fetch should set loadErr",

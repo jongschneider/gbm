@@ -86,104 +86,122 @@ func (f *Filterable) Init() tea.Cmd {
 func (f *Filterable) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	// Handle FetchMsg for async option loading
 	if fetchMsg, ok := msg.(async.FetchMsg[[]Option]); ok {
-		f.isLoading = false
-		if fetchMsg.Err != nil {
-			f.loadErr = fetchMsg.Err
-			return f, nil
-		}
-		f.options = fetchMsg.Value
-		f.filterOptions()
-		return f, nil
+		return f.handleFetchMsg(fetchMsg)
 	}
 
 	// Handle spinner tick for visual feedback during loading
 	if _, ok := msg.(spinner.TickMsg); ok {
-		f.spinner, _ = f.spinner.Update(msg)
-		if f.isLoading {
-			return f, f.spinner.Tick
-		}
-		return f, nil
+		return f.handleSpinnerTick(msg)
 	}
 
 	if !f.focused {
 		return f, nil
 	}
 
-	var cmd tea.Cmd
-
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok {
 		// Pass non-key messages to text input (for blink, etc.)
+		var cmd tea.Cmd
 		f.textInput, cmd = f.textInput.Update(msg)
 		return f, cmd
 	}
 
-	// Block all input except cancel/quit while loading options
+	return f.handleKeyMsg(keyMsg)
+}
+
+// handleFetchMsg processes async option loading results.
+func (f *Filterable) handleFetchMsg(fetchMsg async.FetchMsg[[]Option]) (tui.Field, tea.Cmd) {
+	f.isLoading = false
+	if fetchMsg.Err != nil {
+		f.loadErr = fetchMsg.Err
+		return f, nil
+	}
+	f.options = fetchMsg.Value
+	f.filterOptions()
+	return f, nil
+}
+
+// handleSpinnerTick processes spinner tick messages.
+func (f *Filterable) handleSpinnerTick(msg tea.Msg) (tui.Field, tea.Cmd) {
+	f.spinner, _ = f.spinner.Update(msg)
 	if f.isLoading {
-		// Only allow cancel (Ctrl+C) or quit (q) keys while loading
-		if keyMsg.String() != "ctrl+c" && keyMsg.String() != "q" {
-			// Ignore all other input while loading
-			return f, nil
-		}
-		// Fall through to let ctrl+c and q be handled normally (likely by wizard)
+		return f, f.spinner.Tick
+	}
+	return f, nil
+}
+
+// handleKeyMsg processes keyboard messages.
+func (f *Filterable) handleKeyMsg(keyMsg tea.KeyMsg) (tui.Field, tea.Cmd) {
+	// Block all input except cancel/quit while loading options
+	if f.isLoading && keyMsg.String() != "ctrl+c" && keyMsg.String() != "q" {
+		return f, nil
 	}
 
 	switch keyMsg.String() {
-	// Navigation: up arrow and ctrl+k (j/k reserved for filtering)
 	case KeyUp, KeyCtrlUp:
-		if len(f.filtered) > 0 {
-			f.cursor--
-			if f.cursor < 0 {
-				f.cursor = len(f.filtered) - 1 // Wrap to bottom
-				// When wrapping to bottom, adjust viewport to show cursor
-				f.adjustViewport()
-			} else if f.cursor < f.viewportOffset {
-				// Cursor moved above viewport, scroll up
-				f.viewportOffset = f.cursor
-			}
-		}
+		f.navigateUp()
 		return f, nil
 
-	// Navigation: down arrow and ctrl+j (j/k reserved for filtering)
 	case KeyDown, KeyCtrlDown:
-		if len(f.filtered) > 0 {
-			f.cursor++
-			if f.cursor >= len(f.filtered) {
-				f.cursor = 0 // Wrap to top
-				f.viewportOffset = 0
-			} else {
-				// Cursor moved below viewport, scroll down
-				f.adjustViewport()
-			}
-		}
+		f.navigateDown()
 		return f, nil
 
-	// Confirm selection
 	case KeyEnter:
-		// Require options to be loaded before allowing submission
-		if f.isLoading {
-			// Still loading, don't allow submission
-			return f, nil
-		}
-		// If list has items and one is selected, use that
-		if len(f.filtered) > 0 && f.cursor >= 0 && f.cursor < len(f.filtered) {
-			f.selected = f.filtered[f.cursor].Value
-		} else {
-			// Use trimmed text input as custom value
-			f.selected = strings.TrimSpace(f.textInput.Value())
-		}
-		f.complete = true
-		return f, func() tea.Msg { return tui.NextStepMsg{} }
+		return f.handleEnter()
 
 	default:
-		// Update text input
-		f.textInput, cmd = f.textInput.Update(msg)
-
-		// Filter the list based on text input
-		f.filterOptions()
-
-		return f, cmd
+		return f.handleTextInput(keyMsg)
 	}
+}
+
+// navigateUp moves the cursor up in the filtered list.
+func (f *Filterable) navigateUp() {
+	if len(f.filtered) == 0 {
+		return
+	}
+	f.cursor--
+	if f.cursor < 0 {
+		f.cursor = len(f.filtered) - 1
+		f.adjustViewport()
+	} else if f.cursor < f.viewportOffset {
+		f.viewportOffset = f.cursor
+	}
+}
+
+// navigateDown moves the cursor down in the filtered list.
+func (f *Filterable) navigateDown() {
+	if len(f.filtered) == 0 {
+		return
+	}
+	f.cursor++
+	if f.cursor >= len(f.filtered) {
+		f.cursor = 0
+		f.viewportOffset = 0
+	} else {
+		f.adjustViewport()
+	}
+}
+
+// handleEnter processes the enter key to confirm selection.
+func (f *Filterable) handleEnter() (tui.Field, tea.Cmd) {
+	if f.isLoading {
+		return f, nil
+	}
+	if len(f.filtered) > 0 && f.cursor >= 0 && f.cursor < len(f.filtered) {
+		f.selected = f.filtered[f.cursor].Value
+	} else {
+		f.selected = strings.TrimSpace(f.textInput.Value())
+	}
+	f.complete = true
+	return f, func() tea.Msg { return tui.NextStepMsg{} }
+}
+
+// handleTextInput processes text input for filtering.
+func (f *Filterable) handleTextInput(keyMsg tea.KeyMsg) (tui.Field, tea.Cmd) {
+	var cmd tea.Cmd
+	f.textInput, cmd = f.textInput.Update(keyMsg)
+	f.filterOptions()
+	return f, cmd
 }
 
 // filterOptions filters the options list based on the current text input value.

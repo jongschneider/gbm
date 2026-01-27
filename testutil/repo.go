@@ -16,35 +16,38 @@ type TestRepo struct {
 
 // NewTestRepo creates a new temporary git repository.
 // Cleanup is automatically registered via t.Cleanup().
-func NewTestRepo(t testing.TB) *TestRepo {
-	t.Helper()
+func NewTestRepo(tb testing.TB) *TestRepo {
+	tb.Helper()
 
 	// Create a parent temp directory to contain both the repo and potential worktrees
 	parentDir, err := os.MkdirTemp("", "gbm-test-*")
 	if err != nil {
-		t.Fatalf("failed to create temp parent dir: %v", err)
+		tb.Fatalf("failed to create temp parent dir: %v", err)
 	}
 
 	// Resolve symlinks (macOS /var -> /private/var issue)
 	parentDir, err = filepath.EvalSymlinks(parentDir)
 	if err != nil {
-		_ = os.RemoveAll(parentDir)
-		t.Fatalf("failed to resolve symlinks: %v", err)
+		//nolint:errcheck // Best-effort cleanup on error path
+		os.RemoveAll(parentDir)
+		tb.Fatalf("failed to resolve symlinks: %v", err)
 	}
 
 	repoDir := filepath.Join(parentDir, "repo")
 	if err := os.Mkdir(repoDir, 0o755); err != nil {
-		_ = os.RemoveAll(parentDir)
-		t.Fatalf("failed to create repo dir: %v", err)
+		//nolint:errcheck // Best-effort cleanup on error path
+		os.RemoveAll(parentDir)
+		tb.Fatalf("failed to create repo dir: %v", err)
 	}
 
 	r := &TestRepo{
-		t:    t,
+		t:    tb,
 		Root: repoDir,
 	}
 
-	t.Cleanup(func() {
-		_ = os.RemoveAll(parentDir)
+	tb.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		os.RemoveAll(parentDir)
 	})
 
 	// Initialize git repository

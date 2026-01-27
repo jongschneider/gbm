@@ -1,3 +1,4 @@
+// Package git provides git operations via exec.Command wrappers.
 package git
 
 import (

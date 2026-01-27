@@ -43,7 +43,7 @@ func NewFilePicker(key, title, description string) *FilePicker {
 
 	currentDir, err := os.Getwd()
 	if err != nil {
-		currentDir, _ = os.UserHomeDir()
+		currentDir, _ = os.UserHomeDir() //nolint:errcheck // Fallback to home dir - if this fails, empty string is acceptable
 	}
 	fp.CurrentDirectory = currentDir
 
@@ -103,55 +103,76 @@ func (f *FilePicker) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 		return f, nil
 	}
 
-	var cmd tea.Cmd
-
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
-		case tea.KeyEsc:
-			f.cancelled = true
-			return f, func() tea.Msg { return tui.CancelMsg{} }
-
-		case tea.KeyEnter:
-			if f.multiSelect && len(f.selectedFiles) > 0 {
-				f.complete = true
-				return f, func() tea.Msg { return tui.NextStepMsg{} }
-			}
-		}
-
-		if keyMsg.String() == "space" && f.multiSelect {
-			if selected, path := f.filepicker.DidSelectFile(msg); selected {
-				if !f.isAlreadySelected(path) {
-					f.selectedFiles = append(f.selectedFiles, path)
-					if f.onSelect != nil {
-						f.onSelect(path)
-					}
-				}
-				return f, nil
-			}
+		if result, cmd, handled := f.handleKeyMsg(keyMsg, msg); handled {
+			return result, cmd
 		}
 	}
 
+	var cmd tea.Cmd
 	f.filepicker, cmd = f.filepicker.Update(msg)
 
-	if selected, path := f.filepicker.DidSelectFile(msg); selected {
-		if f.multiSelect {
-			if !f.isAlreadySelected(path) {
-				f.selectedFiles = append(f.selectedFiles, path)
-				if f.onSelect != nil {
-					f.onSelect(path)
-				}
-			}
-		} else {
-			f.selectedFiles = []string{path}
-			if f.onSelect != nil {
-				f.onSelect(path)
-			}
-			f.complete = true
-			return f, func() tea.Msg { return tui.NextStepMsg{} }
-		}
+	if result, resultCmd, handled := f.handleFileSelection(msg); handled {
+		return result, resultCmd
 	}
 
 	return f, cmd
+}
+
+// handleKeyMsg processes keyboard messages and returns whether it was handled.
+func (f *FilePicker) handleKeyMsg(keyMsg tea.KeyMsg, msg tea.Msg) (tui.Field, tea.Cmd, bool) {
+	switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
+	case tea.KeyEsc:
+		f.cancelled = true
+		return f, func() tea.Msg { return tui.CancelMsg{} }, true
+
+	case tea.KeyEnter:
+		if f.multiSelect && len(f.selectedFiles) > 0 {
+			f.complete = true
+			return f, func() tea.Msg { return tui.NextStepMsg{} }, true
+		}
+	}
+
+	if keyMsg.String() == "space" && f.multiSelect {
+		if selected, path := f.filepicker.DidSelectFile(msg); selected {
+			f.addSelectedFile(path)
+			return f, nil, true
+		}
+	}
+
+	return f, nil, false
+}
+
+// handleFileSelection handles file selection events.
+func (f *FilePicker) handleFileSelection(msg tea.Msg) (tui.Field, tea.Cmd, bool) {
+	selected, path := f.filepicker.DidSelectFile(msg)
+	if !selected {
+		return f, nil, false
+	}
+
+	if f.multiSelect {
+		f.addSelectedFile(path)
+		return f, nil, false // Continue processing, don't complete yet
+	}
+
+	// Single select mode - complete immediately
+	f.selectedFiles = []string{path}
+	if f.onSelect != nil {
+		f.onSelect(path)
+	}
+	f.complete = true
+	return f, func() tea.Msg { return tui.NextStepMsg{} }, true
+}
+
+// addSelectedFile adds a file to the selected list if not already present.
+func (f *FilePicker) addSelectedFile(path string) {
+	if f.isAlreadySelected(path) {
+		return
+	}
+	f.selectedFiles = append(f.selectedFiles, path)
+	if f.onSelect != nil {
+		f.onSelect(path)
+	}
 }
 
 // isAlreadySelected checks if a path is already in the selected files list.

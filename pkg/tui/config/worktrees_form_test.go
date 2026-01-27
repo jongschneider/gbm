@@ -22,11 +22,13 @@ func TestWorktreesForm_NewWorktreesForm(t *testing.T) {
 				Worktrees: []WorktreeEntry{},
 			},
 			expect: func(t *testing.T, form *WorktreesForm) {
+				t.Helper()
 				assert.NotNil(t, form)
 				assert.Empty(t, form.worktrees)
 				assert.Equal(t, WorktreeModalNone, form.modalState)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -39,11 +41,13 @@ func TestWorktreesForm_NewWorktreesForm(t *testing.T) {
 				},
 			},
 			expect: func(t *testing.T, form *WorktreesForm) {
+				t.Helper()
 				assert.Len(t, form.worktrees, 2)
 				assert.Equal(t, "feature", form.worktrees[0].Name)
 				assert.Equal(t, "hotfix", form.worktrees[1].Name)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},
@@ -53,9 +57,11 @@ func TestWorktreesForm_NewWorktreesForm(t *testing.T) {
 				Theme: nil,
 			},
 			expect: func(t *testing.T, form *WorktreesForm) {
+				t.Helper()
 				assert.NotNil(t, form.theme)
 			},
 			expectErr: func(t *testing.T, err error) {
+				t.Helper()
 				assert.NoError(t, err)
 			},
 		},

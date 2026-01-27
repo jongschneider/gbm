@@ -18,6 +18,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "enter key",
 			keyStr: "enter",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyEnter, msg.Type)
 			},
 			description: "should convert 'enter' to KeyEnter",
@@ -26,6 +27,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "up arrow",
 			keyStr: "up",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyUp, msg.Type)
 			},
 			description: "should convert 'up' to KeyUp",
@@ -34,6 +36,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "down arrow",
 			keyStr: "down",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyDown, msg.Type)
 			},
 			description: "should convert 'down' to KeyDown",
@@ -42,6 +45,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "left arrow",
 			keyStr: "left",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyLeft, msg.Type)
 			},
 			description: "should convert 'left' to KeyLeft",
@@ -50,6 +54,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "right arrow",
 			keyStr: "right",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyRight, msg.Type)
 			},
 			description: "should convert 'right' to KeyRight",
@@ -58,6 +63,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "tab key",
 			keyStr: "tab",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyTab, msg.Type)
 			},
 			description: "should convert 'tab' to KeyTab",
@@ -66,6 +72,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "backspace key",
 			keyStr: "backspace",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyBackspace, msg.Type)
 			},
 			description: "should convert 'backspace' to KeyBackspace",
@@ -74,6 +81,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "escape key",
 			keyStr: "esc",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyEscape, msg.Type)
 			},
 			description: "should convert 'esc' to KeyEscape",
@@ -82,6 +90,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "ctrl+c",
 			keyStr: "ctrl+c",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyCtrlC, msg.Type)
 			},
 			description: "should convert 'ctrl+c' to KeyCtrlC",
@@ -90,6 +99,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "ctrl+d",
 			keyStr: "ctrl+d",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyCtrlD, msg.Type)
 			},
 			description: "should convert 'ctrl+d' to KeyCtrlD",
@@ -98,6 +108,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "character 'a'",
 			keyStr: "a",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyRunes, msg.Type)
 				assert.Equal(t, []rune("a"), msg.Runes)
 			},
@@ -107,6 +118,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "multi-character string",
 			keyStr: "hello",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyRunes, msg.Type)
 				assert.Equal(t, []rune("hello"), msg.Runes)
 			},
@@ -116,6 +128,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "case insensitive (ENTER)",
 			keyStr: "ENTER",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyEnter, msg.Type)
 			},
 			description: "should handle uppercase key names",
@@ -124,6 +137,7 @@ func TestStringToKeyMsgConversion(t *testing.T) {
 			name:   "case insensitive (Up)",
 			keyStr: "Up",
 			expect: func(t *testing.T, msg tea.KeyMsg) {
+				t.Helper()
 				assert.Equal(t, tea.KeyUp, msg.Type)
 			},
 			description: "should handle mixed case key names",
@@ -177,7 +191,7 @@ func TestViewContains(t *testing.T) {
 			testOutput := "Select Option\nPress Enter to continue"
 
 			// Manually check (since we don't have a TestModel in unit tests)
-			found := (len(tc.substring) == 0) || (tc.substring == "Select" && testOutput != "")
+			found := (tc.substring == "") || (tc.substring == "Select" && testOutput != "")
 			if tc.substring == "NonExistent" {
 				found = false
 			}

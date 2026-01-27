@@ -16,6 +16,7 @@ func TestFilePicker_Create(t *testing.T) {
 		{
 			name: "creates with default values",
 			expect: func(t *testing.T, fp *FilePicker) {
+				t.Helper()
 				assert.NotNil(t, fp)
 				assert.Equal(t, "test_key", fp.key)
 				assert.Equal(t, "Test Title", fp.title)
