@@ -91,7 +91,7 @@ func (r *TestRepo) CreateFile(path, content string) {
 		r.t.Fatalf("failed to create directory %s: %v", dir, err)
 	}
 
-	err := os.WriteFile(fullPath, []byte(content), 0o600)
+	err = os.WriteFile(fullPath, []byte(content), 0o600)
 	if err != nil {
 		r.t.Fatalf("failed to create file %s: %v", path, err)
 	}

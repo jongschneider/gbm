@@ -152,7 +152,7 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 			return nil, fmt.Errorf("failed to create markdown directory: %w", err)
 		}
 
-		err := os.WriteFile(markdownPath, []byte(markdown), 0o644)
+		err = os.WriteFile(markdownPath, []byte(markdown), 0o644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write markdown file: %w", err)
 		}

@@ -369,7 +369,7 @@ The authentication module needs refactoring for better maintainability.
 				}
 
 				// Write golden file
-				err := os.WriteFile(goldenFile, []byte(got), 0o644)
+				err = os.WriteFile(goldenFile, []byte(got), 0o644)
 				if err != nil {
 					t.Fatalf("failed to write golden file: %v", err)
 				}

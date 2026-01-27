@@ -187,7 +187,7 @@ Examples:
 				PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
 			}
 			// Create JIRA markdown if applicable
-			err := svc.CreateJiraMarkdownFile(worktreeName)
+			err = svc.CreateJiraMarkdownFile(worktreeName)
 			if err != nil {
 				PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
 			}

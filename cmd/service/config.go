@@ -21,7 +21,7 @@ func validateConfig(cfg *Config) error {
 	}
 
 	// Custom validations
-	err := validateTemplateVars(cfg.WorktreesDir)
+	err = validateTemplateVars(cfg.WorktreesDir)
 	if err != nil {
 		return fmt.Errorf("invalid worktrees_dir template: %w", err)
 	}
@@ -199,7 +199,7 @@ func GenerateExampleConfig(path string) error {
 	configYAML := generateExampleConfigYAML()
 
 	// Write example config
-	err := os.WriteFile(path, []byte(configYAML), 0o644)
+	err = os.WriteFile(path, []byte(configYAML), 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
