@@ -20,17 +20,19 @@ type BasicsFormConfig struct {
 
 // BasicsForm renders a form for editing basic config settings (default_branch, worktrees_dir).
 type BasicsForm struct {
-	theme              *tui.Theme
-	onSave             func(data map[string]string) error
-	discardField       tui.Field
-	defaultBranchField tui.Field
-	worktreesDirField  tui.Field
-	width              int
-	height             int
-	focusedFieldIdx    int
-	submitted          bool
-	cancelled          bool
-	showConfirmDiscard bool
+	theme                *tui.Theme
+	onSave               func(data map[string]string) error
+	discardField         tui.Field
+	defaultBranchField   tui.Field
+	worktreesDirField    tui.Field
+	validationOverlay    *fields.ValidationOverlay
+	width                int
+	height               int
+	focusedFieldIdx      int
+	submitted            bool
+	cancelled            bool
+	showConfirmDiscard   bool
+	showValidationErrors bool
 }
 
 // NewBasicsForm creates a new Basics configuration form.
@@ -111,6 +113,11 @@ func (f *BasicsForm) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (f *BasicsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle validation error overlay
+	if f.showValidationErrors {
+		return f.handleValidationOverlay(msg)
+	}
+
 	// Handle discard confirmation modal
 	if f.showConfirmDiscard {
 		return f.handleDiscardConfirmation(msg)
@@ -126,6 +133,22 @@ func (f *BasicsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Delegate to focused field
 	newField, cmd := f.focusedField().Update(msg)
 	f.updateFocusedField(newField)
+	return f, cmd
+}
+
+// handleValidationOverlay processes input while showing the validation error overlay.
+func (f *BasicsForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, cmd := f.validationOverlay.Update(msg)
+
+	// Check for dismissal message
+	if _, ok := msg.(tea.KeyMsg); ok {
+		keyMsg := msg.(tea.KeyMsg)
+		if keyMsg.String() == "esc" || keyMsg.String() == "b" || keyMsg.String() == "enter" {
+			f.showValidationErrors = false
+			return f, f.focusedField().Focus()
+		}
+	}
+
 	return f, cmd
 }
 
@@ -204,10 +227,27 @@ func (f *BasicsForm) handleRuneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.Runes[0] {
 	case 's':
+		// Validate all fields before saving
+		errs := f.Validate()
+		if len(errs) > 0 {
+			f.showValidationErrors = true
+			f.validationOverlay = fields.NewValidationOverlay(errs).
+				WithTheme(f.theme).
+				WithWidth(f.width).
+				WithHeight(f.height)
+			return f, nil
+		}
+
 		if f.onSave != nil {
 			err := f.onSave(f.GetValue())
 			if err != nil {
-				// In a full implementation, show error overlay
+				// Show save error as validation error
+				f.showValidationErrors = true
+				f.validationOverlay = fields.NewValidationOverlay([]string{err.Error()}).
+					WithTheme(f.theme).
+					WithTitle("Save Error").
+					WithWidth(f.width).
+					WithHeight(f.height)
 				return f, nil
 			}
 		}
@@ -223,6 +263,30 @@ func (f *BasicsForm) handleRuneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return f, nil
 }
 
+// Validate runs validators on all fields and returns a list of error messages.
+// It also sets the error state on fields that fail validation so they are highlighted.
+func (f *BasicsForm) Validate() []string {
+	var errs []string
+
+	// Validate default branch field
+	if textField, ok := f.defaultBranchField.(*fields.TextInput); ok {
+		err := textField.RunValidator()
+		if err != nil {
+			errs = append(errs, "Default Branch: "+err.Error())
+		}
+	}
+
+	// Validate worktrees dir field
+	if textField, ok := f.worktreesDirField.(*fields.TextInput); ok {
+		err := textField.RunValidator()
+		if err != nil {
+			errs = append(errs, "Worktrees Directory: "+err.Error())
+		}
+	}
+
+	return errs
+}
+
 // handleWindowSize updates dimensions on terminal resize.
 func (f *BasicsForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	f.width = msg.Width
@@ -230,12 +294,19 @@ func (f *BasicsForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd
 	f.defaultBranchField = f.defaultBranchField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.worktreesDirField = f.worktreesDirField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.discardField = f.discardField.WithWidth(msg.Width).WithHeight(msg.Height)
+	if f.validationOverlay != nil {
+		f.validationOverlay = f.validationOverlay.WithWidth(msg.Width).WithHeight(msg.Height)
+	}
 
 	return f, nil
 }
 
 // View implements tea.Model.
 func (f *BasicsForm) View() string {
+	if f.showValidationErrors && f.validationOverlay != nil {
+		return f.validationOverlay.View()
+	}
+
 	if f.showConfirmDiscard {
 		return f.discardField.View()
 	}

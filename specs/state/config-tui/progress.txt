@@ -15,7 +15,7 @@ Task Completion Status:
 - [x] FileCopy Rules table renders with add/edit/delete modals
 - [x] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
 - [x] Worktrees table with add/edit/delete modals
-- [ ] Validation error overlays appear on invalid save attempts
+- [x] Validation error overlays appear on invalid save attempts
 - [ ] Dark and light themes both render correctly
 - [ ] Help screen shows keyboard shortcuts via ? key
 - [x] All sections integrated in one ConfigModel with persistent state
@@ -118,3 +118,21 @@ Completed Items:
      - Used FormFactory callback pattern to avoid import cycles (pkg/tui can't import pkg/tui/config)
      - JiraFilters struct uses `Type` field, not `IssueType`
      - State conversions between service.Config and tui.ConfigState happen in cmd/service layer
+
+12. Validation Error Overlays:
+     - Created ValidationOverlay component (pkg/tui/fields/validation_overlay.go)
+     - Displays validation errors in a bordered box with red styling
+     - Shows title "Validation Errors", bullet-pointed error list, dismissal instructions
+     - Handles Escape, 'b', and Enter keys to dismiss overlay
+     - Added RunValidator() method to TextInput to validate without requiring Enter key
+     - Added SetError() method to TextInput for setting error state programmatically
+     - Updated BasicsForm with Validate() method that runs all field validators
+     - Updated JiraForm with Validate() method for server fields when JIRA is enabled
+     - Save ('s' key) now validates before saving - shows overlay if errors exist
+     - After dismissing overlay, errors remain highlighted on fields
+     - Save errors (from onSave callback) also shown in overlay with "Save Error" title
+     - Tests: 6 new tests covering Validate, ValidationOverlay, ValidationOverlayDismiss, SaveWithValidData
+     - All tests passing
+     **Learnings:**
+     - Type assertion pattern: `textField, ok := f.field.(*fields.TextInput)` to access concrete methods
+     - Overlay rendering priority: validation errors > discard confirmation > normal form view

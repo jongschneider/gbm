@@ -141,3 +141,145 @@ func TestBasicsForm_Cancelled(t *testing.T) {
 	form.cancelled = true
 	assert.True(t, form.IsCancelled())
 }
+
+func TestBasicsForm_Validate(t *testing.T) {
+	testCases := []struct {
+		name       string
+		config     BasicsFormConfig
+		expectErrs int
+	}{
+		{
+			name: "valid values pass validation",
+			config: BasicsFormConfig{
+				DefaultBranch: "main",
+				WorktreesDir:  "./worktrees",
+			},
+			expectErrs: 0,
+		},
+		{
+			name: "empty default_branch fails validation",
+			config: BasicsFormConfig{
+				DefaultBranch: "",
+				WorktreesDir:  "./worktrees",
+			},
+			expectErrs: 1,
+		},
+		{
+			name: "empty worktrees_dir fails validation",
+			config: BasicsFormConfig{
+				DefaultBranch: "main",
+				WorktreesDir:  "",
+			},
+			expectErrs: 1,
+		},
+		{
+			name: "both empty fails validation with 2 errors",
+			config: BasicsFormConfig{
+				DefaultBranch: "",
+				WorktreesDir:  "",
+			},
+			expectErrs: 2,
+		},
+		{
+			name: "invalid branch name characters fail validation",
+			config: BasicsFormConfig{
+				DefaultBranch: "main branch", // space is invalid
+				WorktreesDir:  "./worktrees",
+			},
+			expectErrs: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			form := NewBasicsForm(tc.config)
+			errs := form.Validate()
+			assert.Len(t, errs, tc.expectErrs)
+		})
+	}
+}
+
+func TestBasicsForm_ValidationOverlay(t *testing.T) {
+	t.Parallel()
+
+	// Create form with invalid data (empty values)
+	form := NewBasicsForm(BasicsFormConfig{
+		DefaultBranch: "",
+		WorktreesDir:  "",
+	})
+
+	// Initially not showing validation errors
+	assert.False(t, form.showValidationErrors)
+
+	// Press 's' to save - should trigger validation and show overlay
+	form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	assert.True(t, form.showValidationErrors)
+	assert.NotNil(t, form.validationOverlay)
+
+	// View should show validation overlay
+	view := form.View()
+	assert.Contains(t, view, "Validation Errors")
+	assert.Contains(t, view, "default_branch is required")
+	assert.Contains(t, view, "worktrees_dir is required")
+}
+
+func TestBasicsForm_ValidationOverlayDismiss(t *testing.T) {
+	testCases := []struct {
+		name string
+		key  tea.KeyMsg
+	}{
+		{
+			name: "dismiss with Escape",
+			key:  tea.KeyMsg{Type: tea.KeyEsc},
+		},
+		{
+			name: "dismiss with 'b'",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}},
+		},
+		{
+			name: "dismiss with Enter",
+			key:  tea.KeyMsg{Type: tea.KeyEnter},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			form := NewBasicsForm(BasicsFormConfig{
+				DefaultBranch: "",
+				WorktreesDir:  "",
+			})
+
+			// Trigger validation overlay
+			form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+			assert.True(t, form.showValidationErrors)
+
+			// Dismiss overlay
+			form.Update(tc.key)
+			assert.False(t, form.showValidationErrors)
+		})
+	}
+}
+
+func TestBasicsForm_SaveWithValidData(t *testing.T) {
+	t.Parallel()
+
+	var savedData map[string]string
+	form := NewBasicsForm(BasicsFormConfig{
+		DefaultBranch: "main",
+		WorktreesDir:  "./worktrees",
+		OnSave: func(data map[string]string) error {
+			savedData = data
+			return nil
+		},
+	})
+
+	// Press 's' to save - should succeed without showing overlay
+	form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	assert.False(t, form.showValidationErrors)
+	assert.Equal(t, "main", savedData["default_branch"])
+	assert.Equal(t, "./worktrees", savedData["worktrees_dir"])
+}

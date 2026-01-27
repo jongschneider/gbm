@@ -235,6 +235,27 @@ func (t *TextInput) GetKey() string {
 	return t.key
 }
 
+// RunValidator runs the validator on the current value and returns the error.
+// This allows forms to validate fields without requiring the user to press Enter.
+// Returns nil if no validator is set or if validation passes.
+func (t *TextInput) RunValidator() error {
+	if t.validator == nil {
+		return nil
+	}
+	value := strings.TrimSpace(t.textInput.Value())
+	err := t.validator(value)
+	if err != nil {
+		t.err = err
+	}
+	return err
+}
+
+// SetError sets the error state on the field.
+// This is used to highlight fields that failed validation.
+func (t *TextInput) SetError(err error) {
+	t.err = err
+}
+
 // GetValue implements Field.GetValue.
 func (t *TextInput) GetValue() any {
 	// If WithDefault was called, return the current textInput value (which is pre-populated)

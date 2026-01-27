@@ -50,6 +50,7 @@ type JiraForm struct {
 	markdownFilenamePatternField    tui.Field
 	markdownUseRelativeLinksField   tui.Field
 	markdownIncludeCommentsField    tui.Field
+	validationOverlay               *fields.ValidationOverlay
 	onSave                          func(data map[string]any) error
 	theme                           *tui.Theme
 	activeSection                   string
@@ -61,6 +62,7 @@ type JiraForm struct {
 	cancelled                       bool
 	enabled                         bool
 	showConfirmDiscard              bool
+	showValidationErrors            bool
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -252,6 +254,11 @@ func (f *JiraForm) Init() tea.Cmd {
 
 // Update implements tea.Model.Update.
 func (f *JiraForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle validation error overlay
+	if f.showValidationErrors {
+		return f.handleValidationOverlay(msg)
+	}
+
 	// Handle discard confirmation
 	if f.showConfirmDiscard {
 		newField, cmd := f.discardField.Update(msg)
@@ -310,8 +317,27 @@ func (f *JiraForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return f, cmd
 }
 
+// handleValidationOverlay processes input while showing the validation error overlay.
+func (f *JiraForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, cmd := f.validationOverlay.Update(msg)
+
+	// Check for dismissal message
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.String() == "esc" || keyMsg.String() == "b" || keyMsg.String() == "enter" {
+			f.showValidationErrors = false
+			return f, f.focusedField().Focus()
+		}
+	}
+
+	return f, cmd
+}
+
 // View implements tea.Model.View.
 func (f *JiraForm) View() string {
+	if f.showValidationErrors && f.validationOverlay != nil {
+		return f.validationOverlay.View()
+	}
+
 	if f.showConfirmDiscard {
 		return f.discardField.View()
 	}
@@ -414,12 +440,31 @@ func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.Runes[0] {
 		case 's':
+			// Validate all fields before saving (only when enabled)
+			if f.enabled {
+				errs := f.Validate()
+				if len(errs) > 0 {
+					f.showValidationErrors = true
+					f.validationOverlay = fields.NewValidationOverlay(errs).
+						WithTheme(f.theme).
+						WithWidth(f.width).
+						WithHeight(f.height)
+					return f, nil
+				}
+			}
+
 			// Save
 			if f.onSave != nil {
 				data := f.GetValue()
 				err := f.onSave(data)
 				if err != nil {
-					// TODO: Show error overlay
+					// Show save error as validation error
+					f.showValidationErrors = true
+					f.validationOverlay = fields.NewValidationOverlay([]string{err.Error()}).
+						WithTheme(f.theme).
+						WithTitle("Save Error").
+						WithWidth(f.width).
+						WithHeight(f.height)
 					return f, nil
 				}
 			}
@@ -465,7 +510,48 @@ func (f *JiraForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) 
 	if f.discardField != nil {
 		f.discardField = f.discardField.WithWidth(msg.Width).WithHeight(msg.Height)
 	}
+	if f.validationOverlay != nil {
+		f.validationOverlay = f.validationOverlay.WithWidth(msg.Width).WithHeight(msg.Height)
+	}
 	return f, nil
+}
+
+// Validate runs validators on all fields and returns a list of error messages.
+// It also sets the error state on fields that fail validation so they are highlighted.
+// Only validates required server fields when JIRA is enabled.
+func (f *JiraForm) Validate() []string {
+	var errs []string
+
+	// Only validate server fields if JIRA is enabled
+	if !f.enabled {
+		return errs
+	}
+
+	// Validate server host field
+	if textField, ok := f.serverHostField.(*fields.TextInput); ok {
+		err := textField.RunValidator()
+		if err != nil {
+			errs = append(errs, "JIRA Host: "+err.Error())
+		}
+	}
+
+	// Validate username field
+	if textField, ok := f.serverUserField.(*fields.TextInput); ok {
+		err := textField.RunValidator()
+		if err != nil {
+			errs = append(errs, "Username: "+err.Error())
+		}
+	}
+
+	// Validate API token field
+	if textField, ok := f.serverTokenField.(*fields.TextInput); ok {
+		err := textField.RunValidator()
+		if err != nil {
+			errs = append(errs, "API Token: "+err.Error())
+		}
+	}
+
+	return errs
 }
 
 // focusedField returns the currently focused field.

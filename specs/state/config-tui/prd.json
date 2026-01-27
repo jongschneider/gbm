@@ -156,7 +156,7 @@
         "Fix errors and retry save: overlay disappears, save succeeds",
         "Valid config saves without overlay confirmation"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
