@@ -28,6 +28,15 @@ func main() {
 	// Register Wizard story
 	registry.Register(wizardStory())
 
+	// Register Config TUI stories
+	registry.Register(sidebarStory())
+	registry.Register(basicsFormStory())
+	registry.Register(jiraFormStory())
+	registry.Register(fileCopyFormStory())
+	registry.Register(worktreesFormStory())
+	registry.Register(helpOverlayStory())
+	registry.Register(validationOverlayStory())
+
 	// Run the storybook
 	sb := storybook.New(registry)
 	p := tea.NewProgram(sb, tea.WithAltScreen())

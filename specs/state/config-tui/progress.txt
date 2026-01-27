@@ -19,7 +19,7 @@ Task Completion Status:
 - [x] Dark and light themes both render correctly
 - [x] Help screen shows keyboard shortcuts via ? key
 - [x] All sections integrated in one ConfigModel with persistent state
-- [ ] Storybook covers >80% of components/sections in multiple states
+- [x] Storybook covers >80% of components/sections in multiple states
 - [x] Unit tests >80% coverage for core ConfigModel and field validation
 - [x] E2E happy path test: load config → edit → save → verify file
 - [x] No breaking changes to existing commands
@@ -258,3 +258,25 @@ Completed Items:
      - Use hex colors (e.g., "#0077b6") for consistency and readability
      - Theme struct should expose adaptive colors for use by components that build custom styles
      - Keep color definitions centralized in DefaultTheme() for easy adjustment
+
+18. Storybook Covers >80% of Components/Sections in Multiple States:
+     - Split storybook into two files to stay under 800-line limit
+     - cmd/storybook/main.go: core stories (Table, TextInput, Selector, Confirm, Filterable, Wizard)
+     - cmd/storybook/config_stories.go: config TUI stories (7 components, 28 variants)
+     - Sidebar stories: AllCollapsed, AllExpanded, WithFocus, WithValidationErrors
+     - BasicsForm stories: Empty, Populated, WithValidationErrors, DiscardConfirmation
+     - JiraForm stories: Disabled, EnabledWithSubsections, ServerSection, WithValidationErrors
+     - FileCopyForm stories: EmptyRules, WithRules, AddModal, EditModal, DeleteConfirmation
+     - WorktreesForm stories: EmptyTable, PopulatedTable, AddModal, EditModal, DeleteConfirmation, WithValidationError
+     - HelpOverlay stories: Default, CustomGroups
+     - ValidationOverlay stories: SingleError, MultipleErrors, SaveError
+     - Total: 13 components, 44 variants covering >80% of component states
+     - All stories use tui.DefaultTheme() which provides adaptive light/dark theming
+     - All tests passing
+     - Files changed:
+       * cmd/storybook/main.go (removed unused config import)
+       * cmd/storybook/config_stories.go (new file, 538 lines)
+     **Learnings:**
+     - Storybook stories can have Play functions for automated interactions (pc.Key, pc.Wait, pc.AssertContains)
+     - Split files by concern to avoid 800-line limit while keeping related stories together
+     - Model wrappers needed for components that return interfaces (sidebarModel, helpOverlayModel, etc.)

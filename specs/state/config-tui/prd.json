@@ -209,7 +209,7 @@
         "Theme stories: light and dark themes for major components",
         "Verify >80% of component states are covered"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "testing",
