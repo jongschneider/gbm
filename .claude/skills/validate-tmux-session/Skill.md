@@ -1,10 +1,6 @@
 ---
 name: validate-tmux-session
 description: Creates a Tmux session in a directory, displays the session name, proceeds with interactive commands. Use when you need to run commands and manually evaluate cli output.
-args:
-  - name: directory
-    description: Optional directory to create the session in. If not provided, creates a temp directory.
-    required: false
 ---
 
 # Interactive Tmux Session Skill

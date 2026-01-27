@@ -1,0 +1,216 @@
+================================================================================
+        `gbm config` TUI - PLANNING & DESIGN DOCUMENTS COMPLETE
+================================================================================
+
+📚 DOCUMENTATION CREATED (63KB total)
+
+1. README_PLANNING.md (9.3KB) ⭐ START HERE
+   └─ High-level overview, architecture, timeline, success criteria
+
+2. QUICK_START.md (6.8KB)
+   └─ 5-minute guide, key tips, command cheatsheet
+
+3. PRD_CONFIG_TUI.md (25KB) 📋 SPECIFICATION
+   └─ Full product requirements, user flows, component specs, storybook plan
+
+4. COMPONENT_REUSE.md (11KB) ♻️ EFFICIENCY
+   └─ What we're reusing (57% code reuse), detailed matrix, risk assessment
+
+5. IMPLEMENTATION_PLAN.md (11KB) 🛣️ EXECUTION
+   └─ Week-by-week phases, file structure, development workflow, testing
+
+================================================================================
+
+🎯 KEY HIGHLIGHTS
+
+✅ Architecture
+   • Lazygit-style sidebar (expandable/collapsible sections)
+   • Navigator for screen stack (Sidebar → Section → Modal)
+   • Wizard for multi-step forms per section
+   • Field interface for all input components
+
+✅ Component Reuse (57% code saved!)
+   • Navigator, Wizard, TextInput, Selector, Confirm
+   • Table, Theme, Context, Field interface
+   • filepicker (bubbles), validateConfig() (service)
+   → Only ~650-950 LOC of new code needed!
+
+✅ Storybook-Go Coverage
+   • Individual components (TextInput, Selector, Confirm variants)
+   • Complete sections (Basics, JIRA Server, FileCopy, Worktrees)
+   • Full page layouts (sidebar + section combinations)
+   • Dark/light theme support
+
+✅ Config Sections
+   • Basics: default_branch, worktrees_dir
+   • JIRA: toggle + Server/Filters/Attachments/Markdown subsections
+   • FileCopy: Auto form + Rules list (with filepicker)
+   • Worktrees: Table list with add/edit/delete
+
+✅ Implementation Timeline
+   Phase 1 (Week 1): Scaffolding + Sidebar
+   Phase 2 (Week 2): Basics section
+   Phase 3 (Week 2.5): JIRA section
+   Phase 4 (Week 3.5): FileCopy + Worktrees
+   Phase 5 (Week 4): Integration + polish
+   Phase 6 (Week 5): Tests + storybook coverage
+
+================================================================================
+
+📖 HOW TO USE THESE DOCS
+
+For different roles:
+
+Product Manager:
+  → README_PLANNING.md (architecture, timeline)
+  → PRD_CONFIG_TUI.md (UX, features, success criteria)
+
+Engineer (Building Phase 1):
+  → QUICK_START.md (5-min overview)
+  → README_PLANNING.md (phase breakdown)
+  → IMPLEMENTATION_PLAN.md (Phase 1 details)
+  → COMPONENT_REUSE.md (what to reuse)
+
+Engineer (Building Phases 2-6):
+  → IMPLEMENTATION_PLAN.md (phase details)
+  → PRD_CONFIG_TUI.md (section specs)
+  → COMPONENT_REUSE.md (reuse patterns)
+  → QUICK_START.md (tips & tricks)
+
+QA/Testing:
+  → PRD_CONFIG_TUI.md (success criteria § 10)
+  → IMPLEMENTATION_PLAN.md (testing strategy § 6)
+
+Designer:
+  → PRD_CONFIG_TUI.md (UX flows § 2)
+  → README_PLANNING.md (architecture overview)
+
+================================================================================
+
+🚀 READY TO START?
+
+1. Read README_PLANNING.md (10 min)
+2. Skim QUICK_START.md (5 min)
+3. Deep-dive on your phase:
+   • Phase 1: IMPLEMENTATION_PLAN.md § Phase 1
+   • Phase 2+: PRD_CONFIG_TUI.md § relevant section
+4. Reference COMPONENT_REUSE.md for patterns
+
+Questions? All answered in these documents!
+
+================================================================================
+
+📊 BY THE NUMBERS
+
+Estimated Effort Saved:
+  • Code reuse: 870-1,290 LOC saved (57% of final size)
+  • New code: 650-950 LOC
+  • Total project: ~1,500-2,000 LOC
+
+Timeline:
+  • Planning: ✅ Complete
+  • Implementation: 4-5 weeks (5 phases)
+  • Testing: Included in phases + Phase 6
+
+Risk Level: LOW
+  • All reused components battle-tested in production
+  • Storybook-first development reduces implementation risk
+  • Component matrix validates all integrations
+
+Success Criteria: 11 items (all documented in PRD § 10)
+
+================================================================================
+
+📝 DOCUMENT MAP
+
+README_PLANNING.md
+├─ Project overview
+├─ Documentation index
+├─ Key decisions
+├─ Architecture overview
+├─ File structure
+├─ Phase timeline
+├─ Success criteria
+└─ Next steps
+
+QUICK_START.md
+├─ TL;DR
+├─ Key files to know
+├─ Reuse strategy
+├─ Architecture at glance
+├─ Storybook-first development
+├─ Section structure
+├─ Testing checklist
+├─ Implementation tips
+├─ Dark/light theme support
+├─ Phase guidance
+├─ Commands you'll use
+└─ Checklist: Ready to start?
+
+PRD_CONFIG_TUI.md
+├─ Overview
+├─ User Experience (UX)
+│  ├─ Navigation model
+│  ├─ Section hierarchy
+│  └─ Example user journey
+├─ Architecture
+│  ├─ Code organization
+│  ├─ Component hierarchy
+│  └─ Data flow
+├─ Detailed Component Specs
+│  ├─ Sidebar
+│  ├─ Form component
+│  ├─ List component
+│  ├─ FileCopy rules (filepicker)
+│  ├─ Toggle component
+│  └─ Root config model
+├─ Storybook-Go Coverage
+├─ Data Models
+├─ Command Integration
+├─ Implementation Phases
+├─ Testing Strategy
+├─ Success Criteria
+├─ Out of Scope (v2+)
+└─ Appendix (Design Tokens, Keyboard Cheatsheet)
+
+COMPONENT_REUSE.md
+├─ High-level reuse map
+├─ Detailed reuse breakdown
+│  ├─ Navigator (REUSE)
+│  ├─ Wizard (REUSE)
+│  ├─ TextInput (REUSE)
+│  ├─ Selector (REUSE)
+│  ├─ Confirm (REUSE)
+│  ├─ Table (REUSE)
+│  ├─ Theme (REUSE)
+│  ├─ Context (REUSE)
+│  ├─ Filepicker (REUSE)
+│  └─ validateConfig (REUSE)
+├─ Reuse scorecard
+├─ New code required
+├─ Implementation checklist
+├─ Risk assessment
+└─ Summary
+
+IMPLEMENTATION_PLAN.md
+├─ Build strategy
+├─ Phase breakdown (6 phases)
+├─ File structure
+├─ Development workflow
+├─ Testing commands
+├─ Milestones & success criteria
+├─ Known risks & mitigations
+├─ Success criteria (Definition of Done)
+├─ Next steps
+└─ Questions for team
+
+================================================================================
+
+✅ ALL PLANNING COMPLETE!
+
+Status: Ready to build
+Next: Phase 1 implementation
+
+See README_PLANNING.md for next steps.
+
+================================================================================

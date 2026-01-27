@@ -1,0 +1,31 @@
+GBM Config TUI - Task Progress
+==============================
+Created: 2026-01-27
+PRD: prd-config-tui.md
+
+Task Completion Status:
+- [x] Sidebar navigation component renders correctly (collapsed, expanded, badges)
+- [ ] RootModel (ConfigModel) delegates to Navigator correctly
+- [ ] gbm config command registered and launches TUI without errors
+- [ ] Basics section renders with default_branch and worktrees_dir fields
+- [ ] TextInput validators prevent invalid branch names and directory paths
+- [ ] Save/discard flows work correctly from Basics section
+- [ ] JIRA enable/disable toggle works and shows/hides subsections
+- [ ] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
+- [ ] FileCopy Rules table renders with add/edit/delete modals
+- [ ] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
+- [ ] Worktrees table with add/edit/delete modals
+- [ ] Validation error overlays appear on invalid save attempts
+- [ ] Dark and light themes both render correctly
+- [ ] Help screen shows keyboard shortcuts via ? key
+- [ ] All sections integrated in one ConfigModel with persistent state
+- [ ] Storybook covers >80% of components/sections in multiple states
+- [ ] Unit tests >80% coverage for core ConfigModel and field validation
+- [ ] E2E happy path test: load config → edit → save → verify file
+- [ ] No breaking changes to existing commands
+- [ ] CLI help and in-app documentation complete
+
+Completed Items:
+1. Sidebar navigation component (pkg/tui/sidebar.go, pkg/tui/sidebar_test.go)
+2. ConfigModel root component (pkg/tui/config_model.go, pkg/tui/config_model_test.go)
+3. Config CLI command (cmd/service/config_cmd.go, registered in root.go)

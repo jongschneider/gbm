@@ -1,7 +1,7 @@
-## Metadata
-name: CLI Test Suite Skill
+---
+name: cli-test-suite
 description: Execute a comprehensive test of all GBM (Git Branch Manager) CLI functionality. Tracks all test results in a timestamped markdown report.
-
+---
 
 ## Overview
 Execute a comprehensive test of all GBM (Git Branch Manager) CLI functionality. Tracks all test results in a timestamped markdown report.

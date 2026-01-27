@@ -206,3 +206,14 @@ vhs-record:
     echo "✓ VHS recordings complete"
     ls -lah *.gif 2>/dev/null || echo "No GIFs generated"
 
+# List available PRDs (with gum selection)
+prd-list:
+    @ls specs/state/ | gum choose
+
+# Run ralph with streaming output (usage: just ralph [iterations])
+ralph *ARGS:
+    #!/usr/bin/env bash
+    prd=$(ls specs/state/ | gum choose) || exit 0
+    [[ -z "$prd" ]] && exit 0
+    ./scripts/ralph-stream.sh "$prd" {{ARGS}}
+
