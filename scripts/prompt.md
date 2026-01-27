@@ -39,8 +39,12 @@ Before committing, run ALL applicable:
     - just check
 DO NOT commit if any fail. Fix issues first.
 
-## 6. Update PRD
-Set the task's passes field to true in the PRD file.
+## 6. Update PRD (REQUIRED - DO NOT SKIP)
+CRITICAL: Update specs/state/config-tui/prd.json:
+- Find the task description that matches what you just completed
+- Change "passes": false to "passes": true
+- This must happen BEFORE the final commit
+- If you forget this, the progress tracking breaks
 
 ## 7. Update Progress
 Append to progress.txt:
@@ -51,8 +55,13 @@ Append to progress.txt:
 
 If you discover a reusable pattern, also add to ## Codebase Patterns at the TOP.
 
-## 8. Commit
-git add -A && git commit -m 'feat(<scope>): <description>'
+## 8. Commit (includes prd.json + progress.txt + code changes)
+VERIFY before committing:
+- [ ] prd.json updated with passes: true
+- [ ] progress.txt appended with task notes
+- [ ] Code changes completed and tested
+Then commit:
+    git add -A && git commit -m 'feat(<scope>): <description>'
 
 ## 9. Check Completion
 If ALL tasks in the PRD now have passes: true, output the following marker on its own line:
