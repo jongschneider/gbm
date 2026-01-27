@@ -34,10 +34,10 @@ func DefaultAttachmentConfig() AttachmentConfig {
 
 // AttachmentService handles downloading JIRA attachments
 type AttachmentService struct {
-	config     AttachmentConfig
-	client     *http.Client
-	jiraEmail  string // JIRA user email for authentication
-	jiraToken  string // JIRA API token for authentication
+	config    AttachmentConfig
+	client    *http.Client
+	jiraEmail string // JIRA user email for authentication
+	jiraToken string // JIRA API token for authentication
 }
 
 // NewAttachmentService creates a new attachment service

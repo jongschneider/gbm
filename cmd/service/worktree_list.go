@@ -202,5 +202,3 @@ func handleWorktreeTableTUI(svc WorktreeConfigService, gitOps WorktreeTableGitOp
 
 	return nil
 }
-
-

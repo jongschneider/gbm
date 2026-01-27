@@ -217,7 +217,7 @@ func TestWorkflowState_CustomFieldsWithNilValue(t *testing.T) {
 func TestWorkflowState_UpdateCustomField(t *testing.T) {
 	t.Run("update custom field multiple times", func(t *testing.T) {
 		ws := &WorkflowState{}
-		
+
 		ws.SetField("version", "1.0")
 		assert.Equal(t, "1.0", ws.GetField("version"))
 
@@ -232,11 +232,11 @@ func TestWorkflowState_UpdateCustomField(t *testing.T) {
 func TestNewContext_WorkflowStateCustomFields(t *testing.T) {
 	t.Run("new context has clean workflow state", func(t *testing.T) {
 		ctx := NewContext()
-		
+
 		assert.NotNil(t, ctx.State)
 		assert.Equal(t, "", ctx.State.WorkflowType)
 		assert.Nil(t, ctx.State.CustomFields, "should start with nil CustomFields")
-		
+
 		// Can immediately use SetField/GetField
 		ctx.State.SetField("key", "value")
 		assert.Equal(t, "value", ctx.State.GetField("key"))

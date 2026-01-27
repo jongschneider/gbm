@@ -12,65 +12,65 @@ import (
 
 func TestListIgnoredFiles(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Initialize a git repo
 	service := NewService()
 	err := service.Init(tempDir, "main", false)
 	require.NoError(t, err)
-	
+
 	repoPath := filepath.Join(tempDir, "worktrees", "main")
-	
+
 	// Create a .gitignore file
 	gitignoreContent := "*.log\nnode_modules/\n.env\n"
 	gitignorePath := filepath.Join(repoPath, ".gitignore")
 	err = os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644)
 	require.NoError(t, err)
-	
+
 	// Create some ignored files
 	err = os.WriteFile(filepath.Join(repoPath, "app.log"), []byte("log content"), 0644)
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(repoPath, ".env"), []byte("SECRET=123"), 0644)
 	require.NoError(t, err)
-	
+
 	// Add gitignore to git
 	cmd := exec.Command("git", "add", ".gitignore")
 	cmd.Dir = repoPath
 	_, err = cmd.Output()
 	require.NoError(t, err)
-	
+
 	cmd = exec.Command("git", "commit", "-m", "Add gitignore")
 	cmd.Dir = repoPath
 	_, err = cmd.Output()
 	require.NoError(t, err)
-	
+
 	// Test ListIgnoredFiles
 	ignored, err := service.ListIgnoredFiles(repoPath)
 	require.NoError(t, err)
-	
+
 	assert.Contains(t, ignored, "app.log", "should contain ignored log file")
 	assert.Contains(t, ignored, ".env", "should contain ignored env file")
 }
 
 func TestListUntrackedFiles(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Initialize a git repo
 	service := NewService()
 	err := service.Init(tempDir, "main", false)
 	require.NoError(t, err)
-	
+
 	repoPath := filepath.Join(tempDir, "worktrees", "main")
-	
+
 	// Create some untracked files
 	err = os.WriteFile(filepath.Join(repoPath, "newfile.txt"), []byte("content"), 0644)
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(repoPath, "another.md"), []byte("# Title"), 0644)
 	require.NoError(t, err)
-	
+
 	// Test ListUntrackedFiles
 	untracked, err := service.ListUntrackedFiles(repoPath)
 	require.NoError(t, err)
-	
+
 	assert.Contains(t, untracked, "newfile.txt", "should contain untracked file")
 	assert.Contains(t, untracked, "another.md", "should contain untracked file")
 }
@@ -131,7 +131,7 @@ func TestMatchesPattern(t *testing.T) {
 			want:     true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := MatchesPattern(tt.path, tt.patterns)
@@ -177,7 +177,7 @@ func TestParseFileList(t *testing.T) {
 			want: []string{"file.txt"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseFileList(tt.out)

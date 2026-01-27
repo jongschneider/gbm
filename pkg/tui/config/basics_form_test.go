@@ -21,6 +21,8 @@ func TestBasicsForm_Create(t *testing.T) {
 				WorktreesDir:  "./worktrees",
 			},
 			expect: func(t *testing.T, form *BasicsForm) {
+				t.Helper()
+
 				assert.NotNil(t, form.defaultBranchField)
 				assert.NotNil(t, form.worktreesDirField)
 				assert.Equal(t, 0, form.focusedFieldIdx)
@@ -34,13 +36,18 @@ func TestBasicsForm_Create(t *testing.T) {
 				Theme: tui.DefaultTheme(),
 			},
 			expect: func(t *testing.T, form *BasicsForm) {
+				t.Helper()
+
 				assert.NotNil(t, form.theme)
 			},
 		},
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			form := NewBasicsForm(tc.config)
 			tc.expect(t, form)
 		})
@@ -48,6 +55,8 @@ func TestBasicsForm_Create(t *testing.T) {
 }
 
 func TestBasicsForm_GetValue(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{
 		DefaultBranch: "develop",
 		WorktreesDir:  "/home/user/worktrees",
@@ -56,8 +65,8 @@ func TestBasicsForm_GetValue(t *testing.T) {
 	// Note: Values are only set when user presses Enter.
 	// Initially they should be empty.
 	values := form.GetValue()
-	assert.Equal(t, "", values["default_branch"])
-	assert.Equal(t, "", values["worktrees_dir"])
+	assert.Empty(t, values["default_branch"])
+	assert.Empty(t, values["worktrees_dir"])
 
 	// Simulate user input and submission
 	form.defaultBranchField = form.defaultBranchField.WithTheme(form.theme)
@@ -65,6 +74,8 @@ func TestBasicsForm_GetValue(t *testing.T) {
 }
 
 func TestBasicsForm_View(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{
 		DefaultBranch: "main",
 		WorktreesDir:  "./worktrees",
@@ -78,6 +89,8 @@ func TestBasicsForm_View(t *testing.T) {
 }
 
 func TestBasicsForm_TabNavigation(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{})
 
 	// Initially focused on first field
@@ -93,6 +106,8 @@ func TestBasicsForm_TabNavigation(t *testing.T) {
 }
 
 func TestBasicsForm_ShiftTabNavigation(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{})
 
 	// Move to last field
@@ -109,6 +124,8 @@ func TestBasicsForm_ShiftTabNavigation(t *testing.T) {
 }
 
 func TestBasicsForm_Complete(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{})
 
 	assert.False(t, form.IsComplete())
@@ -119,6 +136,8 @@ func TestBasicsForm_Complete(t *testing.T) {
 }
 
 func TestBasicsForm_Cancelled(t *testing.T) {
+	t.Parallel()
+
 	form := NewBasicsForm(BasicsFormConfig{})
 
 	assert.False(t, form.IsCancelled())

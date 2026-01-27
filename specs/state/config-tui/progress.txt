@@ -9,7 +9,7 @@ Task Completion Status:
 - [x] gbm config command registered and launches TUI without errors
 - [x] Basics section renders with default_branch and worktrees_dir fields
 - [x] TextInput validators prevent invalid branch names and directory paths
-- [ ] Save/discard flows work correctly from Basics section
+- [x] Save/discard flows work correctly from Basics section
 - [ ] JIRA enable/disable toggle works and shows/hides subsections
 - [ ] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
 - [ ] FileCopy Rules table renders with add/edit/delete modals
@@ -30,3 +30,10 @@ Completed Items:
 2. ConfigModel root component (pkg/tui/config_model.go, pkg/tui/config_model_test.go)
 3. Config CLI command (cmd/service/config_cmd.go, registered in root.go)
 4. BasicsForm component (pkg/tui/config/basics_form.go, pkg/tui/config/basics_form_test.go)
+5. Save/Discard flows:
+   - Implemented 's' key handler to save form data via OnSave callback
+   - Implemented 'q' key handler to show discard confirmation modal
+   - Created Confirm field for "Discard unsaved changes?" modal
+   - Added key handlers for y/n responses (yes/no to discard)
+   - Tests: SaveFlow, DiscardFlow, KeepEditingFlow with teatest
+   - All 12 tests passing

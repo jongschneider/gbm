@@ -72,7 +72,7 @@
         "Select 'Discard': changes lost, returns to Sidebar",
         "Select 'Keep editing': stays in form with changes intact"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

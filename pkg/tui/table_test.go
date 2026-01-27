@@ -143,7 +143,7 @@ func TestAsyncRow_GetCell_ReturnsAsyncSpinnerWhileLoading(t *testing.T) {
 	// StartLoading returns a Cmd, which must be executed to actually run the fetch
 	cmd := cell.StartLoading()
 	assert.NotNil(t, cmd) // Cmd returned
-	
+
 	// Before executing the Cmd, Cmd is returned and IsLoading() would be true
 	// If we execute the Cmd, it runs the fetch synchronously
 	// Since the test doesn't execute the Cmd, isStarted=true but eval not loaded

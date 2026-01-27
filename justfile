@@ -6,20 +6,15 @@ default:
 # Run all validations
 validate: format vet lint compile test-changed
 
-# Format all changed Go files
-format:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Check both staged and unstaged changes
-    changed_files=$(git diff --name-only --cached; git diff --name-only; git ls-files --others --exclude-standard | grep '\.go$' || true)
-    changed_files=$(echo "$changed_files" | grep '\.go$' | sort -u || true)
-    if [ -n "$changed_files" ]; then
-        echo "Formatting changed Go files..."
-        echo "$changed_files" | xargs gofmt -w
-        echo "✓ Formatting complete"
-    else
-        echo "No Go files changed"
-    fi
+# Run all checks (continues on failure to show all issues)
+check:
+    -@./scripts/dev/test-minimal.sh
+    -@./scripts/dev/lint-minimal.sh
+    -@./scripts/check-file-length.sh
+
+# Format code
+fmt:
+    @golangci-lint fmt
 
 # Run go vet on packages with changes
 vet:
@@ -40,24 +35,9 @@ vet:
         echo "No Go files changed"
     fi
 
-# Run linting on changed files
+# Run linter with minimal output (LLM-friendly)
 lint:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Check both staged and unstaged changes
-    changed_files=$(git diff --name-only --cached; git diff --name-only; git ls-files --others --exclude-standard | grep '\.go$' || true)
-    changed_files=$(echo "$changed_files" | grep '\.go$' | sort -u || true)
-    if [ -n "$changed_files" ]; then
-        echo "Running golangci-lint on changed packages..."
-        packages=$(echo "$changed_files" | xargs dirname | sort -u | sed 's|^|./|' | tr '\n' ' ')
-        for pkg in $packages; do
-            echo "Linting $pkg..."
-            golangci-lint run "$pkg" || exit 1
-        done
-        echo "✓ Lint checks passed"
-    else
-        echo "No Go files changed"
-    fi
+    @./scripts/dev/lint-minimal.sh
 
 # Run linting on all packages
 lint-all:
@@ -86,13 +66,9 @@ test-changed:
         echo "No Go files changed"
     fi
 
-# Run all tests
+# Run tests with minimal output (LLM-friendly)
 test:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Running all tests..."
-    go test -timeout 10m -v ./... || exit 1
-    echo "✓ All tests passed"
+    @./scripts/dev/test-minimal.sh
 
 
 # Build the gbm binary
@@ -158,11 +134,8 @@ run *ARGS:
 
 # Clean build artifacts
 clean:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Cleaning build artifacts..."
-    rm -f gbm
-    echo "✓ Clean complete"
+    @rm -f test.out lint.out *.test
+    @go clean ./...
 
 # Quick check - minimal validation for fast feedback
 quick: format vet

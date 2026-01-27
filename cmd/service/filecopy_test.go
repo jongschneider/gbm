@@ -8,10 +8,10 @@ import (
 
 func TestFilterFiles(t *testing.T) {
 	tests := []struct {
-		name     string
-		files    []string
-		exclude  []string
-		want     []string
+		name    string
+		files   []string
+		exclude []string
+		want    []string
 	}{
 		{
 			name:    "no exclusions",
@@ -50,7 +50,7 @@ func TestFilterFiles(t *testing.T) {
 			want:    nil,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := filterFiles(tt.files, tt.exclude)
@@ -97,7 +97,7 @@ func TestMatchesAnyPattern(t *testing.T) {
 			want:     false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := matchesAnyPattern(tt.path, tt.patterns)
@@ -150,7 +150,7 @@ func TestMatchGlob(t *testing.T) {
 			want:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := matchGlob(tt.path, tt.pattern)
@@ -209,7 +209,7 @@ func TestGlobMatch(t *testing.T) {
 			want:    false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := globMatch(tt.name_, tt.pattern)

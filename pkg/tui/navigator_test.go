@@ -9,10 +9,10 @@ import (
 
 // mockModel is a simple model for testing navigator
 type mockModel struct {
-	name     string
-	updated  bool
-	viewed   bool
-	initCmd  tea.Cmd
+	name    string
+	updated bool
+	viewed  bool
+	initCmd tea.Cmd
 }
 
 func (m *mockModel) Init() tea.Cmd {
@@ -266,9 +266,9 @@ func TestNavigator_Depth(t *testing.T) {
 
 func TestNavigator_IsEmpty(t *testing.T) {
 	testCases := []struct {
-		name     string
-		isEmpty  bool
-		setup    func() *Navigator
+		name        string
+		isEmpty     bool
+		setup       func() *Navigator
 		description string
 	}{
 		{

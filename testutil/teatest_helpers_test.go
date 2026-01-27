@@ -9,9 +9,9 @@ import (
 
 func TestStringToKeyMsgConversion(t *testing.T) {
 	testCases := []struct {
-		name     string
-		keyStr   string
-		expect   func(t *testing.T, msg tea.KeyMsg)
+		name        string
+		keyStr      string
+		expect      func(t *testing.T, msg tea.KeyMsg)
 		description string
 	}{
 		{
@@ -218,8 +218,8 @@ func TestSendKeySequenceHelper(t *testing.T) {
 
 func TestKeyMsgConversion_AllArrows(t *testing.T) {
 	testCases := []struct {
-		name     string
-		keyStr   string
+		name         string
+		keyStr       string
 		expectedType tea.KeyType
 	}{
 		{"up", "up", tea.KeyUp},
@@ -238,8 +238,8 @@ func TestKeyMsgConversion_AllArrows(t *testing.T) {
 
 func TestKeyMsgConversion_Modifiers(t *testing.T) {
 	testCases := []struct {
-		name     string
-		keyStr   string
+		name         string
+		keyStr       string
 		expectedType tea.KeyType
 	}{
 		{"ctrl+c", "ctrl+c", tea.KeyCtrlC},

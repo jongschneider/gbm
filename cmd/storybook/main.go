@@ -354,15 +354,15 @@ func newWizardModel() tea.Model {
 			}),
 		},
 		{
-			Name: "worktree_name",
+			Name:  "worktree_name",
 			Field: fields.NewTextInput("worktree_name", "Worktree Name", "Enter a name for the worktree directory"),
 		},
 		{
-			Name: "branch_name",
+			Name:  "branch_name",
 			Field: fields.NewTextInput("branch_name", "Branch Name", "Enter the branch name"),
 		},
 		{
-			Name: "confirm",
+			Name:  "confirm",
 			Field: fields.NewConfirm("confirm", "Create worktree?"),
 		},
 	}
