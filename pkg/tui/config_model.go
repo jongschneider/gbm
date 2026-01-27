@@ -42,6 +42,21 @@ type WorktreeEntryState struct {
 	Description string
 }
 
+// MarkDirty sets the dirty flag to true, indicating unsaved changes.
+func (s *ConfigState) MarkDirty() {
+	s.dirty = true
+}
+
+// ClearDirty sets the dirty flag to false, indicating no unsaved changes.
+func (s *ConfigState) ClearDirty() {
+	s.dirty = false
+}
+
+// IsDirty returns whether the state has unsaved changes.
+func (s *ConfigState) IsDirty() bool {
+	return s.dirty
+}
+
 // FormFactory creates forms for config sections.
 // The factory receives the section name and returns a tea.Model for that section.
 // It also receives a callback to update the shared state when the form saves.

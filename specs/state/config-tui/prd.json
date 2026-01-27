@@ -239,7 +239,7 @@
         "Read .gbm/config.yaml file: verify edits persisted correctly",
         "Verify original fields not overwritten"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

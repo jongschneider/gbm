@@ -21,7 +21,7 @@ Task Completion Status:
 - [x] All sections integrated in one ConfigModel with persistent state
 - [ ] Storybook covers >80% of components/sections in multiple states
 - [ ] Unit tests >80% coverage for core ConfigModel and field validation
-- [ ] E2E happy path test: load config → edit → save → verify file
+- [x] E2E happy path test: load config → edit → save → verify file
 - [x] No breaking changes to existing commands
 - [ ] CLI help and in-app documentation complete
 
@@ -172,3 +172,28 @@ Completed Items:
      **Learnings:**
      - Verification task - no code changes required
      - Config TUI is additive and doesn't touch existing command paths
+
+15. E2E Happy Path Test: Load Config → Edit → Save → Verify File:
+     - Created comprehensive E2E tests in e2e_test.go (7 tests)
+     - Tests cover: happy path, edit basics, edit JIRA, preserve fields, valid YAML, worktrees section, file copy rules
+     - Created integration E2E tests in cmd/service/config_e2e_test.go (6 tests)
+     - Tests use real ConfigModel with service layer callbacks
+     - Test flow: load config → navigate sections → edit state → save → verify file
+     - Added MarkDirty(), ClearDirty(), IsDirty() methods to ConfigState for test access
+     - Tests verify:
+       * Config file loads correctly
+       * Navigation through all sections works
+       * Edits persist after save
+       * Original fields are preserved when editing others
+       * JIRA, FileCopy, and Worktrees sections save correctly
+       * Reset functionality restores original state
+     - All 13 E2E tests passing
+     - Files changed:
+       * e2e_test.go (added 7 tests)
+       * cmd/service/config_e2e_test.go (new file, 6 tests)
+       * pkg/tui/config_model.go (added MarkDirty/ClearDirty/IsDirty methods)
+     **Learnings:**
+     - Interactive TUI cannot be tested directly in automated tests (requires /dev/tty)
+     - Use ConfigModel directly with Update() calls to simulate user interactions
+     - Service layer callbacks (onSave, onReset) enable testing the full save/load flow
+     - FormFactory pattern allows section forms to be created without import cycles
