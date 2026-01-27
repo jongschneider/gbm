@@ -186,6 +186,70 @@ func TestConfigModel_View(t *testing.T) {
 	assert.Contains(t, view, "Basics")
 }
 
+func TestConfigModel_Help_ShowsOnQuestionMark(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+
+	// Press '?' at sidebar level
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+
+	assert.NotNil(t, m.helpOverlay)
+}
+
+func TestConfigModel_Help_DismissesOnEsc(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+
+	// Show help
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	assert.NotNil(t, m.helpOverlay)
+
+	// Dismiss with Esc
+	m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	assert.Nil(t, m.helpOverlay)
+}
+
+func TestConfigModel_Help_DismissesOnQuestionMark(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+
+	// Show help
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	assert.NotNil(t, m.helpOverlay)
+
+	// Dismiss with '?' again
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	assert.Nil(t, m.helpOverlay)
+}
+
+func TestConfigModel_Help_DismissesOnEnter(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+
+	// Show help
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	assert.NotNil(t, m.helpOverlay)
+
+	// Dismiss with Enter
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Nil(t, m.helpOverlay)
+}
+
+func TestConfigModel_Help_ViewShowsOverlay(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+
+	// Show help
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+
+	view := m.View()
+	assert.Contains(t, view, "Help - Keyboard Shortcuts")
+	assert.Contains(t, view, "Navigation")
+}
+
+func TestConfigModel_View_ContainsHelpHint(t *testing.T) {
+	m := NewConfigModel(DefaultTheme())
+	view := m.View()
+
+	// Footer should mention '?' for help
+	assert.Contains(t, view, "?=help")
+}
+
 // configTestMockModel is a simple mock tea.Model for testing.
 type configTestMockModel struct{}
 

@@ -34,6 +34,7 @@ const (
 	ModalDelete
 	ModalDiscard
 	ModalFilePicker
+	ModalHelp
 )
 
 // FileCopyForm renders a table of file copy rules with add/edit/delete modals.
@@ -45,6 +46,7 @@ type FileCopyForm struct {
 	table           *tui.Table
 	theme           *tui.Theme
 	filepickerField *fields.FilePicker
+	helpOverlay     *tui.HelpOverlay
 	rules           []FileCopyRule
 	modalState      ModalState
 	height          int
@@ -120,6 +122,8 @@ func (f *FileCopyForm) Init() tea.Cmd {
 // Update implements tea.Model.
 func (f *FileCopyForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch f.modalState {
+	case ModalHelp:
+		return f.handleHelpModal(msg)
 	case ModalAdd, ModalEdit:
 		return f.handleEditModal(msg)
 	case ModalDelete:
@@ -147,6 +151,8 @@ func (f *FileCopyForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleKeyMsg processes keyboard input when no modal is open.
 func (f *FileCopyForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		return f.openHelpModal()
 	case "a":
 		return f.openAddModal()
 	case "e":
@@ -214,6 +220,32 @@ func (f *FileCopyForm) openDiscardModal() (tea.Model, tea.Cmd) {
 	confirm := fields.NewConfirm("discard_confirm", "Discard unsaved changes?")
 	f.confirmField = confirm.WithTheme(f.theme)
 	return f, f.confirmField.Focus()
+}
+
+// openHelpModal opens the help overlay.
+func (f *FileCopyForm) openHelpModal() (tea.Model, tea.Cmd) {
+	f.modalState = ModalHelp
+	f.helpOverlay = tui.NewHelpOverlay().
+		WithTheme(f.theme).
+		WithWidth(f.width).
+		WithHeight(f.height)
+	return f, nil
+}
+
+// handleHelpModal processes input while showing the help overlay.
+func (f *FileCopyForm) handleHelpModal(msg tea.Msg) (tea.Model, tea.Cmd) {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return f, nil
+	}
+
+	switch keyMsg.String() {
+	case "esc", "?", "enter":
+		f.modalState = ModalNone
+		f.helpOverlay = nil
+		return f, nil
+	}
+	return f, nil
 }
 
 // initModalFields initializes the source and files fields for add/edit modals.
@@ -506,6 +538,8 @@ func (f *FileCopyForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.C
 // View implements tea.Model.
 func (f *FileCopyForm) View() string {
 	switch f.modalState {
+	case ModalHelp:
+		return f.helpOverlay.View()
 	case ModalAdd:
 		return f.renderEditModal("Add File Copy Rule")
 	case ModalEdit:
@@ -530,7 +564,7 @@ func (f *FileCopyForm) View() string {
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help  q=quit"))
 
 	return strings.Join(lines, "\n")
 }

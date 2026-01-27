@@ -17,7 +17,7 @@ Task Completion Status:
 - [x] Worktrees table with add/edit/delete modals
 - [x] Validation error overlays appear on invalid save attempts
 - [ ] Dark and light themes both render correctly
-- [ ] Help screen shows keyboard shortcuts via ? key
+- [x] Help screen shows keyboard shortcuts via ? key
 - [x] All sections integrated in one ConfigModel with persistent state
 - [ ] Storybook covers >80% of components/sections in multiple states
 - [ ] Unit tests >80% coverage for core ConfigModel and field validation
@@ -136,3 +136,24 @@ Completed Items:
      **Learnings:**
      - Type assertion pattern: `textField, ok := f.field.(*fields.TextInput)` to access concrete methods
      - Overlay rendering priority: validation errors > discard confirmation > normal form view
+
+13. Help Screen with Keyboard Shortcuts:
+     - Created HelpOverlay component (pkg/tui/help_overlay.go) in tui package (not fields) to avoid import cycles
+     - Displays organized keyboard shortcuts in a bordered box with rounded corners
+     - Groups shortcuts by context: Navigation, Sidebar, Table Forms, Modals, FilePicker
+     - Each shortcut shows key and description with aligned formatting
+     - Dismisses on Escape, '?', or Enter keys
+     - Implemented builder pattern: NewHelpOverlay().WithTheme().WithWidth().WithHeight()
+     - Integrated into ConfigModel for sidebar-level help (depth == 1)
+     - Updated all 4 forms (BasicsForm, JiraForm, FileCopyForm, WorktreesForm) with '?' key handler
+     - Added ModalHelp state to FileCopyForm and WorktreeModalHelp to WorktreesForm
+     - Forms show "?=help" in footer text
+     - ConfigModel footer updated: "↑↓=navigate  Enter=select  s=save  r=reset  ?=help  q=quit"
+     - Tests: 24 HelpOverlay tests + 6 ConfigModel help tests (all passing)
+     - Files changed: pkg/tui/help_overlay.go, pkg/tui/help_overlay_test.go, pkg/tui/config_model.go,
+       pkg/tui/config_model_test.go, pkg/tui/config/basics_form.go, pkg/tui/config/jira_form.go,
+       pkg/tui/config/filecopy_form.go, pkg/tui/config/worktrees_form.go
+     **Learnings:**
+     - HelpOverlay must be in pkg/tui (not pkg/tui/fields) because ConfigModel can't import pkg/tui/fields (import cycle)
+     - Forms with modal state enums need a new Help modal state (ModalHelp, WorktreeModalHelp)
+     - Reused overlay pattern from ValidationOverlay but with gray border instead of red

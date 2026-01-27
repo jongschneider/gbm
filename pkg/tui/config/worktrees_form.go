@@ -31,6 +31,7 @@ const (
 	WorktreeModalEdit
 	WorktreeModalDelete
 	WorktreeModalDiscard
+	WorktreeModalHelp
 )
 
 type WorktreesForm struct {
@@ -42,6 +43,7 @@ type WorktreesForm struct {
 	onSave           func(worktrees []WorktreeEntry) error
 	table            *tui.Table
 	theme            *tui.Theme
+	helpOverlay      *tui.HelpOverlay
 	validationError  string
 	worktrees        []WorktreeEntry
 	modalState       WorktreeModalState
@@ -105,6 +107,8 @@ func (f *WorktreesForm) Init() tea.Cmd {
 
 func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch f.modalState {
+	case WorktreeModalHelp:
+		return f.handleHelpModal(msg)
 	case WorktreeModalAdd, WorktreeModalEdit:
 		return f.handleEditModal(msg)
 	case WorktreeModalDelete:
@@ -129,6 +133,8 @@ func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (f *WorktreesForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		return f.openHelpModal()
 	case "a":
 		return f.openAddModal()
 	case "e":
@@ -194,6 +200,30 @@ func (f *WorktreesForm) openDiscardModal() (tea.Model, tea.Cmd) {
 	confirm := fields.NewConfirm("discard_confirm", "Discard unsaved changes?")
 	f.confirmField = confirm.WithTheme(f.theme)
 	return f, f.confirmField.Focus()
+}
+
+func (f *WorktreesForm) openHelpModal() (tea.Model, tea.Cmd) {
+	f.modalState = WorktreeModalHelp
+	f.helpOverlay = tui.NewHelpOverlay().
+		WithTheme(f.theme).
+		WithWidth(f.width).
+		WithHeight(f.height)
+	return f, nil
+}
+
+func (f *WorktreesForm) handleHelpModal(msg tea.Msg) (tea.Model, tea.Cmd) {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return f, nil
+	}
+
+	switch keyMsg.String() {
+	case "esc", "?", "enter":
+		f.modalState = WorktreeModalNone
+		f.helpOverlay = nil
+		return f, nil
+	}
+	return f, nil
 }
 
 func (f *WorktreesForm) initModalFields(name, branch, mergeInto, description string) {
@@ -418,6 +448,8 @@ func (f *WorktreesForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.
 
 func (f *WorktreesForm) View() string {
 	switch f.modalState {
+	case WorktreeModalHelp:
+		return f.helpOverlay.View()
 	case WorktreeModalAdd:
 		return f.renderEditModal("Add Worktree")
 	case WorktreeModalEdit:
@@ -440,7 +472,7 @@ func (f *WorktreesForm) View() string {
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help  q=quit"))
 
 	return strings.Join(lines, "\n")
 }

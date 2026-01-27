@@ -51,6 +51,7 @@ type JiraForm struct {
 	markdownUseRelativeLinksField   tui.Field
 	markdownIncludeCommentsField    tui.Field
 	validationOverlay               *fields.ValidationOverlay
+	helpOverlay                     *tui.HelpOverlay
 	onSave                          func(data map[string]any) error
 	theme                           *tui.Theme
 	activeSection                   string
@@ -63,6 +64,7 @@ type JiraForm struct {
 	enabled                         bool
 	showConfirmDiscard              bool
 	showValidationErrors            bool
+	showHelp                        bool
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -254,6 +256,11 @@ func (f *JiraForm) Init() tea.Cmd {
 
 // Update implements tea.Model.Update.
 func (f *JiraForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle help overlay
+	if f.showHelp {
+		return f.handleHelpOverlay(msg)
+	}
+
 	// Handle validation error overlay
 	if f.showValidationErrors {
 		return f.handleValidationOverlay(msg)
@@ -317,6 +324,21 @@ func (f *JiraForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return f, cmd
 }
 
+// handleHelpOverlay processes input while showing the help overlay.
+func (f *JiraForm) handleHelpOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return f, nil
+	}
+
+	switch keyMsg.String() {
+	case "esc", "?", "enter":
+		f.showHelp = false
+		return f, f.focusedField().Focus()
+	}
+	return f, nil
+}
+
 // handleValidationOverlay processes input while showing the validation error overlay.
 func (f *JiraForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := f.validationOverlay.Update(msg)
@@ -334,6 +356,10 @@ func (f *JiraForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.View.
 func (f *JiraForm) View() string {
+	if f.showHelp && f.helpOverlay != nil {
+		return f.helpOverlay.View()
+	}
+
 	if f.showValidationErrors && f.validationOverlay != nil {
 		return f.validationOverlay.View()
 	}
@@ -397,7 +423,7 @@ func (f *JiraForm) View() string {
 	}
 
 	// Help text
-	lines = append(lines, f.theme.Blurred.Description.Render("Tab=next, Shift+Tab=prev, s=save, q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("Tab=next, Shift+Tab=prev, s=save, ?=help, q=quit"))
 
 	return strings.Join(lines, "\n")
 }
@@ -439,6 +465,14 @@ func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return f, nil
 		}
 		switch msg.Runes[0] {
+		case '?':
+			f.showHelp = true
+			f.helpOverlay = tui.NewHelpOverlay().
+				WithTheme(f.theme).
+				WithWidth(f.width).
+				WithHeight(f.height)
+			return f, nil
+
 		case 's':
 			// Validate all fields before saving (only when enabled)
 			if f.enabled {

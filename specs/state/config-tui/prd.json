@@ -182,7 +182,7 @@
         "Press Escape to close help and return to previous screen",
         "All shortcuts mentioned in PRD keyboard table are documented"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",

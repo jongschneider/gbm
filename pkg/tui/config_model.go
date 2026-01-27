@@ -91,6 +91,7 @@ type ConfigModel struct {
 	onSave      func(*ConfigState) error
 	onReset     func() (*ConfigState, error)
 	formFactory FormFactory
+	helpOverlay *HelpOverlay
 	width       int
 	height      int
 }
@@ -135,9 +136,16 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
+		// Handle help overlay if showing
+		if m.helpOverlay != nil {
+			return m.handleHelpOverlay(msg)
+		}
+
 		// Handle global keys when at sidebar level
 		if m.nav.Depth() == 1 {
 			switch msg.String() {
+			case "?":
+				return m.showHelp()
 			case "r":
 				return m.handleReset()
 			case "s":
@@ -226,8 +234,32 @@ func (m *ConfigModel) handleSave() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// showHelp creates and shows the help overlay.
+func (m *ConfigModel) showHelp() (tea.Model, tea.Cmd) {
+	m.helpOverlay = NewHelpOverlay().
+		WithTheme(m.theme).
+		WithWidth(m.width).
+		WithHeight(m.height)
+	return m, nil
+}
+
+// handleHelpOverlay processes input while showing the help overlay.
+func (m *ConfigModel) handleHelpOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "?", "enter":
+		m.helpOverlay = nil
+		return m, nil
+	}
+	return m, nil
+}
+
 // View implements tea.Model.
 func (m *ConfigModel) View() string {
+	// Show help overlay if active
+	if m.helpOverlay != nil {
+		return m.helpOverlay.View()
+	}
+
 	view := m.nav.View()
 
 	// Add help footer when at sidebar level
@@ -236,7 +268,7 @@ func (m *ConfigModel) View() string {
 		if m.IsDirty() {
 			dirtyIndicator = " [modified]"
 		}
-		help := m.theme.Blurred.Description.Render("↑↓=navigate  Enter=select  s=save  r=reset  q=quit" + dirtyIndicator)
+		help := m.theme.Blurred.Description.Render("↑↓=navigate  Enter=select  s=save  r=reset  ?=help  q=quit" + dirtyIndicator)
 		view = view + "\n\n" + help
 	}
 
