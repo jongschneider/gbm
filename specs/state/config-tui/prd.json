@@ -262,7 +262,7 @@
         "README section added on config TUI usage with examples",
         "Troubleshooting guide documents common validation errors and fixes"
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "context": {

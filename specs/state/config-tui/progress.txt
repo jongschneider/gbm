@@ -23,7 +23,7 @@ Task Completion Status:
 - [x] Unit tests >80% coverage for core ConfigModel and field validation
 - [x] E2E happy path test: load config → edit → save → verify file
 - [x] No breaking changes to existing commands
-- [ ] CLI help and in-app documentation complete
+- [x] CLI help and in-app documentation complete
 
 Completed Items:
 1. Sidebar navigation component (pkg/tui/sidebar.go, pkg/tui/sidebar_test.go)
@@ -280,3 +280,20 @@ Completed Items:
      - Storybook stories can have Play functions for automated interactions (pc.Key, pc.Wait, pc.AssertContains)
      - Split files by concern to avoid 800-line limit while keeping related stories together
      - Model wrappers needed for components that return interfaces (sidebarModel, helpOverlayModel, etc.)
+
+19. CLI Help and In-App Documentation Complete:
+     - Created comprehensive README.md with config TUI documentation
+     - Config TUI section includes: usage examples, all four sections explained, keyboard shortcuts table
+     - Troubleshooting guide covers all validation errors:
+       * Basics: default_branch required/invalid chars, worktrees_dir required
+       * JIRA: host required/invalid URL, username required, API token required
+       * Worktrees: name required/invalid chars, branch required, duplicate name
+     - Common issues section: /dev/tty error, changes not saving, config file not found
+     - CLI help (`gbm config --help`) already shows proper description and usage
+     - Help overlay (? key) already implemented with all keyboard shortcuts
+     - Files changed:
+       * README.md (new file)
+     **Learnings:**
+     - README serves as user-facing documentation complementing CLAUDE.md (developer docs)
+     - Validation error messages gathered from basics_form.go, jira_form.go, worktrees_form.go
+     - Troubleshooting tables provide quick reference for common issues
