@@ -52,12 +52,12 @@ func runGBMStdout(t *testing.T, binPath, dir string, args ...string) (stdout str
 	return strings.TrimSpace(stdoutBuf.String()), strings.TrimSpace(stderrBuf.String()), err
 }
 
-// testRepo holds test repository information
+// testRepo holds test repository information.
 type testRepo struct {
 	Root string
 }
 
-// setupGBMRepo creates a GBM repository with initial commit
+// setupGBMRepo creates a GBM repository with initial commit.
 func setupGBMRepo(t *testing.T) (*testRepo, string) {
 	t.Helper()
 
@@ -363,8 +363,8 @@ func TestE2E_ShellIntegration_AllCommands(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		args     []string
 		wantPath string
+		args     []string
 	}{
 		{
 			name:     "worktree switch",
@@ -614,7 +614,7 @@ func TestE2E_InitConfig_Force(t *testing.T) {
 	assert.Contains(t, content, "# GBM Configuration")
 }
 
-// TestE2E_JSON_WorktreeList tests JSON output for worktree list
+// TestE2E_JSON_WorktreeList tests JSON output for worktree list.
 func TestE2E_JSON_WorktreeList(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -647,7 +647,7 @@ func TestE2E_JSON_WorktreeList(t *testing.T) {
 	assert.Contains(t, stdout, "\"branch\"")
 }
 
-// TestE2E_JSON_WorktreeSwitch tests JSON output for worktree switch
+// TestE2E_JSON_WorktreeSwitch tests JSON output for worktree switch.
 func TestE2E_JSON_WorktreeSwitch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -674,7 +674,7 @@ func TestE2E_JSON_WorktreeSwitch(t *testing.T) {
 	assert.Contains(t, stdout, "\"message\"")
 }
 
-// TestE2E_JSON_WorktreeAdd tests JSON output for worktree add
+// TestE2E_JSON_WorktreeAdd tests JSON output for worktree add.
 func TestE2E_JSON_WorktreeAdd(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -700,7 +700,7 @@ func TestE2E_JSON_WorktreeAdd(t *testing.T) {
 	assert.Contains(t, stdout, "\"success\":true")
 }
 
-// TestE2E_JSON_QuietMode tests JSON output with quiet mode
+// TestE2E_JSON_QuietMode tests JSON output with quiet mode.
 func TestE2E_JSON_QuietMode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -720,7 +720,7 @@ func TestE2E_JSON_QuietMode(t *testing.T) {
 	assert.Empty(t, stderr, "stderr should be empty in quiet mode")
 }
 
-// TestE2E_JSON_ErrorHandling tests JSON error output
+// TestE2E_JSON_ErrorHandling tests JSON error output.
 func TestE2E_JSON_ErrorHandling(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -743,7 +743,7 @@ func TestE2E_JSON_ErrorHandling(t *testing.T) {
 	assert.Contains(t, stdout, "error")
 }
 
-// TestE2E_JSON_FlagCombinations tests multiple flags together
+// TestE2E_JSON_FlagCombinations tests multiple flags together.
 func TestE2E_JSON_FlagCombinations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -760,7 +760,7 @@ func TestE2E_JSON_FlagCombinations(t *testing.T) {
 	assert.Contains(t, stdout, "data")
 }
 
-// TestE2E_JSON_DataFormat tests JSON data structure validity
+// TestE2E_JSON_DataFormat tests JSON data structure validity.
 func TestE2E_JSON_DataFormat(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -792,7 +792,7 @@ func TestE2E_JSON_DataFormat(t *testing.T) {
 	assert.Contains(t, stdout, "\"tracked\":")
 }
 
-// TestE2E_JSON_ListStructure tests JSON output list structure
+// TestE2E_JSON_ListStructure tests JSON output list structure.
 func TestE2E_JSON_ListStructure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -815,9 +815,9 @@ func TestE2E_JSON_ListStructure(t *testing.T) {
 }
 
 // ==================== No-Input Mode Tests ====================
-// Tests for --no-input flag behavior
+// Tests for --no-input flag behavior.
 
-// TestE2E_NoInput_WorktreeAddTUI tests that TUI mode fails with --no-input
+// TestE2E_NoInput_WorktreeAddTUI tests that TUI mode fails with --no-input.
 func TestE2E_NoInput_WorktreeAddTUI(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -836,7 +836,7 @@ func TestE2E_NoInput_WorktreeAddTUI(t *testing.T) {
 		"error should suggest non-interactive alternative")
 }
 
-// TestE2E_NoInput_WorktreeAddTUI_JSON tests that TUI mode fails with --no-input in JSON mode
+// TestE2E_NoInput_WorktreeAddTUI_JSON tests that TUI mode fails with --no-input in JSON mode.
 func TestE2E_NoInput_WorktreeAddTUI_JSON(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -853,7 +853,7 @@ func TestE2E_NoInput_WorktreeAddTUI_JSON(t *testing.T) {
 	assert.Contains(t, stdout, "TUI mode requires interactive input", "JSON output should explain TUI requires input")
 }
 
-// TestE2E_NoInput_WorktreeList tests that TUI list fails with --no-input (text mode)
+// TestE2E_NoInput_WorktreeList tests that TUI list fails with --no-input (text mode).
 func TestE2E_NoInput_WorktreeList(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -872,7 +872,7 @@ func TestE2E_NoInput_WorktreeList(t *testing.T) {
 		"error should suggest JSON as alternative")
 }
 
-// TestE2E_NoInput_WorktreeListJSON tests that JSON list works with --no-input
+// TestE2E_NoInput_WorktreeListJSON tests that JSON list works with --no-input.
 func TestE2E_NoInput_WorktreeListJSON(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -889,7 +889,7 @@ func TestE2E_NoInput_WorktreeListJSON(t *testing.T) {
 	assert.Contains(t, stdout, "\"worktrees\":")
 }
 
-// TestE2E_NoInput_WorktreeAddCLI tests that CLI mode works with --no-input
+// TestE2E_NoInput_WorktreeAddCLI tests that CLI mode works with --no-input.
 func TestE2E_NoInput_WorktreeAddCLI(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -910,7 +910,7 @@ func TestE2E_NoInput_WorktreeAddCLI(t *testing.T) {
 	assert.Contains(t, stderr, "Created worktree")
 }
 
-// TestE2E_NoInput_BranchNotExist tests that non-existent branch fails gracefully with --no-input
+// TestE2E_NoInput_BranchNotExist tests that non-existent branch fails gracefully with --no-input.
 func TestE2E_NoInput_BranchNotExist(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -931,7 +931,7 @@ func TestE2E_NoInput_BranchNotExist(t *testing.T) {
 		"error should indicate failure, got: %q", stderr)
 }
 
-// TestE2E_NoInput_Switch tests that switch command works with --no-input
+// TestE2E_NoInput_Switch tests that switch command works with --no-input.
 func TestE2E_NoInput_Switch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")
@@ -951,7 +951,7 @@ func TestE2E_NoInput_Switch(t *testing.T) {
 	assert.Contains(t, stdout, expectedPath, "stdout should contain worktree path")
 }
 
-// TestE2E_NoInput_FlagCombinations tests --no-input with other flags
+// TestE2E_NoInput_FlagCombinations tests --no-input with other flags.
 func TestE2E_NoInput_FlagCombinations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test")

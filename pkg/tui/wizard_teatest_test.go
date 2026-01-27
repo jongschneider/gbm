@@ -50,15 +50,15 @@ func (m *wizardModel) View() string {
 
 // wizardTestField is a test field that renders distinctly and sends NextStepMsg on Enter.
 type wizardTestField struct {
+	value     any
+	theme     *Theme
 	key       string
 	title     string
-	value     any
+	width     int
+	height    int
 	complete  bool
 	cancelled bool
 	focused   bool
-	width     int
-	height    int
-	theme     *Theme
 }
 
 func newWizardTestField(key, title string) *wizardTestField {
@@ -406,7 +406,7 @@ func TestWizard_MultipleBackAndForth(t *testing.T) {
 
 // =============================================================================
 // TT-002: Wizard skip logic tests
-// =============================================================================
+// =============================================================================.
 
 // TestWizard_SkipStepOnForwardNavigation verifies that steps with Skip func returning true
 // are skipped when navigating forward.
@@ -706,7 +706,7 @@ func TestWizard_SkipMultipleConsecutiveSteps(t *testing.T) {
 
 // =============================================================================
 // TT-003: Wizard completion flow tests
-// =============================================================================
+// =============================================================================.
 
 // TestWizard_WorkflowCompleteMsgSentAfterLastStep verifies that WorkflowCompleteMsg is sent
 // after pressing Enter on the last step. The wrapper model quits on WorkflowCompleteMsg,
@@ -906,7 +906,7 @@ func TestWizard_EmptyStepsListCompletesImmediately(t *testing.T) {
 	assert.False(t, wizard.IsCancelled(), "empty wizard should not be cancelled")
 
 	// View should return empty string for empty wizard
-	assert.Equal(t, "", wizard.View(), "empty wizard View() should return empty string")
+	assert.Empty(t, wizard.View(), "empty wizard View() should return empty string")
 }
 
 // TestWizard_SingleStepCompletesOnEnter verifies that a single-step wizard
@@ -941,7 +941,7 @@ func TestWizard_SingleStepCompletesOnEnter(t *testing.T) {
 
 // =============================================================================
 // TT-004: Wizard back boundary handling tests
-// =============================================================================
+// =============================================================================.
 
 // backBoundaryMsgTracker wraps a Wizard to track BackBoundaryMsg reception.
 type backBoundaryMsgTracker struct {
@@ -1097,16 +1097,16 @@ func TestWizard_FieldRemainsFocusedAfterBackBoundary(t *testing.T) {
 
 // =============================================================================
 // TT-005: Wizard window resize propagation tests
-// =============================================================================
+// =============================================================================.
 
 // resizeTrackingField tracks width/height updates for testing window resize propagation.
 type resizeTrackingField struct {
 	key         string
 	title       string
-	width       int
-	height      int
 	widthCalls  []int
 	heightCalls []int
+	width       int
+	height      int
 	complete    bool
 	focused     bool
 }

@@ -11,7 +11,7 @@ import (
 // Init creates a new git repository with worktree structure:
 // - <name>/.git (bare repository)
 // - <name>/worktrees/<defaultBranch>/ (main worktree)
-// - <name>/.gbm/config.yaml (configuration file)
+// - <name>/.gbm/config.yaml (configuration file).
 func (s *Service) Init(name, defaultBranchName string, dryRun bool) error {
 	// Use current directory if name is empty
 	if name == "" {
@@ -148,7 +148,8 @@ jira:
 	if dryRun {
 		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
 	} else {
-		if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		err := os.WriteFile(configPath, []byte(configContent), 0o644)
+		if err != nil {
 			return fmt.Errorf("failed to create config.yaml: %w", err)
 		}
 	}

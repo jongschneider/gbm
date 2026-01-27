@@ -8,11 +8,11 @@ import (
 // Eval represents an async evaluation with caching.
 // It lazy-loads a value using a fetch function and caches the result.
 type Eval[T any] struct {
-	mu      sync.RWMutex
-	fetch   func() (T, error)
-	loaded  bool
 	value   T
 	err     error
+	fetch   func() (T, error)
+	mu      sync.RWMutex
+	loaded  bool
 	loading bool
 }
 

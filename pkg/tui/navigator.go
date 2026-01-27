@@ -143,7 +143,7 @@ func (n *Navigator) Current() tea.Model {
 }
 
 // current returns the current model on top of the stack.
-// Assumes the stack is not empty. (private helper)
+// Assumes the stack is not empty. (private helper).
 func (n *Navigator) current() tea.Model {
 	return n.Current()
 }

@@ -2,6 +2,7 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
 	"gbm/pkg/tui"
 	"regexp"
@@ -31,7 +32,7 @@ func slugify(s string) string {
 }
 
 // generateBranchName generates a branch name from a JIRA issue key and summary.
-// Format: feature/{issue-key}-{slugified-summary}
+// Format: feature/{issue-key}-{slugified-summary}.
 func generateBranchName(issueKey, summary string) string {
 	slug := slugify(summary)
 	return fmt.Sprintf("feature/%s-%s", issueKey, slug)
@@ -41,7 +42,7 @@ func generateBranchName(issueKey, summary string) string {
 // Format: hotfix/{issue-key}-{slugified-summary}
 // Used by HotfixWorkflow.
 //
-//nolint:unused
+
 func generateBranchNameHotfix(issueKey, summary string) string {
 	slug := slugify(summary)
 	return fmt.Sprintf("hotfix/%s-%s", issueKey, slug)
@@ -51,7 +52,7 @@ func generateBranchNameHotfix(issueKey, summary string) string {
 // Format: bug/{issue-key}-{slugified-summary}
 // Used by BugWorkflow.
 //
-//nolint:unused
+
 func generateBranchNameBug(issueKey, summary string) string {
 	slug := slugify(summary)
 	return fmt.Sprintf("bug/%s-%s", issueKey, slug)
@@ -75,7 +76,7 @@ func FeatureWorkflow(ctx *tui.Context) *tui.Wizard {
 // This function:
 // 1. Looks up the full JIRA issue details to get the summary
 // 2. Generates a default branch name if not provided (format: feature/{key}-{slugified-summary})
-// 3. Stores the issue key as the worktree name
+// 3. Stores the issue key as the worktree name.
 func ProcessFeatureWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	state := wizard.State()
 
@@ -129,7 +130,7 @@ func HotfixWorkflow(ctx *tui.Context) *tui.Wizard {
 // 1. Looks up the full JIRA issue details to get the summary
 // 2. Generates a default branch name if not provided (format: hotfix/{key}-{slugified-summary})
 // 3. Prefixes the worktree name with "HOTFIX_"
-// 4. Stores the issue key (with prefix) as the worktree name
+// 4. Stores the issue key (with prefix) as the worktree name.
 func ProcessHotfixWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	state := wizard.State()
 
@@ -157,7 +158,7 @@ func ProcessHotfixWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	}
 
 	// Prefix the worktree name with HOTFIX_
-	state.WorktreeName = fmt.Sprintf("HOTFIX_%s", state.WorktreeName)
+	state.WorktreeName = "HOTFIX_" + state.WorktreeName
 
 	return nil
 }
@@ -167,7 +168,7 @@ func ProcessHotfixWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 func validateBranchName(name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return fmt.Errorf("branch name cannot be empty")
+		return errors.New("branch name cannot be empty")
 	}
 
 	// Check for invalid characters (basic validation)
@@ -207,7 +208,7 @@ func BugWorkflow(ctx *tui.Context) *tui.Wizard {
 // This function:
 // 1. Looks up the full JIRA issue details to get the summary
 // 2. Generates a default branch name if not provided (format: bug/{key}-{slugified-summary})
-// 3. Stores the issue key as the worktree name
+// 3. Stores the issue key as the worktree name.
 func ProcessBugWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	state := wizard.State()
 
@@ -255,7 +256,7 @@ func MergeWorkflow(ctx *tui.Context) *tui.Wizard {
 // ProcessMergeWorkflow handles post-wizard processing for merge workflows.
 // This function:
 // 1. Generates the worktree name: MERGE_{source-to-target}
-// 2. Generates the branch name: merge/{source-to-target}
+// 2. Generates the branch name: merge/{source-to-target}.
 func ProcessMergeWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	state := wizard.State()
 

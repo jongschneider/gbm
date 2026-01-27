@@ -46,7 +46,7 @@ func extractAcceptanceCriteria(description string) string {
 	return result
 }
 
-// generateJiraMarkdown generates markdown file content from JIRA ticket details
+// generateJiraMarkdown generates markdown file content from JIRA ticket details.
 func generateJiraMarkdown(ticket *jira.JiraTicketDetails) string {
 	var md strings.Builder
 

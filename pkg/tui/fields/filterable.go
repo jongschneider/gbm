@@ -16,29 +16,27 @@ import (
 // Filterable is a field that displays a text input above a filterable list of options.
 // Users can type to filter the list or enter a custom value.
 type Filterable struct {
-	key            string
-	title          string
-	description    string
-	options        []Option
-	filtered       []Option
-	cursor         int
-	viewportOffset int // First visible item index for scrolling
-	textInput      textinput.Model
-	selected       string
-	complete       bool
-	cancelled      bool
-	focused        bool
-	theme          *tui.Theme
-	width          int
-	height         int
 	cursorStyle    lipgloss.Style
 	noMatchStyle   lipgloss.Style
-
-	// Async options support
-	optionsFetch func() ([]Option, error)
-	isLoading    bool
-	loadErr      error
-	spinner      spinner.Model
+	loadErr        error
+	theme          *tui.Theme
+	optionsFetch   func() ([]Option, error)
+	title          string
+	description    string
+	key            string
+	selected       string
+	options        []Option
+	filtered       []Option
+	textInput      textinput.Model
+	spinner        spinner.Model
+	cursor         int
+	height         int
+	width          int
+	viewportOffset int
+	focused        bool
+	cancelled      bool
+	isLoading      bool
+	complete       bool
 }
 
 // NewFilterable creates a new Filterable field with the given title, description, and options.
@@ -287,7 +285,7 @@ func (f *Filterable) View() string {
 
 	// If loading options asynchronously, show spinner
 	if f.isLoading {
-		b.WriteString(fmt.Sprintf("%s Loading options...\n", f.spinner.View()))
+		b.WriteString(f.spinner.View() + " Loading options...\n")
 		return b.String()
 	}
 
@@ -311,10 +309,7 @@ func (f *Filterable) View() string {
 		// Calculate visible range
 		visible := f.visibleItemCount()
 		start := f.viewportOffset
-		end := start + visible
-		if end > len(f.filtered) {
-			end = len(f.filtered)
-		}
+		end := min(start+visible, len(f.filtered))
 
 		// Render only visible options
 		for i := start; i < end; i++ {
@@ -323,7 +318,7 @@ func (f *Filterable) View() string {
 			var line string
 			if i == f.cursor {
 				// Selected item with cursor
-				line = fmt.Sprintf("▸ %s", opt.Label)
+				line = "▸ " + opt.Label
 				if f.focused {
 					line = styles.Input.Render(line)
 				} else {
@@ -333,7 +328,7 @@ func (f *Filterable) View() string {
 				}
 			} else {
 				// Non-selected item - plain text with indent
-				line = fmt.Sprintf("  %s", opt.Label)
+				line = "  " + opt.Label
 			}
 
 			b.WriteString(line)

@@ -45,7 +45,7 @@ func ShouldUseJSON() bool {
 
 // ShouldUseColor returns true if colored output should be used.
 // Respects NO_COLOR environment variable, --no-color flag, and TTY detection.
-// Priority: --no-color flag > NO_COLOR env var > isatty detection
+// Priority: --no-color flag > NO_COLOR env var > isatty detection.
 func ShouldUseColor() bool {
 	flags := GetGlobalFlags()
 
@@ -87,7 +87,7 @@ func ShouldBeVerbose() bool {
 
 // PrintMessage prints a status/info message to stderr (unless quiet mode).
 // Messages are subject to --quiet flag.
-func PrintMessage(format string, args ...interface{}) {
+func PrintMessage(format string, args ...any) {
 	if ShouldBeQuiet() {
 		return
 	}
@@ -124,7 +124,7 @@ func PrintWarning(message string) {
 
 // PrintError prints an error message to stderr.
 // Errors are ALWAYS shown, regardless of --quiet flag.
-func PrintError(format string, args ...interface{}) {
+func PrintError(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "Error: "+format, args...)
 }
 
@@ -152,7 +152,7 @@ func ColorText(text string, colorCode string) string {
 	return colorCode + text + reset
 }
 
-// ANSI Color Codes (use with ColorText)
+// ANSI Color Codes (use with ColorText).
 const (
 	ColorRed    = "\033[31m"
 	ColorGreen  = "\033[32m"

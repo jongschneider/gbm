@@ -1,6 +1,6 @@
 package async
 
-import "fmt"
+import "errors"
 
 // ErrLoading is returned when Get() is called while a fetch is in progress.
-var ErrLoading = fmt.Errorf("value is currently loading")
+var ErrLoading = errors.New("value is currently loading")

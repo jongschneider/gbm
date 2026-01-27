@@ -6,26 +6,26 @@ import (
 	"strings"
 )
 
-// IsJiraKey checks if a string matches the JIRA key pattern (PROJECT-NUMBER)
+// IsJiraKey checks if a string matches the JIRA key pattern (PROJECT-NUMBER).
 func IsJiraKey(s string) bool {
 	matched, _ := regexp.MatchString(`^[A-Z]+-\d+$`, s)
 	return matched
 }
 
 // ExtractJiraKey extracts a JIRA key from a string, handling prefixed worktree names
-// For example: "HOTFIX_INGSVC-5638" returns "INGSVC-5638"
+// For example: "HOTFIX_INGSVC-5638" returns "INGSVC-5638".
 func ExtractJiraKey(s string) string {
 	re := regexp.MustCompile(`[A-Z]+-\d+`)
 	match := re.FindString(s)
 	return match
 }
 
-// String returns a one-line summary of the JIRA issue
+// String returns a one-line summary of the JIRA issue.
 func (j *JiraIssue) String() string {
 	return fmt.Sprintf("[%s] %s: %s (%s)", j.Type, j.Key, j.Summary, j.Status)
 }
 
-// Display returns a multi-line formatted display of the JIRA issue
+// Display returns a multi-line formatted display of the JIRA issue.
 func (j *JiraIssue) Display() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Key:     %s\n", j.Key))
@@ -35,12 +35,12 @@ func (j *JiraIssue) Display() string {
 	return sb.String()
 }
 
-// String returns a one-line summary of the JIRA ticket
+// String returns a one-line summary of the JIRA ticket.
 func (j *JiraTicketDetails) String() string {
 	return fmt.Sprintf("[%s] %s (%s)", j.Key, j.Summary, j.Status)
 }
 
-// Display returns a full formatted display of the JIRA ticket with all details
+// Display returns a full formatted display of the JIRA ticket with all details.
 func (j *JiraTicketDetails) Display() string {
 	var sb strings.Builder
 

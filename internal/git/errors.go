@@ -17,7 +17,7 @@ import (
 //	    // Handle branch not found
 //	}
 var (
-	// Parameter validation errors - used when required parameters are empty
+	// Parameter validation errors - used when required parameters are empty.
 	ErrWorktreesDirectoryEmpty = errors.New("worktrees directory cannot be empty")
 	ErrWorktreeNameEmpty       = errors.New("worktree name cannot be empty")
 	ErrBranchNameEmpty         = errors.New("branch name cannot be empty")
@@ -25,11 +25,11 @@ var (
 	ErrOldWorktreeNameEmpty    = errors.New("old worktree name cannot be empty")
 	ErrNewWorktreeNameEmpty    = errors.New("new worktree name cannot be empty")
 
-	// State errors - used when the repository or worktree is in an unexpected state
+	// State errors - used when the repository or worktree is in an unexpected state.
 	ErrNotInWorktree                  = errors.New("not in a worktree")
 	ErrCouldNotDetermineDefaultBranch = errors.New("could not determine default branch from remote")
 
-	// Git operation errors - classified from git command output
+	// Git operation errors - classified from git command output.
 	ErrBranchNotFound         = errors.New("branch not found")
 	ErrWorktreeNotFound       = errors.New("worktree not found")
 	ErrBranchExists           = errors.New("branch already exists")
@@ -54,10 +54,10 @@ var (
 //   - Stderr: Standard error output from git (trimmed)
 //   - Err: Underlying error from the exec package
 type GitError struct {
-	Op       string // Operation that failed (e.g., "worktree add", "branch delete")
-	ExitCode int    // Exit code from git command
-	Stderr   string // Standard error output
-	Err      error  // Underlying error
+	Err      error
+	Op       string
+	Stderr   string
+	ExitCode int
 }
 
 // Error implements the error interface for GitError.
@@ -155,7 +155,7 @@ func ClassifyError(op string, err error, output string) error {
 	return NewGitError(op, err, exitCode, stderr)
 }
 
-// classifyByContent analyzes output content and returns typed errors
+// classifyByContent analyzes output content and returns typed errors.
 func classifyByContent(op string, stderr string) error {
 	// Branch not found patterns
 	if strings.Contains(stderr, "not found") && (strings.Contains(op, "branch") || strings.Contains(op, "delete")) {

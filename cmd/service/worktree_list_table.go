@@ -169,11 +169,11 @@ const (
 
 // operationResultMsg is sent when an async git operation completes.
 type operationResultMsg struct {
-	opType     string // "pull", "push", "delete"
-	targetName string
-	branchName string            // branch name (for delete operations)
-	newStatus  *git.BranchStatus // updated status after operation
 	err        error
+	newStatus  *git.BranchStatus
+	opType     string
+	targetName string
+	branchName string
 }
 
 // clearMessageMsg is sent after a delay to clear the result message.
@@ -181,31 +181,22 @@ type clearMessageMsg struct{}
 
 // worktreeListModel is the Bubble Tea model for the worktree table TUI.
 type worktreeListModel struct {
-	// Display components
-	ctx   *tui.Context
-	table *tui.Table
-
-	// Data
-	worktrees       []git.Worktree
-	trackedBranches map[string]bool
-	branchStatuses  map[string]*git.BranchStatus
-	loadingStatuses map[string]bool // tracks which statuses are currently loading
-
-	// Dependencies
-	gitOps          WorktreeTableGitOps
-	currentWorktree *git.Worktree
-
-	// State machine
+	gitOps            WorktreeTableGitOps
+	trackedBranches   map[string]bool
+	branchStatuses    map[string]*git.BranchStatus
+	loadingStatuses   map[string]bool
+	table             *tui.Table
+	currentWorktree   *git.Worktree
+	ctx               *tui.Context
+	deletedBranchName string
+	switchOutput      string
+	currentOp         string
+	operationTarget   string
+	message           string
+	worktrees         []git.Worktree
+	spinner           spinner.Model
+	operationIndex    int
 	state             operationState
-	currentOp         string        // "pull", "push", "delete"
-	operationTarget   string        // worktree name being operated on
-	operationIndex    int           // row index being operated on
-	spinner           spinner.Model // spinner for animation
-	deletedBranchName string        // branch name from deleted worktree (for branch delete prompt)
-
-	// Output
-	message      string
-	switchOutput string // worktree path to output on exit
 }
 
 // newWorktreeListModel creates a new testlsModel with pre-fetched data.
@@ -288,9 +279,9 @@ func (m *worktreeListModel) Init() tea.Cmd {
 
 // statusFetchMsg wraps a FetchMsg with the worktree name.
 type statusFetchMsg struct {
-	worktreeName string
-	status       *git.BranchStatus
 	err          error
+	status       *git.BranchStatus
+	worktreeName string
 }
 
 // loadBranchStatusesAsync returns a command that loads all branch statuses asynchronously.

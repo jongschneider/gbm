@@ -95,7 +95,7 @@ func TestAsyncRow_NewAsyncRow_CreatesWithStaticCells(t *testing.T) {
 	assert.Equal(t, "cell1", ar.staticCells[0])
 	assert.Equal(t, "cell2", ar.staticCells[1])
 	assert.Equal(t, "cell3", ar.staticCells[2])
-	assert.Len(t, ar.asyncCells, 0)
+	assert.Empty(t, ar.asyncCells)
 }
 
 func TestAsyncRow_WithAsyncCell_AddsAsyncCell(t *testing.T) {
@@ -123,7 +123,7 @@ func TestAsyncRow_GetCell_ReturnsStaticValue(t *testing.T) {
 	assert.Equal(t, "cell2", val)
 
 	val = ar.GetCell(999) // Out of bounds
-	assert.Equal(t, "", val)
+	assert.Empty(t, val)
 }
 
 func TestAsyncRow_GetCell_ReturnsAsyncSpinnerWhileLoading(t *testing.T) {

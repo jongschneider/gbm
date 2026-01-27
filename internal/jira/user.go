@@ -7,7 +7,7 @@ import (
 )
 
 // IsJiraCliAvailable checks if the JIRA CLI is installed and available
-// Commands can use this to gracefully handle missing JIRA CLI
+// Commands can use this to gracefully handle missing JIRA CLI.
 func (s *Service) IsJiraCliAvailable() bool {
 	_, err := exec.LookPath("jira")
 	return err == nil
@@ -18,7 +18,7 @@ func (s *Service) IsJiraCliAvailable() bool {
 // Otherwise, fetches from jira CLI and returns (user, true, nil) to indicate cache miss
 // Returns (user, false, nil) if using cached value
 // Returns ErrJiraCliNotFound if jira CLI is not available
-// The caller is responsible for updating the config cache
+// The caller is responsible for updating the config cache.
 func (s *Service) GetJiraUser(cachedUser string, dryRun bool) (string, bool, error) {
 	// If we have a cached value, use it
 	if cachedUser != "" {

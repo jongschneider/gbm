@@ -11,17 +11,17 @@ import (
 
 // Confirm is a field that displays Yes/No options with an optional summary.
 type Confirm struct {
+	theme     *tui.Theme
 	key       string
 	title     string
 	summary   string
-	selected  bool // true = Yes, false = No
+	width     int
+	height    int
+	selected  bool
 	value     bool
 	complete  bool
 	cancelled bool
 	focused   bool
-	theme     *tui.Theme
-	width     int
-	height    int
 }
 
 // NewConfirm creates a new Confirm field with the given title/question.
@@ -37,6 +37,13 @@ func NewConfirm(key, title string) *Confirm {
 // WithSummary adds additional context text displayed before the Yes/No buttons.
 func (c *Confirm) WithSummary(summary string) *Confirm {
 	c.summary = summary
+	return c
+}
+
+// SetValue sets the initial value for the confirm field (true=Yes, false=No).
+func (c *Confirm) SetValue(value bool) *Confirm {
+	c.selected = value
+	c.value = value
 	return c
 }
 

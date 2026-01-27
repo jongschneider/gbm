@@ -8,7 +8,7 @@ import (
 
 // BranchName generates a filesystem-safe branch name from a JIRA issue
 // Format: <type>/<key>_<summary>
-// Example: feature/PROJ-123_add_user_authentication
+// Example: feature/PROJ-123_add_user_authentication.
 func (j *JiraIssue) BranchName() string {
 	summary := strings.ReplaceAll(j.Summary, " ", "_")
 	summary = strings.ReplaceAll(summary, "-", "_")
@@ -29,7 +29,7 @@ func (j *JiraIssue) BranchName() string {
 
 // BranchName generates a filesystem-safe branch name from a JIRA ticket
 // This is a convenience method on JiraTicketDetails
-// Format: <type>/<key>_<summary>
+// Format: <type>/<key>_<summary>.
 func (j *JiraTicketDetails) BranchName() string {
 	summary := strings.ReplaceAll(j.Summary, " ", "_")
 	summary = strings.ReplaceAll(summary, "-", "_")
@@ -49,7 +49,7 @@ func (j *JiraTicketDetails) BranchName() string {
 
 // GenerateBranchFromJira fetches a JIRA issue and generates a branch name
 // This is a convenience method that combines GetJiraIssue + BranchName
-// First tries to use cached issues list, falls back to fetching individual issue
+// First tries to use cached issues list, falls back to fetching individual issue.
 func (s *Service) GenerateBranchFromJira(key string, dryRun bool) (string, error) {
 	// Load cache from store
 	var cache *IssuesCache

@@ -163,7 +163,7 @@ func (s *Service) GetCurrentWorktree() (*Worktree, error) {
 	return nil, fmt.Errorf("current worktree '%s' not found in worktree list", worktreeName)
 }
 
-// BranchStatus represents the sync status of a branch with its remote
+// BranchStatus represents the sync status of a branch with its remote.
 type BranchStatus struct {
 	Ahead    int
 	Behind   int
@@ -187,7 +187,7 @@ func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
 	branch := strings.TrimSpace(string(branchOutput))
 
 	// Check if branch has a remote tracking branch
-	cmd = exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", fmt.Sprintf("%s@{u}", branch))
+	cmd = exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", branch+"@{u}")
 	remoteOutput, err := cmd.Output()
 	if err != nil {
 		status.NoRemote = true
@@ -203,7 +203,7 @@ func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
 	}
 
 	// Count commits ahead and behind
-	cmd = exec.Command("git", "-C", worktreePath, "rev-list", "--left-right", "--count", fmt.Sprintf("%s...HEAD", remoteBranch))
+	cmd = exec.Command("git", "-C", worktreePath, "rev-list", "--left-right", "--count", remoteBranch+"...HEAD")
 	output, err := cmd.Output()
 	if err != nil {
 		return status, fmt.Errorf("failed to count commits: %w", err)
@@ -225,7 +225,7 @@ func (s *Service) GetBranchStatus(worktreePath string) (*BranchStatus, error) {
 	return status, nil
 }
 
-// printDryRun prints a dry-run message to stderr for visibility
+// printDryRun prints a dry-run message to stderr for visibility.
 func printDryRun(cmd *exec.Cmd) {
 	cmdStr := utils.FormatCommand(cmd)
 	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", cmdStr)

@@ -112,8 +112,8 @@ func (wc *WorktreeConfig) GetMergeInto() string {
 //	    enabled: true
 //	    source_worktree: "{default}"
 type Config struct {
-	DefaultBranch string                    `yaml:"default_branch" validate:"required,min=1"`
-	WorktreesDir  string                    `yaml:"worktrees_dir" validate:"required,min=1"`
+	DefaultBranch string                    `yaml:"default_branch"      validate:"required,min=1"`
+	WorktreesDir  string                    `yaml:"worktrees_dir"       validate:"required,min=1"`
 	Worktrees     map[string]WorktreeConfig `yaml:"worktrees,omitempty"`
 	Jira          JiraConfig                `yaml:"jira,omitempty"`
 	FileCopy      FileCopyConfig            `yaml:"file_copy,omitempty"`
@@ -160,19 +160,19 @@ type Service struct {
 	state       *State
 }
 
-// cacheStore implements jira.CacheStore using the CLI's state file
+// cacheStore implements jira.CacheStore using the CLI's state file.
 type cacheStore struct {
 	svc *Service
 }
 
-// Load returns the cached issues and user from state
+// Load returns the cached issues and user from state.
 func (c *cacheStore) Load() (*jira.IssuesCache, string, error) {
 	state := c.svc.GetState()
 	config := c.svc.GetConfig()
 	return &state.Jira, config.Jira.Me, nil
 }
 
-// Save persists the cache and user to state
+// Save persists the cache and user to state.
 func (c *cacheStore) Save(cache *jira.IssuesCache, user string) error {
 	if cache != nil {
 		state := c.svc.GetState()
@@ -204,7 +204,8 @@ func NewService() *Service {
 	}
 
 	// Try to load config from .gbm/config.yaml
-	if err := svc.loadConfig(); err != nil {
+	err := svc.loadConfig()
+	if err != nil {
 		// Not in a repo or config doesn't exist - use defaults
 		// This is fine for commands like `init` and `clone`
 		// Create jira service with no cache store
@@ -224,7 +225,7 @@ func NewService() *Service {
 	return svc
 }
 
-// loadConfig attempts to load configuration from .gbm/config.yaml
+// loadConfig attempts to load configuration from .gbm/config.yaml.
 func (s *Service) loadConfig() error {
 	// Get current working directory
 	cwd, err := os.Getwd()
@@ -315,7 +316,7 @@ func (s *Service) GetConfig() *Config {
 	return s.config
 }
 
-// GetJiraFilters returns the configured JIRA filters with sensible defaults
+// GetJiraFilters returns the configured JIRA filters with sensible defaults.
 func (s *Service) GetJiraFilters() jira.JiraFilters {
 	config := s.GetConfig()
 	filters := config.Jira.Filters
@@ -328,7 +329,7 @@ func (s *Service) GetJiraFilters() jira.JiraFilters {
 	return filters
 }
 
-// GetJiraAttachmentConfig returns the attachment configuration with defaults
+// GetJiraAttachmentConfig returns the attachment configuration with defaults.
 func (s *Service) GetJiraAttachmentConfig() jira.AttachmentConfig {
 	config := s.GetConfig()
 	svcConfig := config.Jira.Attachments
@@ -353,7 +354,7 @@ func (s *Service) GetJiraAttachmentConfig() jira.AttachmentConfig {
 	return jiraConfig
 }
 
-// GetJiraMarkdownConfig returns the markdown configuration with defaults
+// GetJiraMarkdownConfig returns the markdown configuration with defaults.
 func (s *Service) GetJiraMarkdownConfig() (includeComments, includeAttachments, includeLinkedIssues bool, maxDepth int) {
 	config := s.GetConfig()
 	mdConfig := config.Jira.Markdown
@@ -419,7 +420,7 @@ func (s *Service) SaveConfig() error {
 	return nil
 }
 
-// loadState attempts to load state from .gbm/state.yaml
+// loadState attempts to load state from .gbm/state.yaml.
 func (s *Service) loadState() error {
 	if s.RepoRoot == "" {
 		return ErrNotInGitRepository
@@ -530,7 +531,8 @@ func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 
 	// Phase 1: Automatic copying (if enabled)
 	if config.FileCopy.Auto.Enabled {
-		if err := s.autoCopyFiles(targetWorktreeName); err != nil {
+		err := s.autoCopyFiles(targetWorktreeName)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: automatic file copy failed: %v\n", err)
 		}
 	}
@@ -547,7 +549,8 @@ func (s *Service) CopyFilesToWorktree(targetWorktreeName string) error {
 			}
 
 			for _, filePattern := range rule.Files {
-				if err := s.copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern); err != nil {
+				err := s.copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern)
+				if err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: failed to copy '%s' from '%s': %v\n", filePattern, rule.SourceWorktree, err)
 				}
 			}
@@ -609,7 +612,7 @@ func (s *Service) resolveSourceWorktree(sourceSpec string) (*git.Worktree, error
 	}
 }
 
-// autoCopyFiles automatically copies ignored and untracked files from source to target worktree
+// autoCopyFiles automatically copies ignored and untracked files from source to target worktree.
 func (s *Service) autoCopyFiles(targetWorktreeName string) error {
 	config := s.GetConfig()
 
@@ -647,10 +650,11 @@ func (s *Service) autoCopyFiles(targetWorktreeName string) error {
 	// Copy files
 	targetPath := filepath.Join(s.RepoRoot, s.WorktreeDir, targetWorktreeName)
 	for _, file := range filtered {
-		if err := s.copyFile(
+		err := s.copyFile(
 			filepath.Join(sourceWorktree.Path, file),
 			filepath.Join(targetPath, file),
-		); err != nil {
+		)
+		if err != nil {
 			// Skip files that fail to copy (e.g., permission issues)
 			continue
 		}
@@ -659,7 +663,7 @@ func (s *Service) autoCopyFiles(targetWorktreeName string) error {
 	return nil
 }
 
-// filterFiles removes files that match any of the exclude patterns
+// filterFiles removes files that match any of the exclude patterns.
 func filterFiles(files []string, excludePatterns []string) []string {
 	if len(excludePatterns) == 0 {
 		return files
@@ -674,7 +678,7 @@ func filterFiles(files []string, excludePatterns []string) []string {
 	return filtered
 }
 
-// matchesAnyPattern checks if a path matches any of the exclude patterns
+// matchesAnyPattern checks if a path matches any of the exclude patterns.
 func matchesAnyPattern(path string, patterns []string) bool {
 	for _, pattern := range patterns {
 		if matchGlob(path, pattern) {
@@ -684,7 +688,7 @@ func matchesAnyPattern(path string, patterns []string) bool {
 	return false
 }
 
-// matchGlob implements simple glob matching (supports * and /)
+// matchGlob implements simple glob matching (supports * and /).
 func matchGlob(path, pattern string) bool {
 	// Simple glob matching: * matches everything in a path component
 	parts := filepath.SplitList(path)
@@ -703,7 +707,7 @@ func matchGlob(path, pattern string) bool {
 	return false
 }
 
-// globMatch implements simple glob matching for a single component
+// globMatch implements simple glob matching for a single component.
 func globMatch(name, pattern string) bool {
 	// Handle exact match
 	if pattern == name {
@@ -726,14 +730,14 @@ func globMatch(name, pattern string) bool {
 	}
 
 	// Handle directory patterns like "node_modules/"
-	if strings.HasSuffix(pattern, "/") {
-		return strings.HasSuffix(name, strings.TrimSuffix(pattern, "/"))
+	if before, ok := strings.CutSuffix(pattern, "/"); ok {
+		return strings.HasSuffix(name, before)
 	}
 
 	return false
 }
 
-// copyFileOrDirectory copies a file or directory from source to target
+// copyFileOrDirectory copies a file or directory from source to target.
 func (s *Service) copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, filePattern string) error {
 	sourcePath := filepath.Join(sourceWorktreePath, filePattern)
 	targetPath := filepath.Join(targetWorktreePath, filePattern)
@@ -752,7 +756,7 @@ func (s *Service) copyFileOrDirectory(sourceWorktreePath, targetWorktreePath, fi
 	return s.copyFile(sourcePath, targetPath)
 }
 
-// copyFile copies a single file from source to target
+// copyFile copies a single file from source to target.
 func (s *Service) copyFile(sourcePath, targetPath string) error {
 	// Create target directory if it doesn't exist
 	targetDir := filepath.Dir(targetPath)
@@ -786,7 +790,7 @@ func (s *Service) copyFile(sourcePath, targetPath string) error {
 	return nil
 }
 
-// copyDirectory recursively copies a directory from source to target
+// copyDirectory recursively copies a directory from source to target.
 func (s *Service) copyDirectory(sourcePath, targetPath string) error {
 	// Create target directory
 	if err := os.MkdirAll(targetPath, 0o755); err != nil {
@@ -804,11 +808,13 @@ func (s *Service) copyDirectory(sourcePath, targetPath string) error {
 		targetEntryPath := filepath.Join(targetPath, entry.Name())
 
 		if entry.IsDir() {
-			if err := s.copyDirectory(sourceEntryPath, targetEntryPath); err != nil {
+			err := s.copyDirectory(sourceEntryPath, targetEntryPath)
+			if err != nil {
 				return err
 			}
 		} else {
-			if err := s.copyFile(sourceEntryPath, targetEntryPath); err != nil {
+			err := s.copyFile(sourceEntryPath, targetEntryPath)
+			if err != nil {
 				return err
 			}
 		}

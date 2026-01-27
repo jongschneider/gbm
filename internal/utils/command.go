@@ -7,7 +7,7 @@ import (
 )
 
 // FormatCommand formats an exec.Cmd for display
-// Handles working directory and environment variables (like GIT_DIR)
+// Handles working directory and environment variables (like GIT_DIR).
 func FormatCommand(cmd *exec.Cmd) string {
 	parts := []string{cmd.Path}
 	parts = append(parts, cmd.Args[1:]...)

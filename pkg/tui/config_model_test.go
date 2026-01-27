@@ -9,8 +9,8 @@ import (
 
 func TestConfigModel_Create(t *testing.T) {
 	testCases := []struct {
-		name   string
 		expect func(t *testing.T, m *ConfigModel)
+		name   string
 	}{
 		{
 			name: "creates with sidebar as initial model",

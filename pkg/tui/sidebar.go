@@ -1,4 +1,4 @@
-// Package tui provides terminal user interface components
+// Package tui provides terminal user interface components.
 package tui
 
 import (
@@ -8,24 +8,24 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// SidebarSection represents a top-level section in the config sidebar
+// SidebarSection represents a top-level section in the config sidebar.
 type SidebarSection struct {
 	Name     string // "Basics", "JIRA", "FileCopy", "Worktrees"
 	Expanded bool
 	HasError bool // Shows validation badge
 }
 
-// Sidebar manages navigation between config sections with visual indicators
+// Sidebar manages navigation between config sections with visual indicators.
 type Sidebar struct {
+	theme      *Theme
+	hasErrors  map[string]bool
 	sections   []SidebarSection
 	focusedIdx int
 	width      int
 	height     int
-	theme      *Theme
-	hasErrors  map[string]bool // Track which sections have validation errors
 }
 
-// NewSidebar creates a new Sidebar with default sections
+// NewSidebar creates a new Sidebar with default sections.
 func NewSidebar(theme *Theme) *Sidebar {
 	if theme == nil {
 		theme = DefaultTheme()
@@ -43,12 +43,12 @@ func NewSidebar(theme *Theme) *Sidebar {
 	}
 }
 
-// Init implements tea.Model
+// Init implements tea.Model.
 func (s *Sidebar) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements tea.Model
+// Update implements tea.Model.
 func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -90,7 +90,7 @@ func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// View implements tea.Model
+// View implements tea.Model.
 func (s *Sidebar) View() string {
 	var lines []string
 	for i, section := range s.sections {
@@ -100,7 +100,7 @@ func (s *Sidebar) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// renderSection renders a single section with expand/collapse indicator
+// renderSection renders a single section with expand/collapse indicator.
 func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
 	indicator := "▸"
 	if section.Expanded {
@@ -111,7 +111,7 @@ func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
 
 	// Add error badge if section has validation errors
 	if section.HasError {
-		label = fmt.Sprintf("%s ⚠", label)
+		label = label + " ⚠"
 	}
 
 	// Apply focus styling
@@ -121,7 +121,7 @@ func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
 	return s.theme.Blurred.Title.Render(label)
 }
 
-// FocusedSection returns the currently focused section name
+// FocusedSection returns the currently focused section name.
 func (s *Sidebar) FocusedSection() string {
 	if s.focusedIdx < len(s.sections) {
 		return s.sections[s.focusedIdx].Name
@@ -129,14 +129,14 @@ func (s *Sidebar) FocusedSection() string {
 	return ""
 }
 
-// SetExpanded updates the expanded state of a section
+// SetExpanded updates the expanded state of a section.
 func (s *Sidebar) SetExpanded(sectionName string, expanded bool) {
 	if idx := s.findSectionIndex(sectionName); idx >= 0 {
 		s.sections[idx].Expanded = expanded
 	}
 }
 
-// IsExpanded returns whether a section is expanded
+// IsExpanded returns whether a section is expanded.
 func (s *Sidebar) IsExpanded(sectionName string) bool {
 	if idx := s.findSectionIndex(sectionName); idx >= 0 {
 		return s.sections[idx].Expanded
@@ -144,7 +144,7 @@ func (s *Sidebar) IsExpanded(sectionName string) bool {
 	return false
 }
 
-// SetError updates the error badge for a section
+// SetError updates the error badge for a section.
 func (s *Sidebar) SetError(sectionName string, hasError bool) {
 	s.hasErrors[sectionName] = hasError
 	if idx := s.findSectionIndex(sectionName); idx >= 0 {
@@ -152,7 +152,7 @@ func (s *Sidebar) SetError(sectionName string, hasError bool) {
 	}
 }
 
-// findSectionIndex returns the index of a section by name
+// findSectionIndex returns the index of a section by name.
 func (s *Sidebar) findSectionIndex(name string) int {
 	for i, section := range s.sections {
 		if section.Name == name {
@@ -162,30 +162,30 @@ func (s *Sidebar) findSectionIndex(name string) int {
 	return -1
 }
 
-// WithWidth sets the sidebar width
+// WithWidth sets the sidebar width.
 func (s *Sidebar) WithWidth(width int) *Sidebar {
 	s.width = width
 	return s
 }
 
-// WithHeight sets the sidebar height
+// WithHeight sets the sidebar height.
 func (s *Sidebar) WithHeight(height int) *Sidebar {
 	s.height = height
 	return s
 }
 
-// SidebarSelectionMsg is sent when a section is selected
+// SidebarSelectionMsg is sent when a section is selected.
 type SidebarSelectionMsg struct {
 	Section string
 }
 
-// SetErrorMsg updates error state for a section
+// SetErrorMsg updates error state for a section.
 type SetErrorMsg struct {
 	Section  string
 	HasError bool
 }
 
-// NewSetErrorMsg creates a message to update error state
+// NewSetErrorMsg creates a message to update error state.
 func NewSetErrorMsg(section string, hasError bool) SetErrorMsg {
 	return SetErrorMsg{Section: section, HasError: hasError}
 }

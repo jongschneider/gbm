@@ -81,7 +81,7 @@ func TestGetTemplateVars(t *testing.T) {
 
 	require.NotNil(t, vars)
 	assert.Equal(t, "gbm", vars["gitroot"])
-	assert.Equal(t, 1, len(vars))
+	assert.Len(t, vars, 1)
 }
 
 func TestGetTemplateVars_VariousRepoPaths(t *testing.T) {
@@ -228,7 +228,7 @@ func TestExpandPath_CleansPaths(t *testing.T) {
 	}
 }
 
-// Integration test: template expansion + path expansion together
+// Integration test: template expansion + path expansion together.
 func TestTemplateAndPathExpansion(t *testing.T) {
 	home, err := os.UserHomeDir()
 	require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestTemplateAndPathExpansion(t *testing.T) {
 	assert.Equal(t, "/home/user/projects/gbm-worktrees", final2)
 }
 
-// Test edge cases
+// Test edge cases.
 func TestExpandTemplate_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string

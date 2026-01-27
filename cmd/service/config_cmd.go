@@ -30,7 +30,7 @@ All changes are saved to .gbm/config.yaml when you confirm.`,
 	return cmd
 }
 
-// runConfigTUI launches the config TUI
+// runConfigTUI launches the config TUI.
 func runConfigTUI(svc *Service) error {
 	// Create the root config model
 	theme := tui.DefaultTheme()

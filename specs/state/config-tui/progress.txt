@@ -11,7 +11,7 @@ Task Completion Status:
 - [x] TextInput validators prevent invalid branch names and directory paths
 - [x] Save/discard flows work correctly from Basics section
 - [x] JIRA enable/disable toggle works and shows/hides subsections
-- [ ] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
+- [x] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
 - [ ] FileCopy Rules table renders with add/edit/delete modals
 - [ ] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
 - [ ] Worktrees table with add/edit/delete modals
@@ -38,9 +38,22 @@ Completed Items:
     - Tests: SaveFlow, DiscardFlow, KeepEditingFlow with teatest
     - All 12 tests passing
 6. JIRA Form with Enable/Disable Toggle:
-    - Created JiraForm component (pkg/tui/config/jira_form.go)
-    - Implements enable/disable toggle using Confirm field
-    - Shows/hides server config fields (host, username, api_token) based on enabled state
-    - Added SetMasked() to TextInput for masking sensitive API tokens
-    - Full teatest coverage: 7 tests passing
-    - Test cases: disabled/enabled renders, save flow, discard/keep editing, navigation, escape key
+     - Created JiraForm component (pkg/tui/config/jira_form.go)
+     - Implements enable/disable toggle using Confirm field
+     - Shows/hides server config fields (host, username, api_token) based on enabled state
+     - Added SetMasked() to TextInput for masking sensitive API tokens
+     - Full teatest coverage: 7 tests passing
+     - Test cases: disabled/enabled renders, save flow, discard/keep editing, navigation, escape key
+
+7. JIRA Subsections (Server, Filters, Attachments, Markdown):
+     - Enhanced JiraForm to include all 4 subsections with full field coverage
+     - Server: host, username, api_token (3 fields)
+     - Filters: status, priority, type (3 fields)  
+     - Attachments: enabled toggle, max_size, directory (3 fields)
+     - Markdown: include_comments, include_attachments, use_relative_links, filename_pattern (4 fields)
+     - Total 14 fields (1 enable toggle + 13 subsection fields)
+     - Tab/Shift+Tab navigation cycles through all 14 fields
+     - GetValue() returns all subsection field values as map
+     - Tests verify all subsections render and return values
+     - Field improvements: Added SetValue() to Confirm, fixed TextInput.GetValue() to return pre-populated defaults
+     - All 17 JiraForm tests passing

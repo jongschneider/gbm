@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockModel is a simple model for testing navigator
+// mockModel is a simple model for testing navigator.
 type mockModel struct {
+	initCmd tea.Cmd
 	name    string
 	updated bool
 	viewed  bool
-	initCmd tea.Cmd
 }
 
 func (m *mockModel) Init() tea.Cmd {
@@ -153,7 +153,7 @@ func TestNavigator_View(t *testing.T) {
 			name:    "returns empty for empty stack",
 			initial: nil,
 			expect: func(t *testing.T, view string) {
-				assert.Equal(t, "", view, "should return empty string for empty stack")
+				assert.Empty(t, view, "should return empty string for empty stack")
 			},
 			description: "View should return empty string when stack is empty",
 		},
@@ -266,10 +266,10 @@ func TestNavigator_Depth(t *testing.T) {
 
 func TestNavigator_IsEmpty(t *testing.T) {
 	testCases := []struct {
-		name        string
-		isEmpty     bool
 		setup       func() *Navigator
+		name        string
 		description string
+		isEmpty     bool
 	}{
 		{
 			name:    "empty navigator",

@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// AttachmentConfig holds configuration for attachment downloads
+// AttachmentConfig holds configuration for attachment downloads.
 type AttachmentConfig struct {
 	MaxSizeMB      int64         // Maximum file size in MB
 	Timeout        time.Duration // HTTP timeout
@@ -22,7 +23,7 @@ type AttachmentConfig struct {
 	RetryBackoffMs int           // Initial backoff in milliseconds
 }
 
-// DefaultAttachmentConfig returns default attachment configuration
+// DefaultAttachmentConfig returns default attachment configuration.
 func DefaultAttachmentConfig() AttachmentConfig {
 	return AttachmentConfig{
 		MaxSizeMB:      50,
@@ -32,15 +33,15 @@ func DefaultAttachmentConfig() AttachmentConfig {
 	}
 }
 
-// AttachmentService handles downloading JIRA attachments
+// AttachmentService handles downloading JIRA attachments.
 type AttachmentService struct {
-	config    AttachmentConfig
 	client    *http.Client
-	jiraEmail string // JIRA user email for authentication
-	jiraToken string // JIRA API token for authentication
+	jiraEmail string
+	jiraToken string
+	config    AttachmentConfig
 }
 
-// NewAttachmentService creates a new attachment service
+// NewAttachmentService creates a new attachment service.
 func NewAttachmentService(config AttachmentConfig) *AttachmentService {
 	service := &AttachmentService{
 		config: config,
@@ -60,17 +61,17 @@ func NewAttachmentService(config AttachmentConfig) *AttachmentService {
 	return service
 }
 
-// DownloadResult represents the result of a download operation
+// DownloadResult represents the result of a download operation.
 type DownloadResult struct {
+	Error      error
 	Attachment Attachment
 	LocalPath  string
-	Skipped    bool
 	SkipReason string
-	Error      error
+	Skipped    bool
 }
 
 // DownloadAttachment downloads a single attachment to the specified directory
-// Returns the local path relative to the base directory
+// Returns the local path relative to the base directory.
 func (s *AttachmentService) DownloadAttachment(
 	attachment Attachment,
 	destDir string,
@@ -121,7 +122,7 @@ func (s *AttachmentService) DownloadAttachment(
 }
 
 // DownloadAllAttachments downloads all attachments for a ticket
-// Returns successful downloads, skipped files, and any errors
+// Returns successful downloads, skipped files, and any errors.
 func (s *AttachmentService) DownloadAllAttachments(
 	attachments []Attachment,
 	destDir string,
@@ -145,12 +146,12 @@ func (s *AttachmentService) DownloadAllAttachments(
 	return results, firstError
 }
 
-// downloadWithRetry downloads a file with exponential backoff retry
+// downloadWithRetry downloads a file with exponential backoff retry.
 func (s *AttachmentService) downloadWithRetry(url, destPath string) error {
 	var lastErr error
 	backoff := time.Duration(s.config.RetryBackoffMs) * time.Millisecond
 
-	for attempt := 0; attempt < s.config.RetryAttempts; attempt++ {
+	for attempt := range s.config.RetryAttempts {
 		if attempt > 0 {
 			time.Sleep(backoff)
 			backoff *= 2 // Exponential backoff
@@ -167,10 +168,10 @@ func (s *AttachmentService) downloadWithRetry(url, destPath string) error {
 	return fmt.Errorf("failed after %d attempts: %w", s.config.RetryAttempts, lastErr)
 }
 
-// downloadFile downloads a single file from URL to destination path
+// downloadFile downloads a single file from URL to destination path.
 func (s *AttachmentService) downloadFile(url, destPath string) error {
 	// Create HTTP request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -187,7 +188,8 @@ func (s *AttachmentService) downloadFile(url, destPath string) error {
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+		closeErr := resp.Body.Close()
+		if closeErr != nil && err == nil {
 			err = fmt.Errorf("failed to close response body: %w", closeErr)
 		}
 	}()
@@ -203,7 +205,8 @@ func (s *AttachmentService) downloadFile(url, destPath string) error {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer func() {
-		if closeErr := out.Close(); closeErr != nil && err == nil {
+		closeErr := out.Close()
+		if closeErr != nil && err == nil {
 			err = fmt.Errorf("failed to close output file: %w", closeErr)
 		}
 	}()
@@ -219,7 +222,7 @@ func (s *AttachmentService) downloadFile(url, destPath string) error {
 	return nil
 }
 
-// resolveFilenameCollision appends a counter if file already exists
+// resolveFilenameCollision appends a counter if file already exists.
 func (s *AttachmentService) resolveFilenameCollision(path string) string {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
@@ -242,7 +245,7 @@ func (s *AttachmentService) resolveFilenameCollision(path string) string {
 	}
 }
 
-// sanitizeFilename removes or replaces invalid characters in filenames
+// sanitizeFilename removes or replaces invalid characters in filenames.
 func sanitizeFilename(filename string) string {
 	// Replace path separators and other dangerous characters
 	// Keep alphanumeric, spaces, dots, dashes, and underscores
@@ -271,7 +274,7 @@ func sanitizeFilename(filename string) string {
 	return sanitized
 }
 
-// FormatAttachmentSize formats bytes into human-readable size
+// FormatAttachmentSize formats bytes into human-readable size.
 func FormatAttachmentSize(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
@@ -285,7 +288,7 @@ func FormatAttachmentSize(bytes int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// jiraCliConfig represents the structure of jira-cli's config file
+// jiraCliConfig represents the structure of jira-cli's config file.
 type jiraCliConfig struct {
 	Login    string `yaml:"login"`
 	APIToken string `yaml:"api_token"`
@@ -296,7 +299,7 @@ type jiraCliConfig struct {
 // 1. api_token from config file
 // 2. keyring/keychain (cross-platform via go-keyring)
 //
-// Returns email and API token for Basic Authentication
+// Returns email and API token for Basic Authentication.
 func getJiraCredentials() (email, token string, err error) {
 	// Get config path using the same logic as jira-cli
 	// See: internal/cmdutil/utils.go:GetConfigHome()
@@ -316,7 +319,7 @@ func getJiraCredentials() (email, token string, err error) {
 	}
 
 	if config.Login == "" {
-		return "", "", fmt.Errorf("no login configured in jira config")
+		return "", "", errors.New("no login configured in jira config")
 	}
 
 	// Try api_token from config first
@@ -338,7 +341,7 @@ func getJiraCredentials() (email, token string, err error) {
 // Follows the same logic as jira-cli's GetConfigHome():
 // 1. XDG_CONFIG_HOME if set
 // 2. $HOME/.config otherwise
-// Then appends /.jira/.config.yml
+// Then appends /.jira/.config.yml.
 func getJiraConfigPath() (string, error) {
 	var configHome string
 

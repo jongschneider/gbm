@@ -6,56 +6,28 @@ import (
 	"path/filepath"
 )
 
-// IssueMarkdownOptions configures how issue markdown is generated and saved
+// IssueMarkdownOptions configures how issue markdown is generated and saved.
 type IssueMarkdownOptions struct {
-	// WorktreeRoot is the root directory of the worktree
-	WorktreeRoot string
-
-	// DownloadAttachments enables attachment downloads
+	WorktreeRoot        string
+	Filename            string
+	AttachmentConfig    AttachmentConfig
+	MaxDepth            int
 	DownloadAttachments bool
-
-	// AttachmentConfig configures attachment downloads
-	AttachmentConfig AttachmentConfig
-
-	// IncludeComments includes all comments in markdown
-	IncludeComments bool
-
-	// Filename is the output markdown filename (default: {key}.md)
-	Filename string
-
-	// IncludeLinkedIssues enables processing of linked issues
+	IncludeComments     bool
 	IncludeLinkedIssues bool
-
-	// MaxDepth controls how deep to traverse linked issues
-	// Depth 1 = main ticket only
-	// Depth 2 = main ticket + its direct linked issues (default)
-	// Depth 3 = main ticket + linked issues + their linked issues
-	// etc.
-	MaxDepth int
 }
 
-// IssueMarkdownResult contains the results of generating issue markdown
+// IssueMarkdownResult contains the results of generating issue markdown.
 type IssueMarkdownResult struct {
-	// MarkdownPath is the path to the generated markdown file
-	MarkdownPath string
-
-	// AttachmentResults contains results for each attachment download
-	AttachmentResults []DownloadResult
-
-	// AttachmentsDownloaded is the count of successfully downloaded attachments
+	LinkedIssueResults    map[string]*IssueMarkdownResult
+	MarkdownPath          string
+	AttachmentResults     []DownloadResult
 	AttachmentsDownloaded int
-
-	// AttachmentsSkipped is the count of skipped attachments
-	AttachmentsSkipped int
-
-	// AttachmentsFailed is the count of failed attachment downloads
-	AttachmentsFailed int
-
-	// LinkedIssueResults contains results for linked issues
-	LinkedIssueResults map[string]*IssueMarkdownResult
+	AttachmentsSkipped    int
+	AttachmentsFailed     int
 }
 
-// DefaultIssueMarkdownOptions returns default options for markdown generation
+// DefaultIssueMarkdownOptions returns default options for markdown generation.
 func DefaultIssueMarkdownOptions(worktreeRoot string) IssueMarkdownOptions {
 	return IssueMarkdownOptions{
 		WorktreeRoot:        worktreeRoot,
@@ -89,7 +61,7 @@ func (s *Service) GenerateIssueMarkdownFile(
 }
 
 // generateIssueMarkdownFileWithDepth is the internal implementation with depth tracking
-// and circular dependency prevention
+// and circular dependency prevention.
 func (s *Service) generateIssueMarkdownFileWithDepth(
 	issueKey string,
 	opts IssueMarkdownOptions,
@@ -167,7 +139,7 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 	// Step 4: Determine output filename
 	filename := opts.Filename
 	if filename == "" {
-		filename = fmt.Sprintf("%s.md", issueKey)
+		filename = issueKey + ".md"
 	}
 	markdownPath := filepath.Join(opts.WorktreeRoot, filename)
 
@@ -175,11 +147,13 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 	if !dryRun {
 		// Ensure parent directory exists
 		markdownDir := filepath.Dir(markdownPath)
-		if err := os.MkdirAll(markdownDir, 0o755); err != nil {
+		err := os.MkdirAll(markdownDir, 0o755)
+		if err != nil {
 			return nil, fmt.Errorf("failed to create markdown directory: %w", err)
 		}
 
-		if err := os.WriteFile(markdownPath, []byte(markdown), 0o644); err != nil {
+		err := os.WriteFile(markdownPath, []byte(markdown), 0o644)
+		if err != nil {
 			return nil, fmt.Errorf("failed to write markdown file: %w", err)
 		}
 	} else {
@@ -347,7 +321,7 @@ func (s *Service) generateIssueMarkdownFileWithDepth(
 	return result, nil
 }
 
-// PrintMarkdownResult prints a summary of the markdown generation results
+// PrintMarkdownResult prints a summary of the markdown generation results.
 func PrintMarkdownResult(result *IssueMarkdownResult) {
 	fmt.Printf("✓ Markdown generated: %s\n", result.MarkdownPath)
 

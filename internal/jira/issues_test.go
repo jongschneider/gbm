@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestIssueLinkParsing tests that issue links are correctly parsed from JIRA JSON
+// TestIssueLinkParsing tests that issue links are correctly parsed from JIRA JSON.
 func TestIssueLinkParsing(t *testing.T) {
 	// Read the sample ticket.json from testdata
 	ticketPath := "testdata/ticket.json"
@@ -110,7 +110,7 @@ func TestIssueLinkParsing(t *testing.T) {
 	t.Log("Issue link parsing test completed successfully")
 }
 
-// TestMarkdownWithLinkedIssues tests that the markdown generator includes linked issues
+// TestMarkdownWithLinkedIssues tests that the markdown generator includes linked issues.
 func TestMarkdownWithLinkedIssues(t *testing.T) {
 	// Create a sample ticket with linked issues
 	ticket := &JiraTicketDetails{
@@ -163,7 +163,7 @@ func TestMarkdownWithLinkedIssues(t *testing.T) {
 	t.Logf("Generated markdown:\n%s", markdown)
 }
 
-// TestDepthConfiguration tests that MaxDepth is properly configured
+// TestDepthConfiguration tests that MaxDepth is properly configured.
 func TestDepthConfiguration(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -240,7 +240,7 @@ func TestDepthConfiguration(t *testing.T) {
 	}
 }
 
-// TestDefaultMaxDepth verifies the default MaxDepth is 2
+// TestDefaultMaxDepth verifies the default MaxDepth is 2.
 func TestDefaultMaxDepth(t *testing.T) {
 	opts := DefaultIssueMarkdownOptions("/tmp/test")
 
@@ -251,7 +251,7 @@ func TestDefaultMaxDepth(t *testing.T) {
 	t.Logf("✓ Default IncludeLinkedIssues is %v", opts.IncludeLinkedIssues)
 }
 
-// TestParentDepthConfiguration tests that parent issues follow MaxDepth rules
+// TestParentDepthConfiguration tests that parent issues follow MaxDepth rules.
 func TestParentDepthConfiguration(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -316,7 +316,7 @@ func TestParentDepthConfiguration(t *testing.T) {
 	}
 }
 
-// TestParentCircularDependencyPrevention tests that parent processing respects the lookup table
+// TestParentCircularDependencyPrevention tests that parent processing respects the lookup table.
 func TestParentCircularDependencyPrevention(t *testing.T) {
 	processedIssues := map[string]bool{
 		"PARENT-123": true, // Already processed
@@ -331,7 +331,7 @@ func TestParentCircularDependencyPrevention(t *testing.T) {
 	t.Log("✓ Parent circular dependency prevention works correctly")
 }
 
-// TestParentKeyAddedToLookupTable tests that parent key is added before fetching
+// TestParentKeyAddedToLookupTable tests that parent key is added before fetching.
 func TestParentKeyAddedToLookupTable(t *testing.T) {
 	processedIssues := make(map[string]bool)
 	parentKey := "PARENT-456"
@@ -348,7 +348,7 @@ func TestParentKeyAddedToLookupTable(t *testing.T) {
 	t.Log("✓ Parent key is correctly added to lookup table")
 }
 
-// TestParentWithLinkedIssuesDepth tests that parent's linked issues also follow MaxDepth
+// TestParentWithLinkedIssuesDepth tests that parent's linked issues also follow MaxDepth.
 func TestParentWithLinkedIssuesDepth(t *testing.T) {
 	// Scenario: Main ticket at depth 1, parent at depth 2, parent's linked issue at depth 3
 	// With MaxDepth=3, all should be processed
@@ -412,7 +412,7 @@ func TestParentWithLinkedIssuesDepth(t *testing.T) {
 	}
 }
 
-// TestChildDepthConfiguration tests that children (subtasks) follow MaxDepth rules
+// TestChildDepthConfiguration tests that children (subtasks) follow MaxDepth rules.
 func TestChildDepthConfiguration(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -472,7 +472,7 @@ func TestChildDepthConfiguration(t *testing.T) {
 	}
 }
 
-// TestChildCircularDependencyPrevention tests that child processing respects the lookup table
+// TestChildCircularDependencyPrevention tests that child processing respects the lookup table.
 func TestChildCircularDependencyPrevention(t *testing.T) {
 	processedIssues := map[string]bool{
 		"CHILD-123": true, // Already processed
@@ -501,7 +501,7 @@ func TestChildCircularDependencyPrevention(t *testing.T) {
 	t.Log("✓ Child circular dependency prevention works correctly")
 }
 
-// TestChildKeyAddedToLookupTable tests that child key is added before fetching
+// TestChildKeyAddedToLookupTable tests that child key is added before fetching.
 func TestChildKeyAddedToLookupTable(t *testing.T) {
 	processedIssues := make(map[string]bool)
 	childKey := "CHILD-456"
@@ -518,7 +518,7 @@ func TestChildKeyAddedToLookupTable(t *testing.T) {
 	t.Log("✓ Child key is correctly added to lookup table")
 }
 
-// TestChildWithLinkedIssuesDepth tests that child's linked issues also follow MaxDepth
+// TestChildWithLinkedIssuesDepth tests that child's linked issues also follow MaxDepth.
 func TestChildWithLinkedIssuesDepth(t *testing.T) {
 	// Scenario: Main ticket at depth 1, child at depth 2, child's linked issue at depth 3
 	// With MaxDepth=3, all should be processed
@@ -591,14 +591,14 @@ func TestChildWithLinkedIssuesDepth(t *testing.T) {
 	}
 }
 
-// TestChildrenDeduplicatedFromLinkedIssues tests that child issues are removed from linked issues
+// TestChildrenDeduplicatedFromLinkedIssues tests that child issues are removed from linked issues.
 func TestChildrenDeduplicatedFromLinkedIssues(t *testing.T) {
 	tests := []struct {
 		name              string
+		expectFilteredKey string
 		children          []LinkedIssue
 		issueLinks        []IssueLink
 		expectLinkCount   int
-		expectFilteredKey string
 	}{
 		{
 			name: "child appears as inward issue link - should be removed",
@@ -828,7 +828,7 @@ func TestChildrenDeduplicatedFromLinkedIssues(t *testing.T) {
 	}
 }
 
-// TestParentFieldParsing tests that parent field is correctly parsed from raw JSON
+// TestParentFieldParsing tests that parent field is correctly parsed from raw JSON.
 func TestParentFieldParsing(t *testing.T) {
 	// Read the sample ticket.json from testdata (which has a parent field)
 	ticketPath := "testdata/ticket.json"
@@ -855,7 +855,7 @@ func TestParentFieldParsing(t *testing.T) {
 	t.Logf("✓ Parent field parsed: %s - %s", parent.Key, parent.Fields.Summary)
 }
 
-// TestSubtasksArrayParsing tests that subtasks array is correctly parsed from raw JSON
+// TestSubtasksArrayParsing tests that subtasks array is correctly parsed from raw JSON.
 func TestSubtasksArrayParsing(t *testing.T) {
 	// Create test JSON with subtasks
 	jsonData := `{
@@ -918,7 +918,7 @@ func TestSubtasksArrayParsing(t *testing.T) {
 	t.Logf("✓ Subtasks parsed: %d items", len(jiraResponse.Fields.Subtasks))
 }
 
-// TestParentConversionToLinkedIssue tests that parent is correctly converted to LinkedIssue
+// TestParentConversionToLinkedIssue tests that parent is correctly converted to LinkedIssue.
 func TestParentConversionToLinkedIssue(t *testing.T) {
 	// Create test raw parent structure
 	rawParent := struct {
@@ -966,7 +966,7 @@ func TestParentConversionToLinkedIssue(t *testing.T) {
 	t.Logf("✓ Parent converted to LinkedIssue: %s (%s)", linkedIssue.Key, linkedIssue.IssueType)
 }
 
-// TestChildrenConversionToLinkedIssue tests that children (subtasks) are correctly converted to LinkedIssue slice
+// TestChildrenConversionToLinkedIssue tests that children (subtasks) are correctly converted to LinkedIssue slice.
 func TestChildrenConversionToLinkedIssue(t *testing.T) {
 	// Create test raw subtasks structure
 	type rawSubtask struct {
@@ -1043,7 +1043,7 @@ func TestChildrenConversionToLinkedIssue(t *testing.T) {
 	t.Logf("✓ Children converted to LinkedIssue slice: %d items", len(children))
 }
 
-// TestParentNilCase tests handling when parent field is nil
+// TestParentNilCase tests handling when parent field is nil.
 func TestParentNilCase(t *testing.T) {
 	// Create test JSON without parent
 	jsonData := `{
@@ -1080,7 +1080,7 @@ func TestParentNilCase(t *testing.T) {
 	t.Log("✓ Nil parent case handled correctly")
 }
 
-// TestSubtasksEmptyCase tests handling when subtasks array is empty
+// TestSubtasksEmptyCase tests handling when subtasks array is empty.
 func TestSubtasksEmptyCase(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1145,7 +1145,7 @@ func TestSubtasksEmptyCase(t *testing.T) {
 	}
 }
 
-// TestJiraTicketDetailsParentAndChildrenFields tests that JiraTicketDetails correctly stores Parent and Children
+// TestJiraTicketDetailsParentAndChildrenFields tests that JiraTicketDetails correctly stores Parent and Children.
 func TestJiraTicketDetailsParentAndChildrenFields(t *testing.T) {
 	// Create a JiraTicketDetails with parent and children
 	ticket := &JiraTicketDetails{
@@ -1193,14 +1193,14 @@ func TestJiraTicketDetailsParentAndChildrenFields(t *testing.T) {
 	t.Logf("✓ JiraTicketDetails with Parent (%s) and %d Children", ticket.Parent.Key, len(ticket.Children))
 }
 
-// TestParentDeduplicatedFromLinkedIssues tests that parent issues are removed from linked issues
+// TestParentDeduplicatedFromLinkedIssues tests that parent issues are removed from linked issues.
 func TestParentDeduplicatedFromLinkedIssues(t *testing.T) {
 	tests := []struct {
-		name              string
 		parent            *LinkedIssue
+		name              string
+		expectFilteredKey string
 		issueLinks        []IssueLink
 		expectLinkCount   int
-		expectFilteredKey string
 	}{
 		{
 			name: "parent appears as inward issue link - should be removed",

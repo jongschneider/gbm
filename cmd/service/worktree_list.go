@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"gbm/internal/git"
 	"os"
@@ -37,7 +38,7 @@ Examples:
 
 			if len(worktrees) == 0 {
 				if ShouldUseJSON() {
-					return OutputJSONArray([]map[string]interface{}{})
+					return OutputJSONArray([]map[string]any{})
 				}
 				fmt.Println("No worktrees found.")
 				return nil
@@ -107,7 +108,7 @@ Examples:
 
 			// TUI table requires interactive input
 			if !ShouldAllowInput() {
-				return fmt.Errorf("TUI requires interactive input. Use 'gbm --json worktree list' for non-interactive output, or 'gbm worktree switch <name>' to switch directly")
+				return errors.New("TUI requires interactive input. Use 'gbm --json worktree list' for non-interactive output, or 'gbm worktree switch <name>' to switch directly")
 			}
 
 			// Display using bubbletea table

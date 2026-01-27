@@ -5,16 +5,16 @@ import (
 	"strings"
 )
 
-// ADFParser converts Atlassian Document Format to Markdown
+// ADFParser converts Atlassian Document Format to Markdown.
 type ADFParser struct{}
 
-// NewADFParser creates a new ADF parser
+// NewADFParser creates a new ADF parser.
 func NewADFParser() *ADFParser {
 	return &ADFParser{}
 }
 
 // ParseToMarkdown converts an ADF document to markdown
-// Returns: (markdown text, media IDs found, error)
+// Returns: (markdown text, media IDs found, error).
 func (p *ADFParser) ParseToMarkdown(doc ADFDocument) (string, []string, error) {
 	var mediaIDs []string
 	var builder strings.Builder
@@ -33,7 +33,7 @@ func (p *ADFParser) ParseToMarkdown(doc ADFDocument) (string, []string, error) {
 	return strings.TrimSpace(builder.String()), mediaIDs, nil
 }
 
-// parseNode parses a single ADF node and returns markdown and any media IDs
+// parseNode parses a single ADF node and returns markdown and any media IDs.
 func (p *ADFParser) parseNode(node ADFNode, depth int) (string, []string) {
 	var mediaIDs []string
 
@@ -98,7 +98,7 @@ func (p *ADFParser) parseNode(node ADFNode, depth int) (string, []string) {
 	}
 }
 
-// parseParagraph converts a paragraph node to markdown
+// parseParagraph converts a paragraph node to markdown.
 func (p *ADFParser) parseParagraph(node ADFNode, mediaIDs *[]string) string {
 	if len(node.Content) == 0 {
 		return ""
@@ -113,7 +113,7 @@ func (p *ADFParser) parseParagraph(node ADFNode, mediaIDs *[]string) string {
 	return builder.String()
 }
 
-// parseText converts a text node to markdown with formatting
+// parseText converts a text node to markdown with formatting.
 func (p *ADFParser) parseText(node ADFNode) string {
 	text := node.Text
 	if text == "" {
@@ -155,7 +155,7 @@ func (p *ADFParser) parseText(node ADFNode) string {
 	return text
 }
 
-// parseMention converts a mention node to markdown
+// parseMention converts a mention node to markdown.
 func (p *ADFParser) parseMention(node ADFNode) string {
 	if node.Attrs != nil {
 		if text, ok := node.Attrs["text"].(string); ok {
@@ -168,7 +168,7 @@ func (p *ADFParser) parseMention(node ADFNode) string {
 	return "@unknown"
 }
 
-// parseMediaGroup extracts media IDs from a media group
+// parseMediaGroup extracts media IDs from a media group.
 func (p *ADFParser) parseMediaGroup(node ADFNode, mediaIDs *[]string) string {
 	for _, child := range node.Content {
 		if child.Type == "media" {
@@ -178,7 +178,7 @@ func (p *ADFParser) parseMediaGroup(node ADFNode, mediaIDs *[]string) string {
 	return "" // Media groups don't render directly in markdown
 }
 
-// parseMedia extracts the media ID and returns a placeholder
+// parseMedia extracts the media ID and returns a placeholder.
 func (p *ADFParser) parseMedia(node ADFNode, mediaIDs *[]string) string {
 	if node.Attrs != nil {
 		if id, ok := node.Attrs["id"].(string); ok {
@@ -189,7 +189,7 @@ func (p *ADFParser) parseMedia(node ADFNode, mediaIDs *[]string) string {
 	return "[attachment]"
 }
 
-// parseInlineCard converts an inline card to a markdown link
+// parseInlineCard converts an inline card to a markdown link.
 func (p *ADFParser) parseInlineCard(node ADFNode) string {
 	if node.Attrs != nil {
 		if url, ok := node.Attrs["url"].(string); ok {
@@ -203,7 +203,7 @@ func (p *ADFParser) parseInlineCard(node ADFNode) string {
 	return "[link]"
 }
 
-// parseOrderedList converts an ordered list to markdown
+// parseOrderedList converts an ordered list to markdown.
 func (p *ADFParser) parseOrderedList(node ADFNode, depth int, mediaIDs *[]string) string {
 	var builder strings.Builder
 	start := 1
@@ -227,7 +227,7 @@ func (p *ADFParser) parseOrderedList(node ADFNode, depth int, mediaIDs *[]string
 	return builder.String()
 }
 
-// parseBulletList converts a bullet list to markdown
+// parseBulletList converts a bullet list to markdown.
 func (p *ADFParser) parseBulletList(node ADFNode, depth int, mediaIDs *[]string) string {
 	var builder strings.Builder
 
@@ -245,7 +245,7 @@ func (p *ADFParser) parseBulletList(node ADFNode, depth int, mediaIDs *[]string)
 	return builder.String()
 }
 
-// parseListItem converts a list item to markdown
+// parseListItem converts a list item to markdown.
 func (p *ADFParser) parseListItem(node ADFNode, depth int, mediaIDs *[]string) string {
 	var builder strings.Builder
 
@@ -275,7 +275,7 @@ func (p *ADFParser) parseListItem(node ADFNode, depth int, mediaIDs *[]string) s
 	return builder.String()
 }
 
-// parseHeading converts a heading node to markdown
+// parseHeading converts a heading node to markdown.
 func (p *ADFParser) parseHeading(node ADFNode, mediaIDs *[]string) string {
 	level := 1
 	if node.Attrs != nil {
@@ -294,7 +294,7 @@ func (p *ADFParser) parseHeading(node ADFNode, mediaIDs *[]string) string {
 	return strings.Repeat("#", level) + " " + builder.String()
 }
 
-// parseCodeBlock converts a code block to markdown
+// parseCodeBlock converts a code block to markdown.
 func (p *ADFParser) parseCodeBlock(node ADFNode) string {
 	language := ""
 	if node.Attrs != nil {
@@ -313,7 +313,7 @@ func (p *ADFParser) parseCodeBlock(node ADFNode) string {
 	return fmt.Sprintf("```%s\n%s\n```", language, code.String())
 }
 
-// parseBlockquote converts a blockquote to markdown
+// parseBlockquote converts a blockquote to markdown.
 func (p *ADFParser) parseBlockquote(node ADFNode, mediaIDs *[]string) string {
 	var builder strings.Builder
 
@@ -336,7 +336,7 @@ func (p *ADFParser) parseBlockquote(node ADFNode, mediaIDs *[]string) string {
 	return builder.String()
 }
 
-// parsePanel converts a panel to markdown (as a blockquote with emoji)
+// parsePanel converts a panel to markdown (as a blockquote with emoji).
 func (p *ADFParser) parsePanel(node ADFNode, mediaIDs *[]string) string {
 	panelType := "info"
 	if node.Attrs != nil {
@@ -382,26 +382,26 @@ func (p *ADFParser) parsePanel(node ADFNode, mediaIDs *[]string) string {
 	return builder.String()
 }
 
-// rowspanTracker tracks cells that span multiple rows
+// rowspanTracker tracks cells that span multiple rows.
 type rowspanTracker struct {
 	// For each column index, tracks remaining rows to span and the content
 	spans map[int]struct {
-		remaining int
 		content   string
+		remaining int
 	}
 }
 
 func newRowspanTracker() *rowspanTracker {
 	return &rowspanTracker{
 		spans: make(map[int]struct {
-			remaining int
 			content   string
+			remaining int
 		}),
 	}
 }
 
 // decrementSpans reduces the rowspan count for all tracked columns
-// and removes spans that have been fully processed
+// and removes spans that have been fully processed.
 func (r *rowspanTracker) decrementSpans() {
 	for col, span := range r.spans {
 		// Delete spans that were exhausted in the previous row
@@ -415,7 +415,7 @@ func (r *rowspanTracker) decrementSpans() {
 	}
 }
 
-// parseTable converts a table node to markdown
+// parseTable converts a table node to markdown.
 func (p *ADFParser) parseTable(node ADFNode, mediaIDs *[]string) string {
 	var builder strings.Builder
 	var numCols int
@@ -462,8 +462,8 @@ func (p *ADFParser) parseTable(node ADFNode, mediaIDs *[]string) string {
 			if cell.Attrs != nil {
 				if rowspan, ok := cell.Attrs["rowspan"].(float64); ok && rowspan > 1 {
 					tracker.spans[colPos] = struct {
-						remaining int
 						content   string
+						remaining int
 					}{
 						// Store full rowspan count; decrement happens at end of row
 						// so by the time we check the next row, it will be rowspan-1
@@ -501,7 +501,7 @@ func (p *ADFParser) parseTable(node ADFNode, mediaIDs *[]string) string {
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
-// parseTableCell extracts content from a table cell (header or regular cell)
+// parseTableCell extracts content from a table cell (header or regular cell).
 func (p *ADFParser) parseTableCell(node ADFNode, mediaIDs *[]string) string {
 	var builder strings.Builder
 
@@ -526,7 +526,7 @@ func (p *ADFParser) parseMediaSingle(node ADFNode, mediaIDs *[]string) string {
 	return "[attachment]"
 }
 
-// parseEmoji converts an emoji node to its text representation
+// parseEmoji converts an emoji node to its text representation.
 func (p *ADFParser) parseEmoji(node ADFNode) string {
 	if node.Attrs != nil {
 		// Try to get the emoji text (the actual emoji character)
@@ -541,7 +541,7 @@ func (p *ADFParser) parseEmoji(node ADFNode) string {
 	return ""
 }
 
-// isBlockNode checks if a node type is a block-level node
+// isBlockNode checks if a node type is a block-level node.
 func (p *ADFParser) isBlockNode(nodeType string) bool {
 	blockTypes := map[string]bool{
 		"paragraph":   true,

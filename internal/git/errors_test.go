@@ -40,7 +40,7 @@ func TestGitError_Unwrap(t *testing.T) {
 	}
 
 	assert.Equal(t, innerErr, err.Unwrap())
-	assert.True(t, errors.Is(err, ErrBranchNotFound))
+	assert.ErrorIs(t, err, ErrBranchNotFound)
 }
 
 func TestGitError_IsExitCode(t *testing.T) {
@@ -59,16 +59,16 @@ func TestNewGitError(t *testing.T) {
 
 	// Verify it's wrapped properly
 	var gitErr *GitError
-	require.True(t, errors.As(err, &gitErr))
+	require.ErrorAs(t, err, &gitErr)
 	assert.Equal(t, "branch delete", gitErr.Op)
 	assert.Equal(t, 1, gitErr.ExitCode)
 	assert.Equal(t, "error: not found", gitErr.Stderr) // Trimmed
-	assert.True(t, errors.Is(err, ErrBranchNotFound))
+	assert.ErrorIs(t, err, ErrBranchNotFound)
 }
 
 func TestNewGitError_NilError(t *testing.T) {
 	err := NewGitError("branch delete", nil, 1, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestClassifyError_BranchNotFound(t *testing.T) {
@@ -98,7 +98,7 @@ func TestClassifyError_BranchNotFound(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError(tt.op, errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrBranchNotFound))
+			assert.ErrorIs(t, err, ErrBranchNotFound)
 		})
 	}
 }
@@ -125,7 +125,7 @@ func TestClassifyError_WorktreeNotFound(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError(tt.op, errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrWorktreeNotFound))
+			assert.ErrorIs(t, err, ErrWorktreeNotFound)
 		})
 	}
 }
@@ -134,14 +134,14 @@ func TestClassifyError_BranchExists(t *testing.T) {
 	output := "fatal: A branch named 'test' already exists"
 	err := ClassifyError("branch create", errors.New("exit 1"), output)
 
-	assert.True(t, errors.Is(err, ErrBranchExists))
+	assert.ErrorIs(t, err, ErrBranchExists)
 }
 
 func TestClassifyError_WorktreeExists(t *testing.T) {
 	output := "fatal: 'test' already exists"
 	err := ClassifyError("worktree add", errors.New("exit 1"), output)
 
-	assert.True(t, errors.Is(err, ErrWorktreeExists))
+	assert.ErrorIs(t, err, ErrWorktreeExists)
 }
 
 func TestClassifyError_NotMerged(t *testing.T) {
@@ -163,7 +163,7 @@ func TestClassifyError_NotMerged(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError("branch delete", errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrNotMerged))
+			assert.ErrorIs(t, err, ErrNotMerged)
 		})
 	}
 }
@@ -187,7 +187,7 @@ func TestClassifyError_DirtyWorktree(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError("worktree remove", errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrDirtyWorktree))
+			assert.ErrorIs(t, err, ErrDirtyWorktree)
 		})
 	}
 }
@@ -211,7 +211,7 @@ func TestClassifyError_NoUpstream(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError("push", errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrNoUpstream))
+			assert.ErrorIs(t, err, ErrNoUpstream)
 		})
 	}
 }
@@ -220,7 +220,7 @@ func TestClassifyError_NoRemoteTrackingBranch(t *testing.T) {
 	output := "fatal: no remote tracking branch"
 	err := ClassifyError("pull", errors.New("exit 1"), output)
 
-	assert.True(t, errors.Is(err, ErrNoRemoteTrackingBranch))
+	assert.ErrorIs(t, err, ErrNoRemoteTrackingBranch)
 }
 
 func TestClassifyError_RemoteNotFound(t *testing.T) {
@@ -242,7 +242,7 @@ func TestClassifyError_RemoteNotFound(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ClassifyError("fetch", errors.New("exit 1"), tt.output)
 
-			assert.True(t, errors.Is(err, ErrRemoteNotFound))
+			assert.ErrorIs(t, err, ErrRemoteNotFound)
 		})
 	}
 }
@@ -251,7 +251,7 @@ func TestClassifyError_NotAGitRepository(t *testing.T) {
 	output := "fatal: not a git repository"
 	err := ClassifyError("status", errors.New("exit 128"), output)
 
-	assert.True(t, errors.Is(err, ErrNotAGitRepository))
+	assert.ErrorIs(t, err, ErrNotAGitRepository)
 }
 
 func TestClassifyError_FallbackToWrap(t *testing.T) {
@@ -261,13 +261,13 @@ func TestClassifyError_FallbackToWrap(t *testing.T) {
 
 	// Should still be wrapped with context
 	var gitErr *GitError
-	require.True(t, errors.As(err, &gitErr))
+	require.ErrorAs(t, err, &gitErr)
 	assert.Equal(t, "custom operation", gitErr.Op)
 }
 
 func TestClassifyError_NilError(t *testing.T) {
 	err := ClassifyError("branch delete", nil, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestWrap(t *testing.T) {
@@ -275,26 +275,26 @@ func TestWrap(t *testing.T) {
 	err := Wrap("branch operations", innerErr)
 
 	var gitErr *GitError
-	require.True(t, errors.As(err, &gitErr))
+	require.ErrorAs(t, err, &gitErr)
 	assert.Equal(t, "branch operations", gitErr.Op)
-	assert.True(t, errors.Is(err, ErrBranchNotFound))
+	assert.ErrorIs(t, err, ErrBranchNotFound)
 }
 
 func TestWrap_NilError(t *testing.T) {
 	err := Wrap("branch operations", nil)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
-// TestErrorChaining demonstrates the error wrapping chain
+// TestErrorChaining demonstrates the error wrapping chain.
 func TestErrorChaining(t *testing.T) {
 	// Simulate a git error with multiple layers
 	classifiedErr := ClassifyError("branch delete", errors.New("exit 1"), "fatal: branch 'test' not found")
 
 	// Should be able to use errors.Is to check the underlying type
-	assert.True(t, errors.Is(classifiedErr, ErrBranchNotFound))
+	assert.ErrorIs(t, classifiedErr, ErrBranchNotFound)
 
 	// Should be able to unwrap and inspect
 	var gErr *GitError
-	assert.True(t, errors.As(classifiedErr, &gErr))
+	assert.ErrorAs(t, classifiedErr, &gErr)
 	assert.Equal(t, "branch delete", gErr.Op)
 }

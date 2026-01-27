@@ -2,7 +2,7 @@ package jira
 
 import "time"
 
-// JiraIssue represents a basic JIRA issue with key information
+// JiraIssue represents a basic JIRA issue with key information.
 type JiraIssue struct {
 	Type    string
 	Key     string
@@ -10,7 +10,7 @@ type JiraIssue struct {
 	Status  string
 }
 
-// JiraTicketDetails represents detailed JIRA ticket information
+// JiraTicketDetails represents detailed JIRA ticket information.
 type JiraTicketDetails struct {
 	Key           string
 	Summary       string
@@ -32,7 +32,7 @@ type JiraTicketDetails struct {
 	Children      []LinkedIssue // Child issues (subtasks)
 }
 
-// User represents a JIRA user
+// User represents a JIRA user.
 type User struct {
 	DisplayName string
 	Email       string
@@ -40,7 +40,7 @@ type User struct {
 	AvatarURL   string
 }
 
-// Comment represents a JIRA comment
+// Comment represents a JIRA comment.
 type Comment struct {
 	ID          string
 	Author      User
@@ -52,18 +52,18 @@ type Comment struct {
 	Attachments []string  // Media IDs referenced in comment body
 }
 
-// Attachment represents a JIRA file attachment
+// Attachment represents a JIRA file attachment.
 type Attachment struct {
+	Author   User
 	ID       string
 	Filename string
-	Author   User
 	Created  string
-	Size     int64
 	MimeType string
-	Content  string // Download URL
+	Content  string
+	Size     int64
 }
 
-// IssueLinkType represents the type of relationship between linked issues
+// IssueLinkType represents the type of relationship between linked issues.
 type IssueLinkType struct {
 	ID      string
 	Name    string
@@ -71,7 +71,7 @@ type IssueLinkType struct {
 	Outward string // Description when viewing from linked issue (e.g., "blocks")
 }
 
-// LinkedIssue represents a basic linked issue with key information
+// LinkedIssue represents a basic linked issue with key information.
 type LinkedIssue struct {
 	ID        string
 	Key       string
@@ -81,45 +81,45 @@ type LinkedIssue struct {
 	IssueType string
 }
 
-// IssueLink represents a link between two JIRA issues
+// IssueLink represents a link between two JIRA issues.
 type IssueLink struct {
-	ID           string
+	InwardIssue  *LinkedIssue
+	OutwardIssue *LinkedIssue
 	Type         IssueLinkType
-	InwardIssue  *LinkedIssue // Issue that this issue links to (inward relationship)
-	OutwardIssue *LinkedIssue // Issue that links to this issue (outward relationship)
+	ID           string
 }
 
-// ADFDocument represents a full Atlassian Document Format document
+// ADFDocument represents a full Atlassian Document Format document.
 type ADFDocument struct {
 	Type    string    `json:"type"`
-	Version int       `json:"version"`
 	Content []ADFNode `json:"content"`
+	Version int       `json:"version"`
 }
 
-// ADFNode represents a node in the Atlassian Document Format tree
+// ADFNode represents a node in the Atlassian Document Format tree.
 type ADFNode struct {
-	Type    string                   `json:"type"`
-	Text    string                   `json:"text,omitempty"`
-	Content []ADFNode                `json:"content,omitempty"`
-	Attrs   map[string]interface{}   `json:"attrs,omitempty"`
-	Marks   []map[string]interface{} `json:"marks,omitempty"` // For bold, italic, code, etc.
+	Type    string           `json:"type"`
+	Text    string           `json:"text,omitempty"`
+	Content []ADFNode        `json:"content,omitempty"`
+	Attrs   map[string]any   `json:"attrs,omitempty"`
+	Marks   []map[string]any `json:"marks,omitempty"` // For bold, italic, code, etc.
 }
 
-// JiraFilters defines filters for jira issue list command
+// JiraFilters defines filters for jira issue list command.
 type JiraFilters struct {
-	Status     []string `yaml:"status,omitempty"`      // -s flags: filter by status
-	Priority   string   `yaml:"priority,omitempty"`    // -y flag: filter by priority
-	Type       string   `yaml:"type,omitempty"`        // -t flag: filter by type
-	Labels     []string `yaml:"labels,omitempty"`      // -l flags: filter by labels
-	Component  string   `yaml:"component,omitempty"`   // -C flag: filter by component
-	Reporter   string   `yaml:"reporter,omitempty"`    // -r flag: filter by reporter
-	Assignee   string   `yaml:"assignee,omitempty"`    // -a flag: assignee (default: "me")
-	OrderBy    string   `yaml:"order_by,omitempty"`    // --order-by flag
-	Reverse    bool     `yaml:"reverse,omitempty"`     // --reverse flag
-	CustomArgs []string `yaml:"custom_args,omitempty"` // Additional custom args
+	Priority   string   `yaml:"priority,omitempty"`
+	Type       string   `yaml:"type,omitempty"`
+	Component  string   `yaml:"component,omitempty"`
+	Reporter   string   `yaml:"reporter,omitempty"`
+	Assignee   string   `yaml:"assignee,omitempty"`
+	OrderBy    string   `yaml:"order_by,omitempty"`
+	Status     []string `yaml:"status,omitempty"`
+	Labels     []string `yaml:"labels,omitempty"`
+	CustomArgs []string `yaml:"custom_args,omitempty"`
+	Reverse    bool     `yaml:"reverse,omitempty"`
 }
 
-// jiraRawResponse represents the raw JSON response from JIRA CLI
+// jiraRawResponse represents the raw JSON response from JIRA CLI.
 type jiraRawResponse struct {
 	Key    string `json:"key"`
 	Self   string `json:"self"`
@@ -189,9 +189,7 @@ type jiraRawResponse struct {
 		} `json:"subtasks"`
 		Description *ADFDocument `json:"description"`
 		Attachment  []struct {
-			ID       string `json:"id"`
-			Filename string `json:"filename"`
-			Author   struct {
+			Author struct {
 				DisplayName  string `json:"displayName"`
 				EmailAddress string `json:"emailAddress"`
 				AccountID    string `json:"accountId"`
@@ -199,14 +197,15 @@ type jiraRawResponse struct {
 					Px48 string `json:"48x48"`
 				} `json:"avatarUrls"`
 			} `json:"author"`
+			ID       string `json:"id"`
+			Filename string `json:"filename"`
 			Created  string `json:"created"`
-			Size     int64  `json:"size"`
 			MimeType string `json:"mimeType"`
 			Content  string `json:"content"`
+			Size     int64  `json:"size"`
 		} `json:"attachment"`
 		Comment struct {
 			Comments []struct {
-				ID     string `json:"id"`
 				Author struct {
 					DisplayName  string `json:"displayName"`
 					EmailAddress string `json:"emailAddress"`
@@ -215,19 +214,13 @@ type jiraRawResponse struct {
 						Px48 string `json:"48x48"`
 					} `json:"avatarUrls"`
 				} `json:"author"`
-				Body    ADFDocument `json:"body"`
+				ID      string      `json:"id"`
 				Created string      `json:"created"`
 				Updated string      `json:"updated"`
+				Body    ADFDocument `json:"body"`
 			} `json:"comments"`
 		} `json:"comment"`
 		IssueLinks []struct {
-			ID   string `json:"id"`
-			Type struct {
-				ID      string `json:"id"`
-				Name    string `json:"name"`
-				Inward  string `json:"inward"`
-				Outward string `json:"outward"`
-			} `json:"type"`
 			InwardIssue *struct {
 				ID     string `json:"id"`
 				Key    string `json:"key"`
@@ -260,6 +253,13 @@ type jiraRawResponse struct {
 					} `json:"issuetype"`
 				} `json:"fields"`
 			} `json:"outwardIssue,omitempty"`
+			Type struct {
+				ID      string `json:"id"`
+				Name    string `json:"name"`
+				Inward  string `json:"inward"`
+				Outward string `json:"outward"`
+			} `json:"type"`
+			ID string `json:"id"`
 		} `json:"issuelinks"`
 	} `json:"fields"`
 }

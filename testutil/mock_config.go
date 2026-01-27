@@ -49,5 +49,5 @@ func (m *MockRepoConfig) GetWorktrees() map[string]tui.WorktreeConfig {
 	return m.worktrees
 }
 
-// Verify that MockRepoConfig implements tui.RepoConfig
+// Verify that MockRepoConfig implements tui.RepoConfig.
 var _ tui.RepoConfig = (*MockRepoConfig)(nil)

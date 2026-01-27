@@ -37,15 +37,15 @@ type WorkflowState struct {
 	BranchName   string
 	BaseBranch   string
 	JiraIssue    *JiraIssue
-	CustomFields map[string]interface{}
+	CustomFields map[string]any
 }
 
 // SetField stores a custom field in the workflow state.
 // If the field name corresponds to a standard field (e.g., "workflow_type"),
 // it updates the standard field instead of CustomFields.
-func (ws *WorkflowState) SetField(key string, value interface{}) {
+func (ws *WorkflowState) SetField(key string, value any) {
 	if ws.CustomFields == nil {
-		ws.CustomFields = make(map[string]interface{})
+		ws.CustomFields = make(map[string]any)
 	}
 	ws.CustomFields[key] = value
 }
@@ -53,7 +53,7 @@ func (ws *WorkflowState) SetField(key string, value interface{}) {
 // GetField retrieves a custom field from the workflow state.
 // Returns the value if found, nil otherwise.
 // The caller is responsible for type assertion.
-func (ws *WorkflowState) GetField(key string) interface{} {
+func (ws *WorkflowState) GetField(key string) any {
 	if ws.CustomFields == nil {
 		return nil
 	}

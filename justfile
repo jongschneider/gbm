@@ -4,7 +4,7 @@ default:
     @just --list
 
 # Run all validations
-validate: format vet lint compile test-changed
+validate: fmt vet lint compile test-changed
 
 # Run all checks (continues on failure to show all issues)
 check:
@@ -138,7 +138,7 @@ clean:
     @go clean ./...
 
 # Quick check - minimal validation for fast feedback
-quick: format vet
+quick: fmt vet
 
 # Show what files would be checked
 show-changed:

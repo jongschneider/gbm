@@ -9,8 +9,8 @@ import (
 
 func TestSidebar_Create(t *testing.T) {
 	testCases := []struct {
-		name   string
 		expect func(t *testing.T, sb *Sidebar)
+		name   string
 	}{
 		{
 			name: "new sidebar has 4 sections",
@@ -46,10 +46,10 @@ func TestSidebar_Create(t *testing.T) {
 
 func TestSidebar_Navigation(t *testing.T) {
 	testCases := []struct {
+		setupFunc func(*Sidebar)
 		name      string
 		input     tea.KeyMsg
 		expected  int
-		setupFunc func(*Sidebar)
 	}{
 		{
 			name:     "down arrow moves focus down",
@@ -99,10 +99,10 @@ func TestSidebar_Navigation(t *testing.T) {
 
 func TestSidebar_ExpandCollapse(t *testing.T) {
 	testCases := []struct {
+		setupFunc func(*Sidebar)
 		name      string
 		input     tea.KeyMsg
 		expected  bool
-		setupFunc func(*Sidebar)
 	}{
 		{
 			name:     "right arrow expands focused section",

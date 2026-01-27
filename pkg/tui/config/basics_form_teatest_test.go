@@ -153,7 +153,7 @@ func TestBasicsForm_KeepEditingFlow(t *testing.T) {
 
 	// Wait for confirmation dialog
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return string(bts) != ""
+		return len(bts) != 0
 	}, teatest.WithDuration(time.Second))
 
 	// Send 'n' to cancel discard (keep editing)

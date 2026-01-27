@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// BranchExists checks if a branch exists locally
+// BranchExists checks if a branch exists locally.
 func (s *Service) BranchExists(branchName string) (bool, error) {
 	if branchName == "" {
 		return false, ErrBranchNameEmpty
@@ -21,7 +21,7 @@ func (s *Service) BranchExists(branchName string) (bool, error) {
 	return true, nil
 }
 
-// BranchExistsInPath checks if a branch exists in a specific worktree path
+// BranchExistsInPath checks if a branch exists in a specific worktree path.
 func (s *Service) BranchExistsInPath(worktreePath, branchName string) (bool, error) {
 	if worktreePath == "" {
 		return false, ErrWorktreePathEmpty
@@ -40,7 +40,7 @@ func (s *Service) BranchExistsInPath(worktreePath, branchName string) (bool, err
 	return true, nil
 }
 
-// DeleteBranch deletes a git branch
+// DeleteBranch deletes a git branch.
 func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error {
 	if branchName == "" {
 		return ErrBranchNameEmpty
@@ -65,7 +65,7 @@ func (s *Service) DeleteBranch(branchName string, force bool, dryRun bool) error
 	return nil
 }
 
-// ListBranches returns all local and remote branches
+// ListBranches returns all local and remote branches.
 func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 	cmd := exec.Command("git", "branch", "-a", "--format=%(refname:short)")
 
@@ -90,7 +90,7 @@ func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 	return branches, nil
 }
 
-// MergeBranchWithCommit merges a branch and creates a commit with the specified message
+// MergeBranchWithCommit merges a branch and creates a commit with the specified message.
 func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessage string, dryRun bool) error {
 	cmd := exec.Command("git", "-C", worktreePath, "merge", "-m", commitMessage, sourceBranch)
 
@@ -107,7 +107,7 @@ func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessag
 }
 
 // GetUpstreamBranch gets the upstream tracking branch for a worktree
-// Returns empty string if no upstream is configured (not an error)
+// Returns empty string if no upstream is configured (not an error).
 func (s *Service) GetUpstreamBranch(worktreePath string) (string, error) {
 	if worktreePath == "" {
 		return "", ErrWorktreePathEmpty

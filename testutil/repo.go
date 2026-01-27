@@ -86,11 +86,13 @@ func (r *TestRepo) CreateFile(path, content string) {
 
 	// Create parent directories if needed
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	err := os.MkdirAll(dir, 0o755)
+	if err != nil {
 		r.t.Fatalf("failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
+	err := os.WriteFile(fullPath, []byte(content), 0o600)
+	if err != nil {
 		r.t.Fatalf("failed to create file %s: %v", path, err)
 	}
 }
@@ -118,7 +120,8 @@ func (r *TestRepo) Chdir() func() {
 	}
 
 	return func() {
-		if err := os.Chdir(origDir); err != nil {
+		err := os.Chdir(origDir)
+		if err != nil {
 			r.t.Fatalf("failed to restore directory to %s: %v", origDir, err)
 		}
 	}

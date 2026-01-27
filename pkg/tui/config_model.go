@@ -32,12 +32,12 @@ func NewConfigModel(theme *Theme) *ConfigModel {
 	}
 }
 
-// Init implements tea.Model
+// Init implements tea.Model.
 func (m *ConfigModel) Init() tea.Cmd {
 	return m.nav.Init()
 }
 
-// Update implements tea.Model
+// Update implements tea.Model.
 func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle window size
 	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
@@ -52,22 +52,22 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View implements tea.Model
+// View implements tea.Model.
 func (m *ConfigModel) View() string {
 	return m.nav.View()
 }
 
-// GetSidebar returns the sidebar component
+// GetSidebar returns the sidebar component.
 func (m *ConfigModel) GetSidebar() *Sidebar {
 	return m.sidebar
 }
 
-// GetNavigator returns the navigator
+// GetNavigator returns the navigator.
 func (m *ConfigModel) GetNavigator() *Navigator {
 	return m.nav
 }
 
-// GetTheme returns the current theme
+// GetTheme returns the current theme.
 func (m *ConfigModel) GetTheme() *Theme {
 	return m.theme
 }

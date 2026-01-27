@@ -159,7 +159,7 @@ func TestCleanup(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "parent directory should be cleaned up after subtest")
 }
 
-// TestIntegration tests a complete workflow
+// TestIntegration tests a complete workflow.
 func TestIntegration(t *testing.T) {
 	repo := NewTestRepo(t)
 

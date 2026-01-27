@@ -8,16 +8,16 @@ import (
 // JSONOutput represents a standardized JSON response structure used by all commands.
 // This provides consistent JSON output across the entire CLI for easy scripting and parsing.
 type JSONOutput struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Message string      `json:"message,omitempty"`
+	Success bool   `json:"success"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // OutputJSON marshals data to JSON and outputs to stdout.
 // This should be used when ShouldUseJSON() returns true.
 // Errors from marshaling are printed to stderr and return an error.
-func OutputJSON(data interface{}) error {
+func OutputJSON(data any) error {
 	output := JSONOutput{
 		Success: true,
 		Data:    data,
@@ -56,7 +56,7 @@ func OutputJSONError(errMessage string) error {
 
 // OutputJSONWithMessage outputs data with a success message in JSON format.
 // Useful for operations that return both data and a status message.
-func OutputJSONWithMessage(data interface{}, message string) error {
+func OutputJSONWithMessage(data any, message string) error {
 	output := JSONOutput{
 		Success: true,
 		Data:    data,
@@ -75,7 +75,7 @@ func OutputJSONWithMessage(data interface{}, message string) error {
 
 // OutputJSONArray outputs an array of items in JSON format.
 // Converts the array to a JSON array automatically.
-func OutputJSONArray(items interface{}) error {
+func OutputJSONArray(items any) error {
 	output := JSONOutput{
 		Success: true,
 		Data:    items,
@@ -94,7 +94,7 @@ func OutputJSONArray(items interface{}) error {
 // OutputRawJSON outputs raw JSON directly without the JSONOutput wrapper.
 // Use this for commands that want to output raw JSON arrays or objects.
 // Useful for streaming or simple data structures.
-func OutputRawJSON(data interface{}) error {
+func OutputRawJSON(data any) error {
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		PrintError("failed to marshal JSON: %v\n", err)
@@ -130,7 +130,7 @@ func GetOutputFormat() string {
 //	// Only reached if not using JSON output
 //	fmt.Println(result.Path)
 //	PrintSuccess("Created worktree")
-func HandleOutput(data interface{}) error {
+func HandleOutput(data any) error {
 	if ShouldUseJSON() {
 		return OutputJSON(data)
 	}

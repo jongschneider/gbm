@@ -95,6 +95,6 @@ func stringifyValue[T any](val T) string {
 
 // CellLoadedMsg is a message indicating a cell has finished loading.
 type CellLoadedMsg struct {
-	Value interface{}
+	Value any
 	Err   error
 }

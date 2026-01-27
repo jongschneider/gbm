@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRecursiveParentFetchingRespectsMaxDepth tests that parent fetching respects MaxDepth limits
+// TestRecursiveParentFetchingRespectsMaxDepth tests that parent fetching respects MaxDepth limits.
 func TestRecursiveParentFetchingRespectsMaxDepth(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -88,7 +88,7 @@ func TestRecursiveParentFetchingRespectsMaxDepth(t *testing.T) {
 	}
 }
 
-// TestRecursiveChildFetchingRespectsMaxDepth tests that child fetching respects MaxDepth limits
+// TestRecursiveChildFetchingRespectsMaxDepth tests that child fetching respects MaxDepth limits.
 func TestRecursiveChildFetchingRespectsMaxDepth(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -170,15 +170,15 @@ func TestRecursiveChildFetchingRespectsMaxDepth(t *testing.T) {
 }
 
 // TestLookupTablePreventsDuplicateFetches tests that the processedIssues map
-// prevents duplicate fetches of the same issue
+// prevents duplicate fetches of the same issue.
 func TestLookupTablePreventsDuplicateFetches(t *testing.T) {
 	tests := []struct {
 		name              string
-		alreadyProcessed  []string
 		issueToProcess    string
-		shouldSkip        bool
-		expectedProcessed int
 		description       string
+		alreadyProcessed  []string
+		expectedProcessed int
+		shouldSkip        bool
 	}{
 		{
 			name:              "Issue not in lookup - should process",
@@ -240,15 +240,15 @@ func TestLookupTablePreventsDuplicateFetches(t *testing.T) {
 	}
 }
 
-// TestCircularReferenceHandling tests that circular references between issues are handled
+// TestCircularReferenceHandling tests that circular references between issues are handled.
 func TestCircularReferenceHandling(t *testing.T) {
 	tests := []struct {
 		name          string
 		scenario      string
-		processOrder  []string
 		circularIssue string
-		expectSkip    bool
 		description   string
+		processOrder  []string
+		expectSkip    bool
 	}{
 		{
 			name:          "A -> B -> A circular reference",
@@ -310,15 +310,15 @@ func TestCircularReferenceHandling(t *testing.T) {
 	}
 }
 
-// TestDeepHierarchyExceedingMaxDepth tests that deep hierarchies stop at MaxDepth
+// TestDeepHierarchyExceedingMaxDepth tests that deep hierarchies stop at MaxDepth.
 func TestDeepHierarchyExceedingMaxDepth(t *testing.T) {
 	tests := []struct {
 		name              string
-		maxDepth          int
-		hierarchyDepths   []int // Depths that would be requested
-		expectedProcessed []int // Depths that should be processed
-		expectedSkipped   []int // Depths that should be skipped (>= MaxDepth)
 		description       string
+		hierarchyDepths   []int
+		expectedProcessed []int
+		expectedSkipped   []int
+		maxDepth          int
 	}{
 		{
 			name:              "MaxDepth 2 with 5-level hierarchy",
@@ -394,15 +394,15 @@ func TestDeepHierarchyExceedingMaxDepth(t *testing.T) {
 }
 
 // TestComplexHierarchyWithParentAndChildren tests a realistic scenario with
-// a main ticket that has both a parent and children
+// a main ticket that has both a parent and children.
 func TestComplexHierarchyWithParentAndChildren(t *testing.T) {
 	tests := []struct {
 		name                  string
 		maxDepth              int
 		mainTicketDepth       int
-		hasParent             bool
 		childrenCount         int
 		linkedIssuesCount     int
+		hasParent             bool
 		shouldProcessParent   bool
 		shouldProcessChildren bool
 		shouldProcessLinked   bool
@@ -477,7 +477,7 @@ func TestComplexHierarchyWithParentAndChildren(t *testing.T) {
 }
 
 // TestLookupTablePersistenceAcrossRecursiveCalls tests that the lookup table
-// is correctly shared across recursive calls
+// is correctly shared across recursive calls.
 func TestLookupTablePersistenceAcrossRecursiveCalls(t *testing.T) {
 	// Simulate a recursive processing scenario
 	processedIssues := make(map[string]bool)
@@ -515,7 +515,7 @@ func TestLookupTablePersistenceAcrossRecursiveCalls(t *testing.T) {
 }
 
 // TestParentChildCircularReference tests the specific case where a parent
-// and child reference each other through linked issues
+// and child reference each other through linked issues.
 func TestParentChildCircularReference(t *testing.T) {
 	processedIssues := make(map[string]bool)
 
@@ -536,7 +536,7 @@ func TestParentChildCircularReference(t *testing.T) {
 }
 
 // TestMultipleChildrenDeduplication tests that when multiple children exist,
-// all are correctly tracked in the lookup table
+// all are correctly tracked in the lookup table.
 func TestMultipleChildrenDeduplication(t *testing.T) {
 	processedIssues := make(map[string]bool)
 
@@ -565,7 +565,7 @@ func TestMultipleChildrenDeduplication(t *testing.T) {
 	t.Log("✓ Multiple children correctly deduplicated")
 }
 
-// TestIssueMarkdownOptionsDefaults tests that default options have correct depth values
+// TestIssueMarkdownOptionsDefaults tests that default options have correct depth values.
 func TestIssueMarkdownOptionsDefaults(t *testing.T) {
 	opts := DefaultIssueMarkdownOptions("/tmp/test-worktree")
 
@@ -579,7 +579,7 @@ func TestIssueMarkdownOptionsDefaults(t *testing.T) {
 		opts.MaxDepth, opts.IncludeLinkedIssues)
 }
 
-// TestCustomMaxDepthOptions tests that custom MaxDepth values are respected
+// TestCustomMaxDepthOptions tests that custom MaxDepth values are respected.
 func TestCustomMaxDepthOptions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -605,7 +605,7 @@ func TestCustomMaxDepthOptions(t *testing.T) {
 }
 
 // TestDisabledLinkedIssuesIgnoresDepth tests that when IncludeLinkedIssues is false,
-// depth settings are irrelevant
+// depth settings are irrelevant.
 func TestDisabledLinkedIssuesIgnoresDepth(t *testing.T) {
 	tests := []struct {
 		name                string

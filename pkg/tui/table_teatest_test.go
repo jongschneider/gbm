@@ -69,7 +69,7 @@ func (m *tableModel) View() string {
 
 // =============================================================================
 // TT-019: Table row navigation tests
-// =============================================================================
+// =============================================================================.
 
 // TestTable_DownArrowMovesCursorDown verifies that pressing the down arrow key
 // moves the cursor down to the next row.
@@ -436,7 +436,7 @@ func TestTable_ViewEndsWithNewline(t *testing.T) {
 		Build()
 
 	view := tbl.View()
-	assert.True(t, len(view) > 0, "View() should not be empty")
+	assert.Positive(t, len(view), "View() should not be empty")
 	// Note: The bubbles/table component handles its own newline handling,
 	// and the theme Base wrapper may add additional styling.
 	// We verify the table renders without crashing and contains expected content.
@@ -502,7 +502,7 @@ func TestTable_MixedNavigation(t *testing.T) {
 
 // =============================================================================
 // TT-020: Table async cell rendering tests
-// =============================================================================
+// =============================================================================.
 
 // TestTable_AsyncCell_SpinnerWhileLoading verifies that a spinner is shown
 // while an async cell is loading.
@@ -749,7 +749,7 @@ func TestTable_AsyncRow_TickUpdatesSpinners(t *testing.T) {
 	assert.NotEmpty(t, initialView, "spinner should be visible while loading")
 
 	// Tick multiple times to advance spinner
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		ar.Tick()
 	}
 
@@ -815,7 +815,7 @@ func TestTable_UpdateTicksAsyncRowsAndRefreshes(t *testing.T) {
 
 // =============================================================================
 // TT-021: Table cycling navigation tests
-// =============================================================================
+// =============================================================================.
 
 // TestTable_CyclingNavigation_UpOnFirstRowGoesToLast verifies that pressing up
 // on the first row cycles to the last row when cycling is enabled.
@@ -992,7 +992,7 @@ func TestTable_CyclingNavigation_DisabledByDefault(t *testing.T) {
 
 // =============================================================================
 // TT-022: Table filter mode tests
-// =============================================================================
+// =============================================================================.
 
 // TestTable_Filter_SlashEntersFilterMode verifies that pressing "/" enters filter mode.
 func TestTable_Filter_SlashEntersFilterMode(t *testing.T) {
@@ -1499,7 +1499,7 @@ func TestTable_Filter_SetRowsReappliesFilter(t *testing.T) {
 
 // =============================================================================
 // TT-023: Table filter mode navigation and selection tests
-// =============================================================================
+// =============================================================================.
 
 // TestTable_Filter_ArrowKeysNavigateFilteredRows verifies that up/down arrow keys
 // navigate the filtered rows while in filter mode.

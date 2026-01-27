@@ -14,7 +14,7 @@ import (
 // - sourceBranch: The source branch name to look up
 //
 // Returns:
-// - The merge_into target branch if configured, or empty string if not found or not configured
+// - The merge_into target branch if configured, or empty string if not found or not configured.
 func SuggestMergeTarget(ctx *tui.Context, sourceBranch string) string {
 	// If no config available, cannot suggest
 	if ctx.Config == nil {
@@ -54,7 +54,7 @@ func SuggestMergeTarget(ctx *tui.Context, sourceBranch string) string {
 // - sourceBranch: The source branch to exclude from the options
 //
 // Returns:
-// - Sorted list of options with suggested branch at top (if applicable)
+// - Sorted list of options with suggested branch at top (if applicable).
 func SortTargetBranchOptions(branches []fields.Option, suggested, sourceBranch string) []fields.Option {
 	if len(branches) == 0 {
 		return branches

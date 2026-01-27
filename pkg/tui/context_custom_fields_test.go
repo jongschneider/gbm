@@ -10,7 +10,7 @@ func TestWorkflowState_SetField(t *testing.T) {
 	testCases := []struct {
 		name        string
 		key         string
-		value       interface{}
+		value       any
 		expect      func(t *testing.T, ws *WorkflowState)
 		description string
 	}{
@@ -79,7 +79,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 		setup       func() *WorkflowState
 		key         string
 		expectFound bool
-		expect      func(t *testing.T, val interface{})
+		expect      func(t *testing.T, val any)
 		description string
 	}{
 		{
@@ -91,7 +91,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			},
 			key:         "color",
 			expectFound: true,
-			expect: func(t *testing.T, val interface{}) {
+			expect: func(t *testing.T, val any) {
 				assert.Equal(t, "blue", val)
 			},
 			description: "should retrieve existing field",
@@ -103,7 +103,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			},
 			key:         "missing",
 			expectFound: false,
-			expect: func(t *testing.T, val interface{}) {
+			expect: func(t *testing.T, val any) {
 				assert.Nil(t, val)
 			},
 			description: "should return nil for missing field",
@@ -116,7 +116,7 @@ func TestWorkflowState_GetField(t *testing.T) {
 			},
 			key:         "any_key",
 			expectFound: false,
-			expect: func(t *testing.T, val interface{}) {
+			expect: func(t *testing.T, val any) {
 				assert.Nil(t, val)
 			},
 			description: "should return nil when CustomFields is nil",
@@ -192,7 +192,7 @@ func TestWorkflowState_CustomFieldsTypeAssertion(t *testing.T) {
 
 		enabled, ok := ws.GetField("enabled").(bool)
 		assert.True(t, ok)
-		assert.Equal(t, true, enabled)
+		assert.True(t, enabled)
 
 		label, ok := ws.GetField("label").(string)
 		assert.True(t, ok)
@@ -234,7 +234,7 @@ func TestNewContext_WorkflowStateCustomFields(t *testing.T) {
 		ctx := NewContext()
 
 		assert.NotNil(t, ctx.State)
-		assert.Equal(t, "", ctx.State.WorkflowType)
+		assert.Empty(t, ctx.State.WorkflowType)
 		assert.Nil(t, ctx.State.CustomFields, "should start with nil CustomFields")
 
 		// Can immediately use SetField/GetField

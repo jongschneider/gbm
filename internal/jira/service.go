@@ -9,7 +9,7 @@ import (
 	"os/exec"
 )
 
-// ErrJiraCliNotFound is returned when the JIRA CLI is not available
+// ErrJiraCliNotFound is returned when the JIRA CLI is not available.
 var ErrJiraCliNotFound = errors.New("jira CLI not found")
 
 // CacheStore defines an interface for loading and saving the issues cache
@@ -21,14 +21,14 @@ type CacheStore interface {
 	Save(cache *IssuesCache, user string) error
 }
 
-// Service provides JIRA CLI integration
+// Service provides JIRA CLI integration.
 type Service struct {
-	debug bool
 	store CacheStore
+	debug bool
 }
 
 // NewService creates a new JIRA service instance
-// Unlike git service, JIRA is optional - logs warning if not found but doesn't fail
+// Unlike git service, JIRA is optional - logs warning if not found but doesn't fail.
 func NewService(debug bool, store CacheStore) *Service {
 	// Check for jira CLI availability like git service does
 	// But unlike git, jira is optional - just log warning if not found
@@ -46,7 +46,7 @@ func NewService(debug bool, store CacheStore) *Service {
 	}
 }
 
-// printDryRun prints a dry-run message to stderr for visibility
+// printDryRun prints a dry-run message to stderr for visibility.
 func printDryRun(cmd *exec.Cmd) {
 	cmdStr := utils.FormatCommand(cmd)
 	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", cmdStr)

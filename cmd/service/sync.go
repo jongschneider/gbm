@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// SyncStatus represents the synchronization status between config and actual worktrees
+// SyncStatus represents the synchronization status between config and actual worktrees.
 type SyncStatus struct {
 	MissingWorktrees  []string                // Worktrees in config but not on disk
 	OrphanedWorktrees map[string]string       // Worktrees on disk but not in config (name -> branch)
@@ -19,14 +19,14 @@ type SyncStatus struct {
 	InSync            bool                    // True if everything matches
 }
 
-// BranchChange represents a worktree where the branch needs to change
+// BranchChange represents a worktree where the branch needs to change.
 type BranchChange struct {
 	WorktreeName  string
 	CurrentBranch string
 	DesiredBranch string
 }
 
-// WorktreeMove represents a worktree that can be renamed/moved
+// WorktreeMove represents a worktree that can be renamed/moved.
 type WorktreeMove struct {
 	OldName string
 	NewName string
@@ -100,7 +100,7 @@ confirmation unless --force is specified.`,
 	return cmd
 }
 
-// getSyncStatus compares configured worktrees with actual worktrees and returns the differences
+// getSyncStatus compares configured worktrees with actual worktrees and returns the differences.
 func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 	config := svc.GetConfig()
 
@@ -200,7 +200,7 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 	return status, nil
 }
 
-// performSync synchronizes actual worktrees with configured worktrees
+// performSync synchronizes actual worktrees with configured worktrees.
 func performSync(
 	svc *Service,
 	status *SyncStatus,
@@ -230,7 +230,8 @@ func performSync(
 		}
 
 		// Perform the move
-		if err := svc.Git.MoveWorktree(move.OldName, move.NewName, dryRun); err != nil {
+		err := svc.Git.MoveWorktree(move.OldName, move.NewName, dryRun)
+		if err != nil {
 			return fmt.Errorf("failed to move worktree '%s' to '%s': %w", move.OldName, move.NewName, err)
 		}
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,23 +13,26 @@ import (
 
 var validate = validator.New()
 
-// validateConfig validates the structure of a Config
+// validateConfig validates the structure of a Config.
 func validateConfig(cfg *Config) error {
-	if err := validate.Struct(cfg); err != nil {
+	err := validate.Struct(cfg)
+	if err != nil {
 		return formatValidationError(err)
 	}
 
 	// Custom validations
-	if err := validateTemplateVars(cfg.WorktreesDir); err != nil {
+	err := validateTemplateVars(cfg.WorktreesDir)
+	if err != nil {
 		return fmt.Errorf("invalid worktrees_dir template: %w", err)
 	}
 
 	return nil
 }
 
-// formatValidationError formats validation errors into readable messages
+// formatValidationError formats validation errors into readable messages.
 func formatValidationError(err error) error {
-	if validationErrs, ok := err.(validator.ValidationErrors); ok {
+	var validationErrs validator.ValidationErrors
+	if errors.As(err, &validationErrs) {
 		var messages []string
 		for _, e := range validationErrs {
 			// Map Go field names to YAML field names for better error messages
@@ -41,7 +45,7 @@ func formatValidationError(err error) error {
 	return err
 }
 
-// structFieldToYAMLField converts struct field names to YAML field names
+// structFieldToYAMLField converts struct field names to YAML field names.
 func structFieldToYAMLField(fieldName string) string {
 	// Map common struct fields to their YAML equivalents
 	mapping := map[string]string{
@@ -56,7 +60,7 @@ func structFieldToYAMLField(fieldName string) string {
 	return fieldName
 }
 
-// translateValidationTag converts validator tags to human-readable messages
+// translateValidationTag converts validator tags to human-readable messages.
 func translateValidationTag(tag string) string {
 	switch tag {
 	case "required":
@@ -74,7 +78,7 @@ func translateValidationTag(tag string) string {
 	}
 }
 
-// validateTemplateVars validates that worktrees_dir only uses allowed template variables
+// validateTemplateVars validates that worktrees_dir only uses allowed template variables.
 func validateTemplateVars(path string) error {
 	// Allowed template variables
 	allowed := map[string]bool{
@@ -107,7 +111,7 @@ func validateTemplateVars(path string) error {
 	return nil
 }
 
-// getDefaultBranch returns the default branch from git config, or "master" if not set
+// getDefaultBranch returns the default branch from git config, or "master" if not set.
 func getDefaultBranch() string {
 	// Try git config init.defaultBranch first
 	cmd := exec.Command("git", "config", "--get", "init.defaultBranch")
@@ -122,7 +126,7 @@ func getDefaultBranch() string {
 	return "master"
 }
 
-// generateExampleConfigYAML generates a well-commented example config
+// generateExampleConfigYAML generates a well-commented example config.
 func generateExampleConfigYAML() string {
 	defaultBranch := getDefaultBranch()
 
@@ -177,7 +181,7 @@ worktrees_dir: worktrees
 `, defaultBranch)
 }
 
-// GenerateExampleConfig creates a .gbm/config.yaml file with example configuration
+// GenerateExampleConfig creates a .gbm/config.yaml file with example configuration.
 func GenerateExampleConfig(path string) error {
 	// Check if config already exists
 	if _, err := os.Stat(path); err == nil {
@@ -186,7 +190,8 @@ func GenerateExampleConfig(path string) error {
 
 	// Create directory
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	err := os.MkdirAll(dir, 0o755)
+	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -194,7 +199,8 @@ func GenerateExampleConfig(path string) error {
 	configYAML := generateExampleConfigYAML()
 
 	// Write example config
-	if err := os.WriteFile(path, []byte(configYAML), 0o644); err != nil {
+	err := os.WriteFile(path, []byte(configYAML), 0o644)
+	if err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 

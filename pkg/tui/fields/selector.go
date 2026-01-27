@@ -18,18 +18,18 @@ type Option struct {
 
 // Selector is a field that displays a list of options for the user to select.
 type Selector struct {
+	cursorStyle lipgloss.Style
+	theme       *tui.Theme
 	key         string
 	title       string
+	selected    string
 	options     []Option
 	cursor      int
-	selected    string
+	width       int
+	height      int
 	complete    bool
 	cancelled   bool
 	focused     bool
-	theme       *tui.Theme
-	width       int
-	height      int
-	cursorStyle lipgloss.Style
 }
 
 // NewSelector creates a new Selector with the given title and options.

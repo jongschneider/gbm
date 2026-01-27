@@ -13,23 +13,16 @@ type BackBoundaryMsg struct{}
 
 // Step represents a single step in a wizard workflow.
 type Step struct {
-	// Name identifies the step for debugging and logging.
-	Name string
-
-	// Field is the form component for this step.
 	Field Field
-
-	// Skip is an optional function that determines if this step should be skipped.
-	// If nil, the step is never skipped. If the function returns true, the step is skipped.
-	Skip func(*WorkflowState) bool
+	Skip  func(*WorkflowState) bool
+	Name  string
 }
 
 // Wizard orchestrates a multi-step form flow.
 type Wizard struct {
-	steps   []Step
-	current int
-	ctx     *Context
-
+	ctx       *Context
+	steps     []Step
+	current   int
 	cancelled bool
 	complete  bool
 }
@@ -264,7 +257,7 @@ func (w *Wizard) storeFieldValue() {
 // This is called when transitioning to a new step.
 // Currently, this applies auto-generated branch names when:
 // - The current field is "branch_name" (TextInput)
-// - The worktree_name has been set (either from JIRA issue or custom input)
+// - The worktree_name has been set (either from JIRA issue or custom input).
 func (w *Wizard) applyFieldDefaults() {
 	field := w.currentField()
 	key := field.GetKey()
@@ -363,7 +356,7 @@ func (w *Wizard) isProbablyHotfix() bool {
 	return baseBranchIdx >= 0 && branchNameIdx >= 0 && baseBranchIdx < branchNameIdx
 }
 
-// Helper functions needed by the wizard
+// Helper functions needed by the wizard.
 func generateBranchName(issueKey, summary, prefix string) string {
 	slug := slugify(summary)
 	return prefix + issueKey + "_" + slug

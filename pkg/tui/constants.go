@@ -1,6 +1,6 @@
 package tui
 
-// Workflow type constants
+// Workflow type constants.
 const (
 	WorkflowTypeFeature = "feature"
 	WorkflowTypeBug     = "bug"
@@ -8,7 +8,7 @@ const (
 	WorkflowTypeMerge   = "merge"
 )
 
-// Field key constants
+// Field key constants.
 const (
 	FieldKeyWorkflowType = "workflow_type"
 	FieldKeyWorktreeName = "worktree_name"
@@ -17,7 +17,7 @@ const (
 	FieldKeyConfirm      = "confirm"
 )
 
-// Branch prefix constants
+// Branch prefix constants.
 const (
 	BranchPrefixFeature = "feature/"
 	BranchPrefixBug     = "bug/"

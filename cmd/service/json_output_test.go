@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestJSONOutput_OutputJSON tests basic JSON output functionality
+// TestJSONOutput_OutputJSON tests basic JSON output functionality.
 func TestJSONOutput_OutputJSON(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -20,7 +20,7 @@ func TestJSONOutput_OutputJSON(t *testing.T) {
 	os.Stdout = w
 
 	// Create test data
-	testData := map[string]interface{}{
+	testData := map[string]any{
 		"name": "test-worktree",
 		"path": "/repo/worktrees/test",
 	}
@@ -51,7 +51,7 @@ func TestJSONOutput_OutputJSON(t *testing.T) {
 	assert.Empty(t, result.Error)
 }
 
-// TestJSONOutput_OutputJSONError tests error JSON output
+// TestJSONOutput_OutputJSONError tests error JSON output.
 func TestJSONOutput_OutputJSONError(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -86,7 +86,7 @@ func TestJSONOutput_OutputJSONError(t *testing.T) {
 	assert.Nil(t, result.Data)
 }
 
-// TestJSONOutput_OutputJSONWithMessage tests JSON output with message
+// TestJSONOutput_OutputJSONWithMessage tests JSON output with message.
 func TestJSONOutput_OutputJSONWithMessage(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -120,7 +120,7 @@ func TestJSONOutput_OutputJSONWithMessage(t *testing.T) {
 	assert.Equal(t, message, result.Message)
 }
 
-// TestJSONOutput_OutputJSONArray tests JSON array output
+// TestJSONOutput_OutputJSONArray tests JSON array output.
 func TestJSONOutput_OutputJSONArray(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -156,7 +156,7 @@ func TestJSONOutput_OutputJSONArray(t *testing.T) {
 	assert.NotNil(t, result.Data)
 }
 
-// TestJSONOutput_OutputRawJSON tests raw JSON output (no wrapper)
+// TestJSONOutput_OutputRawJSON tests raw JSON output (no wrapper).
 func TestJSONOutput_OutputRawJSON(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -190,7 +190,7 @@ func TestJSONOutput_OutputRawJSON(t *testing.T) {
 	assert.Equal(t, "active", result["status"])
 }
 
-// TestJSONOutput_GetOutputFormat tests format detection
+// TestJSONOutput_GetOutputFormat tests format detection.
 func TestJSONOutput_GetOutputFormat(t *testing.T) {
 	// Setup
 	SetGlobalFlags(&CLIFlags{JSON: false})
@@ -206,7 +206,7 @@ func TestJSONOutput_GetOutputFormat(t *testing.T) {
 	SetGlobalFlags(&CLIFlags{})
 }
 
-// TestJSONOutput_HandleOutput tests output routing based on flags
+// TestJSONOutput_HandleOutput tests output routing based on flags.
 func TestJSONOutput_HandleOutput(t *testing.T) {
 	testData := map[string]string{"name": "test"}
 
@@ -254,7 +254,7 @@ func TestJSONOutput_HandleOutput(t *testing.T) {
 	SetGlobalFlags(&CLIFlags{})
 }
 
-// TestJSONOutput_HandleError tests error routing based on flags
+// TestJSONOutput_HandleError tests error routing based on flags.
 func TestJSONOutput_HandleError(t *testing.T) {
 	errMsg := "test error"
 
@@ -320,7 +320,7 @@ func TestJSONOutput_HandleError(t *testing.T) {
 	SetGlobalFlags(&CLIFlags{})
 }
 
-// TestJSONOutput_ComplexDataStructure tests JSON output with complex nested data
+// TestJSONOutput_ComplexDataStructure tests JSON output with complex nested data.
 func TestJSONOutput_ComplexDataStructure(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -328,10 +328,10 @@ func TestJSONOutput_ComplexDataStructure(t *testing.T) {
 	oldStdout := os.Stdout
 	os.Stdout = w
 
-	complexData := map[string]interface{}{
+	complexData := map[string]any{
 		"worktree": "test",
 		"branch":   "feature/test",
-		"status": map[string]interface{}{
+		"status": map[string]any{
 			"ahead":  2,
 			"behind": 1,
 		},
@@ -361,12 +361,12 @@ func TestJSONOutput_ComplexDataStructure(t *testing.T) {
 	assert.NotNil(t, result.Data)
 
 	// Verify nested structure is preserved
-	dataMap := result.Data.(map[string]interface{})
+	dataMap := result.Data.(map[string]any)
 	assert.Equal(t, "test", dataMap["worktree"])
 	assert.Equal(t, "feature/test", dataMap["branch"])
 }
 
-// TestJSONOutput_EmptyData tests JSON output with empty/nil data
+// TestJSONOutput_EmptyData tests JSON output with empty/nil data.
 func TestJSONOutput_EmptyData(t *testing.T) {
 	// Arrange: Capture stdout
 	r, w, err := os.Pipe()
@@ -375,7 +375,7 @@ func TestJSONOutput_EmptyData(t *testing.T) {
 	os.Stdout = w
 
 	// Act: Output empty map
-	outputErr := OutputJSON(map[string]interface{}{})
+	outputErr := OutputJSON(map[string]any{})
 	_ = w.Close()
 
 	// Restore stdout
@@ -397,7 +397,7 @@ func TestJSONOutput_EmptyData(t *testing.T) {
 	assert.NotNil(t, result.Data)
 }
 
-// TestJSONOutput_ValidJSON tests that all JSON output is valid and parseable
+// TestJSONOutput_ValidJSON tests that all JSON output is valid and parseable.
 func TestJSONOutput_ValidJSON(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -447,7 +447,7 @@ func TestJSONOutput_ValidJSON(t *testing.T) {
 
 			// Trim newline and test JSON validity
 			output = output[:len(output)-1]
-			var result map[string]interface{}
+			var result map[string]any
 			err = json.Unmarshal([]byte(output), &result)
 			assert.NoError(t, err, "output should be valid JSON for %s", tc.hasFn)
 		})

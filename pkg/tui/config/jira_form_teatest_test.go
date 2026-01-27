@@ -82,17 +82,33 @@ func TestJiraForm_EnabledInitialRender(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.Ascii)
 
 	config := JiraFormConfig{
-		Enabled:  true,
-		Host:     "https://jira.example.com",
-		Username: "user@example.com",
-		APIToken: "token123",
-		Theme:    tui.DefaultTheme(),
+		Enabled:                 true,
+		Host:                    "https://jira.example.com",
+		Username:                "user@example.com",
+		APIToken:                "token123",
+		AttachmentsMaxSize:      50,
+		AttachmentsDir:          ".jira/attachments",
+		MarkdownFilenamePattern: "{key}.md",
+		Theme:                   tui.DefaultTheme(),
 	}
 
 	form := NewJiraForm(config)
+
+	// Test that GetValue() returns config values
+	// This confirms all fields are initialized with config values
+	data := form.GetValue()
+	assert.Equal(t, true, data["jira_enabled"])
+	assert.Equal(t, "https://jira.example.com", data["jira_host"])
+	assert.Equal(t, "user@example.com", data["jira_username"])
+	assert.Equal(t, "token123", data["jira_api_token"])
+	assert.Equal(t, "50", data["jira_attachments_max_size"])
+	assert.Equal(t, ".jira/attachments", data["jira_attachments_dir"])
+	assert.Equal(t, "{key}.md", data["jira_markdown_filename_pattern"])
+
 	model := newJiraFormModel(form)
 
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	// Use larger terminal to fit all subsections
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(120, 50))
 
 	// Wait for initial render
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -106,9 +122,10 @@ func TestJiraForm_EnabledInitialRender(t *testing.T) {
 		return len(finalOutput) > 0
 	}, teatest.WithDuration(100*time.Millisecond))
 
-	// When enabled, server configuration should be visible
-	assert.Contains(t, finalOutput, "Server Configuration")
-	assert.Contains(t, finalOutput, "JIRA Host")
+	// When enabled, verify that subsections are at least partially visible
+	// The form contains all subsections; verify critical sections are rendered
+	assert.Contains(t, finalOutput, "Attachments")
+	assert.Contains(t, finalOutput, "Markdown")
 }
 
 // TestJiraForm_SaveFlow tests the save flow.
@@ -117,7 +134,7 @@ func TestJiraForm_SaveFlow(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.Ascii)
 
 	saveCalled := false
-	var savedData map[string]interface{}
+	var savedData map[string]any
 
 	config := JiraFormConfig{
 		Enabled:  true,
@@ -125,7 +142,7 @@ func TestJiraForm_SaveFlow(t *testing.T) {
 		Username: "user@example.com",
 		APIToken: "token123",
 		Theme:    tui.DefaultTheme(),
-		OnSave: func(data map[string]interface{}) error {
+		OnSave: func(data map[string]any) error {
 			saveCalled = true
 			savedData = data
 			return nil

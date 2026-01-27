@@ -1,6 +1,7 @@
 package async
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,7 @@ func TestEval_FirstGet_FetchesValue(t *testing.T) {
 
 func TestEval_ErrorHandling(t *testing.T) {
 	// PRD Item 36: "Errors are returned on failed fetch"
-	expectedErr := fmt.Errorf("network error")
+	expectedErr := errors.New("network error")
 	fetch := func() (string, error) {
 		return "", expectedErr
 	}
@@ -39,7 +40,7 @@ func TestEval_ErrorHandling(t *testing.T) {
 	eval := New(fetch)
 	_, err := eval.Get()
 
-	if err != expectedErr {
+	if !errors.Is(err, expectedErr) {
 		t.Fatalf("Get() returned %v, want %v", err, expectedErr)
 	}
 }
@@ -147,7 +148,7 @@ func TestEval_ConcurrentGet_OnlyFetchesOnce(t *testing.T) {
 		// Start multiple Get() calls concurrently
 		var wg sync.WaitGroup
 		results := make([]string, 5)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			wg.Add(1)
 			go func(idx int) {
 				defer wg.Done()
@@ -181,7 +182,7 @@ func TestEval_ConcurrentGet_OnlyFetchesOnce(t *testing.T) {
 func TestEval_ErrorCaching(t *testing.T) {
 	// Errors should also be cached
 	callCount := atomic.Int32{}
-	expectedErr := fmt.Errorf("error")
+	expectedErr := errors.New("error")
 
 	fetch := func() (string, error) {
 		callCount.Add(1)
@@ -192,13 +193,13 @@ func TestEval_ErrorCaching(t *testing.T) {
 
 	// First Get() returns error
 	_, err1 := eval.Get()
-	if err1 != expectedErr {
+	if !errors.Is(err1, expectedErr) {
 		t.Fatalf("first Get() returned %v, want %v", err1, expectedErr)
 	}
 
 	// Second Get() returns cached error
 	_, err2 := eval.Get()
-	if err2 != expectedErr {
+	if !errors.Is(err2, expectedErr) {
 		t.Fatalf("second Get() returned %v, want %v", err2, expectedErr)
 	}
 
@@ -214,7 +215,7 @@ func TestEval_InvalidateAfterError_RefetchesOnNextGet(t *testing.T) {
 	fetch := func() (string, error) {
 		callCount.Add(1)
 		if callCount.Load() == 1 {
-			return "", fmt.Errorf("error")
+			return "", errors.New("error")
 		}
 		return "success", nil
 	}
@@ -259,11 +260,9 @@ func TestEval_IsLoading_DuringFetch(t *testing.T) {
 
 	// Start Get in a goroutine
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_, _ = eval.Get()
-	}()
+	})
 
 	// Wait for fetch to start
 	<-fetchStarted

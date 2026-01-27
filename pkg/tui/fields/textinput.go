@@ -14,21 +14,22 @@ type ValidatorFunc func(string) error
 
 // TextInput is a field that allows the user to enter or edit text.
 type TextInput struct {
-	key          string
+	err          error
+	theme        *tui.Theme
+	validator    ValidatorFunc
 	title        string
 	description  string
-	textInput    textinput.Model
+	key          string
 	defaultValue string
 	value        string
-	complete     bool
-	cancelled    bool
-	focused      bool
-	theme        *tui.Theme
+	textInput    textinput.Model
 	width        int
 	height       int
-	validator    ValidatorFunc
-	err          error
-	masked       bool // If true, display value as asterisks
+	focused      bool
+	cancelled    bool
+	complete     bool
+	masked       bool
+	hasDefault   bool // Track if WithDefault was called
 }
 
 // NewTextInput creates a new TextInput field with the given title and description.
@@ -50,6 +51,10 @@ func NewTextInput(key, title, description string) *TextInput {
 // WithDefault sets the default value that is pre-filled when the field is focused.
 func (t *TextInput) WithDefault(value string) tui.Field {
 	t.defaultValue = value
+	t.hasDefault = true
+	// Also set it immediately so GetValue() can return it before Focus is called
+	t.textInput.SetValue(value)
+	t.textInput.SetCursor(len(value))
 	return t
 }
 
@@ -103,7 +108,8 @@ func (t *TextInput) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 
 		// Run validation if configured
 		if t.validator != nil {
-			if err := t.validator(value); err != nil {
+			err := t.validator(value)
+			if err != nil {
 				t.err = err
 				return t, nil
 			}
@@ -231,6 +237,11 @@ func (t *TextInput) GetKey() string {
 
 // GetValue implements Field.GetValue.
 func (t *TextInput) GetValue() any {
+	// If WithDefault was called, return the current textInput value (which is pre-populated)
+	// Otherwise return the stored value (which is only set when confirmed)
+	if t.hasDefault && t.textInput.Value() != "" {
+		return t.textInput.Value()
+	}
 	return t.value
 }
 

@@ -10,9 +10,9 @@ import (
 
 func TestBasicsForm_Create(t *testing.T) {
 	testCases := []struct {
-		name   string
 		config BasicsFormConfig
 		expect func(t *testing.T, form *BasicsForm)
+		name   string
 	}{
 		{
 			name: "creates with default values",
@@ -44,7 +44,6 @@ func TestBasicsForm_Create(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -62,15 +61,11 @@ func TestBasicsForm_GetValue(t *testing.T) {
 		WorktreesDir:  "/home/user/worktrees",
 	})
 
-	// Note: Values are only set when user presses Enter.
-	// Initially they should be empty.
+	// Note: Values are now pre-populated from config via WithDefault().
+	// GetValue() returns the current textInput value.
 	values := form.GetValue()
-	assert.Empty(t, values["default_branch"])
-	assert.Empty(t, values["worktrees_dir"])
-
-	// Simulate user input and submission
-	form.defaultBranchField = form.defaultBranchField.WithTheme(form.theme)
-	form.worktreesDirField = form.worktreesDirField.WithTheme(form.theme)
+	assert.Equal(t, "develop", values["default_branch"])
+	assert.Equal(t, "/home/user/worktrees", values["worktrees_dir"])
 }
 
 func TestBasicsForm_View(t *testing.T) {

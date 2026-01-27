@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
 
-// ListIgnoredFiles returns files ignored by .gitignore
+// ListIgnoredFiles returns files ignored by .gitignore.
 func (s *Service) ListIgnoredFiles(repoPath string) ([]string, error) {
 	cmd := exec.Command("git", "ls-files", "--others", "--ignored", "--exclude-standard")
 	cmd.Dir = repoPath
@@ -19,7 +19,7 @@ func (s *Service) ListIgnoredFiles(repoPath string) ([]string, error) {
 	return parseFileList(string(output)), nil
 }
 
-// ListUntrackedFiles returns untracked files (not ignored)
+// ListUntrackedFiles returns untracked files (not ignored).
 func (s *Service) ListUntrackedFiles(repoPath string) ([]string, error) {
 	cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
 	cmd.Dir = repoPath
@@ -30,7 +30,7 @@ func (s *Service) ListUntrackedFiles(repoPath string) ([]string, error) {
 	return parseFileList(string(output)), nil
 }
 
-// MatchesPattern checks if a path matches any of the given patterns (gitignore-style)
+// MatchesPattern checks if a path matches any of the given patterns (gitignore-style).
 func MatchesPattern(path string, patterns []string) bool {
 	if len(patterns) == 0 {
 		return false
@@ -46,10 +46,10 @@ func MatchesPattern(path string, patterns []string) bool {
 	return matcher.Match(pathComponents, false)
 }
 
-// parseFileList parses the output from git ls-files
+// parseFileList parses the output from git ls-files.
 func parseFileList(out string) []string {
 	var files []string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

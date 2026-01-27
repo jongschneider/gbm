@@ -187,9 +187,9 @@ func TestProcessFeatureWorkflow(t *testing.T) {
 	testCases := []struct {
 		name         string
 		worktreeName string
+		expectBranch string
 		jiraIssues   []tui.JiraIssue
 		expectErr    bool
-		expectBranch string
 	}{
 		{
 			name:         "JIRA issue found",
@@ -244,7 +244,7 @@ func TestProcessFeatureWorkflow(t *testing.T) {
 	}
 }
 
-// mockJiraService implements tui.JiraService for testing
+// mockJiraService implements tui.JiraService for testing.
 type mockJiraService struct {
 	issues []tui.JiraIssue
 }
@@ -273,10 +273,10 @@ func TestProcessHotfixWorkflow(t *testing.T) {
 	testCases := []struct {
 		name               string
 		worktreeName       string
-		jiraIssues         []tui.JiraIssue
-		expectErr          bool
 		expectBranch       string
 		expectWorktreeName string
+		jiraIssues         []tui.JiraIssue
+		expectErr          bool
 	}{
 		{
 			name:         "JIRA issue found",
@@ -335,7 +335,7 @@ func TestProcessHotfixWorkflow(t *testing.T) {
 	}
 }
 
-// Ensure field implementations
+// Ensure field implementations.
 func TestFieldImplementations(t *testing.T) {
 	// Test that we can create Filterable fields (used in FeatureWorkflow)
 	filterableField := fields.NewFilterable(
@@ -396,7 +396,7 @@ func TestSelectWorkflowType(t *testing.T) {
 	})
 }
 
-// Router tests
+// Router tests.
 
 func TestGetWorkflowSteps_Feature(t *testing.T) {
 	ctx := tui.NewContext()

@@ -19,12 +19,12 @@ func init() {
 
 // =============================================================================
 // TT-006: Navigator stack push/pop tests
-// =============================================================================
+// =============================================================================.
 
 // navigatorTestModel is a simple model for teatest that displays distinct content.
 type navigatorTestModel struct {
-	name    string
 	initCmd tea.Cmd
+	name    string
 }
 
 func newNavigatorTestModel(name string) *navigatorTestModel {
@@ -250,7 +250,7 @@ func TestNavigator_EmptyStackReturnsNilFromCurrent(t *testing.T) {
 	assert.Nil(t, popped, "Pop() should return nil for empty stack")
 
 	// View should return empty string
-	assert.Equal(t, "", nav.View(), "View() should return empty string for empty stack")
+	assert.Empty(t, nav.View(), "View() should return empty string for empty stack")
 }
 
 // TestNavigator_PushPopSequence verifies correct behavior through a sequence
@@ -294,7 +294,7 @@ func TestNavigator_PushPopSequence(t *testing.T) {
 	assert.Equal(t, "ALPHA", popped.(*navigatorTestModel).name)
 	assert.True(t, nav.IsEmpty())
 	assert.Equal(t, 0, nav.Depth())
-	assert.Equal(t, "", nav.View())
+	assert.Empty(t, nav.View())
 
 	// Quit
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -332,15 +332,15 @@ func TestNavigator_NilPushIsIgnored(t *testing.T) {
 
 // =============================================================================
 // TT-007: Navigator message-based navigation tests
-// =============================================================================
+// =============================================================================.
 
 // navigatorMsgTestModel is a model that can trigger NavigateMsg via a command.
 // It responds to specific key presses to trigger navigation.
 type navigatorMsgTestModel struct {
-	name        string
-	initCalled  bool
 	navigateTo  tea.Model
 	initCommand tea.Cmd
+	name        string
+	initCalled  bool
 }
 
 func newNavigatorMsgTestModel(name string) *navigatorMsgTestModel {
@@ -547,10 +547,10 @@ func TestNavigator_ViewDelegatesToNewlyPushedModel(t *testing.T) {
 
 // updateDelegatingModel is a model that tracks whether Update() receives messages.
 type updateDelegatingModel struct {
-	name            string
 	lastMsg         tea.Msg
-	updateCallCount int
 	navigateTo      tea.Model
+	name            string
+	updateCallCount int
 }
 
 func newUpdateDelegatingModel(name string) *updateDelegatingModel {
@@ -613,7 +613,7 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	waitFor(t, func() bool { return initialModel.updateCallCount > 0 }, time.Second)
 
 	// Verify initial model received the message
-	assert.Greater(t, initialModel.updateCallCount, 0, "Initial model should receive Update() calls")
+	assert.Positive(t, initialModel.updateCallCount, "Initial model should receive Update() calls")
 	assert.Equal(t, 0, targetModel.updateCallCount, "Target model should not receive Update() calls yet")
 
 	// Navigate to target
@@ -635,7 +635,7 @@ func TestNavigator_UpdateDelegatesToCurrentModel(t *testing.T) {
 	waitFor(t, func() bool { return targetModel.updateCallCount > 0 }, time.Second)
 
 	// Verify target model receives the message now
-	assert.Greater(t, targetModel.updateCallCount, 0, "Target model should receive Update() calls after navigation")
+	assert.Positive(t, targetModel.updateCallCount, "Target model should receive Update() calls after navigation")
 
 	// Quit
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})

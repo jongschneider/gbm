@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"gbm/internal/jira"
 	"gbm/internal/utils"
@@ -54,7 +55,7 @@ Examples:
 					if ShouldUseJSON() {
 						return HandleError("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
 					}
-					return fmt.Errorf("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
+					return errors.New("TUI mode requires interactive input. Use 'gbm worktree add <name> <branch>' for non-interactive mode")
 				}
 				return runWorktreeAddWizardTUI(svc)
 			}
@@ -181,11 +182,13 @@ Examples:
 			}
 			worktreeName := args[0]
 			// Copy files from source worktrees based on config rules
-			if err := svc.CopyFilesToWorktree(worktreeName); err != nil {
+			err := svc.CopyFilesToWorktree(worktreeName)
+			if err != nil {
 				PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
 			}
 			// Create JIRA markdown if applicable
-			if err := svc.CreateJiraMarkdownFile(worktreeName); err != nil {
+			err := svc.CreateJiraMarkdownFile(worktreeName)
+			if err != nil {
 				PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
 			}
 			return nil

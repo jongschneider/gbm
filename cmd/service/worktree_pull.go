@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -73,7 +74,8 @@ func handlePullAll(svc *Service) error {
 		}
 
 		PrintMessage("Pulling worktree '%s'...\n", wt.Name)
-		if err := svc.Git.PullWorktree(wt.Path, false); err != nil {
+		err := svc.Git.PullWorktree(wt.Path, false)
+		if err != nil {
 			PrintError("failed to pull worktree '%s': %v\n", wt.Name, err)
 			hasErrors = true
 			continue
@@ -82,7 +84,7 @@ func handlePullAll(svc *Service) error {
 	}
 
 	if hasErrors {
-		return fmt.Errorf("some worktrees failed to pull")
+		return errors.New("some worktrees failed to pull")
 	}
 
 	return nil
@@ -102,7 +104,7 @@ func handlePullCurrent(svc *Service) error {
 	}
 
 	if !inWorktree {
-		return fmt.Errorf("not currently in a worktree. Use 'gbm wt pull <worktree-name>' to pull a specific worktree")
+		return errors.New("not currently in a worktree. Use 'gbm wt pull <worktree-name>' to pull a specific worktree")
 	}
 
 	PrintMessage("Pulling current worktree '%s'...\n", worktreeName)
@@ -133,7 +135,7 @@ func handlePullNamed(svc *Service, worktreeName string) error {
 	for _, wt := range worktrees {
 		if wt.Name == worktreeName {
 			if wt.IsBare {
-				return fmt.Errorf("cannot pull bare repository")
+				return errors.New("cannot pull bare repository")
 			}
 
 			PrintMessage("Pulling worktree '%s'...\n", worktreeName)

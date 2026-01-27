@@ -72,7 +72,7 @@ func TestFilterable_Update_HandlesFetchMsg(t *testing.T) {
 			},
 			expect: func(t *testing.T, f *Filterable) {
 				assert.False(t, f.isLoading, "should not be loading after FetchMsg")
-				assert.Equal(t, 2, len(f.options), "options should be updated")
+				assert.Len(t, f.options, 2, "options should be updated")
 				assert.Equal(t, "a", f.options[0].Value)
 				assert.Equal(t, "b", f.options[1].Value)
 				assert.NoError(t, f.loadErr)
@@ -87,7 +87,7 @@ func TestFilterable_Update_HandlesFetchMsg(t *testing.T) {
 			},
 			expect: func(t *testing.T, f *Filterable) {
 				assert.False(t, f.isLoading, "should not be loading after FetchMsg with error")
-				assert.Equal(t, 0, len(f.options), "options should remain empty on error")
+				assert.Empty(t, f.options, "options should remain empty on error")
 				assert.Error(t, f.loadErr)
 				assert.Equal(t, "network error", f.loadErr.Error())
 			},
@@ -140,9 +140,9 @@ func TestFilterable_View_ShowsErrorOnAsyncFailure(t *testing.T) {
 func TestFilterable_Update_BlocksInputWhileLoading(t *testing.T) {
 	testCases := []struct {
 		name        string
+		description string
 		keyMsg      tea.KeyMsg
 		shouldBlock bool
-		description string
 	}{
 		{
 			name:        "Enter blocked while loading",
@@ -291,7 +291,7 @@ func TestFilterable_AsyncLoadsOnFocus(t *testing.T) {
 	f = field.(*Filterable)
 
 	assert.False(t, f.isLoading, "should not be loading after successful fetch")
-	assert.Equal(t, 1, len(f.options), "should have loaded options")
+	assert.Len(t, f.options, 1, "should have loaded options")
 }
 
 func TestFilterable_FilteringWorksAfterAsyncLoad(t *testing.T) {
@@ -324,7 +324,7 @@ func TestFilterable_FilteringWorksAfterAsyncLoad(t *testing.T) {
 	f = field.(*Filterable)
 
 	// Should filter options
-	assert.Equal(t, 2, len(f.filtered), "should filter to 2 JIRA items")
+	assert.Len(t, f.filtered, 2, "should filter to 2 JIRA items")
 	assert.Equal(t, "jira-123", f.filtered[0].Value)
 	assert.Equal(t, "jira-456", f.filtered[1].Value)
 }

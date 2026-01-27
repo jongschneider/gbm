@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
@@ -116,14 +117,14 @@ func getMergeCustomSteps(ctx *tui.Context) []tui.Step {
 // This function:
 // 1. Stores the merge strategy in custom fields
 // 2. Generates worktree and branch names
-// 3. Validates merge compatibility
+// 3. Validates merge compatibility.
 func ProcessMergeCustomWorkflow(wizard *tui.Wizard) error {
 	state := wizard.State()
 
 	// Retrieve merge strategy from custom fields
 	strategy := state.GetField("merge_strategy")
 	if strategy == nil {
-		return fmt.Errorf("merge strategy not selected")
+		return errors.New("merge strategy not selected")
 	}
 
 	// Get source and target branches
@@ -131,7 +132,7 @@ func ProcessMergeCustomWorkflow(wizard *tui.Wizard) error {
 	targetBranch := state.GetField("target_branch")
 
 	if sourceBranch == nil || targetBranch == nil {
-		return fmt.Errorf("source or target branch not selected")
+		return errors.New("source or target branch not selected")
 	}
 
 	// Store merge strategy in custom fields for later reference

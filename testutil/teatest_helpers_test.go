@@ -142,8 +142,8 @@ func TestViewContains(t *testing.T) {
 	testCases := []struct {
 		name        string
 		substring   string
-		expectFound bool
 		description string
+		expectFound bool
 	}{
 		{
 			name:        "substring exists",
@@ -212,7 +212,7 @@ func TestSendKeySequenceHelper(t *testing.T) {
 	t.Run("converts multiple key strings", func(t *testing.T) {
 		// Test that SendKeySequence can be called with multiple keys
 		keyStrings := []string{"enter", "up", "down"}
-		assert.Equal(t, 3, len(keyStrings), "should accept multiple key strings")
+		assert.Len(t, keyStrings, 3, "should accept multiple key strings")
 	})
 }
 

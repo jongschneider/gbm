@@ -7,28 +7,28 @@ import (
 	"time"
 )
 
-// MarkdownGenerator generates markdown documentation from JIRA issues
+// MarkdownGenerator generates markdown documentation from JIRA issues.
 type MarkdownGenerator struct {
 	parser *ADFParser
 }
 
-// NewMarkdownGenerator creates a new markdown generator
+// NewMarkdownGenerator creates a new markdown generator.
 func NewMarkdownGenerator() *MarkdownGenerator {
 	return &MarkdownGenerator{
 		parser: NewADFParser(),
 	}
 }
 
-// MarkdownOptions configures markdown generation
+// MarkdownOptions configures markdown generation.
 type MarkdownOptions struct {
+	AttachmentBaseDir  string
+	AttachmentResults  []DownloadResult
 	IncludeComments    bool
 	IncludeAttachments bool
-	AttachmentBaseDir  string           // Base directory for relative attachment links
-	AttachmentResults  []DownloadResult // Results from attachment downloads
-	UseRelativeLinks   bool             // Use relative paths for attachments
+	UseRelativeLinks   bool
 }
 
-// GenerateIssueMarkdown creates a comprehensive markdown document for a JIRA issue
+// GenerateIssueMarkdown creates a comprehensive markdown document for a JIRA issue.
 func (g *MarkdownGenerator) GenerateIssueMarkdown(
 	details *JiraTicketDetails,
 	opts MarkdownOptions,
@@ -75,7 +75,8 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 
 	// Comments section
 	if opts.IncludeComments && len(details.Comments) > 0 {
-		if err := g.writeComments(&builder, details.Comments, opts); err != nil {
+		err := g.writeComments(&builder, details.Comments, opts)
+		if err != nil {
 			return "", fmt.Errorf("failed to write comments: %w", err)
 		}
 	}
@@ -87,7 +88,7 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 	return builder.String(), nil
 }
 
-// writeMetadata writes the metadata section
+// writeMetadata writes the metadata section.
 func (g *MarkdownGenerator) writeMetadata(builder *strings.Builder, details *JiraTicketDetails) {
 	builder.WriteString("## Metadata\n\n")
 	builder.WriteString("| Field | Value |\n")
@@ -110,7 +111,7 @@ func (g *MarkdownGenerator) writeMetadata(builder *strings.Builder, details *Jir
 	builder.WriteString("\n")
 }
 
-// writeLinkedIssues writes the linked issues section
+// writeLinkedIssues writes the linked issues section.
 func (g *MarkdownGenerator) writeLinkedIssues(builder *strings.Builder, links []IssueLink) {
 	builder.WriteString("## Linked Issues\n\n")
 
@@ -150,7 +151,7 @@ func (g *MarkdownGenerator) writeLinkedIssues(builder *strings.Builder, links []
 	}
 }
 
-// writeAttachments writes the attachments section
+// writeAttachments writes the attachments section.
 func (g *MarkdownGenerator) writeAttachments(
 	builder *strings.Builder,
 	results []DownloadResult,
@@ -213,7 +214,7 @@ func (g *MarkdownGenerator) writeAttachments(
 	builder.WriteString("\n")
 }
 
-// writeComments writes the comments section
+// writeComments writes the comments section.
 func (g *MarkdownGenerator) writeComments(
 	builder *strings.Builder,
 	comments []Comment,
@@ -264,7 +265,7 @@ func (g *MarkdownGenerator) writeComments(
 	return nil
 }
 
-// isImageFile checks if a filename is likely an image
+// isImageFile checks if a filename is likely an image.
 func (g *MarkdownGenerator) isImageFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	imageExtensions := map[string]bool{
@@ -279,7 +280,7 @@ func (g *MarkdownGenerator) isImageFile(filename string) bool {
 	return imageExtensions[ext]
 }
 
-// formatDate formats a date string to a readable format
+// formatDate formats a date string to a readable format.
 func formatDate(dateStr string) string {
 	// Try parsing common JIRA date formats
 	formats := []string{
@@ -301,7 +302,7 @@ func formatDate(dateStr string) string {
 }
 
 // GenerateAttachmentPath generates a path for an attachment
-// Returns the directory path where attachments should be stored
+// Returns the directory path where attachments should be stored.
 func GenerateAttachmentPath(worktreeRoot, ticketKey string) string {
 	return filepath.Join(worktreeRoot, ".jira", "attachments", ticketKey)
 }

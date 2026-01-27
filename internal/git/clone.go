@@ -12,7 +12,7 @@ import (
 // Clone clones a remote git repository with worktree structure:
 // - <name>/.git (bare repository)
 // - <name>/worktrees/<defaultBranch>/ (main worktree)
-// - <name>/.gbm/config.yaml (configuration file)
+// - <name>/.gbm/config.yaml (configuration file).
 func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	// Extract repository name from URL if name is not provided
 	if name == "" {
@@ -40,7 +40,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	} else {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		err := cmd.Run()
+		if err != nil {
 			// Clean up the directory if cloning fails
 			_ = os.RemoveAll(absPath)
 			return fmt.Errorf("failed to clone bare repository: %w", err)
@@ -64,7 +65,8 @@ func (s *Service) Clone(repoURL, name string, dryRun bool) error {
 	} else {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		err := cmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to fetch from origin: %w", err)
 		}
 	}
@@ -153,7 +155,8 @@ jira:
 	if dryRun {
 		fmt.Printf("[DRY RUN] write file %s:\n%s\n", configPath, configContent)
 	} else {
-		if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		err := os.WriteFile(configPath, []byte(configContent), 0o644)
+		if err != nil {
 			return fmt.Errorf("failed to create config.yaml: %w", err)
 		}
 	}
@@ -161,7 +164,7 @@ jira:
 	return nil
 }
 
-// extractRepoName extracts the repository name from a Git URL
+// extractRepoName extracts the repository name from a Git URL.
 func extractRepoName(repoURL string) string {
 	// Remove .git suffix if present
 	url := strings.TrimSuffix(repoURL, ".git")
@@ -175,7 +178,7 @@ func extractRepoName(repoURL string) string {
 	return "repository"
 }
 
-// getDefaultBranch determines the default branch from the remote repository
+// getDefaultBranch determines the default branch from the remote repository.
 func (s *Service) getDefaultBranch(gitDir string, dryRun bool) (string, error) {
 	// First, try to set the remote HEAD reference
 	cmd := exec.Command("git", "--git-dir", gitDir, "remote", "set-head", "origin", "-a")

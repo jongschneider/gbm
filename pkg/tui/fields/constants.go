@@ -1,13 +1,13 @@
 package fields
 
-// Field label constants
+// Field label constants.
 const (
 	LabelWorktreeSelection = "Select JIRA Issue or Enter Worktree Name"
 	LabelBranchName        = "Enter Branch Name"
 	LabelBaseBranch        = "Select Base Branch"
 )
 
-// Keyboard key constants
+// Keyboard key constants.
 const (
 	KeyEnter    = "enter"
 	KeyUp       = "up"

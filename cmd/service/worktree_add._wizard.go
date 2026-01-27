@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"gbm/internal/jira"
 	"gbm/pkg/tui"
@@ -160,7 +161,7 @@ func (a *jiraServiceAdapter) FetchIssues() ([]tui.JiraIssue, error) {
 // runWorktreeAddWizardTUI runs the add wizard using real service dependencies.
 // Uses Navigator to manage seamless transitions between:
 // 1. Type selector screen - user chooses Feature/Bug/Hotfix/Merge
-// 2. Workflow screen - workflow-specific steps for the selected type
+// 2. Workflow screen - workflow-specific steps for the selected type.
 func runWorktreeAddWizardTUI(svc *Service) error {
 	// Open /dev/tty for TUI rendering FIRST, before creating any models/styles
 	// This is required for shell integration where stdout is captured
@@ -232,7 +233,7 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 
 	currentModel := adapter.nav.Current()
 	if currentModel == nil {
-		return fmt.Errorf("no wizard found")
+		return errors.New("no wizard found")
 	}
 
 	w, ok := currentModel.(*tui.Wizard)
@@ -250,7 +251,8 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 
 	// Process merge workflow to populate names from custom fields
 	if state.WorkflowType == tui.WorkflowTypeMerge {
-		if err := processMergeState(state); err != nil {
+		err := processMergeState(state)
+		if err != nil {
 			return fmt.Errorf("failed to process merge workflow: %w", err)
 		}
 	}
@@ -314,7 +316,8 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 		if sourceBranch != "" {
 			targetBranch := getCustomField(state, "target_branch")
 			commitMsg := fmt.Sprintf("Merge %s into %s", sourceBranch, targetBranch)
-			if err := svc.Git.MergeBranchWithCommit(wt.Path, sourceBranch, commitMsg, false); err != nil {
+			err := svc.Git.MergeBranchWithCommit(wt.Path, sourceBranch, commitMsg, false)
+			if err != nil {
 				return fmt.Errorf("failed to merge %s into worktree: %w", sourceBranch, err)
 			}
 			PrintSuccess(fmt.Sprintf("Merged '%s' into '%s'", sourceBranch, targetBranch))
@@ -340,7 +343,7 @@ func processMergeState(state *tui.WorkflowState) error {
 	targetBranch := getCustomField(state, "target_branch")
 
 	if sourceBranch == "" || targetBranch == "" {
-		return fmt.Errorf("source and target branches are required")
+		return errors.New("source and target branches are required")
 	}
 
 	// Sanitize branch names for use in names

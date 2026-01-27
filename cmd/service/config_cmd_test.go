@@ -9,8 +9,8 @@ import (
 
 func TestNewConfigCommand(t *testing.T) {
 	testCases := []struct {
-		name   string
 		expect func(t *testing.T, svc *Service, cmd any)
+		name   string
 	}{
 		{
 			name: "creates command with correct use and short description",

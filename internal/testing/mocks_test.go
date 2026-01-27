@@ -10,8 +10,8 @@ import (
 
 func TestMockGitService(t *testing.T) {
 	testCases := []struct {
-		name      string
 		setup     func(*MockGitService)
+		name      string
 		expectErr bool
 	}{
 		{
@@ -103,8 +103,8 @@ func TestMockGitServiceBranchExists(t *testing.T) {
 
 func TestMockJiraService(t *testing.T) {
 	testCases := []struct {
-		name      string
 		setup     func(*MockJiraService)
+		name      string
 		expectErr bool
 	}{
 		{
@@ -184,7 +184,7 @@ func TestErrorMockJiraService(t *testing.T) {
 	assert.Nil(t, issues)
 }
 
-// Verify interface implementations
+// Verify interface implementations.
 func TestMockImplementsInterfaces(t *testing.T) {
 	var _ tui.GitService = (*MockGitService)(nil)
 	var _ tui.JiraService = (*MockJiraService)(nil)

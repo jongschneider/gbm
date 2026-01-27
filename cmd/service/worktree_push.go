@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -64,7 +65,7 @@ func handlePushCurrent(svc *Service) error {
 	}
 
 	if !inWorktree {
-		return fmt.Errorf("not currently in a worktree. Use 'gbm wt push <worktree-name>' to push a specific worktree")
+		return errors.New("not currently in a worktree. Use 'gbm wt push <worktree-name>' to push a specific worktree")
 	}
 
 	PrintInfo(fmt.Sprintf("Pushing current worktree '%s'", worktreeName))
@@ -95,7 +96,7 @@ func handlePushNamed(svc *Service, worktreeName string) error {
 	for _, wt := range worktrees {
 		if wt.Name == worktreeName {
 			if wt.IsBare {
-				return fmt.Errorf("cannot push bare repository")
+				return errors.New("cannot push bare repository")
 			}
 
 			PrintInfo(fmt.Sprintf("Pushing worktree '%s'", worktreeName))

@@ -5,6 +5,7 @@ import (
 	"gbm/internal/jira"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -140,8 +141,8 @@ func TestGenerateJiraMarkdown(t *testing.T) {
 	dueDate := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name   string
 		ticket *jira.JiraTicketDetails
+		name   string
 	}{
 		{
 			name: "full_ticket_with_ac",
@@ -362,12 +363,14 @@ The authentication module needs refactoring for better maintainability.
 			if *update {
 				// Create directory if it doesn't exist
 				dir := filepath.Dir(goldenFile)
-				if err := os.MkdirAll(dir, 0o755); err != nil {
+				err := os.MkdirAll(dir, 0o755)
+				if err != nil {
 					t.Fatalf("failed to create testdata directory: %v", err)
 				}
 
 				// Write golden file
-				if err := os.WriteFile(goldenFile, []byte(got), 0o644); err != nil {
+				err := os.WriteFile(goldenFile, []byte(got), 0o644)
+				if err != nil {
 					t.Fatalf("failed to write golden file: %v", err)
 				}
 			}
@@ -385,7 +388,7 @@ The authentication module needs refactoring for better maintainability.
 	}
 }
 
-// replaceTimestamp replaces the dynamic timestamp with a fixed one for testing
+// replaceTimestamp replaces the dynamic timestamp with a fixed one for testing.
 func replaceTimestamp(markdown string, fixedTime time.Time) string {
 	// Replace the last line which contains the timestamp
 	lines := []string{}
@@ -418,12 +421,14 @@ func splitLines(s string) []string {
 
 func joinLines(lines []string) string {
 	result := ""
+	var resultSb421 strings.Builder
 	for i, line := range lines {
-		result += line
+		resultSb421.WriteString(line)
 		if i < len(lines)-1 {
-			result += "\n"
+			resultSb421.WriteString("\n")
 		}
 	}
+	result += resultSb421.String()
 	return result
 }
 

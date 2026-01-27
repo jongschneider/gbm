@@ -30,8 +30,8 @@ type WorktreeSwitchResponse struct {
 
 // WorktreeListResponse represents the response for listing worktrees.
 type WorktreeListResponse struct {
-	Count     int                        `json:"count"`
 	Worktrees []WorktreeListItemResponse `json:"worktrees"`
+	Count     int                        `json:"count"`
 }
 
 // OperationResponse represents a generic operation result.
@@ -45,8 +45,8 @@ type OperationResponse struct {
 type SyncResponse struct {
 	Operation string `json:"operation"`
 	Status    string `json:"status"`
-	Changed   int    `json:"changed"`
 	Message   string `json:"message,omitempty"`
+	Changed   int    `json:"changed"`
 }
 
 // InitResponse represents the response from repository initialization.

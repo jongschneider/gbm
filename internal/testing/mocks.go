@@ -2,7 +2,7 @@
 package testing
 
 import (
-	"fmt"
+	"errors"
 	"gbm/pkg/tui"
 	"math/rand"
 	"time"
@@ -22,11 +22,9 @@ func applyJitter(baseDuration time.Duration) time.Duration {
 
 // MockGitService implements tui.GitService for testing.
 type MockGitService struct {
-	branches []string
-	delay    time.Duration
-
-	// configurable result for BranchExists (default false)
 	existsFunc func(string) bool
+	branches   []string
+	delay      time.Duration
 }
 
 // NewMockGitService creates a new MockGitService with default branches.
@@ -84,9 +82,9 @@ func (m *MockGitService) BranchExists(name string) (bool, error) {
 // MockJiraService implements tui.JiraService for testing.
 type MockJiraService struct {
 	issues       []tui.JiraIssue
+	cachedIssues []tui.JiraIssue
 	delay        time.Duration
-	cached       bool            // Whether we've already fetched and cached the results
-	cachedIssues []tui.JiraIssue // Cached copy of issues to return on subsequent calls
+	cached       bool
 }
 
 // NewMockJiraService creates a new MockJiraService with default issues.
@@ -154,7 +152,7 @@ type ErrorMockGitService struct {
 // NewErrorMockGitService creates a git service that always errors.
 func NewErrorMockGitService(err error) *ErrorMockGitService {
 	if err == nil {
-		err = fmt.Errorf("git service error")
+		err = errors.New("git service error")
 	}
 	return &ErrorMockGitService{err: err}
 }
@@ -177,7 +175,7 @@ type ErrorMockJiraService struct {
 // NewErrorMockJiraService creates a JIRA service that always errors.
 func NewErrorMockJiraService(err error) *ErrorMockJiraService {
 	if err == nil {
-		err = fmt.Errorf("jira service error")
+		err = errors.New("jira service error")
 	}
 	return &ErrorMockJiraService{err: err}
 }

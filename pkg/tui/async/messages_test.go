@@ -9,10 +9,10 @@ import (
 
 func TestFetchMsg(t *testing.T) {
 	type testCase struct {
-		name   string
-		value  string
 		err    error
 		expect func(t *testing.T, msg FetchMsg[string])
+		name   string
+		value  string
 	}
 
 	testCases := []testCase{
@@ -30,7 +30,7 @@ func TestFetchMsg(t *testing.T) {
 			value: "",
 			err:   errors.New("fetch failed"),
 			expect: func(t *testing.T, msg FetchMsg[string]) {
-				assert.Equal(t, "", msg.Value)
+				assert.Empty(t, msg.Value)
 				assert.Error(t, msg.Err)
 				assert.Equal(t, "fetch failed", msg.Err.Error())
 			},
@@ -75,7 +75,7 @@ func TestFetchCmd(t *testing.T) {
 				return "", errors.New("network error")
 			},
 			expectMsg: func(t *testing.T, msg FetchMsg[string]) {
-				assert.Equal(t, "", msg.Value)
+				assert.Empty(t, msg.Value)
 				assert.Error(t, msg.Err)
 				assert.Equal(t, "network error", msg.Err.Error())
 			},

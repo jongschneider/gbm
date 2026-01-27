@@ -9,17 +9,17 @@ import (
 
 func TestConfigAdapter_GetWorktrees(t *testing.T) {
 	testCases := []struct {
-		name      string
 		config    *Config
 		expect    func(t *testing.T, got map[string]tui.WorktreeConfig)
 		expectErr func(t *testing.T, err error)
+		name      string
 	}{
 		{
 			name:   "nil config returns empty map",
 			config: nil,
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
 				assert.NotNil(t, got)
-				assert.Len(t, got, 0)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -34,7 +34,7 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 			},
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
 				assert.NotNil(t, got)
-				assert.Len(t, got, 0)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -91,16 +91,16 @@ func TestConfigAdapter_GetWorktrees(t *testing.T) {
 
 func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 	testCases := []struct {
-		name      string
 		config    *WorktreeConfig
 		expect    func(t *testing.T, got string)
 		expectErr func(t *testing.T, err error)
+		name      string
 	}{
 		{
 			name:   "nil config returns empty string",
 			config: nil,
 			expect: func(t *testing.T, got string) {
-				assert.Equal(t, "", got)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -126,7 +126,7 @@ func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 				MergeInto: "main",
 			},
 			expect: func(t *testing.T, got string) {
-				assert.Equal(t, "", got)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -146,16 +146,16 @@ func TestWorktreeConfigAdapter_GetBranch(t *testing.T) {
 
 func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 	testCases := []struct {
-		name      string
 		config    *WorktreeConfig
 		expect    func(t *testing.T, got string)
 		expectErr func(t *testing.T, err error)
+		name      string
 	}{
 		{
 			name:   "nil config returns empty string",
 			config: nil,
 			expect: func(t *testing.T, got string) {
-				assert.Equal(t, "", got)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -181,7 +181,7 @@ func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 				MergeInto: "",
 			},
 			expect: func(t *testing.T, got string) {
-				assert.Equal(t, "", got)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -201,10 +201,10 @@ func TestWorktreeConfigAdapter_GetMergeInto(t *testing.T) {
 
 func TestMockRepoConfig(t *testing.T) {
 	testCases := []struct {
-		name      string
 		setup     func() *MockRepoConfig
 		expect    func(t *testing.T, got map[string]tui.WorktreeConfig)
 		expectErr func(t *testing.T, err error)
+		name      string
 	}{
 		{
 			name: "new mock config is empty",
@@ -212,7 +212,7 @@ func TestMockRepoConfig(t *testing.T) {
 				return NewMockRepoConfig()
 			},
 			expect: func(t *testing.T, got map[string]tui.WorktreeConfig) {
-				assert.Len(t, got, 0)
+				assert.Empty(t, got)
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)

@@ -20,12 +20,12 @@ func TestSetAndGetGlobalFlags(t *testing.T) {
 	SetGlobalFlags(&flags)
 	retrieved := GetGlobalFlags()
 
-	assert.Equal(t, true, retrieved.JSON)
-	assert.Equal(t, true, retrieved.NoColor)
-	assert.Equal(t, true, retrieved.Quiet)
-	assert.Equal(t, false, retrieved.NoInput)
-	assert.Equal(t, true, retrieved.DryRun)
-	assert.Equal(t, false, retrieved.Verbose)
+	assert.True(t, retrieved.JSON)
+	assert.True(t, retrieved.NoColor)
+	assert.True(t, retrieved.Quiet)
+	assert.False(t, retrieved.NoInput)
+	assert.True(t, retrieved.DryRun)
+	assert.False(t, retrieved.Verbose)
 }
 
 // TestShouldUseJSON tests the JSON flag accessor.
@@ -152,7 +152,7 @@ func TestPrintInfo_QuietMode(t *testing.T) {
 // BenchmarkGetGlobalFlags benchmarks flag access.
 func BenchmarkGetGlobalFlags(b *testing.B) {
 	SetGlobalFlags(&CLIFlags{})
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = GetGlobalFlags()
 	}
 }
@@ -160,7 +160,7 @@ func BenchmarkGetGlobalFlags(b *testing.B) {
 // BenchmarkShouldUseJSON benchmarks JSON flag check.
 func BenchmarkShouldUseJSON(b *testing.B) {
 	SetGlobalFlags(&CLIFlags{JSON: true})
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = ShouldUseJSON()
 	}
 }
@@ -168,13 +168,13 @@ func BenchmarkShouldUseJSON(b *testing.B) {
 // BenchmarkShouldUseColor benchmarks color flag check.
 func BenchmarkShouldUseColor(b *testing.B) {
 	SetGlobalFlags(&CLIFlags{NoColor: false})
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = ShouldUseColor()
 	}
 }
 
 // TestShouldUseColor_NoColorFlagPriority tests that --no-color flag has highest priority.
-// Priority: --no-color flag > NO_COLOR env var > isatty detection
+// Priority: --no-color flag > NO_COLOR env var > isatty detection.
 func TestShouldUseColor_FlagPriority(t *testing.T) {
 	// Set NO_COLOR env var
 	t.Setenv("NO_COLOR", "1")

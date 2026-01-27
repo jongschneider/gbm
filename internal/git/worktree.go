@@ -27,15 +27,15 @@ import (
 //   - IsBare: True only for the bare repository (.git directory)
 //   - BaseBranch: The base branch used when creating this worktree
 type Worktree struct {
-	Name       string // Worktree name (e.g., "feature-x")
-	Path       string // Absolute path to the worktree
-	Branch     string // Branch name (e.g., "feature/ABC-123")
-	Commit     string // Commit hash (short form)
-	IsBare     bool   // True if this is the bare repository worktree
-	BaseBranch string // Base branch used to create this worktree (e.g., "main")
+	Name       string
+	Path       string
+	Branch     string
+	Commit     string
+	BaseBranch string
+	IsBare     bool
 }
 
-// parseWorktrees parses the output of 'git worktree list' into Worktree structs
+// parseWorktrees parses the output of 'git worktree list' into Worktree structs.
 func parseWorktrees(output string) []Worktree {
 	var worktrees []Worktree
 
@@ -44,8 +44,8 @@ func parseWorktrees(output string) []Worktree {
 	//   /path/to/repo (bare)  <- Note: bare repos may not have commit hash
 	re := regexp.MustCompile(`^(\S+)\s+(?:([a-f0-9]+)\s+)?(?:\[(.*?)\]|\((.*?)\))`)
 
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
+	for line := range lines {
 		if line == "" {
 			continue
 		}
@@ -269,7 +269,7 @@ func (s *Service) GetWorktreeBranch(worktreePath string) (string, error) {
 	return branchName, nil
 }
 
-// Fetch fetches from the remote repository
+// Fetch fetches from the remote repository.
 func (s *Service) Fetch(dryRun bool) error {
 	args := []string{"fetch", "--all"}
 
@@ -283,14 +283,15 @@ func (s *Service) Fetch(dryRun bool) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if err != nil {
 		return fmt.Errorf("failed to fetch: %w", err)
 	}
 
 	return nil
 }
 
-// MoveWorktree moves a git worktree to a new location
+// MoveWorktree moves a git worktree to a new location.
 func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 	if oldName == "" {
 		return ErrOldWorktreeNameEmpty
@@ -403,12 +404,14 @@ func (s *Service) RemoveWorktree(worktreeName string, force bool, dryRun bool) (
 		fmt.Printf("[DRY RUN] trash %s\n", renamedPath)
 	} else {
 		// Rename directory to add timestamp
-		if err := os.Rename(targetWorktree.Path, renamedPath); err != nil {
+		err := os.Rename(targetWorktree.Path, renamedPath)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Could not rename worktree for Trash: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Proceeding with removal...\n")
 		} else {
 			// Move to Trash using trashbox
-			if err := trashbox.MoveToTrash(renamedPath); err != nil {
+			err := trashbox.MoveToTrash(renamedPath)
+			if err != nil {
 				// Failed to trash - rename back and warn (best effort, ignore errors)
 				_ = os.Rename(renamedPath, targetWorktree.Path)
 				fmt.Fprintf(os.Stderr, "Warning: Could not move worktree to Trash: %v\n", err)
@@ -506,7 +509,7 @@ func (s *Service) IsInWorktree(currentPath string) (bool, string, error) {
 	return false, "", nil
 }
 
-// PullWorktree pulls changes from remote for a specific worktree
+// PullWorktree pulls changes from remote for a specific worktree.
 func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
 	if worktreePath == "" {
 		return ErrWorktreePathEmpty
@@ -533,7 +536,7 @@ func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
 
 	if upstream == "" {
 		// No upstream set, try to pull with explicit remote and branch
-		remoteBranch := fmt.Sprintf("origin/%s", currentBranch)
+		remoteBranch := "origin/" + currentBranch
 
 		// Check if remote branch exists
 		remoteBranchExists, err := s.BranchExistsInPath(worktreePath, remoteBranch)
@@ -574,7 +577,7 @@ func (s *Service) PullWorktree(worktreePath string, dryRun bool) error {
 	return nil
 }
 
-// PushWorktree pushes changes to remote for a specific worktree
+// PushWorktree pushes changes to remote for a specific worktree.
 func (s *Service) PushWorktree(worktreePath string, dryRun bool) error {
 	if worktreePath == "" {
 		return ErrWorktreePathEmpty

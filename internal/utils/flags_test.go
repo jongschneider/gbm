@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -12,9 +12,9 @@ func TestGetStringFlagOrConfig(t *testing.T) {
 	tests := []struct {
 		name        string
 		flagValue   string
-		setFlag     bool
 		configValue string
 		expected    string
+		setFlag     bool
 	}{
 		{
 			name:        "flag explicitly set",
@@ -179,7 +179,7 @@ func TestGetIntFlagOrConfig(t *testing.T) {
 			cmd.Flags().Int("test-flag", 0, "test flag")
 
 			if tt.setFlag {
-				err := cmd.Flags().Set("test-flag", fmt.Sprintf("%d", tt.flagValue))
+				err := cmd.Flags().Set("test-flag", strconv.Itoa(tt.flagValue))
 				assert.NoError(t, err)
 			}
 

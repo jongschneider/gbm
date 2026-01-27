@@ -2,8 +2,10 @@ package fields
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"gbm/pkg/tui"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -290,7 +292,7 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 		}, teatest.WithDuration(time.Second))
 
 		// Verify initial state shows all options
-		assert.Equal(t, 4, len(f.filtered), "initial state should show all 4 options")
+		assert.Len(t, f.filtered, 4, "initial state should show all 4 options")
 
 		// Type 'ap' to filter
 		tm.Type("ap")
@@ -299,7 +301,7 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 
 		// Verify filter was applied - only Apple and Apricot match 'ap'
-		assert.Equal(t, 2, len(f.filtered), "after typing 'ap', should have 2 matches")
+		assert.Len(t, f.filtered, 2, "after typing 'ap', should have 2 matches")
 		assert.Equal(t, "ap", f.textInput.Value(), "text input should contain 'ap'")
 
 		// Type more to narrow down
@@ -307,7 +309,7 @@ func TestFilterable_Interactive_Typing(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 
 		// Only Apricot matches 'apr'
-		assert.Equal(t, 1, len(f.filtered), "after typing 'apr', should have 1 match")
+		assert.Len(t, f.filtered, 1, "after typing 'apr', should have 1 match")
 		assert.Equal(t, "Apricot", f.filtered[0].Label, "the match should be Apricot")
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -386,7 +388,7 @@ func TestConfirm_Interactive_Toggle(t *testing.T) {
 
 // =============================================================================
 // TT-008: Filterable Enter selection tests
-// =============================================================================
+// =============================================================================.
 
 // TestFilterable_EnterSelectsHighlightedOption verifies that pressing Enter
 // selects the currently highlighted option in the filtered list.
@@ -515,7 +517,7 @@ func TestFilterable_EnterWithFilteredResults(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 
 		// Verify filter was applied
-		assert.Equal(t, 2, len(f.filtered), "filter should show 2 options (Apple, Apricot)")
+		assert.Len(t, f.filtered, 2, "filter should show 2 options (Apple, Apricot)")
 		assert.Equal(t, 0, f.cursor, "cursor should be at 0")
 
 		// Navigate to second filtered option (Apricot)
@@ -592,7 +594,7 @@ func TestFilterable_ValueStoredAfterSelection(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	// GetValue should be empty string before selection
-	assert.Equal(t, "", f.GetValue(), "GetValue() should be empty before selection")
+	assert.Empty(t, f.GetValue(), "GetValue() should be empty before selection")
 
 	// Navigate to Item Two and select
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
@@ -608,7 +610,7 @@ func TestFilterable_ValueStoredAfterSelection(t *testing.T) {
 
 // =============================================================================
 // TT-013: TextInput typing and submission tests
-// =============================================================================
+// =============================================================================.
 
 // TestTextInput_TypingUpdatesValue verifies that typing characters updates
 // the internal input value correctly.
@@ -625,7 +627,7 @@ func TestTextInput_TypingUpdatesValue(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	// Verify initial state
-	assert.Equal(t, "", ti.textInput.Value(), "initial text input should be empty")
+	assert.Empty(t, ti.textInput.Value(), "initial text input should be empty")
 
 	// Type some characters
 	tm.Type("John Doe")
@@ -660,7 +662,7 @@ func TestTextInput_EnterSubmitsValue(t *testing.T) {
 
 	// Verify not complete before Enter
 	assert.False(t, ti.IsComplete(), "should not be complete before Enter")
-	assert.Equal(t, "", ti.GetValue(), "GetValue should be empty before submission")
+	assert.Empty(t, ti.GetValue(), "GetValue should be empty before submission")
 
 	// Press Enter to submit
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -722,7 +724,7 @@ func TestTextInput_SubmittedValueIsTrimmed(t *testing.T) {
 		tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 
 		// Verify trimmed to empty
-		assert.Equal(t, "", ti.GetValue(), "whitespace-only input should become empty string")
+		assert.Empty(t, ti.GetValue(), "whitespace-only input should become empty string")
 		assert.True(t, ti.IsComplete(), "should be complete")
 	})
 }
@@ -814,12 +816,12 @@ func TestTextInput_EmptySubmission(t *testing.T) {
 
 	// Verify empty submission works
 	assert.True(t, ti.IsComplete(), "empty submission should complete")
-	assert.Equal(t, "", ti.GetValue(), "GetValue() should return empty string")
+	assert.Empty(t, ti.GetValue(), "GetValue() should return empty string")
 }
 
 // =============================================================================
 // TT-014: TextInput validation tests
-// =============================================================================
+// =============================================================================.
 
 // TestTextInput_ValidatorCalledOnEnter verifies that the validator function
 // is called when Enter is pressed.
@@ -865,7 +867,7 @@ func TestTextInput_ValidatorCalledOnEnter(t *testing.T) {
 func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 	validator := func(value string) error {
 		if len(value) < 5 {
-			return fmt.Errorf("value must be at least 5 characters")
+			return errors.New("value must be at least 5 characters")
 		}
 		return nil
 	}
@@ -891,8 +893,8 @@ func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 
 	// Verify field is NOT complete
 	assert.False(t, ti.IsComplete(), "should not complete with invalid input")
-	assert.Equal(t, "", ti.GetValue(), "value should not be set on validation failure")
-	assert.NotNil(t, ti.err, "error should be set")
+	assert.Empty(t, ti.GetValue(), "value should not be set on validation failure")
+	assert.Error(t, ti.err, "error should be set")
 	assert.Contains(t, ti.err.Error(), "at least 5 characters")
 
 	// Quit the test
@@ -905,7 +907,7 @@ func TestTextInput_ValidationErrorPreventsSubmission(t *testing.T) {
 func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 	validator := func(value string) error {
 		if value == "" {
-			return fmt.Errorf("name is required")
+			return errors.New("name is required")
 		}
 		return nil
 	}
@@ -926,7 +928,7 @@ func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
-	assert.NotNil(t, ti.err, "error should be set after validation failure")
+	assert.Error(t, ti.err, "error should be set after validation failure")
 
 	// Check that View() contains the error message
 	view := ti.View()
@@ -943,7 +945,7 @@ func TestTextInput_ErrorMessageDisplayedInView(t *testing.T) {
 func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	validator := func(value string) error {
 		if value == "" {
-			return fmt.Errorf("value required")
+			return errors.New("value required")
 		}
 		return nil
 	}
@@ -964,7 +966,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Verify error is set
-	assert.NotNil(t, ti.err, "error should be set after validation failure")
+	assert.Error(t, ti.err, "error should be set after validation failure")
 	assert.Contains(t, ti.View(), "value required", "View() should show error")
 
 	// Start typing - error should clear
@@ -972,7 +974,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
-	assert.Nil(t, ti.err, "error should be cleared after typing")
+	assert.NoError(t, ti.err, "error should be cleared after typing")
 	assert.NotContains(t, ti.View(), "value required", "View() should not show error after typing")
 
 	// Quit the test
@@ -985,7 +987,7 @@ func TestTextInput_ErrorClearsOnTyping(t *testing.T) {
 func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 	validator := func(value string) error {
 		if len(value) < 3 {
-			return fmt.Errorf("minimum 3 characters required")
+			return errors.New("minimum 3 characters required")
 		}
 		return nil
 	}
@@ -1010,14 +1012,14 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 
 	// Should fail validation
 	assert.False(t, ti.IsComplete(), "should not complete with short input")
-	assert.NotNil(t, ti.err, "error should be set")
+	assert.Error(t, ti.err, "error should be set")
 
 	// Add more characters to make valid
 	tm.Type("cdef")
 	time.Sleep(2 * time.Millisecond)
 
 	// Error should be cleared
-	assert.Nil(t, ti.err, "error should be cleared after typing")
+	assert.NoError(t, ti.err, "error should be cleared after typing")
 
 	// Now submit again - should succeed
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1026,7 +1028,7 @@ func TestTextInput_ValidInputAfterErrorSucceeds(t *testing.T) {
 	// Should now be complete with the full value
 	assert.True(t, ti.IsComplete(), "should complete with valid input")
 	assert.Equal(t, "abcdef", ti.GetValue(), "value should be the corrected input")
-	assert.Nil(t, ti.err, "no error should remain")
+	assert.NoError(t, ti.err, "no error should remain")
 }
 
 // TestTextInput_ValidationWithTrimmedValue verifies that validation is run
@@ -1036,7 +1038,7 @@ func TestTextInput_ValidationWithTrimmedValue(t *testing.T) {
 	validator := func(value string) error {
 		validatedValue = value
 		if value == "" {
-			return fmt.Errorf("empty not allowed")
+			return errors.New("empty not allowed")
 		}
 		return nil
 	}
@@ -1087,13 +1089,13 @@ func TestTextInput_NoValidatorAllowsAnyInput(t *testing.T) {
 
 	// Should succeed without any validator
 	assert.True(t, ti.IsComplete(), "should complete without validator")
-	assert.Equal(t, "", ti.GetValue(), "empty value should be accepted")
-	assert.Nil(t, ti.err, "no error should be set")
+	assert.Empty(t, ti.GetValue(), "empty value should be accepted")
+	assert.NoError(t, ti.err, "no error should be set")
 }
 
 // =============================================================================
 // TT-015: TextInput default value tests
-// =============================================================================
+// =============================================================================.
 
 // TestTextInput_WithDefaultSetsValueOnFocus verifies that WithDefault() sets
 // the initial value when the field is focused.
@@ -1255,7 +1257,7 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 		}, teatest.WithDuration(time.Second))
 
 		// Verify text input is empty
-		assert.Equal(t, "", ti.textInput.Value(), "empty default should result in empty input")
+		assert.Empty(t, ti.textInput.Value(), "empty default should result in empty input")
 
 		// Should still be able to type and submit
 		tm.Type("New Text")
@@ -1282,7 +1284,7 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 		}, teatest.WithDuration(time.Second))
 
 		// Verify text input starts empty
-		assert.Equal(t, "", ti.textInput.Value(), "input should start empty without WithDefault")
+		assert.Empty(t, ti.textInput.Value(), "input should start empty without WithDefault")
 
 		// Type and submit
 		tm.Type("Typed Value")
@@ -1298,7 +1300,7 @@ func TestTextInput_EmptyDefaultValueHandled(t *testing.T) {
 
 // =============================================================================
 // TT-017: Confirm Enter submission tests
-// =============================================================================
+// =============================================================================.
 
 // TestConfirm_EnterWithYesSelected verifies that pressing Enter with Yes
 // selected completes the field with value true and sends NextStepMsg.
@@ -1525,7 +1527,7 @@ func TestConfirm_EnterWithSummary(t *testing.T) {
 
 // =============================================================================
 // TT-009: Filterable custom value entry tests
-// =============================================================================
+// =============================================================================.
 
 // TestFilterable_CustomValue_NoMatchesMessage verifies that typing non-matching
 // text shows the 'No matches' message in the view.
@@ -1549,14 +1551,14 @@ func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
 		}, teatest.WithDuration(time.Second))
 
 		// Verify initial state shows all 3 options
-		assert.Equal(t, 3, len(f.filtered), "initial state should show all 3 options")
+		assert.Len(t, f.filtered, 3, "initial state should show all 3 options")
 
 		// Type text that doesn't match any option
 		tm.Type("xyz")
 		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches state
-		assert.Equal(t, 0, len(f.filtered), "filter should have no matches for 'xyz'")
+		assert.Empty(t, f.filtered, "filter should have no matches for 'xyz'")
 
 		// Verify the view shows the no matches message with the custom value hint
 		view := f.View()
@@ -1577,7 +1579,7 @@ func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
 		f.filterOptions()
 
 		// Verify we have no matches with non-empty input
-		assert.Equal(t, 0, len(f.filtered))
+		assert.Empty(t, f.filtered)
 		view := f.View()
 		assert.Contains(t, view, "No matches")
 		assert.Contains(t, view, `"xyz"`)
@@ -1587,7 +1589,7 @@ func TestFilterable_CustomValue_NoMatchesMessage(t *testing.T) {
 		f.filterOptions()
 
 		// With empty input, should show all options again
-		assert.Equal(t, 3, len(f.filtered), "empty input should show all options")
+		assert.Len(t, f.filtered, 3, "empty input should show all options")
 	})
 }
 
@@ -1619,7 +1621,7 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches
-		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'Orange'")
+		assert.Empty(t, f.filtered, "should have no matches for 'Orange'")
 
 		// Press Enter to submit custom value
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1647,12 +1649,12 @@ func TestFilterable_CustomValue_EnterSubmitsTypedText(t *testing.T) {
 		// Type 'a' - should match Apple
 		tm.Type("a")
 		time.Sleep(2 * time.Millisecond)
-		assert.Equal(t, 2, len(f.filtered), "should match Apple and Banana")
+		assert.Len(t, f.filtered, 2, "should match Apple and Banana")
 
 		// Type more to make it not match anything
 		tm.Type("xyz")
 		time.Sleep(2 * time.Millisecond)
-		assert.Equal(t, 0, len(f.filtered), "should have no matches for 'axyz'")
+		assert.Empty(t, f.filtered, "should have no matches for 'axyz'")
 
 		// Press Enter to submit custom value
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1688,7 +1690,7 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 
 		// Verify no matches (so custom value will be used)
-		assert.Equal(t, 0, len(f.filtered), "should have no matches")
+		assert.Empty(t, f.filtered, "should have no matches")
 
 		// Press Enter to submit
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -1726,7 +1728,7 @@ func TestFilterable_CustomValue_IsTrimmed(t *testing.T) {
 
 // =============================================================================
 // TT-010: Filterable arrow key navigation tests
-// =============================================================================
+// =============================================================================.
 
 // TestFilterable_ArrowNavigation_UpMovesUp verifies that pressing Up arrow
 // moves the cursor up in the filtered list.
@@ -1898,7 +1900,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
 	for i := range options {
 		options[i] = Option{
 			Label: fmt.Sprintf("Option %02d", i+1),
-			Value: fmt.Sprintf("%d", i+1),
+			Value: strconv.Itoa(i + 1),
 		}
 	}
 
@@ -1920,7 +1922,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
 	assert.Equal(t, 0, f.cursor, "initial cursor should be 0")
 
 	// Move down multiple times to force scrolling
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 		time.Sleep(2 * time.Millisecond)
 	}
@@ -1930,7 +1932,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsDown(t *testing.T) {
 
 	// Viewport should have scrolled to keep cursor visible
 	// The exact offset depends on visibleItemCount(), but it should be > 0
-	assert.Greater(t, f.viewportOffset, 0, "viewport should have scrolled down")
+	assert.Positive(t, f.viewportOffset, "viewport should have scrolled down")
 	assert.LessOrEqual(t, f.viewportOffset, f.cursor, "cursor should be >= viewport offset")
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -1945,7 +1947,7 @@ func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
 	for i := range options {
 		options[i] = Option{
 			Label: fmt.Sprintf("Option %02d", i+1),
-			Value: fmt.Sprintf("%d", i+1),
+			Value: strconv.Itoa(i + 1),
 		}
 	}
 
@@ -1963,17 +1965,17 @@ func TestFilterable_ArrowNavigation_ViewportScrollsUp(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	// Move down multiple times to scroll viewport down
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Record the viewport offset after scrolling down
 	viewportAfterDown := f.viewportOffset
-	assert.Greater(t, viewportAfterDown, 0, "viewport should have scrolled down")
+	assert.Positive(t, viewportAfterDown, "viewport should have scrolled down")
 
 	// Now move up multiple times
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		tm.Send(tea.KeyMsg{Type: tea.KeyUp})
 		time.Sleep(2 * time.Millisecond)
 	}
@@ -2138,13 +2140,13 @@ func TestFilterable_ArrowNavigation_AfterFiltering(t *testing.T) {
 	}, teatest.WithDuration(time.Second))
 
 	// Initially 4 options
-	assert.Equal(t, 4, len(f.filtered), "should have 4 options initially")
+	assert.Len(t, f.filtered, 4, "should have 4 options initially")
 
 	// Type 'ap' to filter to Apple and Apricot
 	tm.Type("ap")
 	time.Sleep(2 * time.Millisecond)
 
-	assert.Equal(t, 2, len(f.filtered), "should have 2 options after filtering")
+	assert.Len(t, f.filtered, 2, "should have 2 options after filtering")
 	assert.Equal(t, 0, f.cursor, "cursor should reset to 0 after filter")
 
 	// Navigate down
@@ -2190,7 +2192,7 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 		}, teatest.WithDuration(time.Second))
 
 		// Verify options are shown (empty input shows all)
-		assert.Equal(t, 2, len(f.filtered), "should show all options with empty input")
+		assert.Len(t, f.filtered, 2, "should show all options with empty input")
 
 		// Press Enter without typing anything - should select first option
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -2248,7 +2250,7 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 
 		// Verify empty string result
 		assert.True(t, f.IsComplete(), "should be complete")
-		assert.Equal(t, "", f.GetValue(), "should return empty string with no options and no input")
+		assert.Empty(t, f.GetValue(), "should return empty string with no options and no input")
 	})
 
 	t.Run("empty options list with custom input uses custom value", func(t *testing.T) {
@@ -2279,7 +2281,7 @@ func TestFilterable_CustomValue_EmptyInputHandling(t *testing.T) {
 
 // =============================================================================
 // TT-011: Selector Enter selection tests
-// =============================================================================
+// =============================================================================.
 
 // TestSelector_EnterSelectsHighlightedOption verifies that pressing Enter
 // selects the currently highlighted option in the Selector.
@@ -2468,7 +2470,7 @@ func TestSelector_IsCompleteAfterSelection(t *testing.T) {
 	// Initial state
 	assert.False(t, s.IsComplete(), "IsComplete() should be false initially")
 	assert.False(t, s.IsCancelled(), "IsCancelled() should be false")
-	assert.Equal(t, "", s.GetValue(), "GetValue() should be empty before selection")
+	assert.Empty(t, s.GetValue(), "GetValue() should be empty before selection")
 
 	// Navigate and check - still not complete
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
@@ -2505,7 +2507,7 @@ func TestSelector_EmptyOptionsDoesNotCrash(t *testing.T) {
 
 	// Verify not complete (no options to select)
 	assert.False(t, s.IsComplete(), "should not be complete with no options")
-	assert.Equal(t, "", s.GetValue(), "GetValue() should be empty")
+	assert.Empty(t, s.GetValue(), "GetValue() should be empty")
 
 	// Quit cleanly
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
@@ -2577,7 +2579,7 @@ func TestSelector_NavigationAfterWrapping(t *testing.T) {
 
 // =============================================================================
 // TT-012: Selector vim key navigation tests
-// =============================================================================
+// =============================================================================.
 
 // TestSelector_JKeyMovesCursorDown verifies that pressing 'j' moves the cursor
 // down in vim-style navigation.
@@ -2920,7 +2922,7 @@ func TestSelector_VimKeysThenSelect(t *testing.T) {
 
 // =============================================================================
 // TT-016: Confirm y/n shortcut keys tests
-// =============================================================================
+// =============================================================================.
 
 // TestConfirm_YKeyImmediatelyConfirmsTrue verifies that pressing 'y' immediately
 // confirms with true value without needing to press Enter.
@@ -3106,7 +3108,7 @@ func TestConfirm_CancelMsgSentOnNKey(t *testing.T) {
 
 // =============================================================================
 // TT-018: Confirm left/right navigation tests
-// =============================================================================
+// =============================================================================.
 
 // TestConfirm_LeftArrowSelectsYes verifies that pressing the left arrow key
 // selects the Yes button.

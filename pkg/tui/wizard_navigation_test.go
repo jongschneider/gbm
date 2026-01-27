@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockField is a simple test field that can be configured for testing
+// mockField is a simple test field that can be configured for testing.
 type mockField struct {
 	key         string
 	title       string
-	value       interface{}
+	value       any
 	complete    bool
 	cancelled   bool
 	err         error
@@ -55,11 +55,11 @@ func (m *mockField) WithTheme(t *Theme) Field { m.theme = t; return m }
 func (m *mockField) WithWidth(w int) Field    { m.width = w; return m }
 func (m *mockField) WithHeight(h int) Field   { m.height = h; return m }
 func (m *mockField) GetKey() string           { return m.key }
-func (m *mockField) GetValue() interface{}    { return m.value }
+func (m *mockField) GetValue() any            { return m.value }
 
-func (m *mockField) SetValue(v interface{}) { m.value = v }
+func (m *mockField) SetValue(v any) { m.value = v }
 
-// TestWizardNavigation_OneStepAtATime verifies that only the current step is rendered
+// TestWizardNavigation_OneStepAtATime verifies that only the current step is rendered.
 func TestWizardNavigation_OneStepAtATime(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -95,7 +95,7 @@ func TestWizardNavigation_OneStepAtATime(t *testing.T) {
 	assert.NotContains(t, view, "Choose another") // Previous step hidden
 }
 
-// TestWizardNavigation_AdvanceOnEnter verifies advancing to next step on field completion
+// TestWizardNavigation_AdvanceOnEnter verifies advancing to next step on field completion.
 func TestWizardNavigation_AdvanceOnEnter(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -120,7 +120,7 @@ func TestWizardNavigation_AdvanceOnEnter(t *testing.T) {
 	assert.Equal(t, 1, wizard.current)
 }
 
-// TestWizardNavigation_StateUpdatedOnAdvance verifies WorkflowState is updated when advancing
+// TestWizardNavigation_StateUpdatedOnAdvance verifies WorkflowState is updated when advancing.
 func TestWizardNavigation_StateUpdatedOnAdvance(t *testing.T) {
 	field1 := newMockField("worktree_name", "Choose")
 	field1.value = "feature-1"
@@ -151,7 +151,7 @@ func TestWizardNavigation_StateUpdatedOnAdvance(t *testing.T) {
 	assert.Equal(t, "feature-1", ctx.State.WorktreeName)
 }
 
-// TestWizardNavigation_BackWithESC verifies ESC navigates back to previous step
+// TestWizardNavigation_BackWithESC verifies ESC navigates back to previous step.
 func TestWizardNavigation_BackWithESC(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -176,7 +176,7 @@ func TestWizardNavigation_BackWithESC(t *testing.T) {
 	assert.Equal(t, 0, wizard.current)
 }
 
-// TestWizardNavigation_ESCOnFirstStep does nothing
+// TestWizardNavigation_ESCOnFirstStep does nothing.
 func TestWizardNavigation_ESCOnFirstStep(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -195,7 +195,7 @@ func TestWizardNavigation_ESCOnFirstStep(t *testing.T) {
 	assert.False(t, wizard.IsCancelled())
 }
 
-// TestWizardNavigation_CancelWithCtrlC verifies Ctrl+C exits the wizard
+// TestWizardNavigation_CancelWithCtrlC verifies Ctrl+C exits the wizard.
 func TestWizardNavigation_CancelWithCtrlC(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -212,7 +212,7 @@ func TestWizardNavigation_CancelWithCtrlC(t *testing.T) {
 	assert.True(t, wizard.IsCancelled())
 }
 
-// TestWizardNavigation_SkipLogic verifies steps with Skip functions are skipped
+// TestWizardNavigation_SkipLogic verifies steps with Skip functions are skipped.
 func TestWizardNavigation_SkipLogic(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -243,7 +243,7 @@ func TestWizardNavigation_SkipLogic(t *testing.T) {
 	assert.Equal(t, 2, wizard.current)
 }
 
-// TestWizardNavigation_SkipFunctionCanAccessState verifies Skip function accesses WorkflowState
+// TestWizardNavigation_SkipFunctionCanAccessState verifies Skip function accesses WorkflowState.
 func TestWizardNavigation_SkipFunctionCanAccessState(t *testing.T) {
 	field1 := newMockField("worktree_name", "Choose")
 	field1.value = "existing-branch"
@@ -274,7 +274,7 @@ func TestWizardNavigation_SkipFunctionCanAccessState(t *testing.T) {
 	assert.True(t, wizard.IsComplete())
 }
 
-// TestWizardNavigation_SkipLogicAppliesBackward verifies Skip logic applies to backward navigation
+// TestWizardNavigation_SkipLogicAppliesBackward verifies Skip logic applies to backward navigation.
 func TestWizardNavigation_SkipLogicAppliesBackward(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -308,7 +308,7 @@ func TestWizardNavigation_SkipLogicAppliesBackward(t *testing.T) {
 	assert.Equal(t, 0, wizard.current)
 }
 
-// TestWizardNavigation_CompleteOnLastStep verifies wizard completes when last step is finished
+// TestWizardNavigation_CompleteOnLastStep verifies wizard completes when last step is finished.
 func TestWizardNavigation_CompleteOnLastStep(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -335,7 +335,7 @@ func TestWizardNavigation_CompleteOnLastStep(t *testing.T) {
 	assert.True(t, wizard.IsComplete())
 }
 
-// TestWizardNavigation_IsCompleteReturnsFalseUntilAllStepsDone verifies incremental completion
+// TestWizardNavigation_IsCompleteReturnsFalseUntilAllStepsDone verifies incremental completion.
 func TestWizardNavigation_IsCompleteReturnsFalseUntilAllStepsDone(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -364,7 +364,7 @@ func TestWizardNavigation_IsCompleteReturnsFalseUntilAllStepsDone(t *testing.T) 
 	assert.True(t, wizard.IsComplete())
 }
 
-// TestWizardNavigation_StatePopulatedWithAllValues verifies all values are collected
+// TestWizardNavigation_StatePopulatedWithAllValues verifies all values are collected.
 func TestWizardNavigation_StatePopulatedWithAllValues(t *testing.T) {
 	field1 := newMockField("worktree_name", "Choose")
 	field1.value = "my-feature"
@@ -400,7 +400,7 @@ func TestWizardNavigation_StatePopulatedWithAllValues(t *testing.T) {
 	assert.Equal(t, "feature/my-feature", ctx.State.BranchName)
 }
 
-// TestWizardNavigation_AllStepsSkippedCompletesImmediately verifies all-skipped edge case
+// TestWizardNavigation_AllStepsSkippedCompletesImmediately verifies all-skipped edge case.
 func TestWizardNavigation_AllStepsSkippedCompletesImmediately(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -417,7 +417,7 @@ func TestWizardNavigation_AllStepsSkippedCompletesImmediately(t *testing.T) {
 	assert.True(t, wizard.IsComplete())
 }
 
-// TestWizardNavigation_WindowResizeUpdatesContext verifies terminal resize updates dimensions
+// TestWizardNavigation_WindowResizeUpdatesContext verifies terminal resize updates dimensions.
 func TestWizardNavigation_WindowResizeUpdatesContext(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -438,7 +438,7 @@ func TestWizardNavigation_WindowResizeUpdatesContext(t *testing.T) {
 	assert.Equal(t, 40, ctx.Height)
 }
 
-// TestWizardNavigation_Integration tests a complex multi-step scenario
+// TestWizardNavigation_Integration tests a complex multi-step scenario.
 func TestWizardNavigation_Integration(t *testing.T) {
 	step1 := Step{
 		Name:  "Workflow Type",
@@ -480,7 +480,7 @@ func TestWizardNavigation_Integration(t *testing.T) {
 	assert.True(t, wizard.IsComplete())
 }
 
-// TestWizardBranchNamePreFill_WithJiraIssue tests that branch names are pre-filled from JIRA issues
+// TestWizardBranchNamePreFill_WithJiraIssue tests that branch names are pre-filled from JIRA issues.
 func TestWizardBranchNamePreFill_WithJiraIssue(t *testing.T) {
 	// Create a context with mock JIRA service
 	ctx := NewContext()
@@ -512,7 +512,7 @@ func TestWizardBranchNamePreFill_WithJiraIssue(t *testing.T) {
 	wizard.Init()
 
 	// Step 1: Select JIRA issue (PROJ-123)
-	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+	assert.Empty(t, branchField.defaultValue, "Initially no default")
 
 	// Advance to branch_name step
 	steps[0].Field.(*mockField).value = "PROJ-123"
@@ -533,7 +533,7 @@ func TestWizardBranchNamePreFill_WithJiraIssue(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "fix_bug", "Branch name should contain slugified summary")
 }
 
-// TestWizardBranchNamePreFill_WithCustomName tests that branch names are pre-filled from custom names
+// TestWizardBranchNamePreFill_WithCustomName tests that branch names are pre-filled from custom names.
 func TestWizardBranchNamePreFill_WithCustomName(t *testing.T) {
 	ctx := NewContext()
 
@@ -558,7 +558,7 @@ func TestWizardBranchNamePreFill_WithCustomName(t *testing.T) {
 	wizard.Init()
 
 	// Step 1: Enter custom worktree name (not a JIRA issue)
-	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+	assert.Empty(t, branchField.defaultValue, "Initially no default")
 
 	// Advance to branch_name step
 	steps[0].Field.(*mockField).value = "my-feature"
@@ -577,7 +577,7 @@ func TestWizardBranchNamePreFill_WithCustomName(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "feature/my_feature", "Branch name should be based on custom name")
 }
 
-// TestWizardBranchNamePreFill_HotfixWorkflow tests that hotfix workflows use hotfix/ prefix
+// TestWizardBranchNamePreFill_HotfixWorkflow tests that hotfix workflows use hotfix/ prefix.
 func TestWizardBranchNamePreFill_HotfixWorkflow(t *testing.T) {
 	ctx := NewContext()
 	ctx.JiraService = &mockJiraService{
@@ -635,7 +635,7 @@ func TestWizardBranchNamePreFill_HotfixWorkflow(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "security_patch", "Branch name should contain slugified summary")
 }
 
-// TestWizardBranchNamePreFill_BugWorkflow tests that bug workflows use bug/ prefix
+// TestWizardBranchNamePreFill_BugWorkflow tests that bug workflows use bug/ prefix.
 func TestWizardBranchNamePreFill_BugWorkflow(t *testing.T) {
 	ctx := NewContext()
 	ctx.JiraService = &mockJiraService{
@@ -687,7 +687,7 @@ func TestWizardBranchNamePreFill_BugWorkflow(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "fix_memory_leak", "Branch name should contain slugified summary")
 }
 
-// TestWizardBranchNamePreFill_BugWorkflow_CustomName tests that bug workflows with custom names use bug/ prefix
+// TestWizardBranchNamePreFill_BugWorkflow_CustomName tests that bug workflows with custom names use bug/ prefix.
 func TestWizardBranchNamePreFill_BugWorkflow_CustomName(t *testing.T) {
 	ctx := NewContext()
 
@@ -718,7 +718,7 @@ func TestWizardBranchNamePreFill_BugWorkflow_CustomName(t *testing.T) {
 	wizard.Init()
 
 	// Step 1: Enter custom bug name (not a JIRA issue)
-	assert.Equal(t, "", branchField.defaultValue, "Initially no default")
+	assert.Empty(t, branchField.defaultValue, "Initially no default")
 
 	// Advance to branch_name step
 	steps[0].Field.(*mockField).value = "fix-crash"
@@ -735,11 +735,11 @@ func TestWizardBranchNamePreFill_BugWorkflow_CustomName(t *testing.T) {
 	assert.Contains(t, currentField.defaultValue, "bug/fix_crash", "Bug branch should be based on custom name with bug/ prefix")
 }
 
-// mockBranchNameField is a mock field that tracks WithDefault calls
+// mockBranchNameField is a mock field that tracks WithDefault calls.
 type mockBranchNameField struct {
 	key          string
 	title        string
-	value        interface{}
+	value        any
 	defaultValue string
 	complete     bool
 	width        int
@@ -777,14 +777,14 @@ func (m *mockBranchNameField) WithHeight(h int) Field   { m.height = h; return m
 func (m *mockBranchNameField) GetKey() string           { return m.key }
 func (m *mockBranchNameField) GetValue() any            { return m.value }
 
-// WithDefault is called by the wizard to set a default value
+// WithDefault is called by the wizard to set a default value.
 func (m *mockBranchNameField) WithDefault(defaultValue string) Field {
 	newField := *m
 	newField.defaultValue = defaultValue
 	return &newField
 }
 
-// mockJiraService for testing
+// mockJiraService for testing.
 type mockJiraService struct {
 	issues []JiraIssue
 }
@@ -793,7 +793,7 @@ func (m *mockJiraService) FetchIssues() ([]JiraIssue, error) {
 	return m.issues, nil
 }
 
-// TestBackBoundaryMsg_EmitAtStep0 verifies that BackBoundaryMsg is returned when pressing ESC at step 0
+// TestBackBoundaryMsg_EmitAtStep0 verifies that BackBoundaryMsg is returned when pressing ESC at step 0.
 func TestBackBoundaryMsg_EmitAtStep0(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",
@@ -819,7 +819,7 @@ func TestBackBoundaryMsg_EmitAtStep0(t *testing.T) {
 	}
 }
 
-// TestBackBoundaryMsg_NoEmitAtStepN verifies that normal back navigation works at step N > 0
+// TestBackBoundaryMsg_NoEmitAtStepN verifies that normal back navigation works at step N > 0.
 func TestBackBoundaryMsg_NoEmitAtStepN(t *testing.T) {
 	step1 := Step{
 		Name:  "Step 1",

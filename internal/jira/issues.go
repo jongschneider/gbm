@@ -9,17 +9,17 @@ import (
 )
 
 const (
-	// issuesCacheTTL is how long we cache JIRA issues (5 minutes)
+	// issuesCacheTTL is how long we cache JIRA issues (5 minutes).
 	issuesCacheTTL = 5 * time.Minute
 )
 
-// IssuesCache represents cached JIRA issues with timestamp
+// IssuesCache represents cached JIRA issues with timestamp.
 type IssuesCache struct {
-	Issues    []JiraIssue `json:"issues"`
 	Timestamp time.Time   `json:"timestamp"`
+	Issues    []JiraIssue `json:"issues"`
 }
 
-// buildIssueListArgs constructs jira issue list command arguments from filters
+// buildIssueListArgs constructs jira issue list command arguments from filters.
 func buildIssueListArgs(filters JiraFilters, username string) []string {
 	args := []string{"issue", "list"}
 
@@ -82,7 +82,7 @@ func buildIssueListArgs(filters JiraFilters, username string) []string {
 
 // GetJiraIssues fetches JIRA issues using configured filters
 // Returns slice of typed JiraIssue structs
-// Results are cached for 5 minutes to improve performance
+// Results are cached for 5 minutes to improve performance.
 func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, error) {
 	// Load cache and user from store
 	var cache *IssuesCache
@@ -156,7 +156,7 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 }
 
 // GetJiraIssue fetches detailed information for a specific JIRA issue using --raw JSON output
-// Returns fully populated JiraTicketDetails
+// Returns fully populated JiraTicketDetails.
 func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, error) {
 	// Check if JIRA CLI is available
 	if !s.IsJiraCliAvailable() {
@@ -417,7 +417,7 @@ func (s *Service) GetJiraIssue(key string, dryRun bool) (*JiraTicketDetails, err
 }
 
 // parseDescription converts a JIRA ADF document to clean markdown format
-// using the ADFParser which supports tables, panels, and other rich content
+// using the ADFParser which supports tables, panels, and other rich content.
 func parseDescription(desc *ADFDocument) string {
 	if desc == nil || len(desc.Content) == 0 {
 		return ""

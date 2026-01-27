@@ -3,6 +3,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"gbm/pkg/tui"
 	"gbm/pkg/tui/fields"
 	"net/url"
@@ -13,31 +14,57 @@ import (
 
 // JiraFormConfig holds configuration for the JIRA form.
 type JiraFormConfig struct {
-	Enabled  bool
-	Host     string
-	Username string
-	APIToken string
-	OnSave   func(data map[string]interface{}) error
-	Theme    *tui.Theme
+	Enabled                    bool
+	Host                       string
+	Username                   string
+	APIToken                   string
+	FiltersStatus              []string
+	FiltersPriority            string
+	FiltersType                string
+	AttachmentsEnabled         bool
+	AttachmentsMaxSize         int
+	AttachmentsDir             string
+	MarkdownIncludeComments    bool
+	MarkdownIncludeAttachments bool
+	MarkdownUseRelativeLinks   bool
+	MarkdownFilenamePattern    string
+	OnSave                     func(data map[string]any) error
+	Theme                      *tui.Theme
 }
 
 // JiraForm renders a form for editing JIRA configuration with enable/disable toggle.
 // When disabled, all subsection fields are hidden.
 type JiraForm struct {
-	theme              *tui.Theme
-	onSave             func(data map[string]interface{}) error
-	enableField        tui.Field
-	discardField       tui.Field
-	serverHostField    tui.Field
-	serverUserField    tui.Field
-	serverTokenField   tui.Field
-	width              int
-	height             int
-	focusedFieldIdx    int
-	submitted          bool
-	cancelled          bool
-	showConfirmDiscard bool
-	enabled            bool
+	theme        *tui.Theme
+	onSave       func(data map[string]any) error
+	enableField  tui.Field
+	discardField tui.Field
+	// Server fields
+	serverHostField  tui.Field
+	serverUserField  tui.Field
+	serverTokenField tui.Field
+	// Filters fields
+	filtersStatusField   tui.Field
+	filtersPriorityField tui.Field
+	filtersTypeField     tui.Field
+	// Attachments fields
+	attachmentsEnabledField tui.Field
+	attachmentsMaxSizeField tui.Field
+	attachmentsDirField     tui.Field
+	// Markdown fields
+	markdownIncludeCommentsField    tui.Field
+	markdownIncludeAttachmentsField tui.Field
+	markdownUseRelativeLinksField   tui.Field
+	markdownFilenamePatternField    tui.Field
+	width                           int
+	height                          int
+	focusedFieldIdx                 int
+	submitted                       bool
+	cancelled                       bool
+	showConfirmDiscard              bool
+	enabled                         bool
+	activeSection                   string // "server", "filters", "attachments", "markdown"
+	sectionIdx                      int    // Index within current section
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -112,15 +139,111 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 		WithDefault(config.APIToken).
 		WithTheme(config.Theme)
 
+	// Filters fields
+	filtersStatusFieldPtr := fields.NewTextInput(
+		"jira_filters_status",
+		"Status Filter",
+		"Filter by status (comma-separated, e.g., 'In Dev,Open')",
+	)
+	filtersStatusField := filtersStatusFieldPtr.
+		WithDefault(strings.Join(config.FiltersStatus, ",")).
+		WithTheme(config.Theme)
+
+	filtersPriorityFieldPtr := fields.NewTextInput(
+		"jira_filters_priority",
+		"Priority Filter",
+		"Filter by priority (e.g., 'High', 'Medium')",
+	)
+	filtersPriorityField := filtersPriorityFieldPtr.
+		WithDefault(config.FiltersPriority).
+		WithTheme(config.Theme)
+
+	filtersTypeFieldPtr := fields.NewTextInput(
+		"jira_filters_type",
+		"Type Filter",
+		"Filter by type (e.g., 'Bug', 'Task')",
+	)
+	filtersTypeField := filtersTypeFieldPtr.
+		WithDefault(config.FiltersType).
+		WithTheme(config.Theme)
+
+	// Attachments fields
+	attachmentsEnabledFieldPtr := fields.NewConfirm(
+		"jira_attachments_enabled",
+		"Enable Attachment Downloads?",
+	)
+	attachmentsEnabledFieldPtr.SetValue(config.AttachmentsEnabled)
+	attachmentsEnabledField := attachmentsEnabledFieldPtr.WithTheme(config.Theme)
+
+	attachmentsMaxSizeFieldPtr := fields.NewTextInput(
+		"jira_attachments_max_size",
+		"Max Size (MB)",
+		"Maximum attachment size in MB",
+	)
+	attachmentsMaxSizeField := attachmentsMaxSizeFieldPtr.
+		WithDefault(fmt.Sprintf("%d", config.AttachmentsMaxSize)).
+		WithTheme(config.Theme)
+
+	attachmentsDirFieldPtr := fields.NewTextInput(
+		"jira_attachments_dir",
+		"Attachments Directory",
+		"Directory to store attachments (relative path)",
+	)
+	attachmentsDirField := attachmentsDirFieldPtr.
+		WithDefault(config.AttachmentsDir).
+		WithTheme(config.Theme)
+
+	// Markdown fields
+	markdownIncludeCommentsFieldPtr := fields.NewConfirm(
+		"jira_markdown_include_comments",
+		"Include Comments in Markdown?",
+	)
+	markdownIncludeCommentsFieldPtr.SetValue(config.MarkdownIncludeComments)
+	markdownIncludeCommentsField := markdownIncludeCommentsFieldPtr.WithTheme(config.Theme)
+
+	markdownIncludeAttachmentsFieldPtr := fields.NewConfirm(
+		"jira_markdown_include_attachments",
+		"Include Attachments in Markdown?",
+	)
+	markdownIncludeAttachmentsFieldPtr.SetValue(config.MarkdownIncludeAttachments)
+	markdownIncludeAttachmentsField := markdownIncludeAttachmentsFieldPtr.WithTheme(config.Theme)
+
+	markdownUseRelativeLinksFieldPtr := fields.NewConfirm(
+		"jira_markdown_use_relative_links",
+		"Use Relative Links?",
+	)
+	markdownUseRelativeLinksFieldPtr.SetValue(config.MarkdownUseRelativeLinks)
+	markdownUseRelativeLinksField := markdownUseRelativeLinksFieldPtr.WithTheme(config.Theme)
+
+	markdownFilenamePatternFieldPtr := fields.NewTextInput(
+		"jira_markdown_filename_pattern",
+		"Filename Pattern",
+		"Output filename pattern (e.g., '{key}.md')",
+	)
+	markdownFilenamePatternField := markdownFilenamePatternFieldPtr.
+		WithDefault(config.MarkdownFilenamePattern).
+		WithTheme(config.Theme)
+
 	form := &JiraForm{
-		theme:            config.Theme,
-		onSave:           config.OnSave,
-		enableField:      enableField,
-		enabled:          config.Enabled,
-		serverHostField:  serverHostField,
-		serverUserField:  serverUserField,
-		serverTokenField: serverTokenField,
-		focusedFieldIdx:  0,
+		theme:                           config.Theme,
+		onSave:                          config.OnSave,
+		enableField:                     enableField,
+		enabled:                         config.Enabled,
+		serverHostField:                 serverHostField,
+		serverUserField:                 serverUserField,
+		serverTokenField:                serverTokenField,
+		filtersStatusField:              filtersStatusField,
+		filtersPriorityField:            filtersPriorityField,
+		filtersTypeField:                filtersTypeField,
+		attachmentsEnabledField:         attachmentsEnabledField,
+		attachmentsMaxSizeField:         attachmentsMaxSizeField,
+		attachmentsDirField:             attachmentsDirField,
+		markdownIncludeCommentsField:    markdownIncludeCommentsField,
+		markdownIncludeAttachmentsField: markdownIncludeAttachmentsField,
+		markdownUseRelativeLinksField:   markdownUseRelativeLinksField,
+		markdownFilenamePatternField:    markdownFilenamePatternField,
+		focusedFieldIdx:                 0,
+		activeSection:                   "server",
 	}
 
 	return form
@@ -206,15 +329,48 @@ func (f *JiraForm) View() string {
 	lines = append(lines, f.enableField.View())
 	lines = append(lines, "")
 
-	// Show server fields if enabled
+	// Show subsections if enabled
 	if f.enabled {
-		lines = append(lines, f.theme.Blurred.Description.Render("Server Configuration"))
+		// Server subsection
+		lines = append(lines, f.theme.Blurred.Description.Render("▸ Server Configuration"))
 		lines = append(lines, "")
 		lines = append(lines, f.serverHostField.View())
 		lines = append(lines, "")
 		lines = append(lines, f.serverUserField.View())
 		lines = append(lines, "")
 		lines = append(lines, f.serverTokenField.View())
+		lines = append(lines, "")
+
+		// Filters subsection
+		lines = append(lines, f.theme.Blurred.Description.Render("▸ Filters"))
+		lines = append(lines, "")
+		lines = append(lines, f.filtersStatusField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.filtersPriorityField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.filtersTypeField.View())
+		lines = append(lines, "")
+
+		// Attachments subsection
+		lines = append(lines, f.theme.Blurred.Description.Render("▸ Attachments"))
+		lines = append(lines, "")
+		lines = append(lines, f.attachmentsEnabledField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.attachmentsMaxSizeField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.attachmentsDirField.View())
+		lines = append(lines, "")
+
+		// Markdown subsection
+		lines = append(lines, f.theme.Blurred.Description.Render("▸ Markdown"))
+		lines = append(lines, "")
+		lines = append(lines, f.markdownIncludeCommentsField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.markdownIncludeAttachmentsField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.markdownUseRelativeLinksField.View())
+		lines = append(lines, "")
+		lines = append(lines, f.markdownFilenamePatternField.View())
 		lines = append(lines, "")
 	}
 
@@ -231,11 +387,11 @@ func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Navigate to next field based on enabled state
 		f.focusedField().Blur()
 		if f.enabled {
-			// Can navigate through all fields
-			maxFields := 4 // enable + 3 server fields
+			// Can navigate through all fields (1-13 when enabled, always include enable field 0)
+			maxFields := 14 // enable + 3 server + 3 filters + 3 attachments + 4 markdown
 			f.focusedFieldIdx = (f.focusedFieldIdx + 1) % maxFields
 		} else {
-			// Only one field
+			// Only enable field
 			f.focusedFieldIdx = 0
 		}
 		return f, f.focusedField().Focus()
@@ -243,7 +399,7 @@ func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyShiftTab:
 		f.focusedField().Blur()
 		if f.enabled {
-			maxFields := 4
+			maxFields := 14
 			f.focusedFieldIdx = (f.focusedFieldIdx - 1 + maxFields) % maxFields
 		} else {
 			f.focusedFieldIdx = 0
@@ -265,7 +421,8 @@ func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Save
 			if f.onSave != nil {
 				data := f.GetValue()
-				if err := f.onSave(data); err != nil {
+				err := f.onSave(data)
+				if err != nil {
 					// TODO: Show error overlay
 					return f, nil
 				}
@@ -292,9 +449,23 @@ func (f *JiraForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) 
 	f.width = msg.Width
 	f.height = msg.Height
 	f.enableField = f.enableField.WithWidth(msg.Width).WithHeight(msg.Height)
+	// Server
 	f.serverHostField = f.serverHostField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.serverUserField = f.serverUserField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.serverTokenField = f.serverTokenField.WithWidth(msg.Width).WithHeight(msg.Height)
+	// Filters
+	f.filtersStatusField = f.filtersStatusField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.filtersPriorityField = f.filtersPriorityField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.filtersTypeField = f.filtersTypeField.WithWidth(msg.Width).WithHeight(msg.Height)
+	// Attachments
+	f.attachmentsEnabledField = f.attachmentsEnabledField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.attachmentsMaxSizeField = f.attachmentsMaxSizeField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.attachmentsDirField = f.attachmentsDirField.WithWidth(msg.Width).WithHeight(msg.Height)
+	// Markdown
+	f.markdownIncludeCommentsField = f.markdownIncludeCommentsField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.markdownIncludeAttachmentsField = f.markdownIncludeAttachmentsField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.markdownUseRelativeLinksField = f.markdownUseRelativeLinksField.WithWidth(msg.Width).WithHeight(msg.Height)
+	f.markdownFilenamePatternField = f.markdownFilenamePatternField.WithWidth(msg.Width).WithHeight(msg.Height)
 	if f.discardField != nil {
 		f.discardField = f.discardField.WithWidth(msg.Width).WithHeight(msg.Height)
 	}
@@ -303,15 +474,44 @@ func (f *JiraForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) 
 
 // focusedField returns the currently focused field.
 func (f *JiraForm) focusedField() tui.Field {
+	if !f.enabled && f.focusedFieldIdx != 0 {
+		// If disabled, only enable field is available
+		return f.enableField
+	}
+
 	switch f.focusedFieldIdx {
 	case 0:
 		return f.enableField
+	// Server fields (1-3)
 	case 1:
 		return f.serverHostField
 	case 2:
 		return f.serverUserField
 	case 3:
 		return f.serverTokenField
+	// Filters fields (4-6)
+	case 4:
+		return f.filtersStatusField
+	case 5:
+		return f.filtersPriorityField
+	case 6:
+		return f.filtersTypeField
+	// Attachments fields (7-9)
+	case 7:
+		return f.attachmentsEnabledField
+	case 8:
+		return f.attachmentsMaxSizeField
+	case 9:
+		return f.attachmentsDirField
+	// Markdown fields (10-13)
+	case 10:
+		return f.markdownIncludeCommentsField
+	case 11:
+		return f.markdownIncludeAttachmentsField
+	case 12:
+		return f.markdownUseRelativeLinksField
+	case 13:
+		return f.markdownFilenamePatternField
 	default:
 		return f.enableField
 	}
@@ -328,22 +528,68 @@ func (f *JiraForm) updateFocusedField(field tui.Field) {
 		f.serverUserField = field
 	case 3:
 		f.serverTokenField = field
+	case 4:
+		f.filtersStatusField = field
+	case 5:
+		f.filtersPriorityField = field
+	case 6:
+		f.filtersTypeField = field
+	case 7:
+		f.attachmentsEnabledField = field
+	case 8:
+		f.attachmentsMaxSizeField = field
+	case 9:
+		f.attachmentsDirField = field
+	case 10:
+		f.markdownIncludeCommentsField = field
+	case 11:
+		f.markdownIncludeAttachmentsField = field
+	case 12:
+		f.markdownUseRelativeLinksField = field
+	case 13:
+		f.markdownFilenamePatternField = field
 	}
 }
 
 // GetValue returns the form data as a map.
-func (f *JiraForm) GetValue() map[string]interface{} {
-	data := make(map[string]interface{})
+func (f *JiraForm) GetValue() map[string]any {
+	data := make(map[string]any)
 	data["jira_enabled"] = f.enabled
 
 	if f.enabled {
+		// Server
 		hostVal, _ := f.serverHostField.GetValue().(string)
 		userVal, _ := f.serverUserField.GetValue().(string)
 		tokenVal, _ := f.serverTokenField.GetValue().(string)
-
 		data["jira_host"] = hostVal
 		data["jira_username"] = userVal
 		data["jira_api_token"] = tokenVal
+
+		// Filters
+		statusVal, _ := f.filtersStatusField.GetValue().(string)
+		priorityVal, _ := f.filtersPriorityField.GetValue().(string)
+		typeVal, _ := f.filtersTypeField.GetValue().(string)
+		data["jira_filters_status"] = statusVal
+		data["jira_filters_priority"] = priorityVal
+		data["jira_filters_type"] = typeVal
+
+		// Attachments
+		attachEnabledVal, _ := f.attachmentsEnabledField.GetValue().(bool)
+		attachMaxVal, _ := f.attachmentsMaxSizeField.GetValue().(string)
+		attachDirVal, _ := f.attachmentsDirField.GetValue().(string)
+		data["jira_attachments_enabled"] = attachEnabledVal
+		data["jira_attachments_max_size"] = attachMaxVal
+		data["jira_attachments_dir"] = attachDirVal
+
+		// Markdown
+		mdCommentsVal, _ := f.markdownIncludeCommentsField.GetValue().(bool)
+		mdAttachVal, _ := f.markdownIncludeAttachmentsField.GetValue().(bool)
+		mdRelativeLinkVal, _ := f.markdownUseRelativeLinksField.GetValue().(bool)
+		mdPatternVal, _ := f.markdownFilenamePatternField.GetValue().(string)
+		data["jira_markdown_include_comments"] = mdCommentsVal
+		data["jira_markdown_include_attachments"] = mdAttachVal
+		data["jira_markdown_use_relative_links"] = mdRelativeLinkVal
+		data["jira_markdown_filename_pattern"] = mdPatternVal
 	}
 
 	return data

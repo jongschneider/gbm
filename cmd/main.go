@@ -8,7 +8,8 @@ import (
 func main() {
 	defer service.CloseLogFile()
 
-	if err := service.Execute(); err != nil {
+	err := service.Execute()
+	if err != nil {
 		service.PrintError("%v\n", err)
 		os.Exit(1)
 	}

@@ -12,10 +12,10 @@ import (
 
 // BasicsFormConfig holds configuration for the Basics form.
 type BasicsFormConfig struct {
-	DefaultBranch string
-	WorktreesDir  string
 	OnSave        func(data map[string]string) error
 	Theme         *tui.Theme
+	DefaultBranch string
+	WorktreesDir  string
 }
 
 // BasicsForm renders a form for editing basic config settings (default_branch, worktrees_dir).

@@ -14,22 +14,20 @@ import (
 // Table is a reusable table component wrapping bubbles/table with theme support.
 // It applies consistent styling from the Theme and supports async cell rendering.
 type Table struct {
-	model     table.Model
-	ctx       *Context
-	theme     *Theme
-	columns   []table.Column
-	rows      []table.Row
-	asyncRows map[int]*AsyncRow // Row index -> AsyncRow for tracking async cells
-	height    int
-	focused   bool
-
-	// Filter support
-	filterEnabled bool            // Whether "/" filter mode is available
-	filterActive  bool            // Whether currently in filter mode
-	filterInput   textinput.Model // Text input for filter query
-	allRows       []table.Row     // All rows (unfiltered source of truth)
-	rowMapping    []int           // Maps filtered index -> original index in allRows
-	cycling       bool            // Whether up/down navigation wraps around
+	ctx           *Context
+	theme         *Theme
+	asyncRows     map[int]*AsyncRow
+	columns       []table.Column
+	rows          []table.Row
+	rowMapping    []int
+	allRows       []table.Row
+	filterInput   textinput.Model
+	model         table.Model
+	height        int
+	filterActive  bool
+	filterEnabled bool
+	focused       bool
+	cycling       bool
 }
 
 // Column represents a table column definition.
@@ -82,7 +80,7 @@ func (ar *AsyncRow) GetCell(colIdx int) string {
 // ToTableRow converts the AsyncRow to a bubbles/table.Row for rendering.
 func (ar *AsyncRow) ToTableRow(numCols int) table.Row {
 	row := make(table.Row, numCols)
-	for i := 0; i < numCols; i++ {
+	for i := range numCols {
 		row[i] = ar.GetCell(i)
 	}
 	return row

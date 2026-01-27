@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// realJiraOptions returns options matching the user's actual JIRA data
+// realJiraOptions returns options matching the user's actual JIRA data.
 func realJiraOptions() []Option {
 	return []Option{
 		{Label: "INGSVC-6468 - EMAIL: ical extra text time parsing", Value: "INGSVC-6468"},
@@ -28,8 +28,8 @@ func TestFilterable_FilterOptions_SubstringMatching(t *testing.T) {
 	testCases := []struct {
 		name           string
 		query          string
-		expectedLabels []string
 		description    string
+		expectedLabels []string
 	}{
 		{
 			name:  "empty query returns all options",
@@ -141,7 +141,7 @@ func TestFilterable_FilterOptions_SubstringMatching(t *testing.T) {
 			f.filterOptions()
 
 			// Verify results
-			require.Equal(t, len(tc.expectedLabels), len(f.filtered),
+			require.Len(t, f.filtered, len(tc.expectedLabels),
 				"%s: expected %d matches, got %d", tc.description, len(tc.expectedLabels), len(f.filtered))
 
 			for i, expected := range tc.expectedLabels {
@@ -162,7 +162,7 @@ func TestFilterable_FilterOptions_SequentialTyping(t *testing.T) {
 	f.textInput.SetValue("f")
 	f.filterOptions()
 	fCount := len(f.filtered)
-	assert.Greater(t, fCount, 0, "'f' should match at least one option")
+	assert.Positive(t, fCount, "'f' should match at least one option")
 
 	// Type 'fa' - should have fewer or equal matches
 	f.textInput.SetValue("fa")
@@ -206,7 +206,7 @@ func TestFilterable_FilterOptions_BackspaceConsistency(t *testing.T) {
 	copy(faDirect, f2.filtered)
 
 	// Results should be identical
-	assert.Equal(t, len(faDirect), len(faAfterBackspace),
+	assert.Len(t, faAfterBackspace, len(faDirect),
 		"Backspacing to 'fa' should produce same result as typing 'fa' directly")
 
 	for i := range faDirect {
@@ -224,7 +224,7 @@ func TestFilterable_Update_TypeCharacterUpdatesFilter(t *testing.T) {
 	f.textInput.Focus() // MUST focus the textInput for it to accept key runes
 
 	// Verify initial state - all options visible
-	assert.Equal(t, len(realJiraOptions()), len(f.filtered))
+	assert.Len(t, f.filtered, len(realJiraOptions()))
 
 	// Type 'f'
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}}
@@ -243,7 +243,7 @@ func TestFilterable_Update_TypeCharacterUpdatesFilter(t *testing.T) {
 
 	t.Logf("After 'a' (total 'fa'): textInput.Value()=%q, filtered count=%d", f.textInput.Value(), len(f.filtered))
 	assert.Equal(t, "fa", f.textInput.Value(), "text input should have 'fa'")
-	assert.Equal(t, 3, len(f.filtered), "should have 3 results for 'fa': Facebook, Fargo, Fail")
+	assert.Len(t, f.filtered, 3, "should have 3 results for 'fa': Facebook, Fargo, Fail")
 
 	// Type 'c' -> "fac"
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
@@ -252,7 +252,7 @@ func TestFilterable_Update_TypeCharacterUpdatesFilter(t *testing.T) {
 
 	t.Logf("After 'c' (total 'fac'): textInput.Value()=%q, filtered count=%d", f.textInput.Value(), len(f.filtered))
 	assert.Equal(t, "fac", f.textInput.Value(), "text input should have 'fac'")
-	assert.Equal(t, 1, len(f.filtered), "CRITICAL: should have 1 result for 'fac': Facebook")
+	assert.Len(t, f.filtered, 1, "CRITICAL: should have 1 result for 'fac': Facebook")
 
 	if len(f.filtered) > 0 {
 		assert.Contains(t, f.filtered[0].Label, "Facebook",
@@ -278,7 +278,7 @@ func TestFilterable_Update_BackspaceUpdatesFilter(t *testing.T) {
 
 	t.Logf("After backspace (should be 'fa'): textInput.Value()=%q, filtered count=%d", f.textInput.Value(), len(f.filtered))
 	assert.Equal(t, "fa", f.textInput.Value(), "text input should have 'fa' after backspace")
-	assert.Equal(t, 3, len(f.filtered), "should have 3 results for 'fa' after backspace: Facebook, Fargo, Fail")
+	assert.Len(t, f.filtered, 3, "should have 3 results for 'fa' after backspace: Facebook, Fargo, Fail")
 
 	// Verify Facebook is in results
 	foundFacebook := false

@@ -45,9 +45,9 @@ func TestMergeCustomWorkflow_ProcessMergeCustom(t *testing.T) {
 		strategy  string
 		source    string
 		target    string
-		expectErr bool
 		expectWt  string
 		expectBr  string
+		expectErr bool
 	}{
 		{
 			name:      "valid merge with commit strategy",

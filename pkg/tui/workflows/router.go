@@ -6,7 +6,7 @@ import (
 	"gbm/pkg/tui/fields"
 )
 
-// Convenience aliases for workflow types
+// Convenience aliases for workflow types.
 const (
 	workflowTypeFeature = tui.WorkflowTypeFeature
 	workflowTypeBug     = tui.WorkflowTypeBug
@@ -14,7 +14,7 @@ const (
 	workflowTypeMerge   = tui.WorkflowTypeMerge
 )
 
-// Convenience aliases for field keys
+// Convenience aliases for field keys.
 const (
 	fieldKeyWorktreeName = tui.FieldKeyWorktreeName
 	fieldKeyBranchName   = tui.FieldKeyBranchName
@@ -22,7 +22,7 @@ const (
 	fieldKeyConfirm      = tui.FieldKeyConfirm
 )
 
-// Convenience aliases for field labels
+// Convenience aliases for field labels.
 const (
 	labelWorktreeSelection = fields.LabelWorktreeSelection
 	labelBranchName        = fields.LabelBranchName

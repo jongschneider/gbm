@@ -52,12 +52,12 @@ notifications when configurations drift out of sync.`,
 	return rootCmd
 }
 
-// Execute runs the root command
+// Execute runs the root command.
 func Execute() error {
 	return newRootCommand().Execute()
 }
 
-// CloseLogFile closes the log file if it was opened
+// CloseLogFile closes the log file if it was opened.
 func CloseLogFile() {
 	if logFile != nil {
 		_ = logFile.Close()
