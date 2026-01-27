@@ -251,7 +251,7 @@
         "Run 'gbm help': config command listed",
         "All existing commands function without modification"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "documentation",

@@ -22,7 +22,7 @@ Task Completion Status:
 - [ ] Storybook covers >80% of components/sections in multiple states
 - [ ] Unit tests >80% coverage for core ConfigModel and field validation
 - [ ] E2E happy path test: load config → edit → save → verify file
-- [ ] No breaking changes to existing commands
+- [x] No breaking changes to existing commands
 - [ ] CLI help and in-app documentation complete
 
 Completed Items:
@@ -157,3 +157,18 @@ Completed Items:
      - HelpOverlay must be in pkg/tui (not pkg/tui/fields) because ConfigModel can't import pkg/tui/fields (import cycle)
      - Forms with modal state enums need a new Help modal state (ModalHelp, WorktreeModalHelp)
      - Reused overlay pattern from ValidationOverlay but with gray border instead of red
+
+14. No Breaking Changes to Existing Commands:
+     - Verified all existing worktree commands still work correctly
+     - `gbm wt list --json` outputs worktree data correctly
+     - `gbm wt add` with --dry-run shows expected git commands
+     - `gbm wt remove` error handling unchanged for nonexistent worktrees
+     - `gbm wt switch` works correctly with existing worktrees
+     - `gbm sync --dry-run` shows expected sync behavior
+     - `gbm --help` lists config command alongside existing commands
+     - `gbm config --help` shows proper command description
+     - All tests pass (`just check` - tests PASS)
+     - Pre-existing lint issues (cyclomatic complexity) unchanged
+     **Learnings:**
+     - Verification task - no code changes required
+     - Config TUI is additive and doesn't touch existing command paths
