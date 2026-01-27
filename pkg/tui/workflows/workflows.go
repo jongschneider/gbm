@@ -278,6 +278,9 @@ func ProcessMergeWorkflow(wizard *tui.Wizard, ctx *tui.Context) error {
 	// Generate branch name: merge/{source-to-target}
 	state.BranchName = fmt.Sprintf("merge/%s-to-%s", sourceSanitized, targetSanitized)
 
+	// Set BaseBranch to target branch (merge branch is based off target)
+	state.BaseBranch = targetBranch
+
 	return nil
 }
 
@@ -291,12 +294,13 @@ func sanitizeForWorktreeName(name string) string {
 	return name
 }
 
-// getStateField retrieves a custom field from WorkflowState using reflection.
+// getStateField retrieves a custom field from WorkflowState.
 // This is needed because merge workflows store custom fields (source_branch, target_branch)
 // instead of the standard WorktreeName/BranchName fields.
 func getStateField(state *tui.WorkflowState, fieldName string) string {
-	// For now, we rely on the wizard's storeFieldValue to handle this
-	// This is a placeholder that would need proper reflection or field tracking
-	// For merge workflows, we'll need to modify the Wizard to track custom fields
+	value := state.GetField(fieldName)
+	if str, ok := value.(string); ok {
+		return str
+	}
 	return ""
 }

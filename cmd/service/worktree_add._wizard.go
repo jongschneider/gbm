@@ -1,8 +1,10 @@
 package service
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"gbm/internal/jira"
 	"gbm/pkg/tui"
@@ -118,6 +120,11 @@ func (a *addNavigatorAdapter) createTypeWizard() *tui.Wizard {
 // View delegates to Navigator.
 func (a *addNavigatorAdapter) View() string {
 	return a.nav.View()
+}
+
+// Context returns the TUI context for accessing services.
+func (a *addNavigatorAdapter) Context() *tui.Context {
+	return a.ctx
 }
 
 // jiraServiceAdapter adapts *jira.Service to tui.JiraService interface.
@@ -242,6 +249,50 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 
 	state := w.State()
 
+	// Process merge workflow to populate names from custom fields
+	if state.WorkflowType == tui.WorkflowTypeMerge {
+		if err := processMergeState(state); err != nil {
+			return fmt.Errorf("failed to process merge workflow: %w", err)
+		}
+	}
+
+	// Check if worktree already exists
+	existingWorktrees, err := svc.Git.ListWorktrees(false)
+	if err != nil {
+		return fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	var worktreeExists bool
+	for _, wt := range existingWorktrees {
+		if wt.Name == state.WorktreeName {
+			worktreeExists = true
+			break
+		}
+	}
+
+	if worktreeExists {
+		if !ShouldAllowInput() {
+			return fmt.Errorf("worktree '%s' already exists", state.WorktreeName)
+		}
+
+		fmt.Fprintf(os.Stderr, "Worktree '%s' already exists. Replace it? (y/N): ", state.WorktreeName)
+		reader := bufio.NewReader(os.Stdin)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read user input: %w", err)
+		}
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Fprintf(os.Stderr, "Cancelled\n")
+			return nil
+		}
+
+		if _, err := svc.Git.RemoveWorktree(state.WorktreeName, false, false); err != nil {
+			return fmt.Errorf("failed to remove existing worktree: %w", err)
+		}
+		PrintSuccess(fmt.Sprintf("Removed existing worktree '%s'", state.WorktreeName))
+	}
+
 	// Get worktrees directory from service
 	worktreesDir, err := svc.GetWorktreesPath()
 	if err != nil {
@@ -258,6 +309,19 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 	fmt.Println(wt.Path)
 	PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
 
+	// For merge workflows, merge the source branch into the new worktree
+	if state.WorkflowType == tui.WorkflowTypeMerge {
+		sourceBranch := getCustomField(state, "source_branch")
+		if sourceBranch != "" {
+			targetBranch := getCustomField(state, "target_branch")
+			commitMsg := fmt.Sprintf("Merge %s into %s", sourceBranch, targetBranch)
+			if err := svc.Git.MergeBranchWithCommit(wt.Path, sourceBranch, commitMsg, false); err != nil {
+				return fmt.Errorf("failed to merge %s into worktree: %w", sourceBranch, err)
+			}
+			PrintSuccess(fmt.Sprintf("Merged '%s' into '%s'", sourceBranch, targetBranch))
+		}
+	}
+
 	// Copy files from source worktrees based on config rules
 	if err := svc.CopyFilesToWorktree(state.WorktreeName); err != nil {
 		PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
@@ -269,4 +333,37 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 	}
 
 	return nil
+}
+
+// processMergeState populates WorktreeName, BranchName, and BaseBranch from merge custom fields.
+func processMergeState(state *tui.WorkflowState) error {
+	sourceBranch := getCustomField(state, "source_branch")
+	targetBranch := getCustomField(state, "target_branch")
+
+	if sourceBranch == "" || targetBranch == "" {
+		return fmt.Errorf("source and target branches are required")
+	}
+
+	// Sanitize branch names for use in names
+	sourceSanitized := sanitizeForName(sourceBranch)
+	targetSanitized := sanitizeForName(targetBranch)
+
+	state.WorktreeName = fmt.Sprintf("MERGE_%s-to-%s", sourceSanitized, targetSanitized)
+	state.BranchName = fmt.Sprintf("merge/%s-to-%s", sourceSanitized, targetSanitized)
+	state.BaseBranch = targetBranch
+
+	return nil
+}
+
+func getCustomField(state *tui.WorkflowState, key string) string {
+	if v := state.GetField(key); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func sanitizeForName(name string) string {
+	return strings.ReplaceAll(name, "/", "_")
 }
