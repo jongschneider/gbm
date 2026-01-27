@@ -12,7 +12,7 @@ Task Completion Status:
 - [x] Save/discard flows work correctly from Basics section
 - [x] JIRA enable/disable toggle works and shows/hides subsections
 - [x] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
-- [ ] FileCopy Rules table renders with add/edit/delete modals
+- [x] FileCopy Rules table renders with add/edit/delete modals
 - [ ] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
 - [ ] Worktrees table with add/edit/delete modals
 - [ ] Validation error overlays appear on invalid save attempts
@@ -57,3 +57,16 @@ Completed Items:
      - Tests verify all subsections render and return values
      - Field improvements: Added SetValue() to Confirm, fixed TextInput.GetValue() to return pre-populated defaults
      - All 17 JiraForm tests passing
+
+     8. FileCopy Rules Table with Add/Edit/Delete Modals:
+     - Created FileCopyForm component (pkg/tui/config/filecopy_form.go)
+     - Table displays source_worktree and files columns using existing Table component
+     - ModalState enum tracks current modal (None, Add, Edit, Delete, Discard)
+     - 'a' key opens Add modal with source_worktree and files fields
+     - 'e' key opens Edit modal with pre-populated values from selected rule
+     - 'd' key opens Delete confirmation modal
+     - Escape in modal closes modal without changes
+     - Save/discard flows match existing form patterns
+     - Helper functions: formatFilesPreview(), parseFilesList()
+     - Tests: 15 tests covering render, modals, save/delete/discard flows
+     - All tests passing

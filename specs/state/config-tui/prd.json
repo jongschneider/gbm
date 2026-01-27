@@ -114,7 +114,7 @@
         "Confirm delete: rule removed from table and config",
         "Press Escape in modal: modal closes without changes"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
