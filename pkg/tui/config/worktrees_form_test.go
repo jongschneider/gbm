@@ -11,10 +11,10 @@ import (
 
 func TestWorktreesForm_NewWorktreesForm(t *testing.T) {
 	testCases := []struct {
-		config    WorktreesFormConfig
 		expect    func(t *testing.T, form *WorktreesForm)
 		expectErr func(t *testing.T, err error)
 		name      string
+		config    WorktreesFormConfig
 	}{
 		{
 			name: "creates form with empty worktrees",

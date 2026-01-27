@@ -194,7 +194,7 @@
         "Reset button discards all in-memory changes and reloads from file",
         "Config state persists across all navigation without loss"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "testing",

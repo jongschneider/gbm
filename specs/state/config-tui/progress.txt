@@ -18,7 +18,7 @@ Task Completion Status:
 - [ ] Validation error overlays appear on invalid save attempts
 - [ ] Dark and light themes both render correctly
 - [ ] Help screen shows keyboard shortcuts via ? key
-- [ ] All sections integrated in one ConfigModel with persistent state
+- [x] All sections integrated in one ConfigModel with persistent state
 - [ ] Storybook covers >80% of components/sections in multiple states
 - [ ] Unit tests >80% coverage for core ConfigModel and field validation
 - [ ] E2E happy path test: load config → edit → save → verify file
@@ -98,3 +98,23 @@ Completed Items:
      - Save/discard flows match existing form patterns
      - Tests: 25 tests covering render, modals, validation, save/delete/discard flows
      - All tests passing
+
+11. All Sections Integrated in One ConfigModel with Persistent State:
+     - Added ConfigState struct to hold all editable config values in memory
+     - ConfigState includes: Basics (DefaultBranch, WorktreesDir), JIRA settings (14 fields), FileCopyRules, Worktrees
+     - Added FormFactory callback pattern to avoid import cycles between pkg/tui and pkg/tui/config
+     - ConfigModel options: WithInitialState, WithOnSave, WithOnReset, WithFormFactory
+     - ConfigModel handles SidebarSelectionMsg to create and push section forms
+     - ConfigModel handles BackBoundaryMsg to pop forms and return to sidebar
+     - Forms update shared state via OnSave callbacks - edits persist across navigation
+     - Global 's' key at sidebar saves all changes to .gbm/config.yaml
+     - Global 'r' key at sidebar resets in-memory state from file
+     - config_cmd.go: configToState() and stateToConfig() convert between Config and ConfigState
+     - View shows help footer at sidebar level: "↑↓=navigate  Enter=select  s=save  r=reset  q=quit [modified]"
+     - Dirty state tracking shows [modified] indicator when changes are pending
+     - Tests: 12 new tests covering state, form factory, navigation, reset, save, dirty tracking
+     - All tests passing
+     **Learnings:**
+     - Used FormFactory callback pattern to avoid import cycles (pkg/tui can't import pkg/tui/config)
+     - JiraFilters struct uses `Type` field, not `IssueType`
+     - State conversions between service.Config and tui.ConfigState happen in cmd/service layer
