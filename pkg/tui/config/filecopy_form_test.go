@@ -479,3 +479,111 @@ func TestParseFilesList(t *testing.T) {
 		})
 	}
 }
+
+func TestFileCopyForm_OpenFilePicker(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	config := FileCopyFormConfig{
+		Rules: nil,
+		Theme: tui.DefaultTheme(),
+	}
+
+	form := NewFileCopyForm(config)
+	model := newFileCopyFormModel(form)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return len(bts) > 0
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, ModalAdd, form.GetModalState(), "Add modal should be shown")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	time.Sleep(50 * time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, ModalFilePicker, form.GetModalState(), "FilePicker modal should be shown")
+}
+
+func TestFileCopyForm_FilePickerEscapeReturnsToEditModal(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	config := FileCopyFormConfig{
+		Rules: nil,
+		Theme: tui.DefaultTheme(),
+	}
+
+	form := NewFileCopyForm(config)
+	model := newFileCopyFormModel(form)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return len(bts) > 0
+	}, teatest.WithDuration(time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	time.Sleep(50 * time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	time.Sleep(50 * time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, ModalFilePicker, form.GetModalState(), "FilePicker modal should be shown")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, ModalAdd, form.GetModalState(), "Should return to Add modal")
+}
+
+func TestContainsPath(t *testing.T) {
+	testCases := []struct {
+		name   string
+		paths  []string
+		path   string
+		expect func(t *testing.T, got bool)
+	}{
+		{
+			name:  "empty paths",
+			paths: []string{},
+			path:  "/test",
+			expect: func(t *testing.T, got bool) {
+				assert.False(t, got)
+			},
+		},
+		{
+			name:  "path exists",
+			paths: []string{"/path1", "/path2"},
+			path:  "/path2",
+			expect: func(t *testing.T, got bool) {
+				assert.True(t, got)
+			},
+		},
+		{
+			name:  "path does not exist",
+			paths: []string{"/path1", "/path2"},
+			path:  "/path3",
+			expect: func(t *testing.T, got bool) {
+				assert.False(t, got)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := containsPath(tc.paths, tc.path)
+			tc.expect(t, got)
+		})
+	}
+}

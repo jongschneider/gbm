@@ -32,24 +32,27 @@ const (
 	ModalEdit
 	ModalDelete
 	ModalDiscard
+	ModalFilePicker
 )
 
 // FileCopyForm renders a table of file copy rules with add/edit/delete modals.
 type FileCopyForm struct {
-	theme         *tui.Theme
-	onSave        func(rules []FileCopyRule) error
-	table         *tui.Table
-	rules         []FileCopyRule
-	modalState    ModalState
-	editingIdx    int
-	width         int
-	height        int
-	submitted     bool
-	cancelled     bool
-	sourceField   tui.Field
-	filesField    tui.Field
-	confirmField  tui.Field
-	modalFocusIdx int
+	theme           *tui.Theme
+	onSave          func(rules []FileCopyRule) error
+	table           *tui.Table
+	rules           []FileCopyRule
+	modalState      ModalState
+	prevModalState  ModalState
+	editingIdx      int
+	width           int
+	height          int
+	submitted       bool
+	cancelled       bool
+	sourceField     tui.Field
+	filesField      tui.Field
+	confirmField    tui.Field
+	filepickerField *fields.FilePicker
+	modalFocusIdx   int
 }
 
 // NewFileCopyForm creates a new FileCopy configuration form.
@@ -122,6 +125,8 @@ func (f *FileCopyForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f.handleDeleteModal(msg)
 	case ModalDiscard:
 		return f.handleDiscardModal(msg)
+	case ModalFilePicker:
+		return f.handleFilePickerModal(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -224,7 +229,7 @@ func (f *FileCopyForm) initModalFields(source, filesStr string) {
 	filesFieldPtr := fields.NewTextInput(
 		"files",
 		"Files",
-		"Files to copy (comma-separated, e.g., .env, config/)",
+		"Files to copy (comma-separated, or press 'b' to browse)",
 	)
 	f.filesField = filesFieldPtr.
 		WithDefault(filesStr).
@@ -260,6 +265,10 @@ func (f *FileCopyForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.modalState = ModalNone
 		f.editingIdx = -1
 		return f, nil
+	}
+
+	if keyMsg.String() == "b" && f.modalFocusIdx == 1 {
+		return f.openFilePicker()
 	}
 
 	newField, cmd := f.focusedModalField().Update(keyMsg)
@@ -385,6 +394,91 @@ func (f *FileCopyForm) handleDiscardModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return f, cmd
 }
 
+// openFilePicker opens the file picker modal.
+func (f *FileCopyForm) openFilePicker() (tea.Model, tea.Cmd) {
+	f.prevModalState = f.modalState
+	f.modalState = ModalFilePicker
+
+	f.filepickerField = fields.NewFilePicker(
+		"files",
+		"Select Files",
+		"Navigate and select files to copy",
+	)
+	f.filepickerField = f.filepickerField.
+		WithDirAllowed(true).
+		WithMultiSelect(true).
+		WithTheme(f.theme).(*fields.FilePicker)
+
+	if f.height > 0 {
+		f.filepickerField = f.filepickerField.WithHeight(f.height - 4).(*fields.FilePicker)
+	}
+
+	return f, f.filepickerField.Focus()
+}
+
+// handleFilePickerModal processes input in the file picker modal.
+func (f *FileCopyForm) handleFilePickerModal(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.Type {
+		case tea.KeyEsc:
+			f.modalState = f.prevModalState
+			return f, f.filesField.Focus()
+
+		case tea.KeyEnter:
+			selectedFiles := f.filepickerField.GetSelectedFiles()
+			if len(selectedFiles) > 0 {
+				currentFilesVal, _ := f.filesField.GetValue().(string)
+				var existingFiles []string
+				if currentFilesVal != "" {
+					existingFiles = parseFilesList(currentFilesVal)
+				}
+
+				for _, file := range selectedFiles {
+					if !containsPath(existingFiles, file) {
+						existingFiles = append(existingFiles, file)
+					}
+				}
+
+				newFilesStr := strings.Join(existingFiles, ", ")
+
+				filesFieldPtr := fields.NewTextInput(
+					"files",
+					"Files",
+					"Files to copy (comma-separated, or press 'b' to browse)",
+				)
+				f.filesField = filesFieldPtr.
+					WithDefault(newFilesStr).
+					WithTheme(f.theme)
+			}
+
+			f.modalState = f.prevModalState
+			return f, f.filesField.Focus()
+		}
+	}
+
+	newField, cmd := f.filepickerField.Update(msg)
+	if fp, ok := newField.(*fields.FilePicker); ok {
+		f.filepickerField = fp
+	}
+
+	if f.filepickerField.IsCancelled() {
+		f.modalState = f.prevModalState
+		return f, f.filesField.Focus()
+	}
+
+	return f, cmd
+}
+
+// containsPath checks if a path exists in a slice.
+func containsPath(paths []string, path string) bool {
+	for _, p := range paths {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
+
 // save persists the rules via the OnSave callback.
 func (f *FileCopyForm) save() (tea.Model, tea.Cmd) {
 	if f.onSave != nil {
@@ -424,6 +518,8 @@ func (f *FileCopyForm) View() string {
 		return f.confirmField.View()
 	case ModalDiscard:
 		return f.confirmField.View()
+	case ModalFilePicker:
+		return f.filepickerField.View()
 	}
 
 	lines := []string{
@@ -452,7 +548,7 @@ func (f *FileCopyForm) renderEditModal(title string) string {
 		"",
 		f.filesField.View(),
 		"",
-		f.theme.Blurred.Description.Render("Tab=next field, Enter=confirm, Esc=cancel"),
+		f.theme.Blurred.Description.Render("Tab=next  b=browse files  Enter=confirm  Esc=cancel"),
 	}
 	return strings.Join(lines, "\n")
 }

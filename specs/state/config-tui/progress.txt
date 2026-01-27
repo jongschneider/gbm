@@ -13,7 +13,7 @@ Task Completion Status:
 - [x] JIRA enable/disable toggle works and shows/hides subsections
 - [x] JIRA subsections (Server, Filters, Attachments, Markdown) render with all fields editable
 - [x] FileCopy Rules table renders with add/edit/delete modals
-- [ ] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
+- [x] Filepicker navigation works (↑↓, Enter to select, Escape to cancel)
 - [ ] Worktrees table with add/edit/delete modals
 - [ ] Validation error overlays appear on invalid save attempts
 - [ ] Dark and light themes both render correctly
@@ -69,4 +69,17 @@ Completed Items:
      - Save/discard flows match existing form patterns
      - Helper functions: formatFilesPreview(), parseFilesList()
      - Tests: 15 tests covering render, modals, save/delete/discard flows
+     - All tests passing
+
+9. Filepicker Navigation:
+     - Created FilePicker field component (pkg/tui/fields/filepicker.go)
+     - Wraps charmbracelet/bubbles/filepicker for consistent Field interface
+     - Added ModalFilePicker state to FileCopyForm
+     - Press 'b' in Files field to open filepicker modal
+     - ↑↓ navigates file tree, → opens dirs, ← goes to parent
+     - Enter selects file(s) and adds to files list
+     - Escape cancels filepicker and returns to rule form
+     - Multi-select mode with Space to add files, Enter to confirm
+     - Selected files display in filepicker view and populate files field
+     - Tests: 24 FilePicker unit tests, 2 integration tests for FileCopyForm
      - All tests passing

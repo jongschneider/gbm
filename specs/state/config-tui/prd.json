@@ -128,7 +128,7 @@
         "Multiple files can be selected per rule",
         "Selected files display in rule summary"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "functional",
