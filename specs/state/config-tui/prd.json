@@ -223,7 +223,7 @@
         "File copy tests: rule add/edit/delete, filepicker selection",
         "Check coverage report: pkg/tui/config/* shows >80% coverage"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "category": "testing",
