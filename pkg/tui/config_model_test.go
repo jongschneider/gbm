@@ -13,20 +13,25 @@ func TestConfigModel_Create(t *testing.T) {
 		name   string
 	}{
 		{
-			name: "creates with sidebar as initial model",
+			name: "creates with sidebar and theme",
 			expect: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
 				assert.NotNil(t, m.sidebar)
-				assert.NotNil(t, m.nav)
 				assert.NotNil(t, m.theme)
 			},
 		},
 		{
-			name: "navigator has sidebar on stack",
+			name: "creates with form cache",
 			expect: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
-				assert.Equal(t, 1, m.nav.Depth())
-				assert.Equal(t, m.sidebar, m.nav.Current())
+				assert.NotNil(t, m.formCache)
+			},
+		},
+		{
+			name: "starts with sidebar focused",
+			expect: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Equal(t, SidebarFocused, m.paneFocus)
 			},
 		},
 		{
@@ -63,36 +68,54 @@ func TestConfigModel_WithFormFactory(t *testing.T) {
 	factoryCalled := false
 	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 		factoryCalled = true
-		return nil
+		return &configTestMockModel{}
 	}
 
-	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
-
-	// Simulate sidebar selection
-	m.Update(SidebarSelectionMsg{Section: "Basics"})
+	// Factory is called during construction to create initial form
+	_ = NewConfigModel(DefaultTheme(), WithFormFactory(factory))
 
 	assert.True(t, factoryCalled)
 }
 
-func TestConfigModel_SidebarSelection_PushesForm(t *testing.T) {
-	// Create a simple mock form
+func TestConfigModel_SidebarSelection_FocusesContent(t *testing.T) {
 	mockForm := &configTestMockModel{}
 	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 		return mockForm
 	}
 
 	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
-	assert.Equal(t, 1, m.nav.Depth())
+	assert.Equal(t, SidebarFocused, m.paneFocus)
 
-	// Simulate sidebar selection
+	// Simulate sidebar selection (Enter key)
 	m.Update(SidebarSelectionMsg{Section: "Basics"})
 
-	// Form should be pushed onto navigator
-	assert.Equal(t, 2, m.nav.Depth())
-	assert.Equal(t, mockForm, m.nav.Current())
+	// Focus should move to content
+	assert.Equal(t, ContentFocused, m.paneFocus)
 }
 
-func TestConfigModel_BackBoundary_PopsForm(t *testing.T) {
+func TestConfigModel_SidebarSelectionChanged_UpdatesPreview(t *testing.T) {
+	callCount := 0
+	var lastSection string
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		callCount++
+		lastSection = section
+		return &configTestMockModel{}
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	initialCallCount := callCount
+
+	// Simulate selection changed (up/down navigation)
+	m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+
+	// Factory should be called for new section
+	assert.Greater(t, callCount, initialCallCount)
+	assert.Equal(t, "JIRA", lastSection)
+	// Focus should remain on sidebar
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+}
+
+func TestConfigModel_BackBoundary_FocusesSidebar(t *testing.T) {
 	mockForm := &configTestMockModel{}
 	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 		return mockForm
@@ -100,14 +123,86 @@ func TestConfigModel_BackBoundary_PopsForm(t *testing.T) {
 
 	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
 
-	// Push form
+	// Focus content
 	m.Update(SidebarSelectionMsg{Section: "Basics"})
-	assert.Equal(t, 2, m.nav.Depth())
+	assert.Equal(t, ContentFocused, m.paneFocus)
 
-	// Back should pop
+	// Back should focus sidebar
 	m.Update(BackBoundaryMsg{})
-	assert.Equal(t, 1, m.nav.Depth())
-	assert.Equal(t, m.sidebar, m.nav.Current())
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+}
+
+func TestConfigModel_FocusTransitions_LKey(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+
+	// 'l' should focus content
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	assert.Equal(t, ContentFocused, m.paneFocus)
+}
+
+func TestConfigModel_FocusTransitions_RightKey(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+
+	// Right arrow should focus content
+	m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	assert.Equal(t, ContentFocused, m.paneFocus)
+}
+
+func TestConfigModel_FocusTransitions_HKey(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
+	assert.Equal(t, ContentFocused, m.paneFocus)
+
+	// 'h' should focus sidebar
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+}
+
+func TestConfigModel_FocusTransitions_LeftKey(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
+	assert.Equal(t, ContentFocused, m.paneFocus)
+
+	// Left arrow should focus sidebar
+	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	assert.Equal(t, SidebarFocused, m.paneFocus)
+}
+
+func TestConfigModel_FocusTransitions_EscKey(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
+	assert.Equal(t, ContentFocused, m.paneFocus)
+
+	// Esc should focus sidebar
+	m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	assert.Equal(t, SidebarFocused, m.paneFocus)
 }
 
 func TestConfigModel_DirtyState(t *testing.T) {
@@ -163,9 +258,21 @@ func TestConfigModel_Accessors(t *testing.T) {
 	m := NewConfigModel(DefaultTheme())
 
 	assert.Equal(t, m.sidebar, m.GetSidebar())
-	assert.Equal(t, m.nav, m.GetNavigator())
 	assert.Equal(t, m.theme, m.GetTheme())
+	assert.Equal(t, m.paneFocus, m.GetPaneFocus())
 	assert.NotNil(t, m.GetState())
+}
+
+func TestConfigModel_GetCurrentForm(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+
+	// Should have a current form (created during init for first section)
+	assert.NotNil(t, m.GetCurrentForm())
 }
 
 func TestConfigModel_WindowSize(t *testing.T) {
@@ -176,17 +283,37 @@ func TestConfigModel_WindowSize(t *testing.T) {
 
 	assert.Equal(t, 100, m.width)
 	assert.Equal(t, 50, m.height)
-	assert.Equal(t, 100, m.sidebar.width)
-	assert.Equal(t, 50, m.sidebar.height)
+	// Sidebar gets ~25% of width (max 30)
+	assert.LessOrEqual(t, m.sidebar.width, 30)
 }
 
 func TestConfigModel_View(t *testing.T) {
 	m := NewConfigModel(DefaultTheme())
+	// Send WindowSizeMsg to initialize viewports
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	view := m.View()
 
-	// Should render sidebar initially
+	// Should render sidebar
 	assert.NotEmpty(t, view)
 	assert.Contains(t, view, "Basics")
+}
+
+func TestConfigModel_View_TwoPaneLayout(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	// Send WindowSizeMsg to initialize viewports
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	view := m.View()
+
+	// Should contain sidebar content
+	assert.Contains(t, view, "Basics")
+	// Should contain form content
+	assert.Contains(t, view, "mock")
 }
 
 func TestConfigModel_Help_ShowsOnQuestionMark(t *testing.T) {
@@ -247,10 +374,62 @@ func TestConfigModel_Help_ViewShowsOverlay(t *testing.T) {
 
 func TestConfigModel_View_ContainsHelpHint(t *testing.T) {
 	m := NewConfigModel(DefaultTheme())
+	// Send WindowSizeMsg to initialize viewports
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	view := m.View()
 
 	// Footer should mention '?' for help
 	assert.Contains(t, view, "?=help")
+}
+
+func TestConfigModel_FormCache(t *testing.T) {
+	callCount := 0
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		callCount++
+		return &configTestMockModel{}
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+	initialCount := callCount
+
+	// Navigate to JIRA section
+	m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+	afterJira := callCount
+
+	// Navigate back to Basics
+	m.Update(SidebarSelectionChangedMsg{Section: "Basics"})
+	afterBasics := callCount
+
+	// Navigate back to JIRA - should use cache
+	m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+	afterJira2 := callCount
+
+	// Factory was called for initial Basics, then for JIRA
+	assert.Greater(t, afterJira, initialCount)
+	// Factory was not called again for Basics (already cached)
+	assert.Equal(t, afterJira, afterBasics)
+	// Factory was not called again for JIRA (already cached)
+	assert.Equal(t, afterBasics, afterJira2)
+}
+
+func TestConfigModel_SidebarFocusState(t *testing.T) {
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+
+	// Initially sidebar is focused
+	assert.True(t, m.sidebar.IsFocused())
+
+	// Focus content
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	assert.False(t, m.sidebar.IsFocused())
+
+	// Focus sidebar
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	assert.True(t, m.sidebar.IsFocused())
 }
 
 // configTestMockModel is a simple mock tea.Model for testing.
@@ -259,3 +438,5 @@ type configTestMockModel struct{}
 func (m *configTestMockModel) Init() tea.Cmd                       { return nil }
 func (m *configTestMockModel) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
 func (m *configTestMockModel) View() string                        { return "mock" }
+func (m *configTestMockModel) Focus() tea.Cmd                      { return nil }
+func (m *configTestMockModel) Blur() tea.Cmd                       { return nil }

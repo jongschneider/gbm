@@ -384,6 +384,17 @@ func (f *BasicsForm) ShowConfirmDiscard() bool {
 	return f.showConfirmDiscard
 }
 
+// Focus gives the form keyboard focus and focuses the first field.
+func (f *BasicsForm) Focus() tea.Cmd {
+	return f.focusedField().Focus()
+}
+
+// Blur removes keyboard focus from the form and all its fields.
+func (f *BasicsForm) Blur() tea.Cmd {
+	f.focusedField().Blur()
+	return nil
+}
+
 // focusedField returns the currently focused field.
 func (f *BasicsForm) focusedField() tui.Field {
 	if f.focusedFieldIdx == 0 {
@@ -401,3 +412,27 @@ func (f *BasicsForm) updateFocusedField(field tui.Field) {
 		f.worktreesDirField = field
 	}
 }
+
+// FocusedYOffset returns the line number where the focused field starts.
+// This implements the tui.FocusReporter interface for auto-scrolling support.
+func (f *BasicsForm) FocusedYOffset() int {
+	// Count lines helper
+	countLines := func(s string) int {
+		return strings.Count(s, "\n") + 1
+	}
+
+	// Title + empty line = 2 lines
+	lineCount := 2
+
+	// Field 0: defaultBranchField
+	if f.focusedFieldIdx == 0 {
+		return lineCount
+	}
+	lineCount += countLines(f.defaultBranchField.View()) + 1 // field + empty line
+
+	// Field 1: worktreesDirField
+	return lineCount
+}
+
+// Ensure BasicsForm implements tui.FocusReporter.
+var _ tui.FocusReporter = (*BasicsForm)(nil)

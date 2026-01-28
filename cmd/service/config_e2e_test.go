@@ -85,11 +85,11 @@ func TestConfigTUI_E2E_HappyPath(t *testing.T) {
 	assert.False(t, model.IsDirty())
 
 	// === Step 1: Navigate to Basics section ===
-	// Send SidebarSelectionMsg to select Basics
+	// Send SidebarSelectionMsg to select Basics (this focuses the content pane)
 	model.Update(tui.SidebarSelectionMsg{Section: "Basics"})
 
-	// Verify form was pushed (navigator depth should be 2)
-	assert.Equal(t, 2, model.GetNavigator().Depth())
+	// Verify focus moved to content pane
+	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
 	// === Step 2: Edit the state directly (simulating form edits) ===
 	// In a real TUI, the BasicsForm would update state via its OnSave callback
@@ -103,7 +103,7 @@ func TestConfigTUI_E2E_HappyPath(t *testing.T) {
 
 	// === Step 3: Return to sidebar ===
 	model.Update(tui.BackBoundaryMsg{})
-	assert.Equal(t, 1, model.GetNavigator().Depth())
+	assert.Equal(t, tui.SidebarFocused, model.GetPaneFocus())
 
 	// === Step 4: Save via 's' key ===
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
@@ -174,7 +174,7 @@ func TestConfigTUI_E2E_EditJira(t *testing.T) {
 
 	// Navigate to JIRA section
 	model.Update(tui.SidebarSelectionMsg{Section: "JIRA"})
-	assert.Equal(t, 2, model.GetNavigator().Depth())
+	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
 	// Edit JIRA settings (simulating form edits)
 	state := model.GetState()
@@ -256,7 +256,7 @@ func TestConfigTUI_E2E_EditFileCopyRules(t *testing.T) {
 
 	// Navigate to FileCopy section
 	model.Update(tui.SidebarSelectionMsg{Section: "FileCopy"})
-	assert.Equal(t, 2, model.GetNavigator().Depth())
+	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
 	// Add file copy rules (simulating form edits)
 	state := model.GetState()
@@ -336,7 +336,7 @@ func TestConfigTUI_E2E_EditWorktrees(t *testing.T) {
 
 	// Navigate to Worktrees section
 	model.Update(tui.SidebarSelectionMsg{Section: "Worktrees"})
-	assert.Equal(t, 2, model.GetNavigator().Depth())
+	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
 	// Add worktree entries (simulating form edits)
 	state := model.GetState()

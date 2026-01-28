@@ -11,6 +11,116 @@ import (
 	storybook "github.com/jongschneider/storybook-go"
 )
 
+// configModelStory creates stories for the ConfigModel two-pane layout.
+func configModelStory() storybook.Story {
+	return storybook.Story{
+		Name:        "ConfigModel",
+		Description: "Two-pane config TUI with sidebar and content",
+		Variants: []storybook.Variant{
+			{
+				Name: "BasicsSection",
+				Factory: func(_ ...storybook.Args) tea.Model {
+					return newConfigModelWrapper("Basics")
+				},
+			},
+			{
+				Name: "JIRASection",
+				Factory: func(_ ...storybook.Args) tea.Model {
+					return newConfigModelWrapper("JIRA")
+				},
+			},
+			{
+				Name: "FileCopySection",
+				Factory: func(_ ...storybook.Args) tea.Model {
+					return newConfigModelWrapper("FileCopy")
+				},
+			},
+			{
+				Name: "WorktreesSection",
+				Factory: func(_ ...storybook.Args) tea.Model {
+					return newConfigModelWrapper("Worktrees")
+				},
+			},
+			{
+				Name: "ContentFocused",
+				Factory: func(_ ...storybook.Args) tea.Model {
+					return newConfigModelWrapper("Basics")
+				},
+				Play: func(pc *storybook.PlayContext) {
+					// Press 'l' to focus content
+					pc.Key("l")
+					pc.Wait(200 * time.Millisecond)
+				},
+			},
+		},
+	}
+}
+
+func newConfigModelWrapper(initialSection string) *configModelWrapper {
+	theme := tui.DefaultTheme()
+
+	formFactory := func(section string, state *tui.ConfigState, t *tui.Theme, onUpdate func()) tea.Model {
+		switch section {
+		case "JIRA":
+			return config.NewJiraForm(config.JiraFormConfig{
+				Theme:    t,
+				Enabled:  true,
+				Host:     "https://jira.example.com",
+				Username: "user@example.com",
+			})
+		case "FileCopy":
+			return config.NewFileCopyForm(config.FileCopyFormConfig{
+				Theme: t,
+				Rules: []config.FileCopyRule{
+					{SourceWorktree: "main", Files: []string{".env", ".env.local"}},
+				},
+			})
+		case "Worktrees":
+			return config.NewWorktreesForm(config.WorktreesFormConfig{
+				Theme: t,
+				Worktrees: []config.WorktreeEntry{
+					{Name: "main", Branch: "main", MergeInto: "", Description: "Main branch"},
+				},
+			})
+		default:
+			return config.NewBasicsForm(config.BasicsFormConfig{
+				Theme:         t,
+				DefaultBranch: "main",
+				WorktreesDir:  "./worktrees",
+			})
+		}
+	}
+
+	model := tui.NewConfigModel(theme, tui.WithFormFactory(formFactory))
+
+	// Navigate to the desired section
+	if initialSection != "Basics" {
+		model.Update(tui.SidebarSelectionChangedMsg{Section: initialSection})
+	}
+
+	return &configModelWrapper{model: model}
+}
+
+type configModelWrapper struct {
+	model *tui.ConfigModel
+}
+
+func (m *configModelWrapper) Init() tea.Cmd {
+	return m.model.Init()
+}
+
+func (m *configModelWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	newModel, cmd := m.model.Update(msg)
+	if cm, ok := newModel.(*tui.ConfigModel); ok {
+		m.model = cm
+	}
+	return m, cmd
+}
+
+func (m *configModelWrapper) View() string {
+	return m.model.View()
+}
+
 // sidebarStory creates stories for the Sidebar component.
 func sidebarStory() storybook.Story {
 	return storybook.Story{

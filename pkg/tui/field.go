@@ -33,6 +33,15 @@ type Field interface {
 	GetValue() any
 }
 
+// FocusReporter is an optional interface that forms can implement to report
+// the Y position of the currently focused field. This enables auto-scrolling
+// in viewport containers.
+type FocusReporter interface {
+	// FocusedYOffset returns the line number (0-indexed) where the focused
+	// field starts in the rendered View() output.
+	FocusedYOffset() int
+}
+
 // NextStepMsg signals that the current field is complete and the wizard should advance.
 type NextStepMsg struct{}
 

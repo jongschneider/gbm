@@ -23,6 +23,7 @@ type Sidebar struct {
 	focusedIdx int
 	width      int
 	height     int
+	focused    bool // Whether the sidebar has keyboard focus
 }
 
 // NewSidebar creates a new Sidebar with default sections.
@@ -40,6 +41,7 @@ func NewSidebar(theme *Theme) *Sidebar {
 		focusedIdx: 0,
 		theme:      theme,
 		hasErrors:  make(map[string]bool),
+		focused:    true, // Sidebar is focused by default
 	}
 }
 
@@ -56,11 +58,19 @@ func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyUp:
 			if s.focusedIdx > 0 {
 				s.focusedIdx--
+				// Emit selection changed message for preview mode
+				return s, func() tea.Msg {
+					return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
+				}
 			}
 			return s, nil
 		case tea.KeyDown:
 			if s.focusedIdx < len(s.sections)-1 {
 				s.focusedIdx++
+				// Emit selection changed message for preview mode
+				return s, func() tea.Msg {
+					return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
+				}
 			}
 			return s, nil
 		case tea.KeyLeft:
@@ -72,7 +82,7 @@ func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.sections[s.focusedIdx].Expanded = true
 			return s, nil
 		case tea.KeyEnter:
-			// Emit message that this section was selected
+			// Emit message that this section was selected (for focus change)
 			return s, func() tea.Msg {
 				return SidebarSelectionMsg{Section: s.sections[s.focusedIdx].Name}
 			}
@@ -101,7 +111,7 @@ func (s *Sidebar) View() string {
 }
 
 // renderSection renders a single section with expand/collapse indicator.
-func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
+func (s *Sidebar) renderSection(section SidebarSection, selected bool) string {
 	indicator := "▸"
 	if section.Expanded {
 		indicator = "▾"
@@ -114,11 +124,31 @@ func (s *Sidebar) renderSection(section SidebarSection, focused bool) string {
 		label += " ⚠"
 	}
 
-	// Apply focus styling
-	if focused {
-		return s.theme.Focused.Title.Render(label)
+	// Apply styling based on selection and focus state
+	if selected {
+		if s.focused {
+			// Selected and sidebar has focus - use focused style
+			return s.theme.Focused.Title.Render(label)
+		}
+		// Selected but sidebar doesn't have focus - use blurred selection style
+		return s.theme.SidebarSelectedBlurred.Render(label)
 	}
 	return s.theme.Blurred.Title.Render(label)
+}
+
+// Focus gives the sidebar keyboard focus.
+func (s *Sidebar) Focus() {
+	s.focused = true
+}
+
+// Blur removes keyboard focus from the sidebar.
+func (s *Sidebar) Blur() {
+	s.focused = false
+}
+
+// IsFocused returns whether the sidebar has keyboard focus.
+func (s *Sidebar) IsFocused() bool {
+	return s.focused
 }
 
 // FocusedSection returns the currently focused section name.
@@ -174,8 +204,15 @@ func (s *Sidebar) WithHeight(height int) *Sidebar {
 	return s
 }
 
-// SidebarSelectionMsg is sent when a section is selected.
+// SidebarSelectionMsg is sent when a section is selected (Enter key).
+// This triggers focus change to the content pane.
 type SidebarSelectionMsg struct {
+	Section string
+}
+
+// SidebarSelectionChangedMsg is sent when the selection changes (up/down navigation).
+// This is used for preview mode where content updates without focus change.
+type SidebarSelectionChangedMsg struct {
 	Section string
 }
 

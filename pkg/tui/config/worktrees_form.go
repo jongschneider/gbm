@@ -521,4 +521,44 @@ func (f *WorktreesForm) GetModalState() WorktreeModalState {
 	return f.modalState
 }
 
+// Focus gives the form keyboard focus.
+func (f *WorktreesForm) Focus() tea.Cmd {
+	return f.table.Init()
+}
+
+// Blur removes keyboard focus from the form.
+func (f *WorktreesForm) Blur() tea.Cmd {
+	return nil
+}
+
+// FocusedYOffset returns the line number where the focused element starts.
+// This implements the tui.FocusReporter interface for auto-scrolling support.
+func (f *WorktreesForm) FocusedYOffset() int {
+	// Count lines helper
+	countLines := func(s string) int {
+		return strings.Count(s, "\n") + 1
+	}
+
+	// In modal mode, focus is on form fields
+	if f.modalState == WorktreeModalAdd || f.modalState == WorktreeModalEdit {
+		lineCount := 2 // Title + empty line
+
+		formFields := []tui.Field{f.nameField, f.branchField, f.mergeIntoField, f.descriptionField}
+		for i, field := range formFields {
+			if f.modalFocusIdx == i {
+				return lineCount
+			}
+			lineCount += countLines(field.View()) + 1 // field + empty line
+		}
+		return lineCount
+	}
+
+	// In normal view, the table handles its own scrolling
+	// Return position after title
+	return 2
+}
+
 var _ tea.Model = (*WorktreesForm)(nil)
+
+// Ensure WorktreesForm implements tui.FocusReporter.
+var _ tui.FocusReporter = (*WorktreesForm)(nil)

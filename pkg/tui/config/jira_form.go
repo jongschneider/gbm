@@ -714,5 +714,73 @@ func (f *JiraForm) Enabled() bool {
 	return f.enabled
 }
 
+// Focus gives the form keyboard focus and focuses the first field.
+func (f *JiraForm) Focus() tea.Cmd {
+	return f.focusedField().Focus()
+}
+
+// Blur removes keyboard focus from the form and all its fields.
+func (f *JiraForm) Blur() tea.Cmd {
+	f.focusedField().Blur()
+	return nil
+}
+
+// FocusedYOffset returns the line number where the focused field starts.
+// This implements the tui.FocusReporter interface for auto-scrolling support.
+func (f *JiraForm) FocusedYOffset() int {
+	lineCount := 0
+
+	// Count lines helper
+	countLines := func(s string) int {
+		return strings.Count(s, "\n") + 1
+	}
+
+	// Title + empty line
+	lineCount += 2 // "JIRA Configuration" + ""
+
+	// Enable field (index 0)
+	if f.focusedFieldIdx == 0 {
+		return lineCount
+	}
+	lineCount += countLines(f.enableField.View()) + 1 // field + empty line
+
+	// If disabled, no more fields to count
+	if !f.enabled {
+		return lineCount
+	}
+
+	// Define field groups with section headers
+	type fieldGroup struct {
+		header string
+		fields []tui.Field
+	}
+
+	groups := []fieldGroup{
+		{"Server Configuration", []tui.Field{f.serverHostField, f.serverUserField, f.serverTokenField}},
+		{"Filters", []tui.Field{f.filtersStatusField, f.filtersPriorityField, f.filtersTypeField}},
+		{"Attachments", []tui.Field{f.attachmentsEnabledField, f.attachmentsMaxSizeField, f.attachmentsDirField}},
+		{"Markdown", []tui.Field{f.markdownIncludeCommentsField, f.markdownIncludeAttachmentsField, f.markdownUseRelativeLinksField, f.markdownFilenamePatternField}},
+	}
+
+	fieldIdx := 1 // Start after enable field
+	for _, group := range groups {
+		// Section header + empty line
+		lineCount += 2
+
+		for _, field := range group.fields {
+			if f.focusedFieldIdx == fieldIdx {
+				return lineCount
+			}
+			lineCount += countLines(field.View()) + 1 // field + empty line
+			fieldIdx++
+		}
+	}
+
+	return lineCount
+}
+
 // Ensure JiraForm implements tea.Model.
 var _ tea.Model = (*JiraForm)(nil)
+
+// Ensure JiraForm implements tui.FocusReporter.
+var _ tui.FocusReporter = (*JiraForm)(nil)

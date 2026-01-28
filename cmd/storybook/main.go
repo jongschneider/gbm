@@ -29,6 +29,7 @@ func main() {
 	registry.Register(wizardStory())
 
 	// Register Config TUI stories
+	registry.Register(configModelStory())
 	registry.Register(sidebarStory())
 	registry.Register(basicsFormStory())
 	registry.Register(jiraFormStory())

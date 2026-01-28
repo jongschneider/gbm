@@ -608,5 +608,45 @@ func (f *FileCopyForm) GetModalState() ModalState {
 	return f.modalState
 }
 
+// Focus gives the form keyboard focus.
+func (f *FileCopyForm) Focus() tea.Cmd {
+	return f.table.Init()
+}
+
+// Blur removes keyboard focus from the form.
+func (f *FileCopyForm) Blur() tea.Cmd {
+	return nil
+}
+
+// FocusedYOffset returns the line number where the focused element starts.
+// This implements the tui.FocusReporter interface for auto-scrolling support.
+func (f *FileCopyForm) FocusedYOffset() int {
+	// Count lines helper
+	countLines := func(s string) int {
+		return strings.Count(s, "\n") + 1
+	}
+
+	// In modal mode, focus is on form fields
+	if f.modalState == ModalAdd || f.modalState == ModalEdit {
+		lineCount := 2 // Title + empty line
+
+		// sourceField is first (modalFocusIdx == 0)
+		if f.modalFocusIdx == 0 {
+			return lineCount
+		}
+		lineCount += countLines(f.sourceField.View()) + 1
+
+		// filesField is second (modalFocusIdx == 1)
+		return lineCount
+	}
+
+	// In normal view, the table handles its own scrolling
+	// Return position after title
+	return 2
+}
+
 // Ensure FileCopyForm implements tea.Model.
 var _ tea.Model = (*FileCopyForm)(nil)
+
+// Ensure FileCopyForm implements tui.FocusReporter.
+var _ tui.FocusReporter = (*FileCopyForm)(nil)

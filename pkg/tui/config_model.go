@@ -1,7 +1,19 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// PaneFocus represents which pane currently has keyboard focus.
+type PaneFocus int
+
+const (
+	// SidebarFocused means the sidebar has keyboard focus.
+	SidebarFocused PaneFocus = iota
+	// ContentFocused means the content pane has keyboard focus.
+	ContentFocused
 )
 
 // ConfigState holds all editable config values in memory.
@@ -96,19 +108,25 @@ func WithFormFactory(factory FormFactory) ConfigModelOption {
 }
 
 // ConfigModel is the root model for the config TUI.
-// It manages navigation between Sidebar and section forms using Navigator.
+// It manages a two-pane layout with sidebar on the left and content form on the right.
 // It holds the in-memory config state that sections can modify.
+// Each pane uses a viewport for independent scrolling within terminal height.
 type ConfigModel struct {
-	sidebar     *Sidebar
-	nav         *Navigator
-	theme       *Theme
-	state       *ConfigState
-	onSave      func(*ConfigState) error
-	onReset     func() (*ConfigState, error)
-	formFactory FormFactory
-	helpOverlay *HelpOverlay
-	width       int
-	height      int
+	sidebar         *Sidebar
+	theme           *Theme
+	state           *ConfigState
+	onSave          func(*ConfigState) error
+	onReset         func() (*ConfigState, error)
+	formFactory     FormFactory
+	helpOverlay     *HelpOverlay
+	currentForm     tea.Model
+	formCache       map[string]tea.Model
+	sidebarViewport viewport.Model
+	contentViewport viewport.Model
+	paneFocus       PaneFocus
+	width           int
+	height          int
+	ready           bool // true after first WindowSizeMsg
 }
 
 // NewConfigModel creates a new ConfigModel with a Sidebar as the initial view.
@@ -118,103 +136,290 @@ func NewConfigModel(theme *Theme, opts ...ConfigModelOption) *ConfigModel {
 	}
 
 	sidebar := NewSidebar(theme)
-	navigator := NewNavigator(sidebar)
 
 	m := &ConfigModel{
-		sidebar: sidebar,
-		nav:     navigator,
-		theme:   theme,
-		state:   &ConfigState{}, // Empty state by default
+		sidebar:   sidebar,
+		theme:     theme,
+		state:     &ConfigState{}, // Empty state by default
+		formCache: make(map[string]tea.Model),
+		paneFocus: SidebarFocused,
 	}
 
 	for _, opt := range opts {
 		opt(m)
 	}
 
+	// Initialize the first form for the initial sidebar selection
+	m.currentForm = m.getOrCreateForm(sidebar.FocusedSection())
+
 	return m
 }
 
 // Init implements tea.Model.
 func (m *ConfigModel) Init() tea.Cmd {
-	return m.nav.Init()
+	cmds := []tea.Cmd{m.sidebar.Init()}
+	if m.currentForm != nil {
+		cmds = append(cmds, m.currentForm.Init())
+	}
+	// Focus the sidebar initially
+	m.sidebar.Focus()
+	return tea.Batch(cmds...)
 }
 
 // Update implements tea.Model.
 func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.sidebar.WithWidth(msg.Width).WithHeight(msg.Height)
-		// Propagate to navigator
-		_, cmd := m.nav.Update(msg)
-		return m, cmd
+		return m.handleWindowSize(msg)
 
 	case tea.KeyMsg:
 		// Handle help overlay if showing
 		if m.helpOverlay != nil {
 			return m.handleHelpOverlay(msg)
 		}
+		return m.handleKeyMsg(msg)
 
-		// Handle global keys when at sidebar level
-		if m.nav.Depth() == 1 {
-			switch msg.String() {
-			case "?":
-				return m.showHelp()
-			case "r":
-				return m.handleReset()
-			case "s":
-				return m.handleSave()
-			case "q", "ctrl+c":
-				return m, tea.Quit
-			}
-		}
+	case SidebarSelectionChangedMsg:
+		// Preview mode - update content without focus change
+		m.currentForm = m.getOrCreateForm(msg.Section)
+		return m, nil
 
 	case SidebarSelectionMsg:
-		return m.handleSidebarSelection(msg)
+		// Enter pressed in sidebar - focus the content pane
+		return m.focusContent()
 
 	case BackBoundaryMsg:
-		return m.handleBackBoundary()
+		// Content requested to go back - focus the sidebar
+		return m.focusSidebar()
 
 	case configSavedMsg:
-		// Form saved its data to state, pop back to sidebar
-		return m.handleBackBoundary()
+		// Form saved its data to state, focus sidebar
+		return m.focusSidebar()
 	}
 
-	// Delegate to navigator
-	_, cmd := m.nav.Update(msg)
-	return m, cmd
+	// Delegate to the appropriate pane based on focus
+	return m.delegateToFocusedPane(msg)
 }
 
 // configSavedMsg signals that a form saved its data to state.
 type configSavedMsg struct{}
 
-// handleSidebarSelection creates and pushes the appropriate form.
-func (m *ConfigModel) handleSidebarSelection(msg SidebarSelectionMsg) (tea.Model, tea.Cmd) {
-	if m.formFactory == nil {
-		return m, nil
+// handleWindowSize updates dimensions on terminal resize.
+func (m *ConfigModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
+	m.width = msg.Width
+	m.height = msg.Height
+
+	// Calculate pane widths and content height (reserve 1 line for footer)
+	sidebarWidth, contentWidth := m.calculatePaneWidths()
+	contentHeight := msg.Height - 1
+
+	// Update sidebar dimensions
+	m.sidebar.WithWidth(sidebarWidth).WithHeight(contentHeight)
+
+	// Initialize or resize viewports
+	if !m.ready {
+		// First time - create viewports
+		m.sidebarViewport = viewport.New(sidebarWidth, contentHeight)
+		m.contentViewport = viewport.New(contentWidth, contentHeight)
+		m.ready = true
+	} else {
+		// Resize existing viewports
+		m.sidebarViewport.Width = sidebarWidth
+		m.sidebarViewport.Height = contentHeight
+		m.contentViewport.Width = contentWidth
+		m.contentViewport.Height = contentHeight
 	}
 
+	// Propagate to current form if it exists
+	var cmd tea.Cmd
+	if m.currentForm != nil {
+		contentSizeMsg := tea.WindowSizeMsg{Width: contentWidth, Height: contentHeight}
+		m.currentForm, cmd = m.currentForm.Update(contentSizeMsg)
+	}
+
+	return m, cmd
+}
+
+// handleKeyMsg processes keyboard input.
+func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Global keys work in both panes
+	switch msg.String() {
+	case "?":
+		return m.showHelp()
+	case "s":
+		return m.handleSave()
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	}
+
+	// Focus-specific navigation
+	if m.paneFocus == SidebarFocused {
+		switch msg.String() {
+		case "l", "right":
+			return m.focusContent()
+		case "r":
+			return m.handleReset()
+		}
+		// Delegate to sidebar
+		newSidebar, cmd := m.sidebar.Update(msg)
+		if s, ok := newSidebar.(*Sidebar); ok {
+			m.sidebar = s
+		}
+		return m, cmd
+	}
+
+	// Content pane has focus
+	switch msg.String() {
+	case "h", "left":
+		return m.focusSidebar()
+	case "esc":
+		return m.focusSidebar()
+	case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
+		// Scroll keys go to viewport
+		var cmd tea.Cmd
+		m.contentViewport, cmd = m.contentViewport.Update(msg)
+		return m, cmd
+	}
+
+	// Delegate to current form
+	if m.currentForm != nil {
+		newForm, cmd := m.currentForm.Update(msg)
+		m.currentForm = newForm
+		// Auto-scroll to keep focused field visible
+		m.scrollToFocusedField()
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+// delegateToFocusedPane passes messages to the currently focused pane.
+func (m *ConfigModel) delegateToFocusedPane(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle mouse events for viewport scrolling
+	if _, ok := msg.(tea.MouseMsg); ok {
+		if m.paneFocus == ContentFocused {
+			var cmd tea.Cmd
+			m.contentViewport, cmd = m.contentViewport.Update(msg)
+			return m, cmd
+		}
+	}
+
+	if m.paneFocus == SidebarFocused {
+		newSidebar, cmd := m.sidebar.Update(msg)
+		if s, ok := newSidebar.(*Sidebar); ok {
+			m.sidebar = s
+		}
+		return m, cmd
+	}
+
+	if m.currentForm != nil {
+		newForm, cmd := m.currentForm.Update(msg)
+		m.currentForm = newForm
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+// focusContent moves focus from sidebar to content pane.
+func (m *ConfigModel) focusContent() (tea.Model, tea.Cmd) {
+	m.paneFocus = ContentFocused
+	m.sidebar.Blur()
+
+	var cmd tea.Cmd
+	if m.currentForm != nil {
+		if focusable, ok := m.currentForm.(interface{ Focus() tea.Cmd }); ok {
+			cmd = focusable.Focus()
+		}
+	}
+	return m, cmd
+}
+
+// focusSidebar moves focus from content pane to sidebar.
+func (m *ConfigModel) focusSidebar() (tea.Model, tea.Cmd) {
+	m.paneFocus = SidebarFocused
+
+	if m.currentForm != nil {
+		if blurrable, ok := m.currentForm.(interface{ Blur() tea.Cmd }); ok {
+			blurrable.Blur()
+		}
+	}
+
+	m.sidebar.Focus()
+	return m, nil
+}
+
+// scrollToFocusedField adjusts the content viewport to keep the focused field visible.
+// If the form implements FocusReporter, it uses the reported position.
+func (m *ConfigModel) scrollToFocusedField() {
+	if m.currentForm == nil || !m.ready {
+		return
+	}
+
+	// Check if form implements FocusReporter interface
+	reporter, ok := m.currentForm.(FocusReporter)
+	if !ok {
+		return
+	}
+
+	focusLine := reporter.FocusedYOffset()
+	if focusLine < 0 {
+		return
+	}
+
+	// Ensure the focused line is visible in the viewport
+	// Add some padding (2 lines) so the focused field isn't at the very edge
+	viewportHeight := m.contentViewport.Height
+	currentOffset := m.contentViewport.YOffset
+	padding := 2
+
+	// If focused line is below the visible area, scroll down
+	if focusLine >= currentOffset+viewportHeight-padding {
+		m.contentViewport.SetYOffset(focusLine - viewportHeight + padding + 1)
+	}
+
+	// If focused line is above the visible area, scroll up
+	if focusLine < currentOffset+padding {
+		newOffset := max(focusLine-padding, 0)
+		m.contentViewport.SetYOffset(newOffset)
+	}
+}
+
+// getOrCreateForm returns the cached form for a section, or creates a new one.
+func (m *ConfigModel) getOrCreateForm(section string) tea.Model {
+	if m.formFactory == nil {
+		return nil
+	}
+
+	// Check cache first
+	if form, ok := m.formCache[section]; ok {
+		return form
+	}
+
+	// Create new form
 	onUpdate := func() {
 		m.state.dirty = true
 	}
 
-	form := m.formFactory(msg.Section, m.state, m.theme, onUpdate)
-	if form == nil {
-		return m, nil
+	form := m.formFactory(section, m.state, m.theme, onUpdate)
+	if form != nil {
+		m.formCache[section] = form
 	}
 
-	m.nav.Push(form)
-	return m, form.Init()
+	return form
 }
 
-// handleBackBoundary pops the current form and returns to sidebar.
-func (m *ConfigModel) handleBackBoundary() (tea.Model, tea.Cmd) {
-	if m.nav.Depth() > 1 {
-		m.nav.Pop()
-		return m, m.nav.Current().Init()
+// calculatePaneWidths returns the widths for sidebar and content panes.
+func (m *ConfigModel) calculatePaneWidths() (sidebarWidth, contentWidth int) {
+	if m.width < 40 {
+		// Very narrow terminal - give more to sidebar
+		sidebarWidth = m.width / 2
+	} else {
+		// Normal terminal - ~25% for sidebar
+		sidebarWidth = min(max(m.width/4, 20), 30)
 	}
-	return m, nil
+	contentWidth = m.width - sidebarWidth - 3 // Account for border
+	return
 }
 
 // handleReset reloads config from file.
@@ -270,24 +475,69 @@ func (m *ConfigModel) handleHelpOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m *ConfigModel) View() string {
-	// Show help overlay if active
+	// Show help overlay if active (full screen)
 	if m.helpOverlay != nil {
 		return m.helpOverlay.View()
 	}
 
-	view := m.nav.View()
-
-	// Add help footer when at sidebar level
-	if m.nav.Depth() == 1 {
-		dirtyIndicator := ""
-		if m.IsDirty() {
-			dirtyIndicator = " [modified]"
-		}
-		help := m.theme.Blurred.Description.Render("↑↓=navigate  Enter=select  s=save  r=reset  ?=help  q=quit" + dirtyIndicator)
-		view = view + "\n\n" + help
+	// Before first WindowSizeMsg, show loading state
+	if !m.ready {
+		return "Loading..."
 	}
 
-	return view
+	// Calculate pane widths
+	sidebarWidth, contentWidth := m.calculatePaneWidths()
+
+	// Set sidebar content in viewport
+	m.sidebarViewport.SetContent(m.sidebar.View())
+
+	// Set content pane content in viewport
+	contentView := ""
+	if m.currentForm != nil {
+		contentView = m.currentForm.View()
+	} else {
+		contentView = m.theme.Blurred.Description.Render("Select a section from the sidebar")
+	}
+	m.contentViewport.SetContent(contentView)
+
+	// Create sidebar style with right border
+	sidebarStyle := lipgloss.NewStyle().
+		Width(sidebarWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderRight(true).
+		BorderForeground(m.theme.Border)
+
+	// Create content style
+	contentStyle := lipgloss.NewStyle().
+		Width(contentWidth).
+		PaddingLeft(1)
+
+	// Join panes horizontally - viewports handle their own heights
+	mainView := lipgloss.JoinHorizontal(lipgloss.Top,
+		sidebarStyle.Render(m.sidebarViewport.View()),
+		contentStyle.Render(m.contentViewport.View()))
+
+	// Add footer
+	footer := m.renderFooter()
+
+	return mainView + "\n" + footer
+}
+
+// renderFooter renders the help footer with context-sensitive hints.
+func (m *ConfigModel) renderFooter() string {
+	dirtyIndicator := ""
+	if m.IsDirty() {
+		dirtyIndicator = " [modified]"
+	}
+
+	var helpText string
+	if m.paneFocus == SidebarFocused {
+		helpText = "↑↓=navigate  l/→=enter  s=save  r=reset  ?=help  q=quit"
+	} else {
+		helpText = "h/←/Esc=back  Tab=next  PgUp/Dn=scroll  s=save  ?=help  q=quit"
+	}
+
+	return m.theme.Blurred.Description.Render(helpText + dirtyIndicator)
 }
 
 // GetSidebar returns the sidebar component.
@@ -295,9 +545,14 @@ func (m *ConfigModel) GetSidebar() *Sidebar {
 	return m.sidebar
 }
 
-// GetNavigator returns the navigator.
-func (m *ConfigModel) GetNavigator() *Navigator {
-	return m.nav
+// GetPaneFocus returns which pane currently has focus.
+func (m *ConfigModel) GetPaneFocus() PaneFocus {
+	return m.paneFocus
+}
+
+// GetCurrentForm returns the current form being displayed.
+func (m *ConfigModel) GetCurrentForm() tea.Model {
+	return m.currentForm
 }
 
 // GetTheme returns the current theme.
