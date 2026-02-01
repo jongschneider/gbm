@@ -605,7 +605,7 @@ func (m *worktreeListModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 			filtered = append(filtered, wt)
 		}
 	}
-	m.worktrees = filtered
+	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedBranches)
 
 	// Rebuild rows
 	rows := make([]table.Row, 0, len(m.worktrees))
@@ -634,14 +634,14 @@ func (m *worktreeListModel) refreshWorktreeList() {
 		return
 	}
 
-	// Filter out bare worktrees
+	// Filter out bare worktrees and sort
 	var filtered []git.Worktree
 	for _, wt := range worktrees {
 		if !wt.IsBare {
 			filtered = append(filtered, wt)
 		}
 	}
-	m.worktrees = filtered
+	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedBranches)
 
 	// Rebuild rows
 	rows := make([]table.Row, 0, len(m.worktrees))
