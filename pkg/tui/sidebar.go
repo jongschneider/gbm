@@ -54,25 +54,21 @@ func (s *Sidebar) Init() tea.Cmd {
 func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle j/k vim-style navigation
+		if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+			switch msg.Runes[0] {
+			case 'k':
+				return s.moveUp()
+			case 'j':
+				return s.moveDown()
+			}
+		}
+
 		switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 		case tea.KeyUp:
-			if s.focusedIdx > 0 {
-				s.focusedIdx--
-				// Emit selection changed message for preview mode
-				return s, func() tea.Msg {
-					return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
-				}
-			}
-			return s, nil
+			return s.moveUp()
 		case tea.KeyDown:
-			if s.focusedIdx < len(s.sections)-1 {
-				s.focusedIdx++
-				// Emit selection changed message for preview mode
-				return s, func() tea.Msg {
-					return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
-				}
-			}
-			return s, nil
+			return s.moveDown()
 		case tea.KeyLeft:
 			// Collapse focused section
 			s.sections[s.focusedIdx].Expanded = false
@@ -190,6 +186,28 @@ func (s *Sidebar) findSectionIndex(name string) int {
 		}
 	}
 	return -1
+}
+
+// moveUp moves focus to the previous section.
+func (s *Sidebar) moveUp() (tea.Model, tea.Cmd) {
+	if s.focusedIdx > 0 {
+		s.focusedIdx--
+		return s, func() tea.Msg {
+			return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
+		}
+	}
+	return s, nil
+}
+
+// moveDown moves focus to the next section.
+func (s *Sidebar) moveDown() (tea.Model, tea.Cmd) {
+	if s.focusedIdx < len(s.sections)-1 {
+		s.focusedIdx++
+		return s, func() tea.Msg {
+			return SidebarSelectionChangedMsg{Section: s.sections[s.focusedIdx].Name}
+		}
+	}
+	return s, nil
 }
 
 // WithWidth sets the sidebar width.

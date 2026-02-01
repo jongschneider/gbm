@@ -86,6 +86,38 @@ func TestSidebar_Navigation(t *testing.T) {
 				sb.focusedIdx = 0
 			},
 		},
+		{
+			name:     "j key moves focus down (vim-style)",
+			input:    tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}},
+			expected: 1,
+			setupFunc: func(sb *Sidebar) {
+				sb.focusedIdx = 0
+			},
+		},
+		{
+			name:     "k key moves focus up (vim-style)",
+			input:    tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}},
+			expected: 1,
+			setupFunc: func(sb *Sidebar) {
+				sb.focusedIdx = 2
+			},
+		},
+		{
+			name:     "j key at bottom stays at end",
+			input:    tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}},
+			expected: 3,
+			setupFunc: func(sb *Sidebar) {
+				sb.focusedIdx = 3
+			},
+		},
+		{
+			name:     "k key at top stays at 0",
+			input:    tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}},
+			expected: 0,
+			setupFunc: func(sb *Sidebar) {
+				sb.focusedIdx = 0
+			},
+		},
 	}
 
 	for _, tc := range testCases {

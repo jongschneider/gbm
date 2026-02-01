@@ -70,8 +70,8 @@ func (c *Confirm) Update(msg tea.Msg) (tui.Field, tea.Cmd) {
 	case "right", "l":
 		c.selected = false // Select No (on the right)
 
-	// Toggle with tab
-	case "tab":
+	// Toggle with tab or space
+	case "tab", " ":
 		c.selected = !c.selected
 
 	// Shortcut keys: y for Yes, n for No (immediate submit)

@@ -40,13 +40,21 @@ func NewHelpOverlay() *HelpOverlay {
 func defaultShortcuts() []ShortcutGroup {
 	return []ShortcutGroup{
 		{
-			Name: "Navigation",
+			Name: "Navigation (Normal Mode)",
 			Shortcuts: []Shortcut{
-				{Key: "↑/↓", Description: "Move up/down"},
-				{Key: "Enter", Description: "Select/confirm"},
+				{Key: "h/l", Description: "Sidebar/content"},
+				{Key: "j/k", Description: "Move down/up"},
 				{Key: "Tab", Description: "Next field"},
 				{Key: "Shift+Tab", Description: "Previous field"},
-				{Key: "Esc", Description: "Cancel/go back"},
+				{Key: "Space", Description: "Toggle Yes/No"},
+				{Key: "Enter", Description: "Select/confirm"},
+			},
+		},
+		{
+			Name: "Text Editing (Vim-style)",
+			Shortcuts: []Shortcut{
+				{Key: "i", Description: "Enter insert mode"},
+				{Key: "Esc", Description: "Exit insert mode"},
 			},
 		},
 		{

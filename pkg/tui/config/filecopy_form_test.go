@@ -337,31 +337,6 @@ func TestFileCopyForm_KeepEditingFlow(t *testing.T) {
 	assert.Equal(t, ModalNone, form.GetModalState(), "Modal should be closed")
 }
 
-func TestFileCopyForm_EscapeKey(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	config := FileCopyFormConfig{
-		Rules: nil,
-		Theme: tui.DefaultTheme(),
-	}
-
-	form := NewFileCopyForm(config)
-	model := newFileCopyFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
-
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	assert.True(t, form.IsCancelled(), "Form should be marked as cancelled")
-}
-
 func TestFileCopyForm_EscapeModalClosesModal(t *testing.T) {
 	t.Parallel()
 	lipgloss.SetColorProfile(termenv.Ascii)

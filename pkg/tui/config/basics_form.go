@@ -35,6 +35,7 @@ type BasicsForm struct {
 	showConfirmDiscard   bool
 	showValidationErrors bool
 	showHelp             bool
+	insertMode           bool // vim-style insert mode for text inputs
 }
 
 // NewBasicsForm creates a new Basics configuration form.
@@ -206,16 +207,39 @@ func (f *BasicsForm) handleDiscardConfirmation(msg tea.Msg) (tea.Model, tea.Cmd)
 
 // handleKeyMsg processes keyboard input for form navigation and actions.
 func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Insert mode: pass all keys to the field except Esc
+	if f.insertMode {
+		if msg.Type == tea.KeyEsc {
+			f.insertMode = false
+			return f, nil
+		}
+		// Pass key to the focused field
+		field, cmd := f.focusedField().Update(msg)
+		f.updateFocusedField(field)
+		return f, cmd
+	}
+
+	// Normal mode (vim-style navigation)
+
+	// Handle vim-style keys in normal mode
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+		switch msg.Runes[0] {
+		case 'j':
+			return f.nextField()
+		case 'k':
+			return f.prevField()
+		case 'i':
+			f.insertMode = true
+			return f, nil
+		}
+	}
+
 	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
-		f.focusedField().Blur()
-		f.focusedFieldIdx = (f.focusedFieldIdx + 1) % 2
-		return f, f.focusedField().Focus()
+		return f.nextField()
 
 	case tea.KeyShiftTab:
-		f.focusedField().Blur()
-		f.focusedFieldIdx = (f.focusedFieldIdx - 1 + 2) % 2
-		return f, f.focusedField().Focus()
+		return f.prevField()
 
 	case tea.KeyEnter:
 		if f.focusedFieldIdx == 1 {
@@ -224,21 +248,36 @@ func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return tui.NextStepMsg{}
 			}
 		}
-		f.focusedField().Blur()
-		f.focusedFieldIdx = (f.focusedFieldIdx + 1) % 2
-		return f, f.focusedField().Focus()
-
-	case tea.KeyEsc:
-		f.cancelled = true
-		return f, func() tea.Msg {
-			return tui.BackBoundaryMsg{}
-		}
+		return f.nextField()
 
 	case tea.KeyRunes:
 		return f.handleRuneKey(msg)
 	}
 
 	return f, nil
+}
+
+// nextField moves focus to the next field.
+func (f *BasicsForm) nextField() (tea.Model, tea.Cmd) {
+	f.focusedField().Blur()
+	f.focusedFieldIdx = (f.focusedFieldIdx + 1) % 2
+	return f, f.focusedField().Focus()
+}
+
+// prevField moves focus to the previous field.
+func (f *BasicsForm) prevField() (tea.Model, tea.Cmd) {
+	f.focusedField().Blur()
+	f.focusedFieldIdx = (f.focusedFieldIdx - 1 + 2) % 2
+	return f, f.focusedField().Focus()
+}
+
+// updateFocusedField updates the focused field after Update.
+func (f *BasicsForm) updateFocusedField(field tui.Field) {
+	if f.focusedFieldIdx == 0 {
+		f.defaultBranchField = field
+	} else {
+		f.worktreesDirField = field
+	}
 }
 
 // handleRuneKey processes character input (s for save, q for quit, ? for help).
@@ -402,15 +441,6 @@ func (f *BasicsForm) focusedField() tui.Field {
 	}
 
 	return f.worktreesDirField
-}
-
-// updateFocusedField updates the focused field after Update.
-func (f *BasicsForm) updateFocusedField(field tui.Field) {
-	if f.focusedFieldIdx == 0 {
-		f.defaultBranchField = field
-	} else {
-		f.worktreesDirField = field
-	}
 }
 
 // FocusedYOffset returns the line number where the focused field starts.

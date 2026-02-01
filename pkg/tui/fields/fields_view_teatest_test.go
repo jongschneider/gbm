@@ -396,6 +396,40 @@ func TestConfirm_Interactive_Toggle(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
 
+// TestConfirm_SpacebarToggle tests spacebar toggling using teatest.
+func TestConfirm_SpacebarToggle(t *testing.T) {
+	c := NewConfirm("test", "Continue?")
+	model := newFieldModel(c, 10)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
+
+	// Initial state should be Yes selected
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Continue?"))
+	}, teatest.WithDuration(time.Second))
+
+	assert.True(t, c.selected, "initial selection should be Yes")
+
+	// Press space to toggle to No
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
+	time.Sleep(2 * time.Millisecond)
+
+	assert.False(t, c.selected, "after space, selection should be No")
+
+	// Press space again to toggle back to Yes
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
+	time.Sleep(2 * time.Millisecond)
+
+	assert.True(t, c.selected, "after second space, selection should be Yes again")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+}
+
 // =============================================================================
 // TT-008: Filterable Enter selection tests
 // =============================================================================.

@@ -19,7 +19,8 @@ func TestHelpOverlay_NewHelpOverlay(t *testing.T) {
 	for i, g := range overlay.Groups() {
 		groupNames[i] = g.Name
 	}
-	assert.Contains(t, groupNames, "Navigation")
+	assert.Contains(t, groupNames, "Navigation (Normal Mode)")
+	assert.Contains(t, groupNames, "Text Editing (Vim-style)")
 	assert.Contains(t, groupNames, "Sidebar")
 	assert.Contains(t, groupNames, "Table Forms")
 	assert.Contains(t, groupNames, "Modals")
@@ -165,7 +166,7 @@ func TestHelpOverlay_View_ContainsShortcuts(t *testing.T) {
 	view := overlay.View()
 
 	// Check some key shortcuts are present
-	assert.Contains(t, view, "↑/↓")
+	assert.Contains(t, view, "j/k")
 	assert.Contains(t, view, "Enter")
 	assert.Contains(t, view, "Tab")
 	assert.Contains(t, view, "Esc")

@@ -190,21 +190,6 @@ func TestConfigModel_FocusTransitions_LeftKey(t *testing.T) {
 	assert.Equal(t, SidebarFocused, m.paneFocus)
 }
 
-func TestConfigModel_FocusTransitions_EscKey(t *testing.T) {
-	mockForm := &configTestMockModel{}
-	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
-		return mockForm
-	}
-
-	m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
-	assert.Equal(t, ContentFocused, m.paneFocus)
-
-	// Esc should focus sidebar
-	m.Update(tea.KeyMsg{Type: tea.KeyEscape})
-	assert.Equal(t, SidebarFocused, m.paneFocus)
-}
-
 func TestConfigModel_DirtyState(t *testing.T) {
 	m := NewConfigModel(DefaultTheme())
 

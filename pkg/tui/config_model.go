@@ -269,10 +269,9 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Content pane has focus
+	// Note: Esc is NOT intercepted here - forms handle it (exit insert mode or emit BackBoundaryMsg)
 	switch msg.String() {
 	case "h", "left":
-		return m.focusSidebar()
-	case "esc":
 		return m.focusSidebar()
 	case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
 		// Scroll keys go to viewport

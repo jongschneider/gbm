@@ -64,6 +64,7 @@ type JiraForm struct {
 	showConfirmDiscard              bool
 	showValidationErrors            bool
 	showHelp                        bool
+	insertMode                      bool // vim-style insert mode for text inputs
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -429,93 +430,128 @@ func (f *JiraForm) View() string {
 
 // handleKeyMsg processes keyboard input.
 func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
-	case tea.KeyTab:
-		// Navigate to next field based on enabled state
-		f.focusedField().Blur()
-		if f.enabled {
-			// Can navigate through all fields (1-13 when enabled, always include enable field 0)
-			maxFields := 14 // enable + 3 server + 3 filters + 3 attachments + 4 markdown
-			f.focusedFieldIdx = (f.focusedFieldIdx + 1) % maxFields
-		} else {
-			// Only enable field
-			f.focusedFieldIdx = 0
-		}
-		return f, f.focusedField().Focus()
+	// Insert mode: pass all keys to the field except Esc
+	if f.insertMode {
+		return f.handleInsertMode(msg)
+	}
 
-	case tea.KeyShiftTab:
-		f.focusedField().Blur()
-		if f.enabled {
-			maxFields := 14
-			f.focusedFieldIdx = (f.focusedFieldIdx - 1 + maxFields) % maxFields
-		} else {
-			f.focusedFieldIdx = 0
-		}
-		return f, f.focusedField().Focus()
+	// Normal mode (vim-style navigation)
+	if model, cmd, handled := f.handleNormalModeKeys(msg); handled {
+		return model, cmd
+	}
 
-	case tea.KeyEsc:
-		f.cancelled = true
-		return f, func() tea.Msg {
-			return tui.BackBoundaryMsg{}
-		}
+	return f.handleNavigationKeys(msg)
+}
 
-	case tea.KeyRunes:
-		if len(msg.Runes) == 0 {
-			return f, nil
+// handleInsertMode processes keys when in insert mode.
+func (f *JiraForm) handleInsertMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.Type == tea.KeyEsc {
+		f.insertMode = false
+		return f, nil
+	}
+	// Pass key to the focused field
+	field, cmd := f.focusedField().Update(msg)
+	f.updateFocusedField(field)
+	return f, cmd
+}
+
+// handleNormalModeKeys handles vim-style keys and special commands in normal mode.
+// Returns (model, cmd, true) if key was handled, or (nil, nil, false) to continue processing.
+func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
+	_, isTextInput := f.focusedField().(*fields.TextInput)
+
+	// Pass space through to Confirm fields for toggling
+	if msg.String() == " " {
+		if _, ok := f.focusedField().(*fields.Confirm); ok {
+			field, cmd := f.focusedField().Update(msg)
+			f.updateFocusedField(field)
+			return f, cmd, true
 		}
+	}
+
+	// Handle vim-style keys and commands
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 		switch msg.Runes[0] {
+		case 'j':
+			m, cmd := f.nextField()
+			return m, cmd, true
+		case 'k':
+			m, cmd := f.prevField()
+			return m, cmd, true
+		case 'i':
+			if isTextInput {
+				f.insertMode = true
+				return f, nil, true
+			}
 		case '?':
 			f.showHelp = true
 			f.helpOverlay = tui.NewHelpOverlay().
 				WithTheme(f.theme).
 				WithWidth(f.width).
 				WithHeight(f.height)
-			return f, nil
-
+			return f, nil, true
 		case 's':
-			// Validate all fields before saving (only when enabled)
-			if f.enabled {
-				errs := f.Validate()
-				if len(errs) > 0 {
-					f.showValidationErrors = true
-					f.validationOverlay = fields.NewValidationOverlay(errs).
-						WithTheme(f.theme).
-						WithWidth(f.width).
-						WithHeight(f.height)
-					return f, nil
-				}
-			}
-
-			// Save
-			if f.onSave != nil {
-				data := f.GetValue()
-				err := f.onSave(data)
-				if err != nil {
-					// Show save error as validation error
-					f.showValidationErrors = true
-					f.validationOverlay = fields.NewValidationOverlay([]string{err.Error()}).
-						WithTheme(f.theme).
-						WithTitle("Save Error").
-						WithWidth(f.width).
-						WithHeight(f.height)
-					return f, nil
-				}
-			}
-			f.submitted = true
-			return f, func() tea.Msg {
-				return tui.BackBoundaryMsg{}
-			}
-
+			return f.handleSave()
 		case 'q':
-			// Show discard confirmation
-			f.showConfirmDiscard = true
-			discardConfirm := fields.NewConfirm("discard", "Discard unsaved changes?")
-			f.discardField = discardConfirm.WithTheme(f.theme)
-			return f, f.discardField.Focus()
+			return f.handleQuit()
 		}
 	}
 
+	return nil, nil, false
+}
+
+// handleNavigationKeys handles Tab and Shift+Tab keys.
+func (f *JiraForm) handleNavigationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
+	case tea.KeyTab:
+		return f.nextField()
+	case tea.KeyShiftTab:
+		return f.prevField()
+	}
 	return f, nil
+}
+
+// handleSave validates and saves the form.
+func (f *JiraForm) handleSave() (tea.Model, tea.Cmd, bool) {
+	// Validate all fields before saving (only when enabled)
+	if f.enabled {
+		errs := f.Validate()
+		if len(errs) > 0 {
+			f.showValidationErrors = true
+			f.validationOverlay = fields.NewValidationOverlay(errs).
+				WithTheme(f.theme).
+				WithWidth(f.width).
+				WithHeight(f.height)
+			return f, nil, true
+		}
+	}
+
+	// Save
+	if f.onSave != nil {
+		data := f.GetValue()
+		err := f.onSave(data)
+		if err != nil {
+			f.showValidationErrors = true
+			f.validationOverlay = fields.NewValidationOverlay([]string{err.Error()}).
+				WithTheme(f.theme).
+				WithTitle("Save Error").
+				WithWidth(f.width).
+				WithHeight(f.height)
+			return f, nil, true
+		}
+	}
+	f.submitted = true
+	return f, func() tea.Msg {
+		return tui.BackBoundaryMsg{}
+	}, true
+}
+
+// handleQuit shows the discard confirmation dialog.
+func (f *JiraForm) handleQuit() (tea.Model, tea.Cmd, bool) {
+	f.showConfirmDiscard = true
+	discardConfirm := fields.NewConfirm("discard", "Discard unsaved changes?")
+	f.discardField = discardConfirm.WithTheme(f.theme)
+	return f, f.discardField.Focus(), true
 }
 
 // handleWindowSize updates dimensions on terminal resize.
@@ -619,6 +655,30 @@ func (f *JiraForm) focusedField() tui.Field {
 		return allFields[f.focusedFieldIdx]
 	}
 	return f.enableField
+}
+
+// nextField moves focus to the next field.
+func (f *JiraForm) nextField() (tea.Model, tea.Cmd) {
+	f.focusedField().Blur()
+	if f.enabled {
+		maxFields := 14
+		f.focusedFieldIdx = (f.focusedFieldIdx + 1) % maxFields
+	} else {
+		f.focusedFieldIdx = 0
+	}
+	return f, f.focusedField().Focus()
+}
+
+// prevField moves focus to the previous field.
+func (f *JiraForm) prevField() (tea.Model, tea.Cmd) {
+	f.focusedField().Blur()
+	if f.enabled {
+		maxFields := 14
+		f.focusedFieldIdx = (f.focusedFieldIdx - 1 + maxFields) % maxFields
+	} else {
+		f.focusedFieldIdx = 0
+	}
+	return f, f.focusedField().Focus()
 }
 
 // updateFocusedField updates the focused field after Update.
