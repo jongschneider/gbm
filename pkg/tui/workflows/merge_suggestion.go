@@ -109,3 +109,66 @@ func excludeSourceBranch(branches []fields.Option, sourceBranch string) []fields
 	}
 	return result
 }
+
+// GetTrackedBranches builds a set of tracked branch names from the config.
+// Returns an empty map if config is nil or has no worktrees.
+func GetTrackedBranches(cfg tui.RepoConfig) map[string]bool {
+	tracked := make(map[string]bool)
+	if cfg == nil {
+		return tracked
+	}
+
+	worktrees := cfg.GetWorktrees()
+	if worktrees == nil {
+		return tracked
+	}
+
+	for _, wt := range worktrees {
+		if wt == nil {
+			continue
+		}
+		if branch := wt.GetBranch(); branch != "" {
+			tracked[branch] = true
+		}
+	}
+	return tracked
+}
+
+// SortBranchOptionsByTracked sorts branch options, placing tracked branches first.
+// Tracked branches are those that have a worktree entry in the config.
+// Within each group (tracked and non-tracked), the original order is preserved.
+//
+// Parameters:
+// - branches: List of available branch options
+// - cfg: Repository configuration containing worktree definitions
+//
+// Returns:
+// - Sorted list with tracked branches first, then non-tracked branches.
+func SortBranchOptionsByTracked(branches []fields.Option, cfg tui.RepoConfig) []fields.Option {
+	if len(branches) == 0 {
+		return branches
+	}
+
+	tracked := GetTrackedBranches(cfg)
+	if len(tracked) == 0 {
+		return branches
+	}
+
+	// Partition into tracked and non-tracked
+	trackedOpts := make([]fields.Option, 0)
+	otherOpts := make([]fields.Option, 0)
+
+	for _, opt := range branches {
+		if tracked[opt.Value] {
+			trackedOpts = append(trackedOpts, opt)
+		} else {
+			otherOpts = append(otherOpts, opt)
+		}
+	}
+
+	// Combine: tracked first, then others
+	result := make([]fields.Option, 0, len(branches))
+	result = append(result, trackedOpts...)
+	result = append(result, otherOpts...)
+	return result
+}

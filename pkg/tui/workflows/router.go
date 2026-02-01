@@ -91,7 +91,7 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 						Value: branch,
 					}
 				}
-				return options, nil
+				return SortBranchOptionsByTracked(options, ctx.Config), nil
 			}),
 
 			// Skip this step if the branch name already exists
@@ -175,7 +175,7 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 						Value: branch,
 					}
 				}
-				return options, nil
+				return SortBranchOptionsByTracked(options, ctx.Config), nil
 			}),
 
 			// Skip this step if the branch name already exists
@@ -250,7 +250,7 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 						Value: branch,
 					}
 				}
-				return options, nil
+				return SortBranchOptionsByTracked(options, ctx.Config), nil
 			}),
 		},
 
@@ -296,7 +296,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 						Value: branch,
 					}
 				}
-				return options, nil
+				return SortBranchOptionsByTracked(options, ctx.Config), nil
 			}),
 		},
 
@@ -323,7 +323,7 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 						Value: branch,
 					}
 				}
-				return options, nil
+				return SortBranchOptionsByTracked(options, ctx.Config), nil
 			}),
 		},
 

@@ -671,3 +671,140 @@ func TestSortTargetBranchOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTrackedBranches(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   tui.RepoConfig
+		expected map[string]bool
+	}{
+		{
+			name:     "nil_config",
+			config:   nil,
+			expected: map[string]bool{},
+		},
+		{
+			name:     "empty_worktrees",
+			config:   testutil.NewMockRepoConfig(),
+			expected: map[string]bool{},
+		},
+		{
+			name: "single_worktree",
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", ""),
+			expected: map[string]bool{"main": true},
+		},
+		{
+			name: "multiple_worktrees",
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", "").
+				WithWorktree("develop", "develop", "main").
+				WithWorktree("staging", "staging", "develop"),
+			expected: map[string]bool{"main": true, "develop": true, "staging": true},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := GetTrackedBranches(tc.config)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestSortBranchOptionsByTracked(t *testing.T) {
+	testCases := []struct {
+		name           string
+		branches       []fields.Option
+		config         tui.RepoConfig
+		expectedValues []string
+	}{
+		{
+			name:           "empty_branches",
+			branches:       []fields.Option{},
+			config:         testutil.NewMockRepoConfig().WithWorktree("main", "main", ""),
+			expectedValues: []string{},
+		},
+		{
+			name: "nil_config_preserves_order",
+			branches: []fields.Option{
+				{Label: "feature/test", Value: "feature/test"},
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+			},
+			config:         nil,
+			expectedValues: []string{"feature/test", "main", "develop"},
+		},
+		{
+			name: "no_tracked_branches_preserves_order",
+			branches: []fields.Option{
+				{Label: "feature/test", Value: "feature/test"},
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+			},
+			config:         testutil.NewMockRepoConfig(),
+			expectedValues: []string{"feature/test", "main", "develop"},
+		},
+		{
+			name: "tracked_branches_first",
+			branches: []fields.Option{
+				{Label: "feature/test", Value: "feature/test"},
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/other", Value: "feature/other"},
+			},
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", "").
+				WithWorktree("develop", "develop", "main"),
+			expectedValues: []string{"main", "develop", "feature/test", "feature/other"},
+		},
+		{
+			name: "all_tracked",
+			branches: []fields.Option{
+				{Label: "main", Value: "main"},
+				{Label: "develop", Value: "develop"},
+			},
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", "").
+				WithWorktree("develop", "develop", "main"),
+			expectedValues: []string{"main", "develop"},
+		},
+		{
+			name: "none_tracked",
+			branches: []fields.Option{
+				{Label: "feature/a", Value: "feature/a"},
+				{Label: "feature/b", Value: "feature/b"},
+			},
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", ""),
+			expectedValues: []string{"feature/a", "feature/b"},
+		},
+		{
+			name: "preserves_order_within_groups",
+			branches: []fields.Option{
+				{Label: "feature/z", Value: "feature/z"},
+				{Label: "develop", Value: "develop"},
+				{Label: "feature/a", Value: "feature/a"},
+				{Label: "main", Value: "main"},
+				{Label: "feature/m", Value: "feature/m"},
+			},
+			config: testutil.NewMockRepoConfig().
+				WithWorktree("main", "main", "").
+				WithWorktree("develop", "develop", "main"),
+			expectedValues: []string{"develop", "main", "feature/z", "feature/a", "feature/m"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := SortBranchOptionsByTracked(tc.branches, tc.config)
+
+			values := make([]string, len(result))
+			for i, opt := range result {
+				values[i] = opt.Value
+			}
+
+			assert.Equal(t, tc.expectedValues, values)
+		})
+	}
+}
