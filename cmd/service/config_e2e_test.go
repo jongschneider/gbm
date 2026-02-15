@@ -203,6 +203,7 @@ func TestConfigTUI_E2E_EditJira(t *testing.T) {
 	assert.Equal(t, "worktrees", savedConfig.WorktreesDir)
 
 	// Verify JIRA settings
+	assert.Equal(t, "https://jira.example.com", savedConfig.Jira.Host)
 	assert.Equal(t, "test@example.com", savedConfig.Jira.Me)
 	assert.Equal(t, []string{"Open", "In Progress"}, savedConfig.Jira.Filters.Status)
 	assert.True(t, savedConfig.Jira.Attachments.Enabled)
@@ -463,7 +464,8 @@ func TestConfigTUI_E2E_PreservesOriginalFields(t *testing.T) {
 		DefaultBranch: "main",
 		WorktreesDir:  "worktrees",
 		Jira: JiraConfig{
-			Me: "original@example.com",
+			Host: "https://jira.original.com",
+			Me:   "original@example.com",
 			Filters: jira.JiraFilters{
 				Status:   []string{"Open"},
 				Priority: "High",
@@ -526,6 +528,7 @@ func TestConfigTUI_E2E_PreservesOriginalFields(t *testing.T) {
 
 	// Verify original fields are preserved
 	assert.Equal(t, "worktrees", savedConfig.WorktreesDir)
+	assert.Equal(t, "https://jira.original.com", savedConfig.Jira.Host)
 	assert.Equal(t, "original@example.com", savedConfig.Jira.Me)
 	assert.Equal(t, []string{"Open"}, savedConfig.Jira.Filters.Status)
 	require.Len(t, savedConfig.FileCopy.Rules, 1)

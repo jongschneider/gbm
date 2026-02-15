@@ -174,12 +174,10 @@ func (t *TextInput) Focus() tea.Cmd {
 	t.focused = true
 	t.textInput.Focus()
 
-	// If there's a default value, populate it (override any previous value)
-	if t.defaultValue != "" {
-		t.textInput.SetValue(t.defaultValue)
-		// Position cursor at end of default text
-		t.textInput.SetCursor(len(t.defaultValue))
-	}
+	// Position cursor at end of current text so the user can continue editing.
+	// Note: default values are already populated via WithDefault() at construction
+	// time -- we must NOT overwrite the current value here or user edits are lost.
+	t.textInput.SetCursor(len(t.textInput.Value()))
 
 	return textinput.Blink
 }

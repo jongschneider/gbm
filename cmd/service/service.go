@@ -17,6 +17,7 @@ import (
 // JiraConfig represents JIRA-specific configuration.
 // This holds all JIRA integration settings including filters, attachment downloads, and markdown generation.
 type JiraConfig struct {
+	Host        string           `yaml:"host,omitempty"`
 	Me          string           `yaml:"me,omitempty"`
 	Filters     jira.JiraFilters `yaml:"filters,omitempty"`
 	Markdown    MarkdownConfig   `yaml:"markdown,omitempty"`
@@ -26,23 +27,23 @@ type JiraConfig struct {
 // AttachmentConfig holds configuration for JIRA attachment downloads.
 // These settings control how attachments are downloaded when creating worktrees from JIRA issues.
 type AttachmentConfig struct {
-	Directory          string `yaml:"directory"`
-	MaxSizeMB          int64  `yaml:"max_size_mb"`
-	DownloadTimeoutSec int    `yaml:"download_timeout_seconds"`
-	RetryAttempts      int    `yaml:"retry_attempts"`
-	RetryBackoffMs     int    `yaml:"retry_backoff_ms"`
-	Enabled            bool   `yaml:"enabled"`
+	Directory          string `yaml:"directory,omitempty"`
+	MaxSizeMB          int64  `yaml:"max_size_mb,omitempty"`
+	DownloadTimeoutSec int    `yaml:"download_timeout_seconds,omitempty"`
+	RetryAttempts      int    `yaml:"retry_attempts,omitempty"`
+	RetryBackoffMs     int    `yaml:"retry_backoff_ms,omitempty"`
+	Enabled            bool   `yaml:"enabled,omitempty"`
 }
 
 // MarkdownConfig holds configuration for JIRA markdown generation.
 // Controls how JIRA issue information is formatted and exported to markdown files.
 type MarkdownConfig struct {
-	FilenamePattern     string `yaml:"filename_pattern"`
-	MaxDepth            int    `yaml:"max_depth"`
-	IncludeComments     bool   `yaml:"include_comments"`
-	IncludeAttachments  bool   `yaml:"include_attachments"`
-	UseRelativeLinks    bool   `yaml:"use_relative_links"`
-	IncludeLinkedIssues bool   `yaml:"include_linked_issues"`
+	FilenamePattern     string `yaml:"filename_pattern,omitempty"`
+	MaxDepth            int    `yaml:"max_depth,omitempty"`
+	IncludeComments     bool   `yaml:"include_comments,omitempty"`
+	IncludeAttachments  bool   `yaml:"include_attachments,omitempty"`
+	UseRelativeLinks    bool   `yaml:"use_relative_links,omitempty"`
+	IncludeLinkedIssues bool   `yaml:"include_linked_issues,omitempty"`
 }
 
 // FileCopyRule defines files to copy from a source worktree.
@@ -82,7 +83,7 @@ type FileCopyConfig struct {
 // WorktreeConfig defines a persistent worktree configuration.
 // Stores metadata about a worktree such as its branch and merge strategy.
 type WorktreeConfig struct {
-	Branch      string `yaml:"branch"`
+	Branch      string `yaml:"branch,omitempty"`
 	MergeInto   string `yaml:"merge_into,omitempty"`
 	Description string `yaml:"description,omitempty"`
 }

@@ -257,18 +257,23 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// let keystrokes pass through so characters like "s" and "q" reach text inputs.
 	editing := m.paneFocus == ContentFocused && m.formInInsertMode()
 
-	if !editing {
-		// Global keys work in both panes
+	// ctrl+c always quits regardless of pane or mode
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+
+	if !editing && m.paneFocus == SidebarFocused {
+		// Global keys only apply when sidebar is focused.
+		// When content is focused, s/q/? are delegated to the form
+		// so forms can run validation, update state, and show their own help.
 		switch msg.String() {
 		case "?":
 			return m.showHelp()
 		case "s":
 			return m.handleSave()
-		case "q", "ctrl+c":
+		case "q":
 			return m, tea.Quit
 		}
-	} else if msg.String() == "ctrl+c" {
-		return m, tea.Quit
 	}
 
 	// Focus-specific navigation
@@ -455,6 +460,8 @@ func (m *ConfigModel) handleReset() (tea.Model, tea.Cmd) {
 	}
 
 	m.state = newState
+	m.formCache = make(map[string]tea.Model)
+	m.currentForm = m.getOrCreateForm(m.sidebar.FocusedSection())
 	return m, nil
 }
 
@@ -588,6 +595,11 @@ func (m *ConfigModel) GetState() *ConfigState {
 // SetState updates the config state.
 func (m *ConfigModel) SetState(state *ConfigState) {
 	m.state = state
+}
+
+// GetFormCache returns the form cache map.
+func (m *ConfigModel) GetFormCache() map[string]tea.Model {
+	return m.formCache
 }
 
 // IsDirty returns whether the config has unsaved changes.

@@ -207,15 +207,110 @@ func TestConfigModel_Reset(t *testing.T) {
 		return &ConfigState{DefaultBranch: "main"}, nil
 	}
 
-	m := NewConfigModel(DefaultTheme(), WithOnReset(onReset))
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return &configTestMockModel{}
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithOnReset(onReset), WithFormFactory(factory))
 	m.state.DefaultBranch = "develop"
 	m.state.dirty = true
+
+	// Pre-populate cache by visiting JIRA section
+	m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+	assert.NotEmpty(t, m.GetFormCache())
 
 	// Simulate 'r' key at sidebar level
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
 
 	assert.True(t, resetCalled)
 	assert.Equal(t, "main", m.state.DefaultBranch)
+	// Form cache must be cleared so forms are recreated with fresh state
+	assert.Len(t, m.GetFormCache(), 1, "cache should only contain the recreated current form")
+}
+
+func TestConfigModel_Reset_InvalidatesFormCache(t *testing.T) {
+	testCases := []struct {
+		name        string
+		setup       func(m *ConfigModel)
+		assert      func(t *testing.T, m *ConfigModel)
+		assertError func(t *testing.T, err error)
+	}{
+		{
+			name: "clears all cached forms on reset",
+			setup: func(m *ConfigModel) {
+				// Visit multiple sections to populate cache
+				m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+				m.Update(SidebarSelectionChangedMsg{Section: "Worktrees"})
+				m.Update(SidebarSelectionChangedMsg{Section: "Basics"})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				// After reset, only the current section's form should exist (recreated fresh)
+				assert.Len(t, m.GetFormCache(), 1)
+				assert.NotNil(t, m.GetCurrentForm())
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "recreates current form with new state",
+			setup: func(m *ConfigModel) {
+				m.state.DefaultBranch = "edited-value"
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Equal(t, "main", m.GetState().DefaultBranch)
+				assert.NotNil(t, m.GetCurrentForm(), "current form should be recreated")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "previously cached forms are not returned after reset",
+			setup: func(m *ConfigModel) {
+				// Visit JIRA to cache it
+				m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				// After reset the JIRA form should not be in cache
+				_, hasCachedJira := m.GetFormCache()["JIRA"]
+				assert.False(t, hasCachedJira, "JIRA form should not survive reset")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			factoryCallCount := 0
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				factoryCallCount++
+				return &configTestMockModel{}
+			}
+			onReset := func() (*ConfigState, error) {
+				return &ConfigState{DefaultBranch: "main"}, nil
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithOnReset(onReset), WithFormFactory(factory))
+
+			tc.setup(m)
+
+			// Reset
+			_, cmd := m.handleReset()
+			tc.assertError(t, nil) // onReset does not return error in these cases
+			_ = cmd
+
+			tc.assert(t, m)
+		})
+	}
 }
 
 func TestConfigModel_Save(t *testing.T) {

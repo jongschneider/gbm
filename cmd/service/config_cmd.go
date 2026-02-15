@@ -87,10 +87,9 @@ func configToState(cfg *Config) *tui.ConfigState {
 		DefaultBranch: cfg.DefaultBranch,
 		WorktreesDir:  cfg.WorktreesDir,
 
-		// JIRA - note: we don't have an Enabled field in JiraConfig,
-		// so we infer enabled from whether host is set
-		JiraEnabled:                    cfg.Jira.Me != "" || cfg.Jira.Filters.Status != nil,
-		JiraHost:                       "", // JiraConfig doesn't have Host directly
+		// JIRA - infer enabled from whether host or user is set
+		JiraEnabled:                    cfg.Jira.Host != "" || cfg.Jira.Me != "" || cfg.Jira.Filters.Status != nil,
+		JiraHost:                       cfg.Jira.Host,
 		JiraUsername:                   cfg.Jira.Me,
 		JiraAPIToken:                   "",
 		JiraFiltersStatus:              cfg.Jira.Filters.Status,
@@ -142,6 +141,7 @@ func stateToConfig(state *tui.ConfigState, cfg *Config) {
 	cfg.WorktreesDir = state.WorktreesDir
 
 	// JIRA
+	cfg.Jira.Host = state.JiraHost
 	cfg.Jira.Me = state.JiraUsername
 	cfg.Jira.Filters.Status = state.JiraFiltersStatus
 	cfg.Jira.Filters.Priority = state.JiraFiltersPriority
