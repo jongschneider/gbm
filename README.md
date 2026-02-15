@@ -185,7 +185,6 @@ Run `gbm --help` or `gbm <command> --help` for more details.
 
 ```bash
 just build     # Build binary
-just test      # Run tests
 just validate  # Run all checks
 just storybook # View TUI component storybook
 ```

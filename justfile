@@ -4,72 +4,17 @@ default:
     @just --list
 
 # Run all validations
-validate: fmt vet lint compile test-changed
+validate: check compile
 
 # Run all checks (continues on failure to show all issues)
 check:
     -@./scripts/dev/test-minimal.sh
     -@./scripts/dev/lint-minimal.sh
-    -@./scripts/check-file-length.sh
+    -@./scripts/dev/check-file-length.sh
 
 # Format code
 fmt:
     @golangci-lint fmt
-
-# Run go vet on packages with changes
-vet:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Check both staged and unstaged changes
-    changed_files=$(git diff --name-only --cached; git diff --name-only; git ls-files --others --exclude-standard | grep '\.go$' || true)
-    changed_files=$(echo "$changed_files" | grep '\.go$' | sort -u || true)
-    if [ -n "$changed_files" ]; then
-        echo "Running go vet on changed packages..."
-        packages=$(echo "$changed_files" | xargs dirname | sort -u | sed 's|^|./|' | tr '\n' ' ')
-        for pkg in $packages; do
-            echo "Vetting $pkg..."
-            go vet "$pkg" || exit 1
-        done
-        echo "✓ Vet checks passed"
-    else
-        echo "No Go files changed"
-    fi
-
-# Run linter with minimal output (LLM-friendly)
-lint:
-    @./scripts/dev/lint-minimal.sh
-
-# Run linting on all packages
-lint-all:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Running golangci-lint on all packages..."
-    golangci-lint run ./... || exit 1
-    echo "✓ All lint checks passed"
-
-# Run tests for packages with changes
-test-changed:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Check both staged and unstaged changes
-    changed_files=$(git diff --name-only --cached; git diff --name-only; git ls-files --others --exclude-standard | grep '\.go$' || true)
-    changed_files=$(echo "$changed_files" | grep '\.go$' | sort -u || true)
-    if [ -n "$changed_files" ]; then
-        echo "Running tests for changed packages..."
-        packages=$(echo "$changed_files" | xargs dirname | sort -u | sed 's|^|./|' | sed 's|$|/...|' | tr '\n' ' ')
-        for pkg in $packages; do
-            echo "Testing $pkg..."
-            go test -timeout 10m -v "$pkg" || exit 1
-        done
-        echo "✓ All tests passed"
-    else
-        echo "No Go files changed"
-    fi
-
-# Run tests with minimal output (LLM-friendly)
-test:
-    @./scripts/dev/test-minimal.sh
-
 
 # Build the gbm binary
 build:
@@ -137,25 +82,6 @@ clean:
     @rm -f test.out lint.out *.test
     @go clean ./...
 
-# Quick check - minimal validation for fast feedback
-quick: fmt vet
-
-# Show what files would be checked
-show-changed:
-    #!/usr/bin/env bash
-    # Check both staged and unstaged changes
-    changed_files=$(git diff --name-only --cached; git diff --name-only; git ls-files --others --exclude-standard | grep '\.go$' || true)
-    changed_files=$(echo "$changed_files" | grep '\.go$' | sort -u || true)
-    if [ -n "$changed_files" ]; then
-        echo "Changed Go files:"
-        echo "$changed_files"
-        echo ""
-        echo "Packages to check:"
-        echo "$changed_files" | xargs dirname | sort -u
-    else
-        echo "No Go files changed"
-    fi
-
 # Run the TUI component storybook
 storybook:
     #!/usr/bin/env bash
@@ -178,15 +104,3 @@ vhs-record:
     done
     echo "✓ VHS recordings complete"
     ls -lah *.gif 2>/dev/null || echo "No GIFs generated"
-
-# List available PRDs (with gum selection)
-prd-list:
-    @ls specs/state/ | gum choose
-
-# Run ralph with streaming output (usage: just ralph [iterations])
-ralph *ARGS:
-    #!/usr/bin/env bash
-    prd=$(ls specs/state/ | gum choose) || exit 0
-    [[ -z "$prd" ]] && exit 0
-    ./scripts/ralph-stream.sh "$prd" {{ARGS}}
-

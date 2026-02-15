@@ -43,8 +43,7 @@
           just
           (writeShellScriptBin "test-minimal" (builtins.readFile ./scripts/dev/test-minimal.sh))
           (writeShellScriptBin "lint-minimal" (builtins.readFile ./scripts/dev/lint-minimal.sh))
-          (writeShellScriptBin "ralph-stream.sh" (builtins.readFile ./scripts/ralph-stream.sh))
-          (writeShellScriptBin "check-file-length" (builtins.readFile ./scripts/check-file-length.sh))
+          (writeShellScriptBin "check-file-length" (builtins.readFile ./scripts/dev/check-file-length.sh))
         ];
       };
     });

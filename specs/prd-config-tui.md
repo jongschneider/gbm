@@ -461,7 +461,6 @@ Form Fields
 
 - **Implementation Plan**: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — Phase breakdown, file structure, dev workflow
 - **Component Reuse**: [`COMPONENT_REUSE.md`](./COMPONENT_REUSE.md) — Detailed breakdown of reused components
-- **Quick Start**: [`QUICK_START.md`](./QUICK_START.md) — 5-minute guide for developers
 - **Config Structure**: [`config.example.yaml`](./config.example.yaml) — Example `.gbm/config.yaml`
 - **Existing TUI**: [`pkg/tui/`](./pkg/tui/) — Existing components to reuse
 - **Test Examples**: [`pkg/tui/wizard_test.go`](./pkg/tui/wizard_test.go) — Test patterns

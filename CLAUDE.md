@@ -46,11 +46,10 @@ Use `just` (see `justfile`):
 | `just` | List all |
 | `just build` | Build binary → `./gbm` |
 | `just run [ARGS]` | Build + run |
-| `just validate` | format + vet + lint + compile + test-changed |
-| `just quick` | format + vet only |
-| `just format`, `just vet`, `just lint`, `just compile` | Specific checks |
-| `just test` | All tests (10m timeout) |
-| `just test-changed` | Tests for changed packages |
+| `just validate` | check + compile |
+| `just check` | test + lint + file-length (continues on failure) |
+| `just fmt` | Format code |
+| `just compile` | Compile all packages |
 | `just install` | Build + install as `gbm2` to `/usr/local/bin` |
 
 Or use Go directly:
@@ -61,8 +60,6 @@ go test ./...                   # All tests
 go test ./internal/git -v       # Specific package
 go mod tidy                     # Clean deps
 ```
-
-Smart change detection: checks staged, unstaged, untracked Go files. Enables fast iteration.
 
 ## Implementation Patterns
 
@@ -104,8 +101,7 @@ gbm wt list                   # TUI on /dev/tty, selected path to stdout
 ### Commands
 
 ```bash
-just test              # All tests
-just test-changed      # Changed packages only
+just validate          # Run all checks (test + lint + compile)
 go test ./internal/git # Specific package
 go test -run TestName  # Specific test
 go test -short ./...   # Unit tests only (skip E2E)

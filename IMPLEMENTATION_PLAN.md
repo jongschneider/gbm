@@ -8,7 +8,7 @@
 
 ## Quick Links
 
-- [PRD_CONFIG_TUI.md](./PRD_CONFIG_TUI.md) - Full product specification
+- [specs/prd-config-tui.md](./specs/prd-config-tui.md) - Full product specification
 - [COMPONENT_REUSE.md](./COMPONENT_REUSE.md) - Detailed reuse analysis
 - [pkg/tui/](./pkg/tui/) - Existing components to reuse
 
@@ -275,14 +275,8 @@ go test ./pkg/tui/config -run TextInputWithError
 # Run E2E test
 go test ./cmd/service -run TestConfigTUI -v
 
-# Run all tests
-just test
-
-# Lint
-just lint
-
-# Run full CI pipeline
-just ci
+# Run all checks
+just validate
 ```
 
 ---
