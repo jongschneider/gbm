@@ -113,10 +113,14 @@ func (c *Confirm) View() string {
 	b.WriteString(styles.Title.Render(c.title))
 	b.WriteString("\n")
 
-	// Render summary if present
+	// Render summary if present, wrapping to the field width
 	if c.summary != "" {
+		descStyle := styles.Description
+		if c.width > 0 {
+			descStyle = descStyle.Width(c.width - 2)
+		}
 		b.WriteString("\n")
-		b.WriteString(styles.Description.Render(c.summary))
+		b.WriteString(descStyle.Render(c.summary))
 		b.WriteString("\n")
 	}
 

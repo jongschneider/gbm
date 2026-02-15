@@ -144,9 +144,13 @@ func (t *TextInput) View() string {
 	b.WriteString(styles.Title.Render(t.title))
 	b.WriteString("\n")
 
-	// Render description if present
+	// Render description if present, wrapping to the field width
 	if t.description != "" {
-		b.WriteString(styles.Description.Render(t.description))
+		descStyle := styles.Description
+		if t.width > 0 {
+			descStyle = descStyle.Width(t.width - 2)
+		}
+		b.WriteString(descStyle.Render(t.description))
 		b.WriteString("\n")
 	}
 
