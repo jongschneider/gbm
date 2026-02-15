@@ -781,6 +781,7 @@ func (f *JiraForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form and all its fields.
 func (f *JiraForm) Blur() tea.Cmd {
+	f.insertMode = false
 	f.focusedField().Blur()
 	return nil
 }
@@ -842,5 +843,11 @@ func (f *JiraForm) FocusedYOffset() int {
 // Ensure JiraForm implements tea.Model.
 var _ tea.Model = (*JiraForm)(nil)
 
+// InInsertMode reports whether the form is in insert mode.
+func (f *JiraForm) InInsertMode() bool { return f.insertMode }
+
 // Ensure JiraForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*JiraForm)(nil)
+
+// Ensure JiraForm implements tui.InsertModeReporter.
+var _ tui.InsertModeReporter = (*JiraForm)(nil)

@@ -240,15 +240,34 @@ func (m *ConfigModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cm
 	return m, cmd
 }
 
+// formInInsertMode reports whether the current form is in insert mode.
+func (m *ConfigModel) formInInsertMode() bool {
+	if m.currentForm == nil {
+		return false
+	}
+	if reporter, ok := m.currentForm.(InsertModeReporter); ok {
+		return reporter.InInsertMode()
+	}
+	return false
+}
+
 // handleKeyMsg processes keyboard input.
 func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Global keys work in both panes
-	switch msg.String() {
-	case "?":
-		return m.showHelp()
-	case "s":
-		return m.handleSave()
-	case "q", "ctrl+c":
+	// When the content pane is focused and the form is in insert mode,
+	// let keystrokes pass through so characters like "s" and "q" reach text inputs.
+	editing := m.paneFocus == ContentFocused && m.formInInsertMode()
+
+	if !editing {
+		// Global keys work in both panes
+		switch msg.String() {
+		case "?":
+			return m.showHelp()
+		case "s":
+			return m.handleSave()
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+	} else if msg.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
 
@@ -270,14 +289,16 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Content pane has focus
 	// Note: Esc is NOT intercepted here - forms handle it (exit insert mode or emit BackBoundaryMsg)
-	switch msg.String() {
-	case "h", "left":
-		return m.focusSidebar()
-	case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
-		// Scroll keys go to viewport
-		var cmd tea.Cmd
-		m.contentViewport, cmd = m.contentViewport.Update(msg)
-		return m, cmd
+	if !editing {
+		switch msg.String() {
+		case "h", "left":
+			return m.focusSidebar()
+		case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
+			// Scroll keys go to viewport
+			var cmd tea.Cmd
+			m.contentViewport, cmd = m.contentViewport.Update(msg)
+			return m, cmd
+		}
 	}
 
 	// Delegate to current form

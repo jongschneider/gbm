@@ -430,6 +430,7 @@ func (f *BasicsForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form and all its fields.
 func (f *BasicsForm) Blur() tea.Cmd {
+	f.insertMode = false
 	f.focusedField().Blur()
 	return nil
 }
@@ -464,5 +465,11 @@ func (f *BasicsForm) FocusedYOffset() int {
 	return lineCount
 }
 
+// InInsertMode reports whether the form is in insert mode.
+func (f *BasicsForm) InInsertMode() bool { return f.insertMode }
+
 // Ensure BasicsForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*BasicsForm)(nil)
+
+// Ensure BasicsForm implements tui.InsertModeReporter.
+var _ tui.InsertModeReporter = (*BasicsForm)(nil)

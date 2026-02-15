@@ -651,6 +651,7 @@ func (f *FileCopyForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form.
 func (f *FileCopyForm) Blur() tea.Cmd {
+	f.insertMode = false
 	return nil
 }
 
@@ -684,5 +685,11 @@ func (f *FileCopyForm) FocusedYOffset() int {
 // Ensure FileCopyForm implements tea.Model.
 var _ tea.Model = (*FileCopyForm)(nil)
 
+// InInsertMode reports whether the form is in insert mode.
+func (f *FileCopyForm) InInsertMode() bool { return f.insertMode }
+
 // Ensure FileCopyForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*FileCopyForm)(nil)
+
+// Ensure FileCopyForm implements tui.InsertModeReporter.
+var _ tui.InsertModeReporter = (*FileCopyForm)(nil)

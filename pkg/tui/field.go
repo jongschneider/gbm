@@ -42,6 +42,14 @@ type FocusReporter interface {
 	FocusedYOffset() int
 }
 
+// InsertModeReporter is an optional interface that forms can implement to
+// report whether they are in insert mode. When a form is in insert mode,
+// global keyboard shortcuts should be suppressed so keystrokes reach the
+// text input fields.
+type InsertModeReporter interface {
+	InInsertMode() bool
+}
+
 // NextStepMsg signals that the current field is complete and the wizard should advance.
 type NextStepMsg struct{}
 

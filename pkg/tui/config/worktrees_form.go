@@ -556,6 +556,7 @@ func (f *WorktreesForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form.
 func (f *WorktreesForm) Blur() tea.Cmd {
+	f.insertMode = false
 	return nil
 }
 
@@ -588,5 +589,11 @@ func (f *WorktreesForm) FocusedYOffset() int {
 
 var _ tea.Model = (*WorktreesForm)(nil)
 
+// InInsertMode reports whether the form is in insert mode.
+func (f *WorktreesForm) InInsertMode() bool { return f.insertMode }
+
 // Ensure WorktreesForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*WorktreesForm)(nil)
+
+// Ensure WorktreesForm implements tui.InsertModeReporter.
+var _ tui.InsertModeReporter = (*WorktreesForm)(nil)
