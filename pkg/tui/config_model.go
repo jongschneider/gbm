@@ -119,6 +119,7 @@ type ConfigModel struct {
 	onReset         func() (*ConfigState, error)
 	formFactory     FormFactory
 	helpOverlay     *HelpOverlay
+	discardField    Field
 	currentForm     tea.Model
 	formCache       map[string]tea.Model
 	sidebarViewport viewport.Model
@@ -127,6 +128,7 @@ type ConfigModel struct {
 	width           int
 	height          int
 	ready           bool // true after first WindowSizeMsg
+	showConfirmQuit bool
 }
 
 // NewConfigModel creates a new ConfigModel with a Sidebar as the initial view.
@@ -173,6 +175,10 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleWindowSize(msg)
 
 	case tea.KeyMsg:
+		// Handle quit confirmation dialog if showing
+		if m.showConfirmQuit {
+			return m.handleQuitConfirmation(msg)
+		}
 		// Handle help overlay if showing
 		if m.helpOverlay != nil {
 			return m.handleHelpOverlay(msg)
@@ -251,6 +257,17 @@ func (m *ConfigModel) formInInsertMode() bool {
 	return false
 }
 
+// formHasConfirmFocused reports whether the current form's focused field is a Confirm toggle.
+func (m *ConfigModel) formHasConfirmFocused() bool {
+	if m.currentForm == nil {
+		return false
+	}
+	if reporter, ok := m.currentForm.(ConfirmFocusedReporter); ok {
+		return reporter.ConfirmFieldFocused()
+	}
+	return false
+}
+
 // handleKeyMsg processes keyboard input.
 func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// When the content pane is focused and the form is in insert mode,
@@ -272,7 +289,7 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "s":
 			return m.handleSave()
 		case "q":
-			return m, tea.Quit
+			return m.handleQuit()
 		}
 	}
 
@@ -297,7 +314,11 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if !editing {
 		switch msg.String() {
 		case "h", "left":
-			return m.focusSidebar()
+			// Don't intercept h/left when a Confirm field is focused --
+			// the Confirm field uses these keys to select Yes/No.
+			if !m.formHasConfirmFocused() {
+				return m.focusSidebar()
+			}
 		case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
 			// Scroll keys go to viewport
 			var cmd tea.Cmd
@@ -310,11 +331,55 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.currentForm != nil {
 		newForm, cmd := m.currentForm.Update(msg)
 		m.currentForm = newForm
+		// Mark dirty when a field value is likely modified:
+		// - Insert mode: any key except Esc modifies text
+		// - Normal mode: Confirm toggle keys modify the field value
+		if editing && msg.Type != tea.KeyEsc {
+			m.state.MarkDirty()
+		} else if !editing && m.formHasConfirmFocused() {
+			switch msg.String() {
+			case " ", "enter", "h", "l", "left", "right", "y", "Y", "n", "N":
+				m.state.MarkDirty()
+			}
+		}
 		// Auto-scroll to keep focused field visible
 		m.scrollToFocusedField()
 		return m, cmd
 	}
 
+	return m, nil
+}
+
+// handleQuit handles the q key from the sidebar.
+// If there are unsaved changes, it shows a confirmation dialog.
+// If clean, it quits immediately.
+func (m *ConfigModel) handleQuit() (tea.Model, tea.Cmd) {
+	if !m.IsDirty() {
+		return m, tea.Quit
+	}
+
+	m.showConfirmQuit = true
+	m.discardField = newQuitConfirm(m.theme)
+	return m, m.discardField.Focus()
+}
+
+// handleQuitConfirmation processes input while the quit confirmation dialog is showing.
+func (m *ConfigModel) handleQuitConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	newField, cmd := m.discardField.Update(msg)
+	m.discardField = newField
+
+	if !m.discardField.IsComplete() {
+		return m, cmd
+	}
+
+	if val, ok := m.discardField.GetValue().(bool); ok && val {
+		// User confirmed discard - quit
+		return m, tea.Quit
+	}
+
+	// User cancelled - dismiss dialog and return to sidebar
+	m.showConfirmQuit = false
+	m.discardField = nil
 	return m, nil
 }
 
@@ -502,6 +567,11 @@ func (m *ConfigModel) handleHelpOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m *ConfigModel) View() string {
+	// Show quit confirmation dialog if active (full screen)
+	if m.showConfirmQuit && m.discardField != nil {
+		return m.discardField.View()
+	}
+
 	// Show help overlay if active (full screen)
 	if m.helpOverlay != nil {
 		return m.helpOverlay.View()
@@ -605,4 +675,9 @@ func (m *ConfigModel) GetFormCache() map[string]tea.Model {
 // IsDirty returns whether the config has unsaved changes.
 func (m *ConfigModel) IsDirty() bool {
 	return m.state != nil && m.state.dirty
+}
+
+// ShowConfirmQuit returns whether the quit confirmation dialog is visible.
+func (m *ConfigModel) ShowConfirmQuit() bool {
+	return m.showConfirmQuit
 }

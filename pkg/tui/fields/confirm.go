@@ -228,6 +228,14 @@ func (c *Confirm) GetValue() any {
 	return c.value
 }
 
+// ResetCompletion clears the complete and cancelled flags so the field
+// can be toggled again. This is used by forms that embed Confirm fields
+// inline (rather than as wizard steps) after processing a completion event.
+func (c *Confirm) ResetCompletion() {
+	c.complete = false
+	c.cancelled = false
+}
+
 // getStyles returns the appropriate styles based on focus state.
 func (c *Confirm) getStyles() tui.FieldStyles {
 	if c.theme == nil {

@@ -460,12 +460,11 @@ func (f *JiraForm) handleInsertMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
 	_, isTextInput := f.focusedField().(*fields.TextInput)
 
-	// Pass space through to Confirm fields for toggling
-	if msg.String() == " " {
-		if _, ok := f.focusedField().(*fields.Confirm); ok {
-			field, cmd := f.focusedField().Update(msg)
-			f.updateFocusedField(field)
-			return f, cmd, true
+	// When a Confirm field is focused, delegate toggle/navigation keys to it.
+	// Confirm fields handle: space, enter, h, l, left, right, y, n, Y, N, tab.
+	if _, ok := f.focusedField().(*fields.Confirm); ok {
+		if m, cmd, handled := f.handleConfirmFieldKey(msg); handled {
+			return m, cmd, true
 		}
 	}
 
@@ -498,6 +497,57 @@ func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 	}
 
 	return nil, nil, false
+}
+
+// isConfirmKey reports whether the key message is one that a Confirm field handles
+// in a form context. Tab is excluded because it is used for field navigation.
+func isConfirmKey(msg tea.KeyMsg) bool {
+	switch msg.String() {
+	case " ", "enter", "h", "l", "left", "right", "y", "Y", "n", "N":
+		return true
+	}
+	return false
+}
+
+// handleConfirmFieldKey delegates a key to the focused Confirm field and processes
+// any resulting completion. Returns (model, cmd, true) if the key was handled.
+func (f *JiraForm) handleConfirmFieldKey(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
+	if !isConfirmKey(msg) {
+		return nil, nil, false
+	}
+
+	field, cmd := f.focusedField().Update(msg)
+	f.updateFocusedField(field)
+
+	confirm, ok := field.(*fields.Confirm)
+	if !ok {
+		return f, cmd, true
+	}
+
+	// If the Confirm field completed (enter, y, n), process it.
+	if !confirm.IsComplete() {
+		return f, cmd, true
+	}
+
+	if f.focusedFieldIdx == 0 {
+		// Enable field: update the enabled state.
+		newEnabled := confirm.GetValue().(bool)
+		if newEnabled != f.enabled {
+			f.enabled = newEnabled
+		}
+		confirm.ResetCompletion()
+		if newEnabled {
+			m, cmd := f.nextField()
+			return m, cmd, true
+		}
+		// Disabled: stay on enable field, ignore the cmd.
+		return f, nil, true
+	}
+
+	// Non-enable Confirm field: reset and advance to next field.
+	confirm.ResetCompletion()
+	m, nextCmd := f.nextField()
+	return m, nextCmd, true
 }
 
 // handleNavigationKeys handles Tab and Shift+Tab keys.
@@ -851,3 +901,12 @@ var _ tui.FocusReporter = (*JiraForm)(nil)
 
 // Ensure JiraForm implements tui.InsertModeReporter.
 var _ tui.InsertModeReporter = (*JiraForm)(nil)
+
+// ConfirmFieldFocused reports whether the currently focused field is a Confirm toggle.
+func (f *JiraForm) ConfirmFieldFocused() bool {
+	_, ok := f.focusedField().(*fields.Confirm)
+	return ok
+}
+
+// Ensure JiraForm implements tui.ConfirmFocusedReporter.
+var _ tui.ConfirmFocusedReporter = (*JiraForm)(nil)

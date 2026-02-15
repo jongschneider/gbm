@@ -200,6 +200,146 @@ func TestConfigModel_DirtyState(t *testing.T) {
 	assert.True(t, m.IsDirty())
 }
 
+func TestConfigModel_DirtyIndicator(t *testing.T) {
+	testCases := []struct {
+		name   string
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel)
+	}{
+		{
+			name: "insert mode typing marks dirty",
+			setup: func(m *ConfigModel) {
+				// Focus content pane with insert-mode-capable form
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+				// Simulate form entering insert mode
+				mock := m.currentForm.(*configTestInsertModeMockModel)
+				mock.insertMode = true
+				// Type a character while in insert mode
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.True(t, m.IsDirty(), "typing in insert mode should mark dirty")
+			},
+		},
+		{
+			name: "space in normal mode marks dirty for confirm toggle",
+			setup: func(m *ConfigModel) {
+				// Focus content pane
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+				// Simulate a Confirm field being focused
+				mock := m.currentForm.(*configTestInsertModeMockModel)
+				mock.confirmFocused = true
+				// Press space in normal mode (toggles Confirm fields)
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.True(t, m.IsDirty(), "space in normal mode should mark dirty")
+			},
+		},
+		{
+			name: "navigation keys do not mark dirty",
+			setup: func(m *ConfigModel) {
+				// Focus content pane
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+				// Navigate with j/k (should not dirty)
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyTab})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.False(t, m.IsDirty(), "navigation keys should not mark dirty")
+			},
+		},
+		{
+			name: "esc in insert mode does not mark dirty",
+			setup: func(m *ConfigModel) {
+				// Focus content pane with insert-mode-capable form
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+				mock := m.currentForm.(*configTestInsertModeMockModel)
+				mock.insertMode = true
+				// Press Esc to exit insert mode
+				m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.False(t, m.IsDirty(), "esc should not mark dirty")
+			},
+		},
+		{
+			name: "save clears dirty flag",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				// Save from sidebar
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.False(t, m.IsDirty(), "save should clear dirty flag")
+			},
+		},
+		{
+			name: "reset clears dirty flag",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				// Reset from sidebar
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.False(t, m.IsDirty(), "reset should clear dirty flag")
+			},
+		},
+		{
+			name: "footer shows modified when dirty",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				view := m.View()
+				assert.Contains(t, view, "[modified]")
+			},
+		},
+		{
+			name: "footer does not show modified when clean",
+			setup: func(m *ConfigModel) {
+				m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				view := m.View()
+				assert.NotContains(t, view, "[modified]")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestInsertModeMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+			onSave := func(state *ConfigState) error { return nil }
+			onReset := func() (*ConfigState, error) {
+				return &ConfigState{}, nil
+			}
+
+			m := NewConfigModel(DefaultTheme(),
+				WithFormFactory(factory),
+				WithOnSave(onSave),
+				WithOnReset(onReset),
+			)
+
+			tc.setup(m)
+			tc.assert(t, m)
+		})
+	}
+}
+
 func TestConfigModel_Reset(t *testing.T) {
 	resetCalled := false
 	onReset := func() (*ConfigState, error) {
@@ -652,6 +792,120 @@ func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 	}
 }
 
+func TestConfigModel_QuitConfirmation(t *testing.T) {
+	testCases := []struct {
+		name string
+		// action returns the cmd from the final Update call being tested
+		action func(m *ConfigModel) tea.Cmd
+		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
+	}{
+		{
+			name: "q quits immediately when not dirty",
+			action: func(m *ConfigModel) tea.Cmd {
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.NotNil(t, cmd, "should produce a quit command")
+				assert.False(t, m.ShowConfirmQuit(), "should not show confirmation")
+			},
+		},
+		{
+			name: "q shows confirmation when dirty",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.True(t, m.ShowConfirmQuit(), "should show quit confirmation")
+				assert.NotNil(t, m.discardField, "discard field should be created")
+			},
+		},
+		{
+			name: "confirmation y quits",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.NotNil(t, cmd, "should produce a quit command after confirmation")
+			},
+		},
+		{
+			name: "confirmation n returns to sidebar",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.False(t, m.ShowConfirmQuit(), "confirmation should be dismissed")
+				assert.Nil(t, m.discardField, "discard field should be cleared")
+			},
+		},
+		{
+			name: "confirmation enter with Yes selected quits",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.NotNil(t, cmd, "should produce a quit command")
+			},
+		},
+		{
+			name: "confirmation enter with No selected returns to sidebar",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				// Move selection to No
+				m.Update(tea.KeyMsg{Type: tea.KeyRight})
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.False(t, m.ShowConfirmQuit(), "confirmation should be dismissed")
+				assert.Nil(t, m.discardField, "discard field should be cleared")
+			},
+		},
+		{
+			name: "view shows confirmation dialog when active",
+			action: func(m *ConfigModel) tea.Cmd {
+				m.state.MarkDirty()
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				return cmd
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				view := m.View()
+				assert.Contains(t, view, "Discard unsaved changes?")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewConfigModel(DefaultTheme())
+			assert.Equal(t, SidebarFocused, m.paneFocus)
+
+			cmd := tc.action(m)
+			tc.assert(t, m, cmd)
+		})
+	}
+}
+
 // configTestMockModel is a simple mock tea.Model for testing.
 type configTestMockModel struct{}
 
@@ -676,3 +930,25 @@ func (m *configTestTrackingMockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *configTestTrackingMockModel) View() string   { return "mock" }
 func (m *configTestTrackingMockModel) Focus() tea.Cmd { return nil }
 func (m *configTestTrackingMockModel) Blur() tea.Cmd  { return nil }
+
+// configTestInsertModeMockModel simulates a form that supports insert mode
+// and reports whether a confirm field is focused.
+type configTestInsertModeMockModel struct {
+	insertMode     bool
+	confirmFocused bool
+}
+
+func (m *configTestInsertModeMockModel) Init() tea.Cmd { return nil }
+func (m *configTestInsertModeMockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.Type == tea.KeyEsc {
+			m.insertMode = false
+		}
+	}
+	return m, nil
+}
+func (m *configTestInsertModeMockModel) View() string              { return "mock" }
+func (m *configTestInsertModeMockModel) Focus() tea.Cmd            { return nil }
+func (m *configTestInsertModeMockModel) Blur() tea.Cmd             { return nil }
+func (m *configTestInsertModeMockModel) InInsertMode() bool        { return m.insertMode }
+func (m *configTestInsertModeMockModel) ConfirmFieldFocused() bool { return m.confirmFocused }
