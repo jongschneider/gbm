@@ -512,6 +512,146 @@ func TestConfigModel_SidebarFocusState(t *testing.T) {
 	assert.True(t, m.sidebar.IsFocused())
 }
 
+func TestConfigModel_ContentFocused_DelegatesKeysToForm(t *testing.T) {
+	testCases := []struct {
+		name   string
+		key    tea.KeyMsg
+		assert func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel)
+	}{
+		{
+			name: "s key delegates to form instead of global save",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}},
+			assert: func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel) {
+				t.Helper()
+				assert.Contains(t, mock.receivedKeys, "s", "form should receive 's' key")
+			},
+		},
+		{
+			name: "q key delegates to form instead of quitting",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}},
+			assert: func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel) {
+				t.Helper()
+				assert.Contains(t, mock.receivedKeys, "q", "form should receive 'q' key")
+			},
+		},
+		{
+			name: "? key delegates to form instead of showing global help",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}},
+			assert: func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel) {
+				t.Helper()
+				assert.Contains(t, mock.receivedKeys, "?", "form should receive '?' key")
+				assert.Nil(t, m.helpOverlay, "ConfigModel help overlay should not be shown")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			saveCalled := false
+			onSave := func(state *ConfigState) error {
+				saveCalled = true
+				return nil
+			}
+
+			mockForm := &configTestTrackingMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory), WithOnSave(onSave))
+
+			// Focus content pane
+			m.Update(SidebarSelectionMsg{Section: "Basics"})
+			assert.Equal(t, ContentFocused, m.paneFocus)
+
+			// Send the key
+			m.Update(tc.key)
+
+			// Global save should NOT have been called
+			assert.False(t, saveCalled, "global save should not be called when content is focused")
+
+			tc.assert(t, m, mockForm)
+		})
+	}
+}
+
+func TestConfigModel_SidebarFocused_HandlesKeysGlobally(t *testing.T) {
+	testCases := []struct {
+		name   string
+		key    tea.KeyMsg
+		assert func(t *testing.T, m *ConfigModel, saveCalled bool)
+	}{
+		{
+			name: "s key triggers global save from sidebar",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.True(t, saveCalled, "global save should be called from sidebar")
+			},
+		},
+		{
+			name: "? key shows global help from sidebar",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.NotNil(t, m.helpOverlay, "help overlay should be shown from sidebar")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			saveCalled := false
+			onSave := func(state *ConfigState) error {
+				saveCalled = true
+				return nil
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithOnSave(onSave))
+			assert.Equal(t, SidebarFocused, m.paneFocus)
+
+			m.Update(tc.key)
+
+			tc.assert(t, m, saveCalled)
+		})
+	}
+}
+
+func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
+	testCases := []struct {
+		name  string
+		setup func(m *ConfigModel)
+	}{
+		{
+			name:  "quits from sidebar",
+			setup: func(m *ConfigModel) {},
+		},
+		{
+			name: "quits from content pane",
+			setup: func(m *ConfigModel) {
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+			tc.setup(m)
+
+			_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+
+			// Should produce a quit command
+			assert.NotNil(t, cmd, "ctrl+c should produce a quit command")
+		})
+	}
+}
+
 // configTestMockModel is a simple mock tea.Model for testing.
 type configTestMockModel struct{}
 
@@ -520,3 +660,19 @@ func (m *configTestMockModel) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, n
 func (m *configTestMockModel) View() string                        { return "mock" }
 func (m *configTestMockModel) Focus() tea.Cmd                      { return nil }
 func (m *configTestMockModel) Blur() tea.Cmd                       { return nil }
+
+// configTestTrackingMockModel tracks which key messages it receives.
+type configTestTrackingMockModel struct {
+	receivedKeys []string
+}
+
+func (m *configTestTrackingMockModel) Init() tea.Cmd { return nil }
+func (m *configTestTrackingMockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		m.receivedKeys = append(m.receivedKeys, keyMsg.String())
+	}
+	return m, nil
+}
+func (m *configTestTrackingMockModel) View() string   { return "mock" }
+func (m *configTestTrackingMockModel) Focus() tea.Cmd { return nil }
+func (m *configTestTrackingMockModel) Blur() tea.Cmd  { return nil }
