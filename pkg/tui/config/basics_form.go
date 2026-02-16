@@ -22,7 +22,6 @@ type BasicsFormConfig struct {
 type BasicsForm struct {
 	theme                *tui.Theme
 	onSave               func(data map[string]string) error
-	discardField         tui.Field
 	defaultBranchField   tui.Field
 	worktreesDirField    tui.Field
 	validationOverlay    *fields.ValidationOverlay
@@ -32,7 +31,6 @@ type BasicsForm struct {
 	focusedFieldIdx      int
 	submitted            bool
 	cancelled            bool
-	showConfirmDiscard   bool
 	showValidationErrors bool
 	showHelp             bool
 	insertMode           bool // vim-style insert mode for text inputs
@@ -90,16 +88,9 @@ func NewBasicsForm(config BasicsFormConfig) *BasicsForm {
 		WithDefault(config.WorktreesDir).
 		WithTheme(config.Theme)
 
-	// Create discard confirmation field
-	discardField := fields.NewConfirm(
-		"discard_confirm",
-		"Discard unsaved changes?",
-	).WithTheme(config.Theme)
-
 	return &BasicsForm{
 		theme:              config.Theme,
 		onSave:             config.OnSave,
-		discardField:       discardField,
 		defaultBranchField: defaultBranchField,
 		worktreesDirField:  worktreesDirField,
 		focusedFieldIdx:    0,
@@ -124,11 +115,6 @@ func (f *BasicsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle validation error overlay
 	if f.showValidationErrors {
 		return f.handleValidationOverlay(msg)
-	}
-
-	// Handle discard confirmation modal
-	if f.showConfirmDiscard {
-		return f.handleDiscardConfirmation(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -172,36 +158,6 @@ func (f *BasicsForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return f, cmd
-}
-
-// handleDiscardConfirmation processes input while showing the discard confirmation modal.
-func (f *BasicsForm) handleDiscardConfirmation(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return f, nil
-	}
-
-	newField, cmd := f.discardField.Update(keyMsg)
-	f.discardField = newField
-
-	// Check if user answered the confirmation
-	confirmVal, ok := f.discardField.GetValue().(bool)
-	if ok {
-		// Check the type of confirmation
-		if keyMsg.String() == "enter" || keyMsg.String() == "y" || confirmVal {
-			// User confirmed discard
-			f.showConfirmDiscard = false
-			f.cancelled = true
-			return f, func() tea.Msg {
-				return tui.BackBoundaryMsg{}
-			}
-		} else if keyMsg.String() == "n" || !confirmVal {
-			// User cancelled discard
-			f.showConfirmDiscard = false
-			return f, f.focusedField().Focus()
-		}
-	}
 	return f, cmd
 }
 
@@ -321,12 +277,8 @@ func (f *BasicsForm) handleRuneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return f, func() tea.Msg {
-			return tui.BackBoundaryMsg{}
+			return tui.FormFlushCompleteMsg{}
 		}
-
-	case 'q':
-		f.showConfirmDiscard = true
-		return f, f.discardField.Focus()
 	}
 
 	return f, nil
@@ -362,7 +314,6 @@ func (f *BasicsForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd
 	f.height = msg.Height
 	f.defaultBranchField = f.defaultBranchField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.worktreesDirField = f.worktreesDirField.WithWidth(msg.Width).WithHeight(msg.Height)
-	f.discardField = f.discardField.WithWidth(msg.Width).WithHeight(msg.Height)
 	if f.validationOverlay != nil {
 		f.validationOverlay = f.validationOverlay.WithWidth(msg.Width).WithHeight(msg.Height)
 	}
@@ -380,10 +331,6 @@ func (f *BasicsForm) View() string {
 		return f.validationOverlay.View()
 	}
 
-	if f.showConfirmDiscard {
-		return f.discardField.View()
-	}
-
 	lines := []string{
 		f.theme.Focused.Title.Render("Basic Settings"),
 		"",
@@ -391,7 +338,7 @@ func (f *BasicsForm) View() string {
 		"",
 		f.worktreesDirField.View(),
 		"",
-		f.theme.Blurred.Description.Render("Tab=next field, s=save, ?=help, q=quit"),
+		f.theme.Blurred.Description.Render("Tab=next field, s=save, ?=help"),
 	}
 
 	return strings.Join(lines, "\n")
@@ -416,11 +363,6 @@ func (f *BasicsForm) IsComplete() bool {
 // IsCancelled returns whether the form was cancelled.
 func (f *BasicsForm) IsCancelled() bool {
 	return f.cancelled
-}
-
-// ShowConfirmDiscard returns whether the discard confirmation is shown.
-func (f *BasicsForm) ShowConfirmDiscard() bool {
-	return f.showConfirmDiscard
 }
 
 // Focus gives the form keyboard focus and focuses the first field.

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// fileCopyFormModel wraps FileCopyForm for teatest, quitting on BackBoundaryMsg.
+// fileCopyFormModel wraps FileCopyForm for teatest, quitting on boundary messages.
 type fileCopyFormModel struct {
 	form *FileCopyForm
 }
@@ -26,7 +26,8 @@ func (m *fileCopyFormModel) Init() tea.Cmd {
 }
 
 func (m *fileCopyFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if _, ok := msg.(tui.BackBoundaryMsg); ok {
+	switch msg.(type) {
+	case tui.BackBoundaryMsg, tui.FormFlushCompleteMsg:
 		return m, tea.Quit
 	}
 
@@ -277,64 +278,6 @@ func TestFileCopyForm_SaveFlow(t *testing.T) {
 	assert.True(t, saveCalled, "OnSave callback should have been called")
 	assert.Len(t, savedRules, 1, "Should save 1 rule")
 	assert.True(t, form.IsComplete(), "Form should be marked as submitted")
-}
-
-func TestFileCopyForm_DiscardFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	config := FileCopyFormConfig{
-		Rules: nil,
-		Theme: tui.DefaultTheme(),
-	}
-
-	form := NewFileCopyForm(config)
-	model := newFileCopyFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	time.Sleep(50 * time.Millisecond)
-
-	assert.Equal(t, ModalDiscard, form.GetModalState(), "Discard modal should be shown")
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	assert.True(t, form.IsCancelled(), "Form should be marked as cancelled")
-}
-
-func TestFileCopyForm_KeepEditingFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	config := FileCopyFormConfig{
-		Rules: nil,
-		Theme: tui.DefaultTheme(),
-	}
-
-	form := NewFileCopyForm(config)
-	model := newFileCopyFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	time.Sleep(50 * time.Millisecond)
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	time.Sleep(50 * time.Millisecond)
-
-	assert.False(t, form.IsCancelled(), "Form should not be cancelled")
-	assert.Equal(t, ModalNone, form.GetModalState(), "Modal should be closed")
 }
 
 func TestFileCopyForm_EscapeModalClosesModal(t *testing.T) {

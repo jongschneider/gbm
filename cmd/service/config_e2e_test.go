@@ -101,12 +101,9 @@ func TestConfigTUI_E2E_HappyPath(t *testing.T) {
 	model.GetState().MarkDirty()
 	assert.True(t, model.IsDirty())
 
-	// === Step 3: Return to sidebar ===
-	model.Update(tui.BackBoundaryMsg{})
-	assert.Equal(t, tui.SidebarFocused, model.GetPaneFocus())
-
-	// === Step 4: Save via 's' key ===
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// === Step 3: Save via FormFlushCompleteMsg + confirm ===
+	model.Update(tui.FormFlushCompleteMsg{})
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify save was called
 	assert.True(t, saveCalled)
@@ -187,9 +184,9 @@ func TestConfigTUI_E2E_EditJira(t *testing.T) {
 	state.JiraMarkdownIncludeComments = true
 	state.MarkDirty()
 
-	// Return to sidebar and save
-	model.Update(tui.BackBoundaryMsg{})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// Save via FormFlushCompleteMsg + confirm
+	model.Update(tui.FormFlushCompleteMsg{})
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
 	fileData, err := os.ReadFile(configPath)
@@ -273,9 +270,9 @@ func TestConfigTUI_E2E_EditFileCopyRules(t *testing.T) {
 	}
 	state.MarkDirty()
 
-	// Return to sidebar and save
-	model.Update(tui.BackBoundaryMsg{})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// Save via FormFlushCompleteMsg + confirm
+	model.Update(tui.FormFlushCompleteMsg{})
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
 	fileData, err := os.ReadFile(configPath)
@@ -357,9 +354,9 @@ func TestConfigTUI_E2E_EditWorktrees(t *testing.T) {
 	}
 	state.MarkDirty()
 
-	// Return to sidebar and save
-	model.Update(tui.BackBoundaryMsg{})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// Save via FormFlushCompleteMsg + confirm
+	model.Update(tui.FormFlushCompleteMsg{})
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
 	fileData, err := os.ReadFile(configPath)
@@ -513,8 +510,9 @@ func TestConfigTUI_E2E_PreservesOriginalFields(t *testing.T) {
 	state.DefaultBranch = "develop"
 	state.MarkDirty()
 
-	// Save
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// Save via FormFlushCompleteMsg + confirm
+	model.Update(tui.FormFlushCompleteMsg{})
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
 	fileData, err := os.ReadFile(configPath)

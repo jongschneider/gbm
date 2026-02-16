@@ -7,10 +7,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// quitConfirm is a minimal yes/no confirmation field used by ConfigModel
-// for the quit-with-unsaved-changes dialog. It lives in the tui package
+// saveConfirm is a minimal yes/no confirmation field used by ConfigModel
+// for the save-configuration dialog. It lives in the tui package
 // to avoid an import cycle with tui/fields.
-type quitConfirm struct {
+type saveConfirm struct {
 	theme    *Theme
 	title    string
 	selected bool // true = Yes, false = No
@@ -19,21 +19,21 @@ type quitConfirm struct {
 	focused  bool
 }
 
-// newQuitConfirm creates a new quit confirmation field.
-func newQuitConfirm(theme *Theme) Field {
+// newSaveConfirm creates a new save confirmation field.
+func newSaveConfirm(theme *Theme) *saveConfirm {
 	if theme == nil {
 		theme = DefaultTheme()
 	}
-	return &quitConfirm{
+	return &saveConfirm{
 		theme:    theme,
-		title:    "Discard unsaved changes?",
+		title:    "Save configuration?",
 		selected: true, // Default to Yes
 	}
 }
 
-func (c *quitConfirm) Init() tea.Cmd { return nil }
+func (c *saveConfirm) Init() tea.Cmd { return nil }
 
-func (c *quitConfirm) Update(msg tea.Msg) (Field, tea.Cmd) {
+func (c *saveConfirm) Update(msg tea.Msg) (Field, tea.Cmd) {
 	if !c.focused {
 		return c, nil
 	}
@@ -67,7 +67,7 @@ func (c *quitConfirm) Update(msg tea.Msg) (Field, tea.Cmd) {
 	return c, nil
 }
 
-func (c *quitConfirm) View() string {
+func (c *saveConfirm) View() string {
 	var b strings.Builder
 
 	styles := c.theme.Focused
@@ -107,30 +107,30 @@ func (c *quitConfirm) View() string {
 	return b.String()
 }
 
-func (c *quitConfirm) Focus() tea.Cmd {
+func (c *saveConfirm) Focus() tea.Cmd {
 	c.focused = true
 	return nil
 }
 
-func (c *quitConfirm) Blur() tea.Cmd {
+func (c *saveConfirm) Blur() tea.Cmd {
 	c.focused = false
 	return nil
 }
 
-func (c *quitConfirm) IsComplete() bool  { return c.complete }
-func (c *quitConfirm) IsCancelled() bool { return c.complete && !c.value }
-func (c *quitConfirm) Error() error      { return nil }
-func (c *quitConfirm) Skip() bool        { return false }
-func (c *quitConfirm) GetKey() string    { return "quit_confirm" }
-func (c *quitConfirm) GetValue() any     { return c.value }
+func (c *saveConfirm) IsComplete() bool  { return c.complete }
+func (c *saveConfirm) IsCancelled() bool { return c.complete && !c.value }
+func (c *saveConfirm) Error() error      { return nil }
+func (c *saveConfirm) Skip() bool        { return false }
+func (c *saveConfirm) GetKey() string    { return "save_confirm" }
+func (c *saveConfirm) GetValue() any     { return c.value }
 
-func (c *quitConfirm) WithTheme(theme *Theme) Field {
+func (c *saveConfirm) WithTheme(theme *Theme) Field {
 	c.theme = theme
 	return c
 }
 
-func (c *quitConfirm) WithWidth(_ int) Field  { return c }
-func (c *quitConfirm) WithHeight(_ int) Field { return c }
+func (c *saveConfirm) WithWidth(_ int) Field  { return c }
+func (c *saveConfirm) WithHeight(_ int) Field { return c }
 
-// Ensure quitConfirm implements Field at compile time.
-var _ Field = (*quitConfirm)(nil)
+// Ensure saveConfirm implements Field at compile time.
+var _ Field = (*saveConfirm)(nil)

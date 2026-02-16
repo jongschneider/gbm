@@ -312,40 +312,6 @@ func TestWorktreesForm_ShiftTabCyclesFocusBackward(t *testing.T) {
 	assert.Equal(t, 3, f.modalFocusIdx)
 }
 
-func TestWorktreesForm_DiscardModal(t *testing.T) {
-	form := NewWorktreesForm(WorktreesFormConfig{})
-
-	model, _ := form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	f := model.(*WorktreesForm)
-
-	assert.Equal(t, WorktreeModalDiscard, f.modalState)
-}
-
-func TestWorktreesForm_DiscardConfirmed(t *testing.T) {
-	form := NewWorktreesForm(WorktreesFormConfig{})
-
-	model, _ := form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	f := model.(*WorktreesForm)
-
-	model, _ = f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	f = model.(*WorktreesForm)
-
-	assert.True(t, f.cancelled)
-}
-
-func TestWorktreesForm_DiscardCancelled(t *testing.T) {
-	form := NewWorktreesForm(WorktreesFormConfig{})
-
-	model, _ := form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	f := model.(*WorktreesForm)
-
-	model, _ = f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	f = model.(*WorktreesForm)
-
-	assert.False(t, f.cancelled)
-	assert.Equal(t, WorktreeModalNone, f.modalState)
-}
-
 func TestWorktreesForm_Save(t *testing.T) {
 	var savedWorktrees []WorktreeEntry
 	form := NewWorktreesForm(WorktreesFormConfig{

@@ -32,7 +32,6 @@ const (
 	ModalAdd
 	ModalEdit
 	ModalDelete
-	ModalDiscard
 	ModalFilePicker
 	ModalHelp
 )
@@ -131,8 +130,6 @@ func (f *FileCopyForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f.handleEditModal(msg)
 	case ModalDelete:
 		return f.handleDeleteModal(msg)
-	case ModalDiscard:
-		return f.handleDiscardModal(msg)
 	case ModalFilePicker:
 		return f.handleFilePickerModal(msg)
 	}
@@ -164,8 +161,6 @@ func (f *FileCopyForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return f.openDeleteModal()
 	case "s":
 		return f.save()
-	case "q":
-		return f.openDiscardModal()
 	case "esc":
 		f.cancelled = true
 		return f, func() tea.Msg {
@@ -213,14 +208,6 @@ func (f *FileCopyForm) openDeleteModal() (tea.Model, tea.Cmd) {
 	f.editingIdx = cursor
 	rule := f.rules[cursor]
 	confirm := fields.NewConfirm("delete_confirm", "Delete rule for '"+rule.SourceWorktree+"'?")
-	f.confirmField = confirm.WithTheme(f.theme)
-	return f, f.confirmField.Focus()
-}
-
-// openDiscardModal opens the discard confirmation modal.
-func (f *FileCopyForm) openDiscardModal() (tea.Model, tea.Cmd) {
-	f.modalState = ModalDiscard
-	confirm := fields.NewConfirm("discard_confirm", "Discard unsaved changes?")
 	f.confirmField = confirm.WithTheme(f.theme)
 	return f, f.confirmField.Focus()
 }
@@ -441,30 +428,6 @@ func (f *FileCopyForm) confirmDelete() (tea.Model, tea.Cmd) {
 	return f, nil
 }
 
-// handleDiscardModal processes input in the discard modal.
-func (f *FileCopyForm) handleDiscardModal(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return f, nil
-	}
-
-	switch keyMsg.String() {
-	case "y", "Y":
-		f.cancelled = true
-		f.modalState = ModalNone
-		return f, func() tea.Msg {
-			return tui.BackBoundaryMsg{}
-		}
-	case "n", "N", "esc":
-		f.modalState = ModalNone
-		return f, nil
-	}
-
-	newField, cmd := f.confirmField.Update(keyMsg)
-	f.confirmField = newField
-	return f, cmd
-}
-
 // openFilePicker opens the file picker modal.
 func (f *FileCopyForm) openFilePicker() (tea.Model, tea.Cmd) {
 	f.prevModalState = f.modalState
@@ -556,7 +519,7 @@ func (f *FileCopyForm) save() (tea.Model, tea.Cmd) {
 	}
 	f.submitted = true
 	return f, func() tea.Msg {
-		return tui.BackBoundaryMsg{}
+		return tui.FormFlushCompleteMsg{}
 	}
 }
 
@@ -587,8 +550,6 @@ func (f *FileCopyForm) View() string {
 		return f.renderEditModal("Edit File Copy Rule")
 	case ModalDelete:
 		return f.confirmField.View()
-	case ModalDiscard:
-		return f.confirmField.View()
 	case ModalFilePicker:
 		return f.filepickerField.View()
 	}
@@ -605,7 +566,7 @@ func (f *FileCopyForm) View() string {
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help  q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help"))
 
 	return strings.Join(lines, "\n")
 }

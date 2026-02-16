@@ -12,9 +12,9 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name   string
 		setup  func() *TextInput
 		assert func(t *testing.T, ti *TextInput)
+		name   string
 	}{
 		{
 			name: "focus-blur-focus cycle preserves user edits",
@@ -77,7 +77,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
-				assert.Equal(t, "", ti.textInput.Value())
+				assert.Empty(t, ti.textInput.Value())
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
-				assert.Equal(t, "", ti.textInput.Value())
+				assert.Empty(t, ti.textInput.Value())
 			},
 		},
 	}
@@ -117,9 +117,9 @@ func TestTextInput_FocusSetsState(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name   string
 		action func(ti *TextInput)
 		assert func(t *testing.T, ti *TextInput)
+		name   string
 	}{
 		{
 			name:   "Focus sets focused to true",
@@ -154,9 +154,9 @@ func TestTextInput_GetValue(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name   string
 		setup  func() *TextInput
 		assert func(t *testing.T, val any)
+		name   string
 	}{
 		{
 			name: "returns default value before any interaction",

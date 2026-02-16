@@ -674,9 +674,9 @@ func TestSortTargetBranchOptions(t *testing.T) {
 
 func TestGetTrackedBranches(t *testing.T) {
 	testCases := []struct {
-		name     string
 		config   tui.RepoConfig
 		expected map[string]bool
+		name     string
 	}{
 		{
 			name:     "nil_config",

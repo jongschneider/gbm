@@ -112,23 +112,23 @@ func WithFormFactory(factory FormFactory) ConfigModelOption {
 // It holds the in-memory config state that sections can modify.
 // Each pane uses a viewport for independent scrolling within terminal height.
 type ConfigModel struct {
-	sidebar         *Sidebar
-	theme           *Theme
-	state           *ConfigState
-	onSave          func(*ConfigState) error
-	onReset         func() (*ConfigState, error)
-	formFactory     FormFactory
-	helpOverlay     *HelpOverlay
-	discardField    Field
-	currentForm     tea.Model
-	formCache       map[string]tea.Model
-	sidebarViewport viewport.Model
-	contentViewport viewport.Model
-	paneFocus       PaneFocus
-	width           int
-	height          int
-	ready           bool // true after first WindowSizeMsg
-	showConfirmQuit bool
+	sidebar          *Sidebar
+	theme            *Theme
+	state            *ConfigState
+	onSave           func(*ConfigState) error
+	onReset          func() (*ConfigState, error)
+	formFactory      FormFactory
+	helpOverlay      *HelpOverlay
+	saveConfirmField Field
+	currentForm      tea.Model
+	formCache        map[string]tea.Model
+	sidebarViewport  viewport.Model
+	contentViewport  viewport.Model
+	paneFocus        PaneFocus
+	width            int
+	height           int
+	ready            bool // true after first WindowSizeMsg
+	showSaveConfirm  bool
 }
 
 // NewConfigModel creates a new ConfigModel with a Sidebar as the initial view.
@@ -175,9 +175,9 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleWindowSize(msg)
 
 	case tea.KeyMsg:
-		// Handle quit confirmation dialog if showing
-		if m.showConfirmQuit {
-			return m.handleQuitConfirmation(msg)
+		// Handle save confirmation dialog if showing
+		if m.showSaveConfirm {
+			return m.handleSaveConfirmation(msg)
 		}
 		// Handle help overlay if showing
 		if m.helpOverlay != nil {
@@ -198,17 +198,18 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Content requested to go back - focus the sidebar
 		return m.focusSidebar()
 
-	case configSavedMsg:
-		// Form saved its data to state, focus sidebar
-		return m.focusSidebar()
+	case FormFlushCompleteMsg:
+		// Form validated and flushed data to state - show save confirmation
+		return m.showSaveConfirmDialog()
 	}
 
 	// Delegate to the appropriate pane based on focus
 	return m.delegateToFocusedPane(msg)
 }
 
-// configSavedMsg signals that a form saved its data to state.
-type configSavedMsg struct{}
+// FormFlushCompleteMsg signals that a form validated and flushed its data to state.
+// The config model responds by showing a save confirmation dialog.
+type FormFlushCompleteMsg struct{}
 
 // handleWindowSize updates dimensions on terminal resize.
 func (m *ConfigModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
@@ -279,37 +280,40 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	if !editing && m.paneFocus == SidebarFocused {
-		// Global keys only apply when sidebar is focused.
-		// When content is focused, s/q/? are delegated to the form
-		// so forms can run validation, update state, and show their own help.
-		switch msg.String() {
-		case "?":
-			return m.showHelp()
-		case "s":
-			return m.handleSave()
-		case "q":
-			return m.handleQuit()
-		}
+	// q always quits from normal mode, regardless of pane focus
+	if !editing && msg.String() == "q" {
+		return m, tea.Quit
 	}
 
-	// Focus-specific navigation
 	if m.paneFocus == SidebarFocused {
-		switch msg.String() {
-		case "l", "right":
-			return m.focusContent()
-		case "r":
-			return m.handleReset()
-		}
-		// Delegate to sidebar
-		newSidebar, cmd := m.sidebar.Update(msg)
-		if s, ok := newSidebar.(*Sidebar); ok {
-			m.sidebar = s
-		}
-		return m, cmd
+		return m.handleSidebarKeys(msg)
 	}
 
-	// Content pane has focus
+	return m.handleContentKeys(msg, editing)
+}
+
+// handleSidebarKeys processes keyboard input when the sidebar pane has focus.
+func (m *ConfigModel) handleSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "?":
+		return m.showHelp()
+	case "l", "right":
+		return m.focusContent()
+	case "r":
+		return m.handleReset()
+	case "s":
+		return m.showSaveConfirmDialog()
+	}
+	// Delegate to sidebar
+	newSidebar, cmd := m.sidebar.Update(msg)
+	if s, ok := newSidebar.(*Sidebar); ok {
+		m.sidebar = s
+	}
+	return m, cmd
+}
+
+// handleContentKeys processes keyboard input when the content pane has focus.
+func (m *ConfigModel) handleContentKeys(msg tea.KeyMsg, editing bool) (tea.Model, tea.Cmd) {
 	// Note: Esc is NOT intercepted here - forms handle it (exit insert mode or emit BackBoundaryMsg)
 	if !editing {
 		switch msg.String() {
@@ -327,59 +331,69 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Delegate to current form
-	if m.currentForm != nil {
-		newForm, cmd := m.currentForm.Update(msg)
-		m.currentForm = newForm
-		// Mark dirty when a field value is likely modified:
-		// - Insert mode: any key except Esc modifies text
-		// - Normal mode: Confirm toggle keys modify the field value
-		if editing && msg.Type != tea.KeyEsc {
+	return m.delegateToForm(msg, editing)
+}
+
+// delegateToForm passes a key message to the current form and tracks dirty state.
+func (m *ConfigModel) delegateToForm(msg tea.KeyMsg, editing bool) (tea.Model, tea.Cmd) {
+	if m.currentForm == nil {
+		return m, nil
+	}
+
+	newForm, cmd := m.currentForm.Update(msg)
+	m.currentForm = newForm
+	// Mark dirty when a field value is likely modified:
+	// - Insert mode: any key except Esc modifies text
+	// - Normal mode: Confirm toggle keys modify the field value
+	if editing && msg.Type != tea.KeyEsc {
+		m.state.MarkDirty()
+	} else if !editing && m.formHasConfirmFocused() {
+		switch msg.String() {
+		case " ", "enter", "h", "l", "left", "right", "y", "Y", "n", "N":
 			m.state.MarkDirty()
-		} else if !editing && m.formHasConfirmFocused() {
-			switch msg.String() {
-			case " ", "enter", "h", "l", "left", "right", "y", "Y", "n", "N":
-				m.state.MarkDirty()
-			}
 		}
-		// Auto-scroll to keep focused field visible
-		m.scrollToFocusedField()
+	}
+	// Auto-scroll to keep focused field visible
+	m.scrollToFocusedField()
+	return m, cmd
+}
+
+// showSaveConfirmDialog displays the save confirmation dialog.
+func (m *ConfigModel) showSaveConfirmDialog() (tea.Model, tea.Cmd) {
+	m.showSaveConfirm = true
+	m.saveConfirmField = newSaveConfirm(m.theme)
+	return m, m.saveConfirmField.Focus()
+}
+
+// handleSaveConfirmation processes input while the save confirmation dialog is showing.
+func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		m.showSaveConfirm = false
+		m.saveConfirmField = nil
+		return m, nil
+	}
+
+	newField, cmd := m.saveConfirmField.Update(msg)
+	m.saveConfirmField = newField
+
+	if !m.saveConfirmField.IsComplete() {
 		return m, cmd
 	}
 
-	return m, nil
-}
-
-// handleQuit handles the q key from the sidebar.
-// If there are unsaved changes, it shows a confirmation dialog.
-// If clean, it quits immediately.
-func (m *ConfigModel) handleQuit() (tea.Model, tea.Cmd) {
-	if !m.IsDirty() {
-		return m, tea.Quit
+	if val, ok := m.saveConfirmField.GetValue().(bool); ok && val {
+		// User confirmed save - write to disk and clear dirty
+		m.handleSave()
+		m.showSaveConfirm = false
+		m.saveConfirmField = nil
+		return m, nil
 	}
 
-	m.showConfirmQuit = true
-	m.discardField = newQuitConfirm(m.theme)
-	return m, m.discardField.Focus()
-}
-
-// handleQuitConfirmation processes input while the quit confirmation dialog is showing.
-func (m *ConfigModel) handleQuitConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	newField, cmd := m.discardField.Update(msg)
-	m.discardField = newField
-
-	if !m.discardField.IsComplete() {
-		return m, cmd
-	}
-
-	if val, ok := m.discardField.GetValue().(bool); ok && val {
-		// User confirmed discard - quit
-		return m, tea.Quit
-	}
-
-	// User cancelled - dismiss dialog and return to sidebar
-	m.showConfirmQuit = false
-	m.discardField = nil
+	// User cancelled - dismiss dialog, return to content pane
+	m.showSaveConfirm = false
+	m.saveConfirmField = nil
 	return m, nil
 }
 
@@ -530,20 +544,19 @@ func (m *ConfigModel) handleReset() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleSave saves the current state to file.
-func (m *ConfigModel) handleSave() (tea.Model, tea.Cmd) {
+// handleSave saves the current state to file and clears the dirty flag.
+func (m *ConfigModel) handleSave() {
 	if m.onSave == nil || m.state == nil {
-		return m, nil
+		return
 	}
 
 	err := m.onSave(m.state)
 	if err != nil {
 		// Could show error message, for now just ignore
-		return m, nil
+		return
 	}
 
 	m.state.dirty = false
-	return m, nil
 }
 
 // showHelp creates and shows the help overlay.
@@ -567,9 +580,9 @@ func (m *ConfigModel) handleHelpOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m *ConfigModel) View() string {
-	// Show quit confirmation dialog if active (full screen)
-	if m.showConfirmQuit && m.discardField != nil {
-		return m.discardField.View()
+	// Show save confirmation dialog if active (full screen)
+	if m.showSaveConfirm && m.saveConfirmField != nil {
+		return m.saveConfirmField.View()
 	}
 
 	// Show help overlay if active (full screen)
@@ -629,7 +642,7 @@ func (m *ConfigModel) renderFooter() string {
 
 	var helpText string
 	if m.paneFocus == SidebarFocused {
-		helpText = "↑↓=navigate  l/→=enter  s=save  r=reset  ?=help  q=quit"
+		helpText = "↑↓=navigate  l/→=enter  r=reset  s=save  ?=help  q=quit"
 	} else {
 		helpText = "h/←/Esc=back  Tab=next  PgUp/Dn=scroll  s=save  ?=help  q=quit"
 	}
@@ -677,7 +690,7 @@ func (m *ConfigModel) IsDirty() bool {
 	return m.state != nil && m.state.dirty
 }
 
-// ShowConfirmQuit returns whether the quit confirmation dialog is visible.
-func (m *ConfigModel) ShowConfirmQuit() bool {
-	return m.showConfirmQuit
+// ShowSaveConfirm returns whether the save confirmation dialog is visible.
+func (m *ConfigModel) ShowSaveConfirm() bool {
+	return m.showSaveConfirm
 }

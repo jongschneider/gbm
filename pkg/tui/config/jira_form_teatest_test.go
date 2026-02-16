@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// jiraFormModel wraps JiraForm for teatest, quitting on BackBoundaryMsg.
+// jiraFormModel wraps JiraForm for teatest, quitting on boundary messages.
 type jiraFormModel struct {
 	form *JiraForm
 }
@@ -27,8 +27,8 @@ func (m *jiraFormModel) Init() tea.Cmd {
 }
 
 func (m *jiraFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle BackBoundaryMsg to quit the test program
-	if _, ok := msg.(tui.BackBoundaryMsg); ok {
+	switch msg.(type) {
+	case tui.BackBoundaryMsg, tui.FormFlushCompleteMsg:
 		return m, tea.Quit
 	}
 
@@ -170,82 +170,6 @@ func TestJiraForm_SaveFlow(t *testing.T) {
 	assert.True(t, saveCalled, "OnSave callback should have been called")
 	assert.NotEmpty(t, savedData, "SaveData should not be empty")
 	assert.True(t, form.IsComplete(), "Form should be marked as submitted")
-}
-
-// TestJiraForm_DiscardFlow tests the discard confirmation flow.
-func TestJiraForm_DiscardFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	config := JiraFormConfig{
-		Enabled: false,
-		Theme:   tui.DefaultTheme(),
-	}
-
-	form := NewJiraForm(config)
-	model := newJiraFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	// Wait for initial render
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	// Send 'q' key to show discard confirmation
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-
-	// Wait a bit for confirmation to appear
-	time.Sleep(50 * time.Millisecond)
-
-	// Verify discard confirmation is shown
-	assert.True(t, form.showConfirmDiscard, "Discard confirmation should be shown")
-
-	// Send 'y' key to confirm discard
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-
-	// Wait for quit
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	// Verify cancelled
-	assert.True(t, form.IsCancelled(), "Form should be marked as cancelled")
-}
-
-// TestJiraForm_KeepEditingFlow tests the keep editing flow in discard confirmation.
-func TestJiraForm_KeepEditingFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	config := JiraFormConfig{
-		Enabled: false,
-		Theme:   tui.DefaultTheme(),
-	}
-
-	form := NewJiraForm(config)
-	model := newJiraFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	// Wait for initial render
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	// Send 'q' key to show discard confirmation
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-
-	// Wait a bit for confirmation to appear
-	time.Sleep(50 * time.Millisecond)
-
-	// Send 'n' key to keep editing
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-
-	// Wait a bit
-	time.Sleep(50 * time.Millisecond)
-
-	// Verify not cancelled and discard confirmation is hidden
-	assert.False(t, form.IsCancelled(), "Form should not be cancelled")
-	assert.False(t, form.showConfirmDiscard, "Discard confirmation should be hidden")
 }
 
 // TestJiraForm_TabNavigation tests tab navigation between fields.
@@ -417,9 +341,9 @@ func TestJiraForm_ConfirmFieldKeys(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.Ascii)
 
 	testCases := []struct {
+		assert func(t *testing.T, form *JiraForm)
 		name   string
 		key    tea.KeyMsg
-		assert func(t *testing.T, form *JiraForm)
 	}{
 		{
 			name: "enter on confirm field sets value and advances",
@@ -534,9 +458,9 @@ func TestJiraForm_ConfirmFieldFocused(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.Ascii)
 
 	testCases := []struct {
+		assert func(t *testing.T, focused bool)
 		name   string
 		idx    int
-		assert func(t *testing.T, focused bool)
 	}{
 		{
 			name: "returns true for enable field (index 0)",

@@ -202,9 +202,9 @@ func TestConfigModel_DirtyState(t *testing.T) {
 
 func TestConfigModel_DirtyIndicator(t *testing.T) {
 	testCases := []struct {
-		name   string
 		setup  func(m *ConfigModel)
 		assert func(t *testing.T, m *ConfigModel)
+		name   string
 	}{
 		{
 			name: "insert mode typing marks dirty",
@@ -272,8 +272,9 @@ func TestConfigModel_DirtyIndicator(t *testing.T) {
 			name: "save clears dirty flag",
 			setup: func(m *ConfigModel) {
 				m.state.MarkDirty()
-				// Save from sidebar
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+				// FormFlushCompleteMsg + confirm Yes triggers save
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 			},
 			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
@@ -370,10 +371,10 @@ func TestConfigModel_Reset(t *testing.T) {
 
 func TestConfigModel_Reset_InvalidatesFormCache(t *testing.T) {
 	testCases := []struct {
-		name        string
 		setup       func(m *ConfigModel)
 		assert      func(t *testing.T, m *ConfigModel)
 		assertError func(t *testing.T, err error)
+		name        string
 	}{
 		{
 			name: "clears all cached forms on reset",
@@ -466,8 +467,9 @@ func TestConfigModel_Save(t *testing.T) {
 	m.state.DefaultBranch = "develop"
 	m.state.dirty = true
 
-	// Simulate 's' key at sidebar level
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// FormFlushCompleteMsg triggers save confirm, then 'y' confirms
+	m.Update(FormFlushCompleteMsg{})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	assert.True(t, saveCalled)
 	assert.Equal(t, "develop", savedState.DefaultBranch)
@@ -654,9 +656,9 @@ func TestConfigModel_SidebarFocusState(t *testing.T) {
 
 func TestConfigModel_ContentFocused_DelegatesKeysToForm(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel)
 		name   string
 		key    tea.KeyMsg
-		assert func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel)
 	}{
 		{
 			name: "s key delegates to form instead of global save",
@@ -664,14 +666,6 @@ func TestConfigModel_ContentFocused_DelegatesKeysToForm(t *testing.T) {
 			assert: func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel) {
 				t.Helper()
 				assert.Contains(t, mock.receivedKeys, "s", "form should receive 's' key")
-			},
-		},
-		{
-			name: "q key delegates to form instead of quitting",
-			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}},
-			assert: func(t *testing.T, m *ConfigModel, mock *configTestTrackingMockModel) {
-				t.Helper()
-				assert.Contains(t, mock.receivedKeys, "q", "form should receive 'q' key")
 			},
 		},
 		{
@@ -717,50 +711,45 @@ func TestConfigModel_ContentFocused_DelegatesKeysToForm(t *testing.T) {
 
 func TestConfigModel_SidebarFocused_HandlesKeysGlobally(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, m *ConfigModel)
 		name   string
 		key    tea.KeyMsg
-		assert func(t *testing.T, m *ConfigModel, saveCalled bool)
 	}{
-		{
-			name: "s key triggers global save from sidebar",
-			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}},
-			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
-				t.Helper()
-				assert.True(t, saveCalled, "global save should be called from sidebar")
-			},
-		},
 		{
 			name: "? key shows global help from sidebar",
 			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}},
-			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
 				assert.NotNil(t, m.helpOverlay, "help overlay should be shown from sidebar")
+			},
+		},
+		{
+			name: "s key shows save confirmation from sidebar",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "save confirmation should be shown from sidebar")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			saveCalled := false
-			onSave := func(state *ConfigState) error {
-				saveCalled = true
-				return nil
-			}
-
-			m := NewConfigModel(DefaultTheme(), WithOnSave(onSave))
+			m := NewConfigModel(DefaultTheme())
 			assert.Equal(t, SidebarFocused, m.paneFocus)
 
 			m.Update(tc.key)
 
-			tc.assert(t, m, saveCalled)
+			tc.assert(t, m)
 		})
 	}
 }
 
 func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 	testCases := []struct {
-		name  string
 		setup func(m *ConfigModel)
+		name  string
 	}{
 		{
 			name:  "quits from sidebar",
@@ -770,6 +759,12 @@ func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 			name: "quits from content pane",
 			setup: func(m *ConfigModel) {
 				m.Update(SidebarSelectionMsg{Section: "Basics"})
+			},
+		},
+		{
+			name: "quits from save confirmation dialog",
+			setup: func(m *ConfigModel) {
+				m.Update(FormFlushCompleteMsg{})
 			},
 		},
 	}
@@ -792,105 +787,80 @@ func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 	}
 }
 
-func TestConfigModel_QuitConfirmation(t *testing.T) {
+func TestConfigModel_QuitAlwaysQuits(t *testing.T) {
 	testCases := []struct {
-		name string
-		// action returns the cmd from the final Update call being tested
-		action func(m *ConfigModel) tea.Cmd
-		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
+		setup func(m *ConfigModel)
+		name  string
 	}{
 		{
-			name: "q quits immediately when not dirty",
-			action: func(m *ConfigModel) tea.Cmd {
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				return cmd
-			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
-				t.Helper()
-				assert.NotNil(t, cmd, "should produce a quit command")
-				assert.False(t, m.ShowConfirmQuit(), "should not show confirmation")
+			name:  "q quits from sidebar when clean",
+			setup: func(m *ConfigModel) {},
+		},
+		{
+			name: "q quits from sidebar when dirty",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
 			},
 		},
 		{
-			name: "q shows confirmation when dirty",
-			action: func(m *ConfigModel) tea.Cmd {
-				m.state.MarkDirty()
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				return cmd
-			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
-				t.Helper()
-				assert.True(t, m.ShowConfirmQuit(), "should show quit confirmation")
-				assert.NotNil(t, m.discardField, "discard field should be created")
+			name: "q quits from content pane",
+			setup: func(m *ConfigModel) {
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
 			},
 		},
 		{
-			name: "confirmation y quits",
-			action: func(m *ConfigModel) tea.Cmd {
+			name: "q quits from content pane when dirty",
+			setup: func(m *ConfigModel) {
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
 				m.state.MarkDirty()
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+			tc.setup(m)
+
+			_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+			assert.NotNil(t, cmd, "q should produce a quit command")
+		})
+	}
+}
+
+func TestConfigModel_FormFlushCompleteMsg(t *testing.T) {
+	testCases := []struct {
+		action func(m *ConfigModel) tea.Cmd
+		assert func(t *testing.T, m *ConfigModel)
+		name   string
+	}{
+		{
+			name: "shows save confirmation dialog",
+			action: func(m *ConfigModel) tea.Cmd {
+				_, cmd := m.Update(FormFlushCompleteMsg{})
 				return cmd
 			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
-				assert.NotNil(t, cmd, "should produce a quit command after confirmation")
+				assert.True(t, m.ShowSaveConfirm(), "save confirmation should be shown")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
 			},
 		},
 		{
-			name: "confirmation n returns to sidebar",
+			name: "view shows save confirmation when active",
 			action: func(m *ConfigModel) tea.Cmd {
-				m.state.MarkDirty()
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+				_, cmd := m.Update(FormFlushCompleteMsg{})
 				return cmd
 			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
-				t.Helper()
-				assert.False(t, m.ShowConfirmQuit(), "confirmation should be dismissed")
-				assert.Nil(t, m.discardField, "discard field should be cleared")
-			},
-		},
-		{
-			name: "confirmation enter with Yes selected quits",
-			action: func(m *ConfigModel) tea.Cmd {
-				m.state.MarkDirty()
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-				return cmd
-			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
-				t.Helper()
-				assert.NotNil(t, cmd, "should produce a quit command")
-			},
-		},
-		{
-			name: "confirmation enter with No selected returns to sidebar",
-			action: func(m *ConfigModel) tea.Cmd {
-				m.state.MarkDirty()
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				// Move selection to No
-				m.Update(tea.KeyMsg{Type: tea.KeyRight})
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-				return cmd
-			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
-				t.Helper()
-				assert.False(t, m.ShowConfirmQuit(), "confirmation should be dismissed")
-				assert.Nil(t, m.discardField, "discard field should be cleared")
-			},
-		},
-		{
-			name: "view shows confirmation dialog when active",
-			action: func(m *ConfigModel) tea.Cmd {
-				m.state.MarkDirty()
-				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-				return cmd
-			},
-			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
 				view := m.View()
-				assert.Contains(t, view, "Discard unsaved changes?")
+				assert.Contains(t, view, "Save configuration?")
 			},
 		},
 	}
@@ -898,10 +868,102 @@ func TestConfigModel_QuitConfirmation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewConfigModel(DefaultTheme())
-			assert.Equal(t, SidebarFocused, m.paneFocus)
+			tc.action(m)
+			tc.assert(t, m)
+		})
+	}
+}
 
-			cmd := tc.action(m)
-			tc.assert(t, m, cmd)
+func TestConfigModel_SaveConfirmation(t *testing.T) {
+	testCases := []struct {
+		action func(m *ConfigModel, saveCalled *bool)
+		assert func(t *testing.T, m *ConfigModel, saveCalled bool)
+		name   string
+	}{
+		{
+			name: "y confirms save and writes to disk",
+			action: func(m *ConfigModel, saveCalled *bool) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.True(t, saveCalled, "onSave should be called")
+				assert.False(t, m.IsDirty(), "dirty flag should be cleared")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+			},
+		},
+		{
+			name: "n dismisses without saving",
+			action: func(m *ConfigModel, saveCalled *bool) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.False(t, saveCalled, "onSave should not be called")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+			},
+		},
+		{
+			name: "enter with Yes selected saves",
+			action: func(m *ConfigModel, saveCalled *bool) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.True(t, saveCalled, "onSave should be called")
+				assert.False(t, m.IsDirty(), "dirty flag should be cleared")
+			},
+		},
+		{
+			name: "enter with No selected does not save",
+			action: func(m *ConfigModel, saveCalled *bool) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				// Move selection to No
+				m.Update(tea.KeyMsg{Type: tea.KeyRight})
+				m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.False(t, saveCalled, "onSave should not be called")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+			},
+		},
+		{
+			name: "esc dismisses dialog without saving",
+			action: func(m *ConfigModel, saveCalled *bool) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+			},
+			assert: func(t *testing.T, m *ConfigModel, saveCalled bool) {
+				t.Helper()
+				assert.False(t, saveCalled, "onSave should not be called")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+				assert.Nil(t, m.saveConfirmField, "save confirm field should be cleared")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			saveCalled := false
+			onSave := func(state *ConfigState) error {
+				saveCalled = true
+				return nil
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithOnSave(onSave))
+			tc.action(m, &saveCalled)
+			tc.assert(t, m, saveCalled)
 		})
 	}
 }

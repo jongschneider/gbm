@@ -38,7 +38,6 @@ type JiraForm struct {
 	attachmentsDirField             tui.Field
 	filtersTypeField                tui.Field
 	enableField                     tui.Field
-	discardField                    tui.Field
 	serverHostField                 tui.Field
 	serverUserField                 tui.Field
 	serverTokenField                tui.Field
@@ -61,7 +60,6 @@ type JiraForm struct {
 	submitted                       bool
 	cancelled                       bool
 	enabled                         bool
-	showConfirmDiscard              bool
 	showValidationErrors            bool
 	showHelp                        bool
 	insertMode                      bool // vim-style insert mode for text inputs
@@ -266,27 +264,6 @@ func (f *JiraForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f.handleValidationOverlay(msg)
 	}
 
-	// Handle discard confirmation
-	if f.showConfirmDiscard {
-		newField, cmd := f.discardField.Update(msg)
-		f.discardField = newField
-
-		confirm, ok := f.discardField.(*fields.Confirm)
-		if ok && confirm.IsComplete() {
-			if confirm.GetValue().(bool) {
-				// User confirmed discard
-				f.cancelled = true
-				return f, func() tea.Msg {
-					return tui.BackBoundaryMsg{}
-				}
-			}
-			// User said no - return to editing
-			f.showConfirmDiscard = false
-			return f, f.focusedField().Focus()
-		}
-		return f, cmd
-	}
-
 	// Handle window resize
 	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
 		return f.handleWindowSize(sizeMsg)
@@ -364,10 +341,6 @@ func (f *JiraForm) View() string {
 		return f.validationOverlay.View()
 	}
 
-	if f.showConfirmDiscard {
-		return f.discardField.View()
-	}
-
 	lines := []string{
 		f.theme.Focused.Title.Render("JIRA Configuration"),
 		"",
@@ -423,7 +396,7 @@ func (f *JiraForm) View() string {
 	}
 
 	// Help text
-	lines = append(lines, f.theme.Blurred.Description.Render("Tab=next, Shift+Tab=prev, s=save, ?=help, q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("Tab=next, Shift+Tab=prev, s=save, ?=help"))
 
 	return strings.Join(lines, "\n")
 }
@@ -491,8 +464,6 @@ func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 			return f, nil, true
 		case 's':
 			return f.handleSave()
-		case 'q':
-			return f.handleQuit()
 		}
 	}
 
@@ -592,16 +563,8 @@ func (f *JiraForm) handleSave() (tea.Model, tea.Cmd, bool) {
 	}
 	f.submitted = true
 	return f, func() tea.Msg {
-		return tui.BackBoundaryMsg{}
+		return tui.FormFlushCompleteMsg{}
 	}, true
-}
-
-// handleQuit shows the discard confirmation dialog.
-func (f *JiraForm) handleQuit() (tea.Model, tea.Cmd, bool) {
-	f.showConfirmDiscard = true
-	discardConfirm := fields.NewConfirm("discard", "Discard unsaved changes?")
-	f.discardField = discardConfirm.WithTheme(f.theme)
-	return f, f.discardField.Focus(), true
 }
 
 // handleWindowSize updates dimensions on terminal resize.
@@ -626,9 +589,6 @@ func (f *JiraForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) 
 	f.markdownIncludeAttachmentsField = f.markdownIncludeAttachmentsField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.markdownUseRelativeLinksField = f.markdownUseRelativeLinksField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.markdownFilenamePatternField = f.markdownFilenamePatternField.WithWidth(msg.Width).WithHeight(msg.Height)
-	if f.discardField != nil {
-		f.discardField = f.discardField.WithWidth(msg.Width).WithHeight(msg.Height)
-	}
 	if f.validationOverlay != nil {
 		f.validationOverlay = f.validationOverlay.WithWidth(msg.Width).WithHeight(msg.Height)
 	}

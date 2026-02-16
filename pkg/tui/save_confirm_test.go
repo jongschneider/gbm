@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQuitConfirm(t *testing.T) {
+func TestSaveConfirm(t *testing.T) {
 	testCases := []struct {
-		name        string
-		keys        []tea.KeyMsg
 		assert      func(t *testing.T, f Field)
 		assertError func(t *testing.T, err error)
+		name        string
+		keys        []tea.KeyMsg
 	}{
 		{
 			name: "y completes with true",
@@ -159,7 +159,7 @@ func TestQuitConfirm(t *testing.T) {
 			assert: func(t *testing.T, f Field) {
 				t.Helper()
 				view := f.View()
-				assert.Contains(t, view, "Discard unsaved changes?")
+				assert.Contains(t, view, "Save configuration?")
 				assert.Contains(t, view, "Yes")
 				assert.Contains(t, view, "No")
 			},
@@ -172,15 +172,14 @@ func TestQuitConfirm(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newQuitConfirm(DefaultTheme())
+			var f Field = newSaveConfirm(DefaultTheme())
 			require.NotNil(t, f)
 
 			f.Focus()
 
 			for _, key := range tc.keys {
-				var err error
 				f, _ = f.Update(key)
-				tc.assertError(t, err)
+				tc.assertError(t, nil)
 			}
 
 			tc.assert(t, f)
@@ -188,16 +187,16 @@ func TestQuitConfirm(t *testing.T) {
 	}
 }
 
-func TestQuitConfirm_Accessors(t *testing.T) {
-	f := newQuitConfirm(DefaultTheme())
+func TestSaveConfirm_Accessors(t *testing.T) {
+	f := newSaveConfirm(DefaultTheme())
 
-	assert.Equal(t, "quit_confirm", f.GetKey())
+	assert.Equal(t, "save_confirm", f.GetKey())
 	assert.False(t, f.Skip())
-	assert.Nil(t, f.Error())
+	assert.NoError(t, f.Error())
 }
 
-func TestQuitConfirm_IgnoresInputWhenBlurred(t *testing.T) {
-	f := newQuitConfirm(DefaultTheme())
+func TestSaveConfirm_IgnoresInputWhenBlurred(t *testing.T) {
+	var f Field = newSaveConfirm(DefaultTheme())
 	// Don't focus - field is blurred
 
 	f, _ = f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})

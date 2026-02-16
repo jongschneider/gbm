@@ -30,7 +30,6 @@ const (
 	WorktreeModalAdd
 	WorktreeModalEdit
 	WorktreeModalDelete
-	WorktreeModalDiscard
 	WorktreeModalHelp
 )
 
@@ -116,8 +115,6 @@ func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f.handleEditModal(msg)
 	case WorktreeModalDelete:
 		return f.handleDeleteModal(msg)
-	case WorktreeModalDiscard:
-		return f.handleDiscardModal(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -146,8 +143,6 @@ func (f *WorktreesForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return f.openDeleteModal()
 	case "s":
 		return f.save()
-	case "q":
-		return f.openDiscardModal()
 	case "esc":
 		f.cancelled = true
 		return f, func() tea.Msg {
@@ -194,13 +189,6 @@ func (f *WorktreesForm) openDeleteModal() (tea.Model, tea.Cmd) {
 	f.editingIdx = cursor
 	wt := f.worktrees[cursor]
 	confirm := fields.NewConfirm("delete_confirm", "Delete worktree '"+wt.Name+"'?")
-	f.confirmField = confirm.WithTheme(f.theme)
-	return f, f.confirmField.Focus()
-}
-
-func (f *WorktreesForm) openDiscardModal() (tea.Model, tea.Cmd) {
-	f.modalState = WorktreeModalDiscard
-	confirm := fields.NewConfirm("discard_confirm", "Discard unsaved changes?")
 	f.confirmField = confirm.WithTheme(f.theme)
 	return f, f.confirmField.Focus()
 }
@@ -429,29 +417,6 @@ func (f *WorktreesForm) confirmDelete() (tea.Model, tea.Cmd) {
 	return f, nil
 }
 
-func (f *WorktreesForm) handleDiscardModal(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return f, nil
-	}
-
-	switch keyMsg.String() {
-	case "y", "Y":
-		f.cancelled = true
-		f.modalState = WorktreeModalNone
-		return f, func() tea.Msg {
-			return tui.BackBoundaryMsg{}
-		}
-	case "n", "N", "esc":
-		f.modalState = WorktreeModalNone
-		return f, nil
-	}
-
-	newField, cmd := f.confirmField.Update(keyMsg)
-	f.confirmField = newField
-	return f, cmd
-}
-
 func (f *WorktreesForm) save() (tea.Model, tea.Cmd) {
 	if f.onSave != nil {
 		err := f.onSave(f.worktrees)
@@ -461,7 +426,7 @@ func (f *WorktreesForm) save() (tea.Model, tea.Cmd) {
 	}
 	f.submitted = true
 	return f, func() tea.Msg {
-		return tui.BackBoundaryMsg{}
+		return tui.FormFlushCompleteMsg{}
 	}
 }
 
@@ -489,8 +454,6 @@ func (f *WorktreesForm) View() string {
 		return f.renderEditModal("Edit Worktree")
 	case WorktreeModalDelete:
 		return f.confirmField.View()
-	case WorktreeModalDiscard:
-		return f.confirmField.View()
 	}
 
 	lines := []string{
@@ -505,7 +468,7 @@ func (f *WorktreesForm) View() string {
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help  q=quit"))
+	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help"))
 
 	return strings.Join(lines, "\n")
 }
