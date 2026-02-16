@@ -60,7 +60,6 @@ func defaultShortcuts() []ShortcutGroup {
 		{
 			Name: "Global",
 			Shortcuts: []Shortcut{
-				{Key: "s", Description: "Save configuration"},
 				{Key: "q", Description: "Quit"},
 			},
 		},
@@ -68,6 +67,12 @@ func defaultShortcuts() []ShortcutGroup {
 			Name: "Sidebar",
 			Shortcuts: []Shortcut{
 				{Key: "r", Description: "Reset from file"},
+			},
+		},
+		{
+			Name: "Content Pane",
+			Shortcuts: []Shortcut{
+				{Key: "s", Description: "Save configuration"},
 			},
 		},
 		{

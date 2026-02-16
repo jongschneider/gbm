@@ -301,8 +301,6 @@ func (m *ConfigModel) handleSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.focusContent()
 	case "r":
 		return m.handleReset()
-	case "s":
-		return m.showSaveConfirmDialog()
 	}
 	// Delegate to sidebar
 	newSidebar, cmd := m.sidebar.Update(msg)
@@ -642,7 +640,7 @@ func (m *ConfigModel) renderFooter() string {
 
 	var helpText string
 	if m.paneFocus == SidebarFocused {
-		helpText = "↑↓=navigate  l/→=enter  r=reset  s=save  ?=help  q=quit"
+		helpText = "↑↓=navigate  l/→=enter  r=reset  ?=help  q=quit"
 	} else {
 		helpText = "h/←/Esc=back  Tab=next  PgUp/Dn=scroll  s=save  ?=help  q=quit"
 	}

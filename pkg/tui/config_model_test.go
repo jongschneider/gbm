@@ -724,12 +724,12 @@ func TestConfigModel_SidebarFocused_HandlesKeysGlobally(t *testing.T) {
 			},
 		},
 		{
-			name: "s key shows save confirmation from sidebar",
+			name: "s key does not trigger save from sidebar",
 			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}},
 			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
-				assert.True(t, m.ShowSaveConfirm(), "save confirmation should be shown from sidebar")
-				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+				assert.False(t, m.ShowSaveConfirm(), "save confirmation should not be shown from sidebar")
+				assert.Nil(t, m.saveConfirmField, "save confirm field should not be created from sidebar")
 			},
 		},
 	}
