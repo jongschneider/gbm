@@ -687,6 +687,50 @@ func TestConfigModel_SidebarFocused_HandlesKeysGlobally(t *testing.T) {
 	}
 }
 
+func TestConfigModel_CtrlS_TriggersSave(t *testing.T) {
+	testCases := []struct {
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel)
+		name   string
+	}{
+		{
+			name:  "shows save confirmation from sidebar",
+			setup: func(m *ConfigModel) {},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+			},
+		},
+		{
+			name: "shows save confirmation from content pane",
+			setup: func(m *ConfigModel) {
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+			tc.setup(m)
+
+			m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+			tc.assert(t, m)
+		})
+	}
+}
+
 func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 	testCases := []struct {
 		setup func(m *ConfigModel)
@@ -706,6 +750,12 @@ func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 			name: "quits from save confirmation dialog",
 			setup: func(m *ConfigModel) {
 				m.Update(FormFlushCompleteMsg{})
+			},
+		},
+		{
+			name: "quits from help overlay",
+			setup: func(m *ConfigModel) {
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
 			},
 		},
 	}

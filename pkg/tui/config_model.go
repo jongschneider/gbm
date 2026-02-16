@@ -176,6 +176,10 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleWindowSize(msg)
 
 	case tea.KeyMsg:
+		// Ctrl+C always quits, regardless of modal state or pane focus
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
 		// Handle save confirmation dialog if showing
 		if m.showSaveConfirm {
 			return m.handleSaveConfirmation(msg)
@@ -253,17 +257,9 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Clear any transient error message on the next keypress
 	m.saveError = ""
 
-	// ctrl+c always quits regardless of pane or mode
-	if msg.String() == "ctrl+c" {
-		return m, tea.Quit
-	}
-
-	// q quits when sidebar is focused; if dirty, show the save confirmation dialog first
-	if m.paneFocus == SidebarFocused && msg.String() == "q" {
-		if m.IsDirty() {
-			return m.showSaveConfirmDialog()
-		}
-		return m, tea.Quit
+	// Ctrl+S triggers save from either pane
+	if msg.String() == "ctrl+s" {
+		return m.showSaveConfirmDialog()
 	}
 
 	if m.paneFocus == SidebarFocused {
@@ -276,6 +272,11 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSidebarKeys processes keyboard input when the sidebar pane has focus.
 func (m *ConfigModel) handleSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "q":
+		if m.IsDirty() {
+			return m.showSaveConfirmDialog()
+		}
+		return m, tea.Quit
 	case "?":
 		return m.showHelp()
 	case "l", "right":
@@ -329,8 +330,6 @@ func (m *ConfigModel) showSaveConfirmDialog() (tea.Model, tea.Cmd) {
 // handleSaveConfirmation processes input while the save confirmation dialog is showing.
 func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
-		return m, tea.Quit
 	case "esc":
 		m.showSaveConfirm = false
 		m.saveConfirmField = nil
@@ -626,9 +625,9 @@ func (m *ConfigModel) renderFooter() string {
 
 	var helpText string
 	if m.paneFocus == SidebarFocused {
-		helpText = "↑↓=navigate  l/→=enter  r=reset  ?=help  q=quit"
+		helpText = "↑↓=navigate  l/→=enter  r=reset  Ctrl+S=save  ?=help  q=quit"
 	} else {
-		helpText = "h/←/Esc=back  Tab=next  PgUp/Dn=scroll  s=save  ?=help  q=quit"
+		helpText = "Esc=back  Tab=next  PgUp/Dn=scroll  Ctrl+S=save"
 	}
 
 	return m.theme.Blurred.Description.Render(helpText + dirtyIndicator)

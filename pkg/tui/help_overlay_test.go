@@ -19,11 +19,9 @@ func TestHelpOverlay_NewHelpOverlay(t *testing.T) {
 	for i, g := range overlay.Groups() {
 		groupNames[i] = g.Name
 	}
-	assert.Contains(t, groupNames, "Navigation (Normal Mode)")
-	assert.Contains(t, groupNames, "Text Editing (Vim-style)")
+	assert.Contains(t, groupNames, "Navigation")
 	assert.Contains(t, groupNames, "Global")
 	assert.Contains(t, groupNames, "Sidebar")
-	assert.Contains(t, groupNames, "Content Pane")
 	assert.Contains(t, groupNames, "Table Forms")
 	assert.Contains(t, groupNames, "Modals")
 	assert.Contains(t, groupNames, "FilePicker")
@@ -158,42 +156,43 @@ func TestHelpOverlay_View_ContainsGroupNames(t *testing.T) {
 	assert.Contains(t, view, "Navigation")
 	assert.Contains(t, view, "Global")
 	assert.Contains(t, view, "Sidebar")
-	assert.Contains(t, view, "Content Pane")
 	assert.Contains(t, view, "Table Forms")
 	assert.Contains(t, view, "Modals")
 	assert.Contains(t, view, "FilePicker")
 }
 
-func TestHelpOverlay_SaveShortcutInContentPaneGroup(t *testing.T) {
+func TestHelpOverlay_SaveShortcutInGlobalGroup(t *testing.T) {
 	overlay := NewHelpOverlay()
 
-	// Find the "Content Pane" group and verify it contains the save shortcut
-	var contentPaneGroup *ShortcutGroup
+	// Find the Global and Sidebar groups
 	var globalGroup *ShortcutGroup
+	var sidebarGroup *ShortcutGroup
 	for i, g := range overlay.Groups() {
 		switch g.Name {
-		case "Content Pane":
-			contentPaneGroup = &overlay.Groups()[i]
 		case "Global":
 			globalGroup = &overlay.Groups()[i]
+		case "Sidebar":
+			sidebarGroup = &overlay.Groups()[i]
 		}
 	}
 
-	// "s" should be in Content Pane, not Global
-	assert.NotNil(t, contentPaneGroup, "Content Pane group should exist")
-	contentKeys := make([]string, len(contentPaneGroup.Shortcuts))
-	for i, s := range contentPaneGroup.Shortcuts {
-		contentKeys[i] = s.Key
-	}
-	assert.Contains(t, contentKeys, "s", "save shortcut should be in Content Pane group")
-
+	// Ctrl+S should be in Global group
 	assert.NotNil(t, globalGroup, "Global group should exist")
 	globalKeys := make([]string, len(globalGroup.Shortcuts))
 	for i, s := range globalGroup.Shortcuts {
 		globalKeys[i] = s.Key
 	}
-	assert.NotContains(t, globalKeys, "s", "save shortcut should not be in Global group")
-	assert.Contains(t, globalKeys, "q", "quit shortcut should remain in Global group")
+	assert.Contains(t, globalKeys, "Ctrl+S", "Ctrl+S save shortcut should be in Global group")
+	assert.Contains(t, globalKeys, "Ctrl+C", "Ctrl+C quit shortcut should be in Global group")
+
+	// q should be in Sidebar group (not Global)
+	assert.NotNil(t, sidebarGroup, "Sidebar group should exist")
+	sidebarKeys := make([]string, len(sidebarGroup.Shortcuts))
+	for i, s := range sidebarGroup.Shortcuts {
+		sidebarKeys[i] = s.Key
+	}
+	assert.Contains(t, sidebarKeys, "q", "q quit shortcut should be in Sidebar group")
+	assert.NotContains(t, globalKeys, "q", "q should not be in Global group")
 }
 
 func TestHelpOverlay_View_ContainsShortcuts(t *testing.T) {

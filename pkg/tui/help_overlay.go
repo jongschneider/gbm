@@ -40,10 +40,11 @@ func NewHelpOverlay() *HelpOverlay {
 func defaultShortcuts() []ShortcutGroup {
 	return []ShortcutGroup{
 		{
-			Name: "Navigation (Normal Mode)",
+			Name: "Navigation",
 			Shortcuts: []Shortcut{
-				{Key: "h/l", Description: "Sidebar/content"},
 				{Key: "j/k", Description: "Move down/up"},
+				{Key: "l/→", Description: "Enter content pane"},
+				{Key: "Esc", Description: "Back to sidebar"},
 				{Key: "Tab", Description: "Next field"},
 				{Key: "Shift+Tab", Description: "Previous field"},
 				{Key: "Space", Description: "Toggle Yes/No"},
@@ -51,28 +52,18 @@ func defaultShortcuts() []ShortcutGroup {
 			},
 		},
 		{
-			Name: "Text Editing (Vim-style)",
-			Shortcuts: []Shortcut{
-				{Key: "i", Description: "Enter insert mode"},
-				{Key: "Esc", Description: "Exit insert mode"},
-			},
-		},
-		{
 			Name: "Global",
 			Shortcuts: []Shortcut{
-				{Key: "q", Description: "Quit"},
+				{Key: "Ctrl+S", Description: "Save configuration"},
+				{Key: "Ctrl+C", Description: "Quit"},
 			},
 		},
 		{
 			Name: "Sidebar",
 			Shortcuts: []Shortcut{
+				{Key: "q", Description: "Quit"},
 				{Key: "r", Description: "Reset from file"},
-			},
-		},
-		{
-			Name: "Content Pane",
-			Shortcuts: []Shortcut{
-				{Key: "s", Description: "Save configuration"},
+				{Key: "?", Description: "Show help"},
 			},
 		},
 		{
