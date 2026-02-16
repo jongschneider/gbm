@@ -15,6 +15,8 @@ const (
 	SaveContextSave SaveConfirmContext = iota
 	// SaveContextQuit means the dialog was triggered by q while dirty.
 	SaveContextQuit
+	// SaveContextReset means the dialog was triggered by r while dirty.
+	SaveContextReset
 )
 
 // saveConfirm is a minimal yes/no confirmation field used by ConfigModel

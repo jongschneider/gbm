@@ -223,15 +223,17 @@ func TestConfigModel_DirtyIndicator(t *testing.T) {
 			},
 		},
 		{
-			name: "reset clears dirty flag",
+			name: "reset clears dirty flag after discard confirmation",
 			setup: func(m *ConfigModel) {
 				m.state.MarkDirty()
-				// Reset from sidebar
+				// Reset from sidebar (shows discard confirmation when dirty)
 				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+				// Confirm discard
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 			},
 			assert: func(t *testing.T, m *ConfigModel) {
 				t.Helper()
-				assert.False(t, m.IsDirty(), "reset should clear dirty flag")
+				assert.False(t, m.IsDirty(), "reset should clear dirty flag after discard confirmation")
 			},
 		},
 		{
@@ -301,8 +303,10 @@ func TestConfigModel_Reset(t *testing.T) {
 	m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
 	assert.NotEmpty(t, m.GetFormCache())
 
-	// Simulate 'r' key at sidebar level
+	// Simulate 'r' key at sidebar level (shows discard confirmation when dirty)
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	// Confirm discard
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	assert.True(t, resetCalled)
 	assert.Equal(t, "main", m.state.DefaultBranch)
@@ -393,6 +397,140 @@ func TestConfigModel_Reset_InvalidatesFormCache(t *testing.T) {
 			tc.assert(t, m)
 		})
 	}
+}
+
+func TestConfigModel_ResetDirtyGuard(t *testing.T) {
+	testCases := []struct {
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel, resetCalled bool)
+		name   string
+	}{
+		{
+			name: "r when clean resets immediately",
+			setup: func(m *ConfigModel) {
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.True(t, resetCalled, "onReset should be called immediately when clean")
+				assert.False(t, m.ShowSaveConfirm(), "should not show confirmation dialog")
+				assert.Equal(t, "main", m.GetState().DefaultBranch)
+			},
+		},
+		{
+			name: "r when dirty shows discard confirmation",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.False(t, resetCalled, "onReset should not be called yet")
+				assert.True(t, m.ShowSaveConfirm(), "should show discard confirmation dialog")
+				assert.Equal(t, SaveContextReset, m.GetSaveConfirmContext())
+			},
+		},
+		{
+			name: "discard confirmed resets and clears dirty",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.state.DefaultBranch = "edited"
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.True(t, resetCalled, "onReset should be called after discard confirmation")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+				assert.False(t, m.IsDirty(), "dirty flag should be cleared")
+				assert.Equal(t, "main", m.GetState().DefaultBranch, "state should be reloaded")
+			},
+		},
+		{
+			name: "discard confirmed clears form cache",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				// Visit JIRA section to populate cache
+				m.Update(SidebarSelectionChangedMsg{Section: "JIRA"})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.True(t, resetCalled)
+				assert.Len(t, m.GetFormCache(), 1, "cache should only contain the recreated current form")
+			},
+		},
+		{
+			name: "discard cancelled returns to sidebar without reset",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.state.DefaultBranch = "edited"
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.False(t, resetCalled, "onReset should not be called")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set")
+				assert.Equal(t, "edited", m.GetState().DefaultBranch, "state should not be changed")
+			},
+		},
+		{
+			name: "esc on discard dialog returns to sidebar without reset",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.state.DefaultBranch = "edited"
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+				m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+			},
+			assert: func(t *testing.T, m *ConfigModel, resetCalled bool) {
+				t.Helper()
+				assert.False(t, resetCalled, "onReset should not be called")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set")
+				assert.Equal(t, "edited", m.GetState().DefaultBranch, "state should not be changed")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetCalled := false
+			onReset := func() (*ConfigState, error) {
+				resetCalled = true
+				return &ConfigState{DefaultBranch: "main"}, nil
+			}
+
+			mockForm := &configTestMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithOnReset(onReset), WithFormFactory(factory))
+			tc.setup(m)
+			tc.assert(t, m, resetCalled)
+		})
+	}
+}
+
+func TestConfigModel_ResetConfirmTitle(t *testing.T) {
+	onReset := func() (*ConfigState, error) {
+		return &ConfigState{}, nil
+	}
+
+	mockForm := &configTestMockModel{}
+	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+		return mockForm
+	}
+
+	m := NewConfigModel(DefaultTheme(), WithOnReset(onReset), WithFormFactory(factory))
+	m.state.MarkDirty()
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+
+	view := m.View()
+	assert.Contains(t, view, "Discard unsaved changes?")
 }
 
 func TestConfigModel_Save(t *testing.T) {
@@ -1215,6 +1353,18 @@ func TestConfigModel_SaveConfirmTitle(t *testing.T) {
 				assert.Contains(t, view, "Save changes before quitting?")
 			},
 		},
+		{
+			name: "reset context shows Discard unsaved changes title",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				view := m.View()
+				assert.Contains(t, view, "Discard unsaved changes?")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1223,7 +1373,10 @@ func TestConfigModel_SaveConfirmTitle(t *testing.T) {
 			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 				return mockForm
 			}
-			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory))
+			onReset := func() (*ConfigState, error) {
+				return &ConfigState{}, nil
+			}
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory), WithOnReset(onReset))
 			tc.setup(m)
 			tc.assert(t, m)
 		})

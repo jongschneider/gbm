@@ -455,8 +455,11 @@ func TestConfigTUI_E2E_Reset(t *testing.T) {
 	assert.Equal(t, "develop", model.GetState().DefaultBranch)
 	assert.True(t, model.IsDirty())
 
-	// Press 'r' to reset
+	// Press 'r' to reset (shows discard confirmation when dirty)
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+
+	// Confirm discard of unsaved changes
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify state was reset to original
 	assert.Equal(t, "main", model.GetState().DefaultBranch)

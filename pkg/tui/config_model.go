@@ -398,8 +398,13 @@ func (m *ConfigModel) showSaveConfirmDialog(ctx SaveConfirmContext) (tea.Model, 
 	m.showSaveConfirm = true
 
 	confirm := newSaveConfirm(m.theme)
-	if ctx == SaveContextQuit {
+	switch ctx {
+	case SaveContextSave:
+		// Default title: "Save configuration?"
+	case SaveContextQuit:
 		confirm.WithTitle("Save changes before quitting?")
+	case SaveContextReset:
+		confirm.WithTitle("Discard unsaved changes?")
 	}
 	m.saveConfirmField = confirm
 
@@ -426,11 +431,14 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	m.showSaveConfirm = false
 	m.saveConfirmField = nil
 
-	if m.saveConfirmContext == SaveContextQuit {
+	switch m.saveConfirmContext {
+	case SaveContextQuit:
 		return m.handleSaveConfirmQuit(confirmed)
+	case SaveContextReset:
+		return m.handleSaveConfirmReset(confirmed)
+	default:
+		return m.handleSaveConfirmSave(confirmed)
 	}
-
-	return m.handleSaveConfirmSave(confirmed)
 }
 
 // handleSaveConfirmSave handles the save confirmation result for SaveContextSave (Ctrl+S).
@@ -456,6 +464,17 @@ func (m *ConfigModel) handleSaveConfirmQuit(confirmed bool) (tea.Model, tea.Cmd)
 		return m, m.restoreFocusAfterOverlay()
 	}
 	return m, tea.Quit
+}
+
+// handleSaveConfirmReset handles the discard confirmation result for SaveContextReset (r while dirty).
+func (m *ConfigModel) handleSaveConfirmReset(confirmed bool) (tea.Model, tea.Cmd) {
+	if !confirmed {
+		// "No" in reset context: cancel, return to sidebar
+		return m, m.restoreFocusAfterOverlay()
+	}
+
+	// "Yes" in reset context: discard changes and reload from file
+	return m.performReset()
 }
 
 // delegateToFocusedPane passes messages to the currently focused pane.
@@ -600,14 +619,27 @@ func (m *ConfigModel) calculatePaneWidths() (sidebarWidth, contentWidth int) {
 }
 
 // handleReset reloads config from file.
+// If there are unsaved changes, shows a discard confirmation dialog first.
 func (m *ConfigModel) handleReset() (tea.Model, tea.Cmd) {
 	if m.onReset == nil {
 		return m, nil
 	}
 
+	if m.IsDirty() {
+		m.saveConfirmContext = SaveContextReset
+		m.saveConfirmReturn = SidebarFocused
+		return m.showSaveConfirmDialog(SaveContextReset)
+	}
+
+	return m.performReset()
+}
+
+// performReset executes the actual reset: reloads state from file,
+// clears the form cache, and recreates the current form.
+func (m *ConfigModel) performReset() (tea.Model, tea.Cmd) {
 	newState, err := m.onReset()
 	if err != nil {
-		// Could show error message, for now just ignore
+		m.saveError = "Reset failed: " + err.Error()
 		return m, nil
 	}
 
@@ -735,64 +767,4 @@ func (m *ConfigModel) renderFooter() string {
 	}
 
 	return m.theme.Blurred.Description.Render(helpText + dirtyIndicator)
-}
-
-// GetSidebar returns the sidebar component.
-func (m *ConfigModel) GetSidebar() *Sidebar {
-	return m.sidebar
-}
-
-// GetPaneFocus returns which pane currently has focus.
-func (m *ConfigModel) GetPaneFocus() PaneFocus {
-	return m.paneFocus
-}
-
-// GetCurrentForm returns the current form being displayed.
-func (m *ConfigModel) GetCurrentForm() tea.Model {
-	return m.currentForm
-}
-
-// GetTheme returns the current theme.
-func (m *ConfigModel) GetTheme() *Theme {
-	return m.theme
-}
-
-// GetState returns the current config state.
-func (m *ConfigModel) GetState() *ConfigState {
-	return m.state
-}
-
-// SetState updates the config state.
-func (m *ConfigModel) SetState(state *ConfigState) {
-	m.state = state
-}
-
-// GetFormCache returns the form cache map.
-func (m *ConfigModel) GetFormCache() map[string]tea.Model {
-	return m.formCache
-}
-
-// IsDirty returns whether the config has unsaved changes.
-func (m *ConfigModel) IsDirty() bool {
-	return m.state != nil && m.state.dirty
-}
-
-// ShowSaveConfirm returns whether the save confirmation dialog is visible.
-func (m *ConfigModel) ShowSaveConfirm() bool {
-	return m.showSaveConfirm
-}
-
-// GetSaveError returns the current save error message, if any.
-func (m *ConfigModel) GetSaveError() string {
-	return m.saveError
-}
-
-// GetSaveConfirmContext returns the context that triggered the save confirmation.
-func (m *ConfigModel) GetSaveConfirmContext() SaveConfirmContext {
-	return m.saveConfirmContext
-}
-
-// GetValidationOverlay returns the current validation overlay, if any.
-func (m *ConfigModel) GetValidationOverlay() *validationOverlay {
-	return m.validationOverlay
 }
