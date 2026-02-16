@@ -35,6 +35,14 @@ All changes are saved to .gbm/config.yaml when you confirm.`,
 
 // runConfigTUI launches the config TUI.
 func runConfigTUI(svc *Service) error {
+	// Initialize default config if none was loaded (e.g., missing or invalid config file)
+	if svc.config == nil {
+		svc.config = &Config{
+			DefaultBranch: "main",
+			WorktreesDir:  "worktrees",
+		}
+	}
+
 	theme := tui.DefaultTheme()
 
 	// Load initial state from config

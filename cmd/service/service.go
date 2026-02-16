@@ -411,7 +411,12 @@ func (s *Service) SaveConfig() error {
 		return ErrNotInGitRepository
 	}
 
-	configPath := filepath.Join(s.RepoRoot, ".gbm", "config.yaml")
+	gbmDir := filepath.Join(s.RepoRoot, ".gbm")
+	if err := os.MkdirAll(gbmDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create .gbm directory: %w", err)
+	}
+
+	configPath := filepath.Join(gbmDir, "config.yaml")
 	data, err := yaml.Marshal(s.config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)

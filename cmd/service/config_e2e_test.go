@@ -558,3 +558,93 @@ func TestConfigTUI_E2E_PreservesOriginalFields(t *testing.T) {
 	require.Contains(t, savedConfig.Worktrees, "existing")
 	assert.Equal(t, "existing-branch", savedConfig.Worktrees["existing"].Branch)
 }
+
+// TestConfigTUI_E2E_FlushToState_BasicsForm tests the real save flow where
+// field values are typed into the BasicsForm and then saved via Ctrl+S.
+// This exercises the FlushToState path (forms → state → config → disk)
+// rather than bypassing it by editing state directly.
+func TestConfigTUI_E2E_FlushToState_BasicsForm(t *testing.T) {
+	// Create temp directory for test repo
+	tmpDir := t.TempDir()
+	repoRoot := filepath.Join(tmpDir, "test-repo")
+	require.NoError(t, os.MkdirAll(repoRoot, 0o755))
+
+	// Create .gbm directory and initial config
+	gbmDir := filepath.Join(repoRoot, ".gbm")
+	require.NoError(t, os.MkdirAll(gbmDir, 0o755))
+
+	configPath := filepath.Join(gbmDir, "config.yaml")
+	initialConfig := &Config{
+		DefaultBranch: "main",
+		WorktreesDir:  "worktrees",
+	}
+	initialData, err := yaml.Marshal(initialConfig)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(configPath, initialData, 0o644))
+
+	// Create mock service
+	svc := &Service{
+		config:   initialConfig,
+		RepoRoot: repoRoot,
+	}
+
+	// Create state and model (same as runConfigTUI)
+	theme := tui.DefaultTheme()
+	initialState := configToState(svc.config)
+	formFactory := createFormFactory(initialState)
+
+	onSave := func(state *tui.ConfigState) error {
+		stateToConfig(state, svc.config)
+		return svc.SaveConfig()
+	}
+
+	model := tui.NewConfigModel(
+		theme,
+		tui.WithInitialState(initialState),
+		tui.WithFormFactory(formFactory),
+		tui.WithOnSave(onSave),
+	)
+	model.Init()
+
+	// Send a WindowSizeMsg so the form can render
+	model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to Basics section via sidebar selection (Enter on Basics)
+	model.Update(tui.SidebarSelectionMsg{Section: "Basics"})
+	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
+
+	// The Basics form is now focused. Field 0 (default_branch) should be focused.
+	// The text input should contain "main" from the initial config.
+	// Clear the text field by selecting all and typing the new value.
+	// Use Ctrl+A to select all, then type the new value.
+	// Actually, TextInput from bubbles doesn't support Ctrl+A. We need to
+	// delete the existing text character by character and then type new text.
+
+	// First, clear the existing "main" text (4 chars) by pressing backspace
+	for i := 0; i < 10; i++ { // extra backspaces to be safe
+		model.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+
+	// Type "develop"
+	for _, ch := range "develop" {
+		model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+	}
+
+	// Now press Ctrl+S to trigger save flow
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+
+	// Confirm save (press 'y')
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	// Verify file was written correctly
+	fileData, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	var savedConfig Config
+	require.NoError(t, yaml.Unmarshal(fileData, &savedConfig))
+
+	assert.Equal(t, "develop", savedConfig.DefaultBranch,
+		"FlushToState should capture the typed value from the text input field")
+	assert.Equal(t, "worktrees", savedConfig.WorktreesDir,
+		"Unmodified fields should preserve their original values")
+}
