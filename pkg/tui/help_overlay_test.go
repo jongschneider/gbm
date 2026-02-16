@@ -19,12 +19,11 @@ func TestHelpOverlay_NewHelpOverlay(t *testing.T) {
 	for i, g := range overlay.Groups() {
 		groupNames[i] = g.Name
 	}
-	assert.Contains(t, groupNames, "Navigation")
-	assert.Contains(t, groupNames, "Global")
 	assert.Contains(t, groupNames, "Sidebar")
-	assert.Contains(t, groupNames, "Table Forms")
+	assert.Contains(t, groupNames, "Content Pane")
+	assert.Contains(t, groupNames, "Table Forms (FileCopy, Worktrees)")
+	assert.Contains(t, groupNames, "Global")
 	assert.Contains(t, groupNames, "Modals")
-	assert.Contains(t, groupNames, "FilePicker")
 }
 
 func TestHelpOverlay_WithTheme(t *testing.T) {
@@ -153,12 +152,11 @@ func TestHelpOverlay_View_ContainsGroupNames(t *testing.T) {
 
 	view := overlay.View()
 
-	assert.Contains(t, view, "Navigation")
-	assert.Contains(t, view, "Global")
 	assert.Contains(t, view, "Sidebar")
-	assert.Contains(t, view, "Table Forms")
+	assert.Contains(t, view, "Content Pane")
+	assert.Contains(t, view, "Table Forms (FileCopy, Worktrees)")
+	assert.Contains(t, view, "Global")
 	assert.Contains(t, view, "Modals")
-	assert.Contains(t, view, "FilePicker")
 }
 
 func TestHelpOverlay_SaveShortcutInGlobalGroup(t *testing.T) {

@@ -40,55 +40,47 @@ func NewHelpOverlay() *HelpOverlay {
 func defaultShortcuts() []ShortcutGroup {
 	return []ShortcutGroup{
 		{
-			Name: "Navigation",
-			Shortcuts: []Shortcut{
-				{Key: "j/k", Description: "Move down/up"},
-				{Key: "l/→", Description: "Enter content pane"},
-				{Key: "Esc", Description: "Back to sidebar"},
-				{Key: "Tab", Description: "Next field"},
-				{Key: "Shift+Tab", Description: "Previous field"},
-				{Key: "Space", Description: "Toggle Yes/No"},
-				{Key: "Enter", Description: "Select/confirm"},
-			},
-		},
-		{
-			Name: "Global",
-			Shortcuts: []Shortcut{
-				{Key: "Ctrl+S", Description: "Save configuration"},
-				{Key: "Ctrl+C", Description: "Quit"},
-			},
-		},
-		{
 			Name: "Sidebar",
 			Shortcuts: []Shortcut{
-				{Key: "q", Description: "Quit"},
+				{Key: "j/k/↑/↓", Description: "Navigate sections"},
+				{Key: "l/→/Enter", Description: "Focus content"},
 				{Key: "r", Description: "Reset from file"},
-				{Key: "?", Description: "Show help"},
+				{Key: "q", Description: "Quit (save prompt if dirty)"},
+				{Key: "?", Description: "This help screen"},
 			},
 		},
 		{
-			Name: "Table Forms",
+			Name: "Content Pane",
 			Shortcuts: []Shortcut{
+				{Key: "Esc", Description: "Return to sidebar"},
+				{Key: "Tab", Description: "Next field"},
+				{Key: "Shift+Tab", Description: "Previous field"},
+				{Key: "Space/h/l", Description: "Toggle Yes/No (confirm fields)"},
+			},
+		},
+		{
+			Name: "Table Forms (FileCopy, Worktrees)",
+			Shortcuts: []Shortcut{
+				{Key: "j/k/↑/↓", Description: "Navigate rows"},
 				{Key: "a", Description: "Add new entry"},
 				{Key: "e", Description: "Edit selected entry"},
 				{Key: "d", Description: "Delete selected entry"},
 			},
 		},
 		{
-			Name: "Modals",
+			Name: "Global",
 			Shortcuts: []Shortcut{
-				{Key: "y/Y", Description: "Confirm (yes)"},
-				{Key: "n/N", Description: "Cancel (no)"},
-				{Key: "Esc", Description: "Close modal"},
+				{Key: "Ctrl+S", Description: "Save all sections"},
+				{Key: "Ctrl+C", Description: "Force quit"},
 			},
 		},
 		{
-			Name: "FilePicker",
+			Name: "Modals",
 			Shortcuts: []Shortcut{
-				{Key: "b", Description: "Browse files"},
-				{Key: "→", Description: "Open directory"},
-				{Key: "←", Description: "Parent directory"},
-				{Key: "Space", Description: "Select file"},
+				{Key: "y/Y", Description: "Confirm"},
+				{Key: "n/N", Description: "Cancel"},
+				{Key: "Esc", Description: "Close modal"},
+				{Key: "Enter", Description: "Confirm/dismiss"},
 			},
 		},
 	}

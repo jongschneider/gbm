@@ -532,7 +532,7 @@ func TestConfigModel_Help_ViewShowsOverlay(t *testing.T) {
 
 	view := m.View()
 	assert.Contains(t, view, "Help - Keyboard Shortcuts")
-	assert.Contains(t, view, "Navigation")
+	assert.Contains(t, view, "Sidebar")
 }
 
 func TestConfigModel_View_ContainsHelpHint(t *testing.T) {
