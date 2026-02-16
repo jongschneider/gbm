@@ -173,11 +173,13 @@ Break the work into issues that follow these principles:
 - **Each task should be a reasonable unit of work.** Not so small that it's trivial overhead to
   track, not so large that it's ambiguous or risky. A good task is something one engineer can
   complete in one focused session.
-- **Tasks that can be done in parallel SHOULD be parallel.** Only add blocking dependencies where
-  there is a genuine ordering constraint. If two tasks touch different files or systems, they can
-  be worked on simultaneously by separate staff-engineer agents.
-- **Tasks that must be sequential MUST have blocking dependencies.** If task B will fail or produce
-  incorrect results without task A being done first, use `blockedBy` to create a formal dependency.
+- **Tasks that touch completely different files MAY be parallel.** But only after you've verified
+  zero file overlap using Grep (check imports, call sites, shared types). If two tasks touch any
+  of the same files, they MUST be sequential — parallel agents editing the same file will break
+  each other's code and require full rework.
+- **When in doubt, serialize.** Wrong parallelism is far more expensive than conservative
+  sequencing. Use `blockedBy` to create formal dependencies for any tasks where overlap is
+  possible.
 
 ### 3. Create the Issue Structure
 
@@ -295,21 +297,57 @@ e.g.:
 - [ ] `gbm wt list` renders table with new column (attach screenshot via `/linear-file-upload`)
 ```
 
-### 6. Maximize Parallelism
+### 6. Parallelism vs. Serialization — Get This Right
 
-Your primary value is enabling multiple staff-engineer agents to work simultaneously. Actively
-look for opportunities to split work into parallel streams:
+Parallelism enables multiple staff-engineer agents to work simultaneously, but **incorrect
+parallelism is worse than no parallelism**. Agents working on overlapping files will break each
+other's code, requiring full rework. Err on the side of sequential when in doubt.
 
-- **Different files or modules** — if two tasks touch different parts of the codebase, they're
-  parallel. Use Grep to check for imports/dependencies and confirm there are no hidden coupling
-  points.
-- **Different layers** — frontend and backend work on the same feature can often be parallel if
-  the API contract is defined upfront.
-- **Different concerns** — implementation, testing, documentation, and configuration can sometimes
-  be parallelized if interfaces are stable.
-- **Create an API contract task first** — when work spans multiple systems, create a task to define
-  the interface/contract, then make all implementation tasks depend only on that contract task,
-  not on each other.
+#### When tasks CAN be parallel (all conditions must be true):
+
+- **Zero file overlap** — the tasks touch completely different files. Use Grep to verify: check
+  imports, call sites, shared types, and interface implementations. If two tasks modify the same
+  file, they MUST be sequential.
+- **No shared type/interface changes** — if task A changes a type or interface that task B uses,
+  they're sequential even if they touch different files (task B's code won't compile against
+  task A's changes until task A is committed).
+- **No behavioral coupling** — if task A changes how a function behaves and task B tests or
+  depends on that behavior, they're sequential.
+
+#### When tasks MUST be sequential (use `blockedBy`):
+
+- **Any shared files** — if two tasks could modify the same file, even different functions in
+  the same file, they MUST be serialized. One agent's edits will conflict with another's.
+- **Interface/type changes** — if task A changes a type signature, interface, or struct that
+  task B consumes, task B must wait for task A.
+- **Behavioral dependencies** — if task B's correctness depends on task A's changes being in
+  place.
+- **Foundational refactors** — if task A restructures code (renames, moves, deletes) that task
+  B would otherwise modify in its old location.
+
+#### File overlap analysis (required for every plan):
+
+Before marking any two tasks as parallel, explicitly verify they don't share files. In the
+parent issue description, include a **Files by Task** table showing which files each subtask
+will touch. This makes conflicts visible during review.
+
+```markdown
+## Files by Task
+
+| File | Task 1 | Task 2 | Task 3 |
+|------|--------|--------|--------|
+| pkg/foo/bar.go | X | | |
+| pkg/foo/baz.go | | X | |
+| pkg/foo/bar.go | | | X | ← CONFLICT with Task 1, must serialize
+```
+
+#### Safe parallelism patterns:
+
+- **Different packages/modules** with no shared interfaces being changed.
+- **Different layers** (frontend/backend) when the API contract is stable and defined upfront.
+- **Independent concerns** (docs, config, CI) that don't touch application code.
+- **Create a contract task first** — when work spans multiple systems, create a task to define
+  the interface/contract, then make implementation tasks depend only on that contract task.
 
 ### 7. Dependencies
 
@@ -442,8 +480,10 @@ Every issue must have exactly one of these labels:
 - **ALWAYS set the `project` param** on `create_issue` to assign the issue to the repository project.
 - **ALWAYS check for existing issues before creating new ones.** Don't duplicate.
 - **ALWAYS set appropriate priorities and labels.**
-- **ALWAYS maximize parallelism.** Default to parallel unless there's a real ordering constraint.
-  Use Grep to check imports/dependencies and confirm there are no hidden coupling points.
+- **NEVER mark tasks as parallel if they touch any of the same files.** Parallel agents editing
+  the same file will break each other's code. Use Grep to verify zero file overlap before
+  allowing parallelism. When in doubt, serialize with `blockedBy`. Wrong parallelism costs more
+  than conservative sequencing.
 - **ALWAYS include a `## Validation Criteria` section in every issue description.** Each criterion
   must be a concrete, verifiable check (command to run, file to inspect, behavior to observe).
   No subjective criteria. A task CANNOT be moved to "Done" unless all criteria pass.
