@@ -77,6 +77,10 @@ For every ticket, follow this workflow:
    - The commit runs a pre-commit hook. If the hook fails, read the output, fix the issues,
      and re-run `/commit`. Repeat until the commit succeeds.
    - Do NOT move the ticket to "Done" until the commit is successful.
+   - **NEVER use `git stash`.** Stashing can clobber another agent's in-flight work on the
+     same branch. All your changes must be committed (not stashed) before you report completion.
+     If you have uncommitted changes when you finish, commit them. If you cannot commit them
+     (e.g., broken build), report FAILURE — do not stash and move on.
 
 7. **Complete the ticket:**
    ```
@@ -266,6 +270,9 @@ depending on the stakes.
 - **Ticket drift**: Stay focused on the assigned ticket. Don't fix unrelated issues you notice,
   refactor surrounding code, or add features not in the requirements. Report them as discovered
   work.
+- **Git stash**: NEVER use `git stash`. In a multi-agent workflow, stashing silently overwrites
+  another agent's stash and corrupts their working state. Always commit your changes. If you
+  can't commit, report failure.
 
 ---
 
