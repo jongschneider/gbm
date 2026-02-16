@@ -146,10 +146,6 @@ func TestValidationOverlay_Update_Dismissal(t *testing.T) {
 			key:  tea.KeyMsg{Type: tea.KeyEsc},
 		},
 		{
-			name: "dismiss with 'b'",
-			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}},
-		},
-		{
 			name: "dismiss with Enter",
 			key:  tea.KeyMsg{Type: tea.KeyEnter},
 		},
@@ -196,6 +192,15 @@ func TestValidationOverlay_Update_UnhandledKey(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
+func TestValidationOverlay_Update_BKeyDoesNotDismiss(t *testing.T) {
+	t.Parallel()
+	overlay := NewValidationOverlay([]string{"error"})
+
+	model, cmd := overlay.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	assert.Same(t, overlay, model)
+	assert.Nil(t, cmd, "'b' key should not dismiss the validation overlay")
+}
+
 func TestValidationOverlay_View(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -208,7 +213,7 @@ func TestValidationOverlay_View(t *testing.T) {
 			name:           "renders single error",
 			errors:         []string{"field is required"},
 			title:          "Validation Errors",
-			expectContains: []string{"Validation Errors", "field is required", "Press Escape"},
+			expectContains: []string{"Validation Errors", "field is required", "Press Escape or Enter to dismiss"},
 		},
 		{
 			name:           "renders multiple errors",

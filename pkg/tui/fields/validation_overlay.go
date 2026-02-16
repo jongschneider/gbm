@@ -10,7 +10,7 @@ import (
 )
 
 // ValidationOverlay displays a list of validation errors with dismissal instructions.
-// It handles Escape and 'b' keys to dismiss.
+// It handles Escape and Enter keys to dismiss.
 type ValidationOverlay struct {
 	theme  *tui.Theme
 	title  string
@@ -67,7 +67,7 @@ func (v *ValidationOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "b", "enter":
+		case "esc", "enter":
 			return v, func() tea.Msg {
 				return ValidationOverlayDismissedMsg{}
 			}
@@ -116,7 +116,7 @@ func (v *ValidationOverlay) View() string {
 	}
 
 	content.WriteString("\n")
-	content.WriteString(helpStyle.Render("Press Escape or 'b' to go back and fix errors"))
+	content.WriteString(helpStyle.Render("Press Escape or Enter to dismiss"))
 
 	b.WriteString(boxStyle.Render(content.String()))
 	return b.String()
