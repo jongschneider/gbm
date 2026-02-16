@@ -24,13 +24,6 @@ func TestSidebar_Create(t *testing.T) {
 			},
 		},
 		{
-			name: "basics section is expanded by default",
-			expect: func(t *testing.T, sb *Sidebar) {
-				t.Helper()
-				assert.True(t, sb.sections[0].Expanded)
-			},
-		},
-		{
 			name: "focused index starts at 0",
 			expect: func(t *testing.T, sb *Sidebar) {
 				t.Helper()
@@ -132,43 +125,14 @@ func TestSidebar_Navigation(t *testing.T) {
 	}
 }
 
-func TestSidebar_ExpandCollapse(t *testing.T) {
-	testCases := []struct {
-		setupFunc func(*Sidebar)
-		name      string
-		input     tea.KeyMsg
-		expected  bool
-	}{
-		{
-			name:     "right arrow expands focused section",
-			input:    tea.KeyMsg{Type: tea.KeyRight},
-			expected: true,
-			setupFunc: func(sb *Sidebar) {
-				sb.focusedIdx = 1
-				sb.sections[1].Expanded = false
-			},
-		},
-		{
-			name:     "left arrow collapses focused section",
-			input:    tea.KeyMsg{Type: tea.KeyLeft},
-			expected: false,
-			setupFunc: func(sb *Sidebar) {
-				sb.focusedIdx = 0
-				sb.sections[0].Expanded = true
-			},
-		},
-	}
+func TestSidebar_LeftKeyIsNoOp(t *testing.T) {
+	sb := NewSidebar(DefaultTheme())
+	sb.focusedIdx = 1
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			sb := NewSidebar(DefaultTheme())
-			if tc.setupFunc != nil {
-				tc.setupFunc(sb)
-			}
-			sb.Update(tc.input)
-			assert.Equal(t, tc.expected, sb.sections[sb.focusedIdx].Expanded)
-		})
-	}
+	sb.Update(tea.KeyMsg{Type: tea.KeyLeft})
+
+	// Left key should not change focused index
+	assert.Equal(t, 1, sb.focusedIdx)
 }
 
 func TestSidebar_SetError(t *testing.T) {
@@ -207,15 +171,14 @@ func TestSidebar_View(t *testing.T) {
 
 func TestSidebar_ViewIndicators(t *testing.T) {
 	sb := NewSidebar(DefaultTheme())
-	sb.sections[0].Expanded = true
-	sb.sections[1].Expanded = false
 
 	view := sb.View()
 
-	// Basics should have ▾ (expanded)
-	assert.Contains(t, view, "▾")
-	// JIRA should have ▸ (collapsed)
-	assert.Contains(t, view, "▸")
+	// Sections should use bullet indicator
+	assert.Contains(t, view, "•")
+	// Expand/collapse indicators should not be present
+	assert.NotContains(t, view, "▾")
+	assert.NotContains(t, view, "▸")
 }
 
 func TestSidebar_ErrorBadges(t *testing.T) {

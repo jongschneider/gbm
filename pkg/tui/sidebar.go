@@ -11,8 +11,7 @@ import (
 // SidebarSection represents a top-level section in the config sidebar.
 type SidebarSection struct {
 	Name     string // "Basics", "JIRA", "FileCopy", "Worktrees"
-	Expanded bool
-	HasError bool // Shows validation badge
+	HasError bool   // Shows validation badge
 }
 
 // Sidebar manages navigation between config sections with visual indicators.
@@ -33,10 +32,10 @@ func NewSidebar(theme *Theme) *Sidebar {
 	}
 	return &Sidebar{
 		sections: []SidebarSection{
-			{Name: "Basics", Expanded: true, HasError: false},
-			{Name: "JIRA", Expanded: false, HasError: false},
-			{Name: "FileCopy", Expanded: false, HasError: false},
-			{Name: "Worktrees", Expanded: false, HasError: false},
+			{Name: "Basics"},
+			{Name: "JIRA"},
+			{Name: "FileCopy"},
+			{Name: "Worktrees"},
 		},
 		focusedIdx: 0,
 		theme:      theme,
@@ -69,14 +68,6 @@ func (s *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s.moveUp()
 		case tea.KeyDown:
 			return s.moveDown()
-		case tea.KeyLeft:
-			// Collapse focused section
-			s.sections[s.focusedIdx].Expanded = false
-			return s, nil
-		case tea.KeyRight:
-			// Expand focused section
-			s.sections[s.focusedIdx].Expanded = true
-			return s, nil
 		case tea.KeyEnter:
 			// Emit message that this section was selected (for focus change)
 			return s, func() tea.Msg {
@@ -106,14 +97,9 @@ func (s *Sidebar) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// renderSection renders a single section with expand/collapse indicator.
+// renderSection renders a single section line.
 func (s *Sidebar) renderSection(section SidebarSection, selected bool) string {
-	indicator := "▸"
-	if section.Expanded {
-		indicator = "▾"
-	}
-
-	label := fmt.Sprintf("%s %s", indicator, section.Name)
+	label := fmt.Sprintf("• %s", section.Name)
 
 	// Add error badge if section has validation errors
 	if section.HasError {
@@ -153,21 +139,6 @@ func (s *Sidebar) FocusedSection() string {
 		return s.sections[s.focusedIdx].Name
 	}
 	return ""
-}
-
-// SetExpanded updates the expanded state of a section.
-func (s *Sidebar) SetExpanded(sectionName string, expanded bool) {
-	if idx := s.findSectionIndex(sectionName); idx >= 0 {
-		s.sections[idx].Expanded = expanded
-	}
-}
-
-// IsExpanded returns whether a section is expanded.
-func (s *Sidebar) IsExpanded(sectionName string) bool {
-	if idx := s.findSectionIndex(sectionName); idx >= 0 {
-		return s.sections[idx].Expanded
-	}
-	return false
 }
 
 // SetError updates the error badge for a section.

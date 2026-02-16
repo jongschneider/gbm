@@ -125,23 +125,12 @@ func (m *configModelWrapper) View() string {
 func sidebarStory() storybook.Story {
 	return storybook.Story{
 		Name:        "Sidebar",
-		Description: "Config section navigation with expand/collapse and error badges",
+		Description: "Config section navigation with error badges",
 		Variants: []storybook.Variant{
 			{
-				Name: "AllCollapsed",
+				Name: "Default",
 				Factory: func(_ ...storybook.Args) tea.Model {
 					sb := tui.NewSidebar(tui.DefaultTheme())
-					return &sidebarModel{sidebar: sb}
-				},
-			},
-			{
-				Name: "AllExpanded",
-				Factory: func(_ ...storybook.Args) tea.Model {
-					sb := tui.NewSidebar(tui.DefaultTheme())
-					sb.SetExpanded("Basics", true)
-					sb.SetExpanded("JIRA", true)
-					sb.SetExpanded("FileCopy", true)
-					sb.SetExpanded("Worktrees", true)
 					return &sidebarModel{sidebar: sb}
 				},
 			},
