@@ -2,7 +2,6 @@ package config
 
 import (
 	"gbm/pkg/tui"
-	"gbm/pkg/tui/fields"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -197,12 +196,3 @@ func (f *JiraForm) FocusedYOffset() int {
 
 	return lineCount
 }
-
-// ConfirmFieldFocused reports whether the currently focused field is a Confirm toggle.
-func (f *JiraForm) ConfirmFieldFocused() bool {
-	_, ok := f.focusedField().(*fields.Confirm)
-	return ok
-}
-
-// Ensure JiraForm implements tui.ConfirmFocusedReporter.
-var _ tui.ConfirmFocusedReporter = (*JiraForm)(nil)

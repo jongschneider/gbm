@@ -266,8 +266,8 @@ func TestJiraForm_SpacebarToggleConfirm(t *testing.T) {
 	_ = initialSelected // Used above
 }
 
-// TestJiraForm_JKNavigation tests j/k vim-style navigation in normal mode.
-func TestJiraForm_JKNavigation(t *testing.T) {
+// TestJiraForm_FreeTextEditing tests that text inputs are freely editable on focus.
+func TestJiraForm_FreeTextEditing(t *testing.T) {
 	t.Parallel()
 	lipgloss.SetColorProfile(termenv.Ascii)
 
@@ -290,49 +290,25 @@ func TestJiraForm_JKNavigation(t *testing.T) {
 		return len(bts) > 0
 	}, teatest.WithDuration(time.Second))
 
-	// Navigate to attachments enabled field (index 7) - a Confirm field
-	for range 7 {
-		tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-		time.Sleep(10 * time.Millisecond)
-	}
-	assert.Equal(t, 7, form.focusedFieldIdx, "Should be on attachments enabled field (Confirm)")
-
-	// Press j to move to next field (max size - TextInput)
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Navigate to host field (index 1) - a TextInput
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 8, form.focusedFieldIdx, "j should move to next field")
+	assert.Equal(t, 1, form.focusedFieldIdx, "Should be on host field")
 
-	// In normal mode, j/k always navigate (vim-style)
-	// Press k to move back
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 7, form.focusedFieldIdx, "k should move to previous field in normal mode")
-
-	// Move forward with j again
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 8, form.focusedFieldIdx, "j should move to next field")
-
-	// Enter insert mode with 'i'
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
-	time.Sleep(10 * time.Millisecond)
-	assert.True(t, form.insertMode, "Should be in insert mode after pressing i")
-
-	// In insert mode, j/k should type instead of navigate
+	// j/k should type characters in text input, not navigate
 	startIdx := form.focusedFieldIdx
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, startIdx, form.focusedFieldIdx, "j should NOT navigate in insert mode")
+	assert.Equal(t, startIdx, form.focusedFieldIdx, "j should type in text input, not navigate")
 
-	// Exit insert mode with Esc
-	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	time.Sleep(10 * time.Millisecond)
-	assert.False(t, form.insertMode, "Should exit insert mode after pressing Esc")
+	assert.Equal(t, startIdx, form.focusedFieldIdx, "k should type in text input, not navigate")
 
-	// Now j should navigate again
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Tab still navigates between fields
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 9, form.focusedFieldIdx, "j should navigate after exiting insert mode")
+	assert.Equal(t, 2, form.focusedFieldIdx, "Tab should still navigate to next field")
 }
 
 // TestJiraForm_ConfirmFieldKeys tests key delegation to Confirm fields.
@@ -448,68 +424,6 @@ func TestJiraForm_ConfirmFieldKeys(t *testing.T) {
 			time.Sleep(20 * time.Millisecond)
 
 			tc.assert(t, form)
-		})
-	}
-}
-
-// TestJiraForm_ConfirmFieldFocused tests the ConfirmFieldFocused reporter.
-func TestJiraForm_ConfirmFieldFocused(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	testCases := []struct {
-		assert func(t *testing.T, focused bool)
-		name   string
-		idx    int
-	}{
-		{
-			name: "returns true for enable field (index 0)",
-			idx:  0,
-			assert: func(t *testing.T, focused bool) {
-				t.Helper()
-				assert.True(t, focused, "enable field is a Confirm")
-			},
-		},
-		{
-			name: "returns false for host field (index 1)",
-			idx:  1,
-			assert: func(t *testing.T, focused bool) {
-				t.Helper()
-				assert.False(t, focused, "host field is a TextInput")
-			},
-		},
-		{
-			name: "returns true for attachments enabled field (index 7)",
-			idx:  7,
-			assert: func(t *testing.T, focused bool) {
-				t.Helper()
-				assert.True(t, focused, "attachments enabled field is a Confirm")
-			},
-		},
-		{
-			name: "returns true for markdown include comments field (index 10)",
-			idx:  10,
-			assert: func(t *testing.T, focused bool) {
-				t.Helper()
-				assert.True(t, focused, "markdown include comments field is a Confirm")
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			lipgloss.SetColorProfile(termenv.Ascii)
-
-			config := JiraFormConfig{
-				Enabled: true,
-				Theme:   tui.DefaultTheme(),
-			}
-
-			form := NewJiraForm(config)
-			form.focusedFieldIdx = tc.idx
-
-			tc.assert(t, form.ConfirmFieldFocused())
 		})
 	}
 }

@@ -161,8 +161,8 @@ func TestConfigModel_FocusTransitions_RightKey(t *testing.T) {
 	assert.Equal(t, ContentFocused, m.paneFocus)
 }
 
-func TestConfigModel_FocusTransitions_HKey(t *testing.T) {
-	mockForm := &configTestMockModel{}
+func TestConfigModel_FocusTransitions_HKey_DelegatesToForm(t *testing.T) {
+	mockForm := &configTestTrackingMockModel{}
 	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 		return mockForm
 	}
@@ -171,13 +171,14 @@ func TestConfigModel_FocusTransitions_HKey(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
 	assert.Equal(t, ContentFocused, m.paneFocus)
 
-	// 'h' should focus sidebar
+	// 'h' is now delegated to the form (no longer intercepted by ConfigModel)
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
-	assert.Equal(t, SidebarFocused, m.paneFocus)
+	assert.Equal(t, ContentFocused, m.paneFocus, "h should be delegated to form, not return to sidebar")
+	assert.Contains(t, mockForm.receivedKeys, "h", "form should receive h key")
 }
 
-func TestConfigModel_FocusTransitions_LeftKey(t *testing.T) {
-	mockForm := &configTestMockModel{}
+func TestConfigModel_FocusTransitions_LeftKey_DelegatesToForm(t *testing.T) {
+	mockForm := &configTestTrackingMockModel{}
 	factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 		return mockForm
 	}
@@ -186,9 +187,10 @@ func TestConfigModel_FocusTransitions_LeftKey(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}) // Focus content
 	assert.Equal(t, ContentFocused, m.paneFocus)
 
-	// Left arrow should focus sidebar
+	// Left arrow is now delegated to the form (no longer intercepted by ConfigModel)
 	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	assert.Equal(t, SidebarFocused, m.paneFocus)
+	assert.Equal(t, ContentFocused, m.paneFocus, "left should be delegated to form, not return to sidebar")
+	assert.Contains(t, mockForm.receivedKeys, "left", "form should receive left key")
 }
 
 func TestConfigModel_DirtyState(t *testing.T) {
@@ -207,68 +209,6 @@ func TestConfigModel_DirtyIndicator(t *testing.T) {
 		assert func(t *testing.T, m *ConfigModel)
 		name   string
 	}{
-		{
-			name: "insert mode typing marks dirty",
-			setup: func(m *ConfigModel) {
-				// Focus content pane with insert-mode-capable form
-				m.Update(SidebarSelectionMsg{Section: "Basics"})
-				// Simulate form entering insert mode
-				mock := m.currentForm.(*configTestInsertModeMockModel)
-				mock.insertMode = true
-				// Type a character while in insert mode
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
-			},
-			assert: func(t *testing.T, m *ConfigModel) {
-				t.Helper()
-				assert.True(t, m.IsDirty(), "typing in insert mode should mark dirty")
-			},
-		},
-		{
-			name: "space in normal mode marks dirty for confirm toggle",
-			setup: func(m *ConfigModel) {
-				// Focus content pane
-				m.Update(SidebarSelectionMsg{Section: "Basics"})
-				// Simulate a Confirm field being focused
-				mock := m.currentForm.(*configTestInsertModeMockModel)
-				mock.confirmFocused = true
-				// Press space in normal mode (toggles Confirm fields)
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
-			},
-			assert: func(t *testing.T, m *ConfigModel) {
-				t.Helper()
-				assert.True(t, m.IsDirty(), "space in normal mode should mark dirty")
-			},
-		},
-		{
-			name: "navigation keys do not mark dirty",
-			setup: func(m *ConfigModel) {
-				// Focus content pane
-				m.Update(SidebarSelectionMsg{Section: "Basics"})
-				// Navigate with j/k (should not dirty)
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-				m.Update(tea.KeyMsg{Type: tea.KeyTab})
-			},
-			assert: func(t *testing.T, m *ConfigModel) {
-				t.Helper()
-				assert.False(t, m.IsDirty(), "navigation keys should not mark dirty")
-			},
-		},
-		{
-			name: "esc in insert mode does not mark dirty",
-			setup: func(m *ConfigModel) {
-				// Focus content pane with insert-mode-capable form
-				m.Update(SidebarSelectionMsg{Section: "Basics"})
-				mock := m.currentForm.(*configTestInsertModeMockModel)
-				mock.insertMode = true
-				// Press Esc to exit insert mode
-				m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-			},
-			assert: func(t *testing.T, m *ConfigModel) {
-				t.Helper()
-				assert.False(t, m.IsDirty(), "esc should not mark dirty")
-			},
-		},
 		{
 			name: "save clears dirty flag",
 			setup: func(m *ConfigModel) {
@@ -321,7 +261,7 @@ func TestConfigModel_DirtyIndicator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockForm := &configTestInsertModeMockModel{}
+			mockForm := &configTestMockModel{}
 			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
 				return mockForm
 			}
@@ -650,8 +590,8 @@ func TestConfigModel_SidebarFocusState(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
 	assert.False(t, m.sidebar.IsFocused())
 
-	// Focus sidebar
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	// BackBoundaryMsg returns to sidebar (forms emit this on Esc)
+	m.Update(BackBoundaryMsg{})
 	assert.True(t, m.sidebar.IsFocused())
 }
 
@@ -804,14 +744,14 @@ func TestConfigModel_QuitWhenClean(t *testing.T) {
 			},
 		},
 		{
-			name: "q quits from content pane when clean",
+			name: "q from content pane is delegated to form",
 			setup: func(m *ConfigModel) {
 				m.Update(SidebarSelectionMsg{Section: "Basics"})
 			},
 			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
 				t.Helper()
-				assert.NotNil(t, cmd, "q should produce a quit command")
-				assert.False(t, m.ShowSaveConfirm(), "should not show save dialog")
+				// q is now delegated to the form when content is focused
+				assert.Equal(t, ContentFocused, m.paneFocus, "should remain on content pane")
 			},
 		},
 	}
@@ -850,15 +790,16 @@ func TestConfigModel_QuitWhenDirty(t *testing.T) {
 			},
 		},
 		{
-			name: "q shows save dialog from content pane when dirty",
+			name: "q from content pane when dirty is delegated to form",
 			setup: func(m *ConfigModel) {
 				m.Update(SidebarSelectionMsg{Section: "Basics"})
 				m.state.MarkDirty()
 			},
 			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
 				t.Helper()
-				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
-				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+				// q is delegated to form when content is focused, not intercepted by ConfigModel
+				assert.False(t, m.ShowSaveConfirm(), "should not show save dialog from content pane")
+				assert.Equal(t, ContentFocused, m.paneFocus, "should remain on content pane")
 			},
 		},
 		{
@@ -1221,25 +1162,3 @@ func (m *configTestTrackingMockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *configTestTrackingMockModel) View() string   { return "mock" }
 func (m *configTestTrackingMockModel) Focus() tea.Cmd { return nil }
 func (m *configTestTrackingMockModel) Blur() tea.Cmd  { return nil }
-
-// configTestInsertModeMockModel simulates a form that supports insert mode
-// and reports whether a confirm field is focused.
-type configTestInsertModeMockModel struct {
-	insertMode     bool
-	confirmFocused bool
-}
-
-func (m *configTestInsertModeMockModel) Init() tea.Cmd { return nil }
-func (m *configTestInsertModeMockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.Type == tea.KeyEsc {
-			m.insertMode = false
-		}
-	}
-	return m, nil
-}
-func (m *configTestInsertModeMockModel) View() string              { return "mock" }
-func (m *configTestInsertModeMockModel) Focus() tea.Cmd            { return nil }
-func (m *configTestInsertModeMockModel) Blur() tea.Cmd             { return nil }
-func (m *configTestInsertModeMockModel) InInsertMode() bool        { return m.insertMode }
-func (m *configTestInsertModeMockModel) ConfirmFieldFocused() bool { return m.confirmFocused }

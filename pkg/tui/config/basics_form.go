@@ -33,7 +33,6 @@ type BasicsForm struct {
 	cancelled            bool
 	showValidationErrors bool
 	showHelp             bool
-	insertMode           bool // vim-style insert mode for text inputs
 }
 
 // NewBasicsForm creates a new Basics configuration form.
@@ -163,34 +162,12 @@ func (f *BasicsForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyMsg processes keyboard input for form navigation and actions.
 func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Insert mode: pass all keys to the field except Esc
-	if f.insertMode {
-		if msg.Type == tea.KeyEsc {
-			f.insertMode = false
-			return f, nil
-		}
-		// Pass key to the focused field
-		field, cmd := f.focusedField().Update(msg)
-		f.updateFocusedField(field)
-		return f, cmd
-	}
-
-	// Normal mode (vim-style navigation)
-
-	// Handle vim-style keys in normal mode
-	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
-		switch msg.Runes[0] {
-		case 'j':
-			return f.nextField()
-		case 'k':
-			return f.prevField()
-		case 'i':
-			f.insertMode = true
-			return f, nil
-		}
-	}
-
 	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
+	case tea.KeyEsc:
+		return f, func() tea.Msg {
+			return tui.BackBoundaryMsg{}
+		}
+
 	case tea.KeyTab:
 		return f.nextField()
 
@@ -210,7 +187,10 @@ func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return f.handleRuneKey(msg)
 	}
 
-	return f, nil
+	// Pass all other keys to the focused field
+	field, cmd := f.focusedField().Update(msg)
+	f.updateFocusedField(field)
+	return f, cmd
 }
 
 // nextField moves focus to the next field.
@@ -281,7 +261,10 @@ func (f *BasicsForm) handleRuneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return f, nil
+	// Pass unhandled runes to the focused field (free text editing)
+	field, cmd := f.focusedField().Update(msg)
+	f.updateFocusedField(field)
+	return f, cmd
 }
 
 // Validate runs validators on all fields and returns a list of error messages.
@@ -372,7 +355,6 @@ func (f *BasicsForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form and all its fields.
 func (f *BasicsForm) Blur() tea.Cmd {
-	f.insertMode = false
 	f.focusedField().Blur()
 	return nil
 }
@@ -407,11 +389,5 @@ func (f *BasicsForm) FocusedYOffset() int {
 	return lineCount
 }
 
-// InInsertMode reports whether the form is in insert mode.
-func (f *BasicsForm) InInsertMode() bool { return f.insertMode }
-
 // Ensure BasicsForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*BasicsForm)(nil)
-
-// Ensure BasicsForm implements tui.InsertModeReporter.
-var _ tui.InsertModeReporter = (*BasicsForm)(nil)

@@ -432,7 +432,7 @@ func TestFileCopyForm_OpenFilePicker(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	time.Sleep(50 * time.Millisecond)
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlB})
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, ModalFilePicker, form.GetModalState(), "FilePicker modal should be shown")
@@ -462,7 +462,7 @@ func TestFileCopyForm_FilePickerEscapeReturnsToEditModal(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	time.Sleep(50 * time.Millisecond)
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlB})
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, ModalFilePicker, form.GetModalState(), "FilePicker modal should be shown")

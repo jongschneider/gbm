@@ -52,7 +52,6 @@ type WorktreesForm struct {
 	editingIdx       int
 	cancelled        bool
 	submitted        bool
-	insertMode       bool // vim-style insert mode for text inputs
 }
 
 var validWorktreeNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
@@ -241,32 +240,6 @@ func (f *WorktreesForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, cmd
 	}
 
-	// Insert mode: pass all keys to the field except Esc
-	if f.insertMode {
-		if keyMsg.Type == tea.KeyEsc {
-			f.insertMode = false
-			return f, nil
-		}
-		newField, cmd := f.focusedModalField().Update(keyMsg)
-		f.updateModalField(newField)
-		return f, cmd
-	}
-
-	// Normal mode (vim-style navigation)
-
-	// Handle vim-style keys in normal mode
-	if keyMsg.Type == tea.KeyRunes && len(keyMsg.Runes) == 1 {
-		switch keyMsg.Runes[0] {
-		case 'j':
-			return f.cycleModalFocus(false)
-		case 'k':
-			return f.cycleModalFocus(true)
-		case 'i':
-			f.insertMode = true
-			return f, nil
-		}
-	}
-
 	switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
 		return f.cycleModalFocus(false)
@@ -278,11 +251,13 @@ func (f *WorktreesForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.modalState = WorktreeModalNone
 		f.editingIdx = -1
 		f.validationError = ""
-		f.insertMode = false
 		return f, nil
 	}
 
-	return f, nil
+	// Pass unhandled keys to the focused field (free text editing)
+	newField, cmd := f.focusedModalField().Update(keyMsg)
+	f.updateModalField(newField)
+	return f, cmd
 }
 
 func (f *WorktreesForm) focusedModalField() tui.Field {
@@ -519,7 +494,6 @@ func (f *WorktreesForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form.
 func (f *WorktreesForm) Blur() tea.Cmd {
-	f.insertMode = false
 	return nil
 }
 
@@ -552,11 +526,5 @@ func (f *WorktreesForm) FocusedYOffset() int {
 
 var _ tea.Model = (*WorktreesForm)(nil)
 
-// InInsertMode reports whether the form is in insert mode.
-func (f *WorktreesForm) InInsertMode() bool { return f.insertMode }
-
 // Ensure WorktreesForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*WorktreesForm)(nil)
-
-// Ensure WorktreesForm implements tui.InsertModeReporter.
-var _ tui.InsertModeReporter = (*WorktreesForm)(nil)

@@ -55,7 +55,6 @@ type FileCopyForm struct {
 	modalFocusIdx   int
 	submitted       bool
 	cancelled       bool
-	insertMode      bool // vim-style insert mode for text inputs
 }
 
 // NewFileCopyForm creates a new FileCopy configuration form.
@@ -270,36 +269,6 @@ func (f *FileCopyForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, cmd
 	}
 
-	// Insert mode: pass all keys to the field except Esc
-	if f.insertMode {
-		if keyMsg.Type == tea.KeyEsc {
-			f.insertMode = false
-			return f, nil
-		}
-		newField, cmd := f.focusedModalField().Update(keyMsg)
-		f.updateModalField(newField)
-		return f, cmd
-	}
-
-	// Normal mode (vim-style navigation)
-
-	// Handle vim-style keys in normal mode
-	if keyMsg.Type == tea.KeyRunes && len(keyMsg.Runes) == 1 {
-		switch keyMsg.Runes[0] {
-		case 'j':
-			return f.nextModalField()
-		case 'k':
-			return f.prevModalField()
-		case 'i':
-			f.insertMode = true
-			return f, nil
-		case 'b':
-			if f.modalFocusIdx == 1 {
-				return f.openFilePicker()
-			}
-		}
-	}
-
 	switch keyMsg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
 		return f.nextModalField()
@@ -313,11 +282,18 @@ func (f *FileCopyForm) handleEditModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		f.modalState = ModalNone
 		f.editingIdx = -1
-		f.insertMode = false
 		return f, nil
+
+	case tea.KeyCtrlB:
+		if f.modalFocusIdx == 1 {
+			return f.openFilePicker()
+		}
 	}
 
-	return f, nil
+	// Pass unhandled keys to the focused field (free text editing)
+	newField, cmd := f.focusedModalField().Update(keyMsg)
+	f.updateModalField(newField)
+	return f, cmd
 }
 
 // nextModalField moves focus to the next field in the modal.
@@ -580,7 +556,7 @@ func (f *FileCopyForm) renderEditModal(title string) string {
 		"",
 		f.filesField.View(),
 		"",
-		f.theme.Blurred.Description.Render("Tab=next  b=browse files  Enter=confirm  Esc=cancel"),
+		f.theme.Blurred.Description.Render("Tab=next  Ctrl+b=browse files  Enter=confirm  Esc=cancel"),
 	}
 	return strings.Join(lines, "\n")
 }
@@ -612,7 +588,6 @@ func (f *FileCopyForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form.
 func (f *FileCopyForm) Blur() tea.Cmd {
-	f.insertMode = false
 	return nil
 }
 
@@ -646,11 +621,5 @@ func (f *FileCopyForm) FocusedYOffset() int {
 // Ensure FileCopyForm implements tea.Model.
 var _ tea.Model = (*FileCopyForm)(nil)
 
-// InInsertMode reports whether the form is in insert mode.
-func (f *FileCopyForm) InInsertMode() bool { return f.insertMode }
-
 // Ensure FileCopyForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*FileCopyForm)(nil)
-
-// Ensure FileCopyForm implements tui.InsertModeReporter.
-var _ tui.InsertModeReporter = (*FileCopyForm)(nil)

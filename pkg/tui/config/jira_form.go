@@ -62,7 +62,6 @@ type JiraForm struct {
 	enabled                         bool
 	showValidationErrors            bool
 	showHelp                        bool
-	insertMode                      bool // vim-style insert mode for text inputs
 }
 
 // NewJiraForm creates a new JIRA configuration form.
@@ -403,35 +402,22 @@ func (f *JiraForm) View() string {
 
 // handleKeyMsg processes keyboard input.
 func (f *JiraForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Insert mode: pass all keys to the field except Esc
-	if f.insertMode {
-		return f.handleInsertMode(msg)
-	}
-
-	// Normal mode (vim-style navigation)
-	if model, cmd, handled := f.handleNormalModeKeys(msg); handled {
+	if model, cmd, handled := f.handleFormKeys(msg); handled {
 		return model, cmd
 	}
 
 	return f.handleNavigationKeys(msg)
 }
 
-// handleInsertMode processes keys when in insert mode.
-func (f *JiraForm) handleInsertMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if msg.Type == tea.KeyEsc {
-		f.insertMode = false
-		return f, nil
-	}
-	// Pass key to the focused field
-	field, cmd := f.focusedField().Update(msg)
-	f.updateFocusedField(field)
-	return f, cmd
-}
-
-// handleNormalModeKeys handles vim-style keys and special commands in normal mode.
+// handleFormKeys handles special commands and field delegation.
 // Returns (model, cmd, true) if key was handled, or (nil, nil, false) to continue processing.
-func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
-	_, isTextInput := f.focusedField().(*fields.TextInput)
+func (f *JiraForm) handleFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
+	// Esc always goes back to sidebar
+	if msg.Type == tea.KeyEsc {
+		return f, func() tea.Msg {
+			return tui.BackBoundaryMsg{}
+		}, true
+	}
 
 	// When a Confirm field is focused, delegate toggle/navigation keys to it.
 	// Confirm fields handle: space, enter, h, l, left, right, y, n, Y, N, tab.
@@ -441,20 +427,9 @@ func (f *JiraForm) handleNormalModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 		}
 	}
 
-	// Handle vim-style keys and commands
+	// Handle command keys
 	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 		switch msg.Runes[0] {
-		case 'j':
-			m, cmd := f.nextField()
-			return m, cmd, true
-		case 'k':
-			m, cmd := f.prevField()
-			return m, cmd, true
-		case 'i':
-			if isTextInput {
-				f.insertMode = true
-				return f, nil, true
-			}
 		case '?':
 			f.showHelp = true
 			f.helpOverlay = tui.NewHelpOverlay().
@@ -521,7 +496,7 @@ func (f *JiraForm) handleConfirmFieldKey(msg tea.KeyMsg) (tea.Model, tea.Cmd, bo
 	return m, nextCmd, true
 }
 
-// handleNavigationKeys handles Tab and Shift+Tab keys.
+// handleNavigationKeys handles Tab, Shift+Tab, and delegates remaining keys to the focused field.
 func (f *JiraForm) handleNavigationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type { //nolint:exhaustive // Only handling relevant keys
 	case tea.KeyTab:
@@ -529,7 +504,11 @@ func (f *JiraForm) handleNavigationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyShiftTab:
 		return f.prevField()
 	}
-	return f, nil
+
+	// Pass unhandled keys to the focused field (free text editing)
+	field, cmd := f.focusedField().Update(msg)
+	f.updateFocusedField(field)
+	return f, cmd
 }
 
 // handleSave validates and saves the form.
@@ -655,7 +634,6 @@ func (f *JiraForm) Focus() tea.Cmd {
 
 // Blur removes keyboard focus from the form and all its fields.
 func (f *JiraForm) Blur() tea.Cmd {
-	f.insertMode = false
 	f.focusedField().Blur()
 	return nil
 }
@@ -663,11 +641,5 @@ func (f *JiraForm) Blur() tea.Cmd {
 // Ensure JiraForm implements tea.Model.
 var _ tea.Model = (*JiraForm)(nil)
 
-// InInsertMode reports whether the form is in insert mode.
-func (f *JiraForm) InInsertMode() bool { return f.insertMode }
-
 // Ensure JiraForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*JiraForm)(nil)
-
-// Ensure JiraForm implements tui.InsertModeReporter.
-var _ tui.InsertModeReporter = (*JiraForm)(nil)

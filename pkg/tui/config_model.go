@@ -248,44 +248,18 @@ func (m *ConfigModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cm
 	return m, cmd
 }
 
-// formInInsertMode reports whether the current form is in insert mode.
-func (m *ConfigModel) formInInsertMode() bool {
-	if m.currentForm == nil {
-		return false
-	}
-	if reporter, ok := m.currentForm.(InsertModeReporter); ok {
-		return reporter.InInsertMode()
-	}
-	return false
-}
-
-// formHasConfirmFocused reports whether the current form's focused field is a Confirm toggle.
-func (m *ConfigModel) formHasConfirmFocused() bool {
-	if m.currentForm == nil {
-		return false
-	}
-	if reporter, ok := m.currentForm.(ConfirmFocusedReporter); ok {
-		return reporter.ConfirmFieldFocused()
-	}
-	return false
-}
-
 // handleKeyMsg processes keyboard input.
 func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Clear any transient error message on the next keypress
 	m.saveError = ""
-
-	// When the content pane is focused and the form is in insert mode,
-	// let keystrokes pass through so characters like "s" and "q" reach text inputs.
-	editing := m.paneFocus == ContentFocused && m.formInInsertMode()
 
 	// ctrl+c always quits regardless of pane or mode
 	if msg.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
 
-	// q quits from normal mode; if dirty, show the save confirmation dialog first
-	if !editing && msg.String() == "q" {
+	// q quits when sidebar is focused; if dirty, show the save confirmation dialog first
+	if m.paneFocus == SidebarFocused && msg.String() == "q" {
 		if m.IsDirty() {
 			return m.showSaveConfirmDialog()
 		}
@@ -296,7 +270,7 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSidebarKeys(msg)
 	}
 
-	return m.handleContentKeys(msg, editing)
+	return m.handleContentKeys(msg)
 }
 
 // handleSidebarKeys processes keyboard input when the sidebar pane has focus.
@@ -318,46 +292,28 @@ func (m *ConfigModel) handleSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleContentKeys processes keyboard input when the content pane has focus.
-func (m *ConfigModel) handleContentKeys(msg tea.KeyMsg, editing bool) (tea.Model, tea.Cmd) {
-	// Note: Esc is NOT intercepted here - forms handle it (exit insert mode or emit BackBoundaryMsg)
-	if !editing {
-		switch msg.String() {
-		case "h", "left":
-			// Don't intercept h/left when a Confirm field is focused --
-			// the Confirm field uses these keys to select Yes/No.
-			if !m.formHasConfirmFocused() {
-				return m.focusSidebar()
-			}
-		case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
-			// Scroll keys go to viewport
-			var cmd tea.Cmd
-			m.contentViewport, cmd = m.contentViewport.Update(msg)
-			return m, cmd
-		}
+func (m *ConfigModel) handleContentKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// All key events are delegated to the focused form.
+	// Forms handle Esc (emit BackBoundaryMsg), navigation, and text input directly.
+	switch msg.String() {
+	case "pgup", "pgdown", "ctrl+u", "ctrl+d", "home", "end":
+		// Scroll keys go to viewport
+		var cmd tea.Cmd
+		m.contentViewport, cmd = m.contentViewport.Update(msg)
+		return m, cmd
 	}
 
-	return m.delegateToForm(msg, editing)
+	return m.delegateToForm(msg)
 }
 
-// delegateToForm passes a key message to the current form and tracks dirty state.
-func (m *ConfigModel) delegateToForm(msg tea.KeyMsg, editing bool) (tea.Model, tea.Cmd) {
+// delegateToForm passes a key message to the current form.
+func (m *ConfigModel) delegateToForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.currentForm == nil {
 		return m, nil
 	}
 
 	newForm, cmd := m.currentForm.Update(msg)
 	m.currentForm = newForm
-	// Mark dirty when a field value is likely modified:
-	// - Insert mode: any key except Esc modifies text
-	// - Normal mode: Confirm toggle keys modify the field value
-	if editing && msg.Type != tea.KeyEsc {
-		m.state.MarkDirty()
-	} else if !editing && m.formHasConfirmFocused() {
-		switch msg.String() {
-		case " ", "enter", "h", "l", "left", "right", "y", "Y", "n", "N":
-			m.state.MarkDirty()
-		}
-	}
 	// Auto-scroll to keep focused field visible
 	m.scrollToFocusedField()
 	return m, cmd

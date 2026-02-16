@@ -42,22 +42,6 @@ type FocusReporter interface {
 	FocusedYOffset() int
 }
 
-// InsertModeReporter is an optional interface that forms can implement to
-// report whether they are in insert mode. When a form is in insert mode,
-// global keyboard shortcuts should be suppressed so keystrokes reach the
-// text input fields.
-type InsertModeReporter interface {
-	InInsertMode() bool
-}
-
-// ConfirmFocusedReporter is an optional interface that forms can implement to
-// report whether the currently focused field is a Confirm toggle. When a
-// Confirm field is focused, parent containers should not intercept keys like
-// h/l/left/right that the Confirm field uses for toggling.
-type ConfirmFocusedReporter interface {
-	ConfirmFieldFocused() bool
-}
-
 // NextStepMsg signals that the current field is complete and the wizard should advance.
 type NextStepMsg struct{}
 
