@@ -20,7 +20,7 @@ type saveConfirm struct {
 }
 
 // newSaveConfirm creates a new save confirmation field.
-func newSaveConfirm(theme *Theme) Field {
+func newSaveConfirm(theme *Theme) *saveConfirm {
 	if theme == nil {
 		theme = DefaultTheme()
 	}

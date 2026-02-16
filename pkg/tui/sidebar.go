@@ -2,7 +2,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -99,7 +98,7 @@ func (s *Sidebar) View() string {
 
 // renderSection renders a single section line.
 func (s *Sidebar) renderSection(section SidebarSection, selected bool) string {
-	label := fmt.Sprintf("• %s", section.Name)
+	label := "• " + section.Name
 
 	// Add error badge if section has validation errors
 	if section.HasError {
