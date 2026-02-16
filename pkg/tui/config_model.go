@@ -284,8 +284,11 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	// q always quits from normal mode, regardless of pane focus
+	// q quits from normal mode; if dirty, show the save confirmation dialog first
 	if !editing && msg.String() == "q" {
+		if m.IsDirty() {
+			return m.showSaveConfirmDialog()
+		}
 		return m, tea.Quit
 	}
 
@@ -375,7 +378,7 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	case "esc":
 		m.showSaveConfirm = false
 		m.saveConfirmField = nil
-		return m, nil
+		return m, m.refocusCurrentForm()
 	}
 
 	newField, cmd := m.saveConfirmField.Update(msg)
@@ -392,13 +395,13 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		}
 		m.showSaveConfirm = false
 		m.saveConfirmField = nil
-		return m, nil
+		return m, m.refocusCurrentForm()
 	}
 
 	// User cancelled - dismiss dialog, return to content pane
 	m.showSaveConfirm = false
 	m.saveConfirmField = nil
-	return m, nil
+	return m, m.refocusCurrentForm()
 }
 
 // delegateToFocusedPane passes messages to the currently focused pane.
@@ -441,6 +444,18 @@ func (m *ConfigModel) focusContent() (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, cmd
+}
+
+// refocusCurrentForm calls Focus() on the current form to restore cursor blink.
+// Used after dismissing overlays (save confirmation, etc.) to ensure the cursor
+// blink ticker is restarted.
+func (m *ConfigModel) refocusCurrentForm() tea.Cmd {
+	if m.currentForm != nil {
+		if focusable, ok := m.currentForm.(interface{ Focus() tea.Cmd }); ok {
+			return focusable.Focus()
+		}
+	}
+	return nil
 }
 
 // focusSidebar moves focus from content pane to sidebar.

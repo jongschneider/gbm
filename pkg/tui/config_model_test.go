@@ -788,32 +788,30 @@ func TestConfigModel_CtrlC_AlwaysQuits(t *testing.T) {
 	}
 }
 
-func TestConfigModel_QuitAlwaysQuits(t *testing.T) {
+func TestConfigModel_QuitWhenClean(t *testing.T) {
 	testCases := []struct {
-		setup func(m *ConfigModel)
-		name  string
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
+		name   string
 	}{
 		{
 			name:  "q quits from sidebar when clean",
 			setup: func(m *ConfigModel) {},
-		},
-		{
-			name: "q quits from sidebar when dirty",
-			setup: func(m *ConfigModel) {
-				m.state.MarkDirty()
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.NotNil(t, cmd, "q should produce a quit command")
+				assert.False(t, m.ShowSaveConfirm(), "should not show save dialog")
 			},
 		},
 		{
-			name: "q quits from content pane",
+			name: "q quits from content pane when clean",
 			setup: func(m *ConfigModel) {
 				m.Update(SidebarSelectionMsg{Section: "Basics"})
 			},
-		},
-		{
-			name: "q quits from content pane when dirty",
-			setup: func(m *ConfigModel) {
-				m.Update(SidebarSelectionMsg{Section: "Basics"})
-				m.state.MarkDirty()
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.NotNil(t, cmd, "q should produce a quit command")
+				assert.False(t, m.ShowSaveConfirm(), "should not show save dialog")
 			},
 		},
 	}
@@ -829,7 +827,90 @@ func TestConfigModel_QuitAlwaysQuits(t *testing.T) {
 			tc.setup(m)
 
 			_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-			assert.NotNil(t, cmd, "q should produce a quit command")
+			tc.assert(t, m, cmd)
+		})
+	}
+}
+
+func TestConfigModel_QuitWhenDirty(t *testing.T) {
+	testCases := []struct {
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
+		name   string
+	}{
+		{
+			name: "q shows save dialog from sidebar when dirty",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+			},
+		},
+		{
+			name: "q shows save dialog from content pane when dirty",
+			setup: func(m *ConfigModel) {
+				m.Update(SidebarSelectionMsg{Section: "Basics"})
+				m.state.MarkDirty()
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+				assert.NotNil(t, m.saveConfirmField, "save confirm field should be created")
+			},
+		},
+		{
+			name: "save dialog confirm saves then allows clean quit",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+
+				// Confirm save
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed after save")
+				assert.False(t, m.IsDirty(), "dirty flag should be cleared after save")
+
+				// Now q should quit immediately
+				_, quitCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+				assert.NotNil(t, quitCmd, "q should produce a quit command when clean")
+				assert.False(t, m.ShowSaveConfirm(), "should not show dialog again")
+			},
+		},
+		{
+			name: "save dialog cancel returns to editing without quitting",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+			},
+			assert: func(t *testing.T, m *ConfigModel, cmd tea.Cmd) {
+				t.Helper()
+				assert.True(t, m.ShowSaveConfirm(), "should show save confirmation dialog")
+
+				// Cancel with Esc
+				m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+			onSave := func(state *ConfigState) error { return nil }
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory), WithOnSave(onSave))
+			tc.setup(m)
+
+			_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+			tc.assert(t, m, cmd)
 		})
 	}
 }
@@ -1049,6 +1130,72 @@ func TestConfigModel_SaveError(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigModel_SaveConfirmation_RefocusesForm(t *testing.T) {
+	testCases := []struct {
+		action func(m *ConfigModel)
+		name   string
+	}{
+		{
+			name: "esc dismissal re-focuses form",
+			action: func(m *ConfigModel) {
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+			},
+		},
+		{
+			name: "n cancel re-focuses form",
+			action: func(m *ConfigModel) {
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+			},
+		},
+		{
+			name: "y confirm re-focuses form",
+			action: func(m *ConfigModel) {
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockForm := &configTestFocusTrackingMockModel{}
+			factory := func(section string, state *ConfigState, theme *Theme, onUpdate func()) tea.Model {
+				return mockForm
+			}
+			onSave := func(state *ConfigState) error { return nil }
+
+			m := NewConfigModel(DefaultTheme(), WithFormFactory(factory), WithOnSave(onSave))
+			// Focus content so the form is the active pane
+			m.Update(SidebarSelectionMsg{Section: "Basics"})
+			// Reset focus count after the initial focus from focusContent
+			mockForm.focusCount = 0
+
+			tc.action(m)
+
+			assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+			assert.Greater(t, mockForm.focusCount, 0, "Focus() should be called after dismissing save dialog")
+		})
+	}
+}
+
+// configTestFocusTrackingMockModel tracks Focus() calls and returns a sentinel cmd.
+type configTestFocusTrackingMockModel struct {
+	focusCount int
+}
+
+func (m *configTestFocusTrackingMockModel) Init() tea.Cmd { return nil }
+func (m *configTestFocusTrackingMockModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+func (m *configTestFocusTrackingMockModel) View() string { return "mock" }
+func (m *configTestFocusTrackingMockModel) Focus() tea.Cmd {
+	m.focusCount++
+	return func() tea.Msg { return nil }
+}
+func (m *configTestFocusTrackingMockModel) Blur() tea.Cmd { return nil }
 
 // configTestMockModel is a simple mock tea.Model for testing.
 type configTestMockModel struct{}
