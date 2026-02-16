@@ -143,6 +143,43 @@ func TestBasicsForm_Cancelled(t *testing.T) {
 	assert.True(t, form.IsCancelled())
 }
 
+func TestBasicsForm_EscEmitsBackBoundaryMsg(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		focusedFieldIdx int
+	}{
+		{
+			name:            "from first field",
+			focusedFieldIdx: 0,
+		},
+		{
+			name:            "from last field",
+			focusedFieldIdx: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			form := NewBasicsForm(BasicsFormConfig{
+				DefaultBranch: "main",
+				WorktreesDir:  "./worktrees",
+			})
+			form.focusedFieldIdx = tc.focusedFieldIdx
+
+			_, cmd := form.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+			assert.NotNil(t, cmd, "Esc should return a command")
+			msg := cmd()
+			_, ok := msg.(tui.BackBoundaryMsg)
+			assert.True(t, ok, "command should produce BackBoundaryMsg, got %T", msg)
+		})
+	}
+}
+
 func TestBasicsForm_Validate(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

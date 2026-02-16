@@ -264,6 +264,18 @@ func TestWorktreesForm_EditWorktree(t *testing.T) {
 	assert.Equal(t, "new-branch", f.worktrees[0].Branch)
 }
 
+func TestWorktreesForm_EscEmitsBackBoundaryMsg(t *testing.T) {
+	form := NewWorktreesForm(WorktreesFormConfig{})
+
+	// No modal open - Esc should emit BackBoundaryMsg
+	_, cmd := form.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	assert.NotNil(t, cmd, "Esc should return a command")
+	msg := cmd()
+	_, ok := msg.(tui.BackBoundaryMsg)
+	assert.True(t, ok, "command should produce BackBoundaryMsg, got %T", msg)
+}
+
 func TestWorktreesForm_EscapeClosesModal(t *testing.T) {
 	form := NewWorktreesForm(WorktreesFormConfig{})
 

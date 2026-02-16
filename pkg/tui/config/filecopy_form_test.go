@@ -243,6 +243,24 @@ func TestFileCopyForm_DeleteCancel(t *testing.T) {
 	assert.Equal(t, ModalNone, form.GetModalState(), "Modal should be closed")
 }
 
+func TestFileCopyForm_EscEmitsBackBoundaryMsg(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	form := NewFileCopyForm(FileCopyFormConfig{
+		Rules: nil,
+		Theme: tui.DefaultTheme(),
+	})
+
+	// No modal open - Esc should emit BackBoundaryMsg
+	_, cmd := form.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	assert.NotNil(t, cmd, "Esc should return a command")
+	msg := cmd()
+	_, ok := msg.(tui.BackBoundaryMsg)
+	assert.True(t, ok, "command should produce BackBoundaryMsg, got %T", msg)
+}
+
 func TestFileCopyForm_EscapeModalClosesModal(t *testing.T) {
 	t.Parallel()
 	lipgloss.SetColorProfile(termenv.Ascii)
