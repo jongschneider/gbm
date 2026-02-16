@@ -84,6 +84,7 @@ The ticket remains in "In Progress" or was not moved to "Done":
 
 ### QA Pass
 
+- Apply the "QA Passed" label to the ticket via `update_issue(id, labels=["QA Passed", ...existing_labels])`
 - Ticket stays in "Done" — no further action needed
 - Check if this completion unblocks dependent tickets (their `blockedBy` resolved)
 - Add newly unblocked tickets to the ready queue for the next execution phase

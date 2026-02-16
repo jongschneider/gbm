@@ -9,9 +9,7 @@ model: inherit
 mcpServers:
   - linear-server
 permissionMode: bypassPermissions
-skills:
-  - validate-tmux-session
-  - vhs-testing
+tools: Read, Grep, Glob, Bash, Write
 ---
 
 # QA Agent
@@ -97,10 +95,23 @@ Present the test plan before proceeding to execution.
 
 ## Phase 3: Set Up Test Environment
 
+### Go environment
+
+The project may live on an external drive or in a worktree where VCS stamping fails. **Always**
+export this before any `go` command (`build`, `test`, `vet`, etc.):
+
+```bash
+export GOFLAGS="-buildvcs=false"
+```
+
+Set this once at the start of Phase 3 — it applies to every subsequent `go` invocation in the
+shell session.
+
 ### Build the binary
 
 ```bash
 cd <project-root>
+export GOFLAGS="-buildvcs=false"
 go build -o gbm ./cmd
 ```
 
@@ -304,8 +315,22 @@ If a Linear ticket ID was provided:
    ```
    create_comment(<ticket-id>, body="QA RESULT: PASS/FAIL\n\n<summary table>\n\n<failure details if any>\n\nFull report: <QA_DIR>/results/report.md")
    ```
-2. If visual evidence was captured (screenshots, GIFs), use the `/linear-file-upload` skill to
-   attach key artifacts to the ticket.
+2. If visual evidence was captured (screenshots, GIFs), upload key artifacts and embed them
+   in the Linear comment. For each artifact:
+
+   ```bash
+   # Upload to temporary host (Linear will permanently store the image on first render)
+   URL=$(bash <project-root>/.claude/skills/linear-file-upload/scripts/upload.sh /path/to/screenshot.png)
+   ```
+
+   Then embed the URL in a Linear comment using markdown image syntax:
+
+   ```markdown
+   ![description of screenshot](https://0x0.st/ABcd.png)
+   ```
+
+   Include these image references directly in the QA result comment body so they render inline
+   on the ticket. Only upload images (png, jpg, gif, webp) — paste text content directly.
 
 ### Report to Orchestrator
 
