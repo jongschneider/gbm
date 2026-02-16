@@ -312,25 +312,6 @@ func TestWorktreesForm_ShiftTabCyclesFocusBackward(t *testing.T) {
 	assert.Equal(t, 3, f.modalFocusIdx)
 }
 
-func TestWorktreesForm_Save(t *testing.T) {
-	var savedWorktrees []WorktreeEntry
-	form := NewWorktreesForm(WorktreesFormConfig{
-		Worktrees: []WorktreeEntry{
-			{Name: "test", Branch: "test-branch"},
-		},
-		OnSave: func(wts []WorktreeEntry) error {
-			savedWorktrees = wts
-			return nil
-		},
-	})
-
-	model, _ := form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	f := model.(*WorktreesForm)
-
-	assert.True(t, f.submitted)
-	assert.Len(t, savedWorktrees, 1)
-}
-
 func TestWorktreesForm_View(t *testing.T) {
 	form := NewWorktreesForm(WorktreesFormConfig{
 		Worktrees: []WorktreeEntry{

@@ -20,19 +20,15 @@ type BasicsFormConfig struct {
 
 // BasicsForm renders a form for editing basic config settings (default_branch, worktrees_dir).
 type BasicsForm struct {
-	theme                *tui.Theme
-	onSave               func(data map[string]string) error
-	defaultBranchField   tui.Field
-	worktreesDirField    tui.Field
-	validationOverlay    *fields.ValidationOverlay
-	helpOverlay          *tui.HelpOverlay
-	width                int
-	height               int
-	focusedFieldIdx      int
-	submitted            bool
-	cancelled            bool
-	showValidationErrors bool
-	showHelp             bool
+	theme              *tui.Theme
+	onSave             func(data map[string]string) error
+	defaultBranchField tui.Field
+	worktreesDirField  tui.Field
+	width              int
+	height             int
+	focusedFieldIdx    int
+	submitted          bool
+	cancelled          bool
 }
 
 // NewBasicsForm creates a new Basics configuration form.
@@ -106,16 +102,6 @@ func (f *BasicsForm) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (f *BasicsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle help overlay
-	if f.showHelp {
-		return f.handleHelpOverlay(msg)
-	}
-
-	// Handle validation error overlay
-	if f.showValidationErrors {
-		return f.handleValidationOverlay(msg)
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return f.handleKeyMsg(msg)
@@ -126,37 +112,6 @@ func (f *BasicsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Delegate to focused field
 	newField, cmd := f.focusedField().Update(msg)
 	f.updateFocusedField(newField)
-	return f, cmd
-}
-
-// handleHelpOverlay processes input while showing the help overlay.
-func (f *BasicsForm) handleHelpOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return f, nil
-	}
-
-	switch keyMsg.String() {
-	case "esc", "?", "enter":
-		f.showHelp = false
-		return f, f.focusedField().Focus()
-	}
-	return f, nil
-}
-
-// handleValidationOverlay processes input while showing the validation error overlay.
-func (f *BasicsForm) handleValidationOverlay(msg tea.Msg) (tea.Model, tea.Cmd) {
-	_, cmd := f.validationOverlay.Update(msg)
-
-	// Check for dismissal message
-	if _, ok := msg.(tea.KeyMsg); ok {
-		keyMsg := msg.(tea.KeyMsg)
-		if keyMsg.String() == "esc" || keyMsg.String() == "b" || keyMsg.String() == "enter" {
-			f.showValidationErrors = false
-			return f, f.focusedField().Focus()
-		}
-	}
-
 	return f, cmd
 }
 
@@ -182,9 +137,6 @@ func (f *BasicsForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return f.nextField()
-
-	case tea.KeyRunes:
-		return f.handleRuneKey(msg)
 	}
 
 	// Pass all other keys to the focused field
@@ -214,57 +166,6 @@ func (f *BasicsForm) updateFocusedField(field tui.Field) {
 	} else {
 		f.worktreesDirField = field
 	}
-}
-
-// handleRuneKey processes character input (s for save, q for quit, ? for help).
-func (f *BasicsForm) handleRuneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if len(msg.Runes) == 0 {
-		return f, nil
-	}
-
-	switch msg.Runes[0] {
-	case '?':
-		f.showHelp = true
-		f.helpOverlay = tui.NewHelpOverlay().
-			WithTheme(f.theme).
-			WithWidth(f.width).
-			WithHeight(f.height)
-		return f, nil
-
-	case 's':
-		// Validate all fields before saving
-		errs := f.Validate()
-		if len(errs) > 0 {
-			f.showValidationErrors = true
-			f.validationOverlay = fields.NewValidationOverlay(errs).
-				WithTheme(f.theme).
-				WithWidth(f.width).
-				WithHeight(f.height)
-			return f, nil
-		}
-
-		if f.onSave != nil {
-			err := f.onSave(f.GetValue())
-			if err != nil {
-				// Show save error as validation error
-				f.showValidationErrors = true
-				f.validationOverlay = fields.NewValidationOverlay([]string{err.Error()}).
-					WithTheme(f.theme).
-					WithTitle("Save Error").
-					WithWidth(f.width).
-					WithHeight(f.height)
-				return f, nil
-			}
-		}
-		return f, func() tea.Msg {
-			return tui.FormFlushCompleteMsg{}
-		}
-	}
-
-	// Pass unhandled runes to the focused field (free text editing)
-	field, cmd := f.focusedField().Update(msg)
-	f.updateFocusedField(field)
-	return f, cmd
 }
 
 // Validate runs validators on all fields and returns a list of error messages.
@@ -297,23 +198,12 @@ func (f *BasicsForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd
 	f.height = msg.Height
 	f.defaultBranchField = f.defaultBranchField.WithWidth(msg.Width).WithHeight(msg.Height)
 	f.worktreesDirField = f.worktreesDirField.WithWidth(msg.Width).WithHeight(msg.Height)
-	if f.validationOverlay != nil {
-		f.validationOverlay = f.validationOverlay.WithWidth(msg.Width).WithHeight(msg.Height)
-	}
 
 	return f, nil
 }
 
 // View implements tea.Model.
 func (f *BasicsForm) View() string {
-	if f.showHelp && f.helpOverlay != nil {
-		return f.helpOverlay.View()
-	}
-
-	if f.showValidationErrors && f.validationOverlay != nil {
-		return f.validationOverlay.View()
-	}
-
 	lines := []string{
 		f.theme.Focused.Title.Render("Basic Settings"),
 		"",
@@ -321,7 +211,7 @@ func (f *BasicsForm) View() string {
 		"",
 		f.worktreesDirField.View(),
 		"",
-		f.theme.Blurred.Description.Render("Tab=next field, s=save, ?=help"),
+		f.theme.Blurred.Description.Render("Tab/Shift+Tab=navigate  Esc=back"),
 	}
 
 	return strings.Join(lines, "\n")

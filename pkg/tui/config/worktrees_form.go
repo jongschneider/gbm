@@ -30,7 +30,6 @@ const (
 	WorktreeModalAdd
 	WorktreeModalEdit
 	WorktreeModalDelete
-	WorktreeModalHelp
 )
 
 type WorktreesForm struct {
@@ -42,7 +41,6 @@ type WorktreesForm struct {
 	onSave           func(worktrees []WorktreeEntry) error
 	table            *tui.Table
 	theme            *tui.Theme
-	helpOverlay      *tui.HelpOverlay
 	validationError  string
 	worktrees        []WorktreeEntry
 	modalState       WorktreeModalState
@@ -108,8 +106,6 @@ func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch f.modalState {
 	case WorktreeModalNone:
 		// Fall through to normal handling below
-	case WorktreeModalHelp:
-		return f.handleHelpModal(msg)
 	case WorktreeModalAdd, WorktreeModalEdit:
 		return f.handleEditModal(msg)
 	case WorktreeModalDelete:
@@ -132,16 +128,12 @@ func (f *WorktreesForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (f *WorktreesForm) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "?":
-		return f.openHelpModal()
 	case "a":
 		return f.openAddModal()
 	case "e":
 		return f.openEditModal()
 	case "d":
 		return f.openDeleteModal()
-	case "s":
-		return f.save()
 	case "esc":
 		f.cancelled = true
 		return f, func() tea.Msg {
@@ -190,30 +182,6 @@ func (f *WorktreesForm) openDeleteModal() (tea.Model, tea.Cmd) {
 	confirm := fields.NewConfirm("delete_confirm", "Delete worktree '"+wt.Name+"'?")
 	f.confirmField = confirm.WithTheme(f.theme)
 	return f, f.confirmField.Focus()
-}
-
-func (f *WorktreesForm) openHelpModal() (tea.Model, tea.Cmd) {
-	f.modalState = WorktreeModalHelp
-	f.helpOverlay = tui.NewHelpOverlay().
-		WithTheme(f.theme).
-		WithWidth(f.width).
-		WithHeight(f.height)
-	return f, nil
-}
-
-func (f *WorktreesForm) handleHelpModal(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return f, nil
-	}
-
-	switch keyMsg.String() {
-	case "esc", "?", "enter":
-		f.modalState = WorktreeModalNone
-		f.helpOverlay = nil
-		return f, nil
-	}
-	return f, nil
 }
 
 func (f *WorktreesForm) initModalFields(name, branch, mergeInto, description string) {
@@ -392,19 +360,6 @@ func (f *WorktreesForm) confirmDelete() (tea.Model, tea.Cmd) {
 	return f, nil
 }
 
-func (f *WorktreesForm) save() (tea.Model, tea.Cmd) {
-	if f.onSave != nil {
-		err := f.onSave(f.worktrees)
-		if err != nil {
-			return f, nil
-		}
-	}
-	f.submitted = true
-	return f, func() tea.Msg {
-		return tui.FormFlushCompleteMsg{}
-	}
-}
-
 func (f *WorktreesForm) refreshTable() {
 	rows := buildWorktreeRows(f.worktrees)
 	f.table.SetRows(rows)
@@ -421,8 +376,6 @@ func (f *WorktreesForm) View() string {
 	switch f.modalState {
 	case WorktreeModalNone:
 		// Fall through to normal view below
-	case WorktreeModalHelp:
-		return f.helpOverlay.View()
 	case WorktreeModalAdd:
 		return f.renderEditModal("Add Worktree")
 	case WorktreeModalEdit:
@@ -443,7 +396,7 @@ func (f *WorktreesForm) View() string {
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  s=save  ?=help"))
+	lines = append(lines, f.theme.Blurred.Description.Render("a=add  e=edit  d=delete  Esc=back"))
 
 	return strings.Join(lines, "\n")
 }

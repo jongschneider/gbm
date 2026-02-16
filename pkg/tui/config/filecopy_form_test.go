@@ -243,43 +243,6 @@ func TestFileCopyForm_DeleteCancel(t *testing.T) {
 	assert.Equal(t, ModalNone, form.GetModalState(), "Modal should be closed")
 }
 
-func TestFileCopyForm_SaveFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	saveCalled := false
-	var savedRules []FileCopyRule
-
-	config := FileCopyFormConfig{
-		Rules: []FileCopyRule{
-			{SourceWorktree: "main", Files: []string{".env"}},
-		},
-		Theme: tui.DefaultTheme(),
-		OnSave: func(rules []FileCopyRule) error {
-			saveCalled = true
-			savedRules = rules
-			return nil
-		},
-	}
-
-	form := NewFileCopyForm(config)
-	model := newFileCopyFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	assert.True(t, saveCalled, "OnSave callback should have been called")
-	assert.Len(t, savedRules, 1, "Should save 1 rule")
-	assert.True(t, form.IsComplete(), "Form should be marked as submitted")
-}
-
 func TestFileCopyForm_EscapeModalClosesModal(t *testing.T) {
 	t.Parallel()
 	lipgloss.SetColorProfile(termenv.Ascii)

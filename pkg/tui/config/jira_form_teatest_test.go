@@ -129,49 +129,6 @@ func TestJiraForm_EnabledInitialRender(t *testing.T) {
 	assert.Contains(t, finalOutput, "Markdown")
 }
 
-// TestJiraForm_SaveFlow tests the save flow.
-func TestJiraForm_SaveFlow(t *testing.T) {
-	t.Parallel()
-	lipgloss.SetColorProfile(termenv.Ascii)
-
-	saveCalled := false
-	var savedData map[string]any
-
-	config := JiraFormConfig{
-		Enabled:  true,
-		Host:     "https://jira.example.com",
-		Username: "user@example.com",
-		APIToken: "token123",
-		Theme:    tui.DefaultTheme(),
-		OnSave: func(data map[string]any) error {
-			saveCalled = true
-			savedData = data
-			return nil
-		},
-	}
-
-	form := NewJiraForm(config)
-	model := newJiraFormModel(form)
-
-	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
-
-	// Wait for initial render
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return len(bts) > 0
-	}, teatest.WithDuration(time.Second))
-
-	// Send 's' key to save
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-
-	// Wait for quit
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	// Verify save was called
-	assert.True(t, saveCalled, "OnSave callback should have been called")
-	assert.NotEmpty(t, savedData, "SaveData should not be empty")
-	assert.True(t, form.IsComplete(), "Form should be marked as submitted")
-}
-
 // TestJiraForm_TabNavigation tests tab navigation between fields.
 func TestJiraForm_TabNavigation(t *testing.T) {
 	t.Parallel()

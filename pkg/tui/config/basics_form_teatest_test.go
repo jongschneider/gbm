@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/muesli/termenv"
-	"github.com/stretchr/testify/assert"
 )
 
 func initTestProfile() {
@@ -46,24 +45,15 @@ func (m *basicsFormModel) View() string {
 	return m.form.View()
 }
 
-// TestBasicsForm_SaveFlow tests the save flow.
-func TestBasicsForm_SaveFlow(t *testing.T) {
+// TestBasicsForm_EscapeTriggersBackBoundary tests that Escape sends BackBoundaryMsg.
+func TestBasicsForm_EscapeTriggersBackBoundary(t *testing.T) {
 	t.Parallel()
 	initTestProfile()
-
-	saveCalled := false
-	savedData := map[string]string{}
 
 	config := BasicsFormConfig{
 		DefaultBranch: "main",
 		WorktreesDir:  "./worktrees",
 		Theme:         tui.DefaultTheme(),
-		OnSave: func(data map[string]string) error {
-			saveCalled = true
-			savedData = data
-
-			return nil
-		},
 	}
 
 	form := NewBasicsForm(config)
@@ -76,13 +66,9 @@ func TestBasicsForm_SaveFlow(t *testing.T) {
 		return len(bts) > 0
 	}, teatest.WithDuration(time.Second))
 
-	// Send 's' key to save
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	// Send Escape key - should trigger BackBoundaryMsg which causes quit
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
 
 	// Wait for quit
 	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
-
-	// Verify save was called
-	assert.True(t, saveCalled, "OnSave callback should have been called")
-	assert.NotEmpty(t, savedData, "SaveData should not be empty")
 }
