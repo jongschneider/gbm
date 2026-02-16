@@ -30,6 +30,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.Equal(t, "develop", ti.textInput.Value())
 				assert.Equal(t, "develop", ti.GetValue())
 			},
@@ -51,6 +52,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.Equal(t, "https://jira.example.com", ti.textInput.Value())
 			},
 		},
@@ -63,6 +65,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.Equal(t, "main", ti.textInput.Value())
 				assert.Equal(t, "main", ti.GetValue())
 			},
@@ -77,6 +80,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.Empty(t, ti.textInput.Value())
 			},
 		},
@@ -92,6 +96,7 @@ func TestTextInput_FocusPreservesValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.Empty(t, ti.textInput.Value())
 			},
 		},
@@ -125,6 +130,7 @@ func TestTextInput_FocusSetsState(t *testing.T) {
 			name:   "Focus sets focused to true",
 			action: func(ti *TextInput) { ti.Focus() },
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.True(t, ti.focused)
 			},
 		},
@@ -135,6 +141,7 @@ func TestTextInput_FocusSetsState(t *testing.T) {
 				ti.Blur()
 			},
 			assert: func(t *testing.T, ti *TextInput) {
+				t.Helper()
 				assert.False(t, ti.focused)
 			},
 		},
@@ -166,6 +173,7 @@ func TestTextInput_GetValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Equal(t, "default-val", val)
 			},
 		},
@@ -181,6 +189,7 @@ func TestTextInput_GetValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Equal(t, "edited", val)
 			},
 		},
@@ -194,6 +203,7 @@ func TestTextInput_GetValue(t *testing.T) {
 				return ti
 			},
 			assert: func(t *testing.T, val any) {
+				t.Helper()
 				assert.Equal(t, "submitted", val)
 			},
 		},
