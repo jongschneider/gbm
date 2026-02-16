@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -964,6 +965,87 @@ func TestConfigModel_SaveConfirmation(t *testing.T) {
 			m := NewConfigModel(DefaultTheme(), WithOnSave(onSave))
 			tc.action(m, &saveCalled)
 			tc.assert(t, m, saveCalled)
+		})
+	}
+}
+
+func TestConfigModel_SaveError(t *testing.T) {
+	testCases := []struct {
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel)
+		name   string
+	}{
+		{
+			name: "save failure sets error message and keeps dirty flag",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Contains(t, m.GetSaveError(), "permission denied")
+				assert.True(t, m.IsDirty(), "dirty flag should remain set on save failure")
+				assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
+			},
+		},
+		{
+			name: "save failure renders error in footer",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				view := m.View()
+				assert.Contains(t, view, "Save failed:")
+				assert.Contains(t, view, "permission denied")
+			},
+		},
+		{
+			name: "error clears on next keypress",
+			setup: func(m *ConfigModel) {
+				m.state.MarkDirty()
+				m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+				m.Update(FormFlushCompleteMsg{})
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+				// Press any key to clear the error
+				m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Empty(t, m.GetSaveError(), "error should be cleared after keypress")
+				view := m.View()
+				assert.NotContains(t, view, "Save failed:")
+			},
+		},
+		{
+			name:  "successful save does not set error",
+			setup: func(m *ConfigModel) {},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Empty(t, m.GetSaveError())
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			saveErr := errors.New("permission denied")
+
+			// For the "successful save" case, use a nil error
+			onSave := func(state *ConfigState) error {
+				return saveErr
+			}
+			if tc.name == "successful save does not set error" {
+				onSave = func(state *ConfigState) error { return nil }
+			}
+
+			m := NewConfigModel(DefaultTheme(), WithOnSave(onSave))
+			tc.setup(m)
+			tc.assert(t, m)
 		})
 	}
 }

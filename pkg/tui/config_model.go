@@ -122,6 +122,7 @@ type ConfigModel struct {
 	saveConfirmField Field
 	currentForm      tea.Model
 	formCache        map[string]tea.Model
+	saveError        string // error message from last failed save, cleared on next keypress
 	sidebarViewport  viewport.Model
 	contentViewport  viewport.Model
 	paneFocus        PaneFocus
@@ -271,6 +272,9 @@ func (m *ConfigModel) formHasConfirmFocused() bool {
 
 // handleKeyMsg processes keyboard input.
 func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Clear any transient error message on the next keypress
+	m.saveError = ""
+
 	// When the content pane is focused and the form is in insert mode,
 	// let keystrokes pass through so characters like "s" and "q" reach text inputs.
 	editing := m.paneFocus == ContentFocused && m.formInInsertMode()
@@ -383,7 +387,9 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 	if val, ok := m.saveConfirmField.GetValue().(bool); ok && val {
 		// User confirmed save - write to disk and clear dirty
-		m.handleSave()
+		if err := m.handleSave(); err != nil {
+			m.saveError = "Save failed: " + err.Error()
+		}
 		m.showSaveConfirm = false
 		m.saveConfirmField = nil
 		return m, nil
@@ -543,18 +549,19 @@ func (m *ConfigModel) handleReset() (tea.Model, tea.Cmd) {
 }
 
 // handleSave saves the current state to file and clears the dirty flag.
-func (m *ConfigModel) handleSave() {
+// Returns the error from onSave so the caller can surface it to the user.
+func (m *ConfigModel) handleSave() error {
 	if m.onSave == nil || m.state == nil {
-		return
+		return nil
 	}
 
 	err := m.onSave(m.state)
 	if err != nil {
-		// Could show error message, for now just ignore
-		return
+		return err
 	}
 
 	m.state.dirty = false
+	return nil
 }
 
 // showHelp creates and shows the help overlay.
@@ -633,6 +640,14 @@ func (m *ConfigModel) View() string {
 
 // renderFooter renders the help footer with context-sensitive hints.
 func (m *ConfigModel) renderFooter() string {
+	// Show save error prominently if present
+	if m.saveError != "" {
+		return lipgloss.NewStyle().
+			Foreground(m.theme.ErrorAccent).
+			Bold(true).
+			Render(m.saveError)
+	}
+
 	dirtyIndicator := ""
 	if m.IsDirty() {
 		dirtyIndicator = " [modified]"
@@ -691,4 +706,9 @@ func (m *ConfigModel) IsDirty() bool {
 // ShowSaveConfirm returns whether the save confirmation dialog is visible.
 func (m *ConfigModel) ShowSaveConfirm() bool {
 	return m.showSaveConfirm
+}
+
+// GetSaveError returns the current save error message, if any.
+func (m *ConfigModel) GetSaveError() string {
+	return m.saveError
 }
