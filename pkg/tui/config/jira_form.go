@@ -533,8 +533,58 @@ func (f *JiraForm) Blur() tea.Cmd {
 	return nil
 }
 
+// FlushToState copies current field values into the shared ConfigState.
+func (f *JiraForm) FlushToState(state *tui.ConfigState) {
+	state.JiraEnabled = f.enabled
+
+	if !f.enabled {
+		return
+	}
+
+	vals := f.GetValue()
+	state.JiraHost, _ = vals["jira_host"].(string)
+	state.JiraUsername, _ = vals["jira_username"].(string)
+	state.JiraAPIToken, _ = vals["jira_api_token"].(string)
+	state.JiraFiltersType, _ = vals["jira_filters_type"].(string)
+	state.JiraFiltersPriority, _ = vals["jira_filters_priority"].(string)
+	state.JiraAttachmentsDir, _ = vals["jira_attachments_dir"].(string)
+	state.JiraMarkdownFilenamePattern, _ = vals["jira_markdown_filename_pattern"].(string)
+	state.JiraAttachmentsEnabled, _ = vals["jira_attachments_enabled"].(bool)
+	state.JiraMarkdownIncludeComments, _ = vals["jira_markdown_include_comments"].(bool)
+	state.JiraMarkdownIncludeAttachments, _ = vals["jira_markdown_include_attachments"].(bool)
+	state.JiraMarkdownUseRelativeLinks, _ = vals["jira_markdown_use_relative_links"].(bool)
+
+	// Parse status as comma-separated list
+	if statusStr, ok := vals["jira_filters_status"].(string); ok && statusStr != "" {
+		parts := strings.Split(statusStr, ",")
+		statuses := make([]string, 0, len(parts))
+		for _, p := range parts {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" {
+				statuses = append(statuses, trimmed)
+			}
+		}
+		state.JiraFiltersStatus = statuses
+	} else {
+		state.JiraFiltersStatus = nil
+	}
+
+	// Parse max size
+	if maxSizeStr, ok := vals["jira_attachments_max_size"].(string); ok {
+		if v, err := strconv.Atoi(maxSizeStr); err == nil {
+			state.JiraAttachmentsMaxSize = v
+		}
+	}
+}
+
 // Ensure JiraForm implements tea.Model.
 var _ tea.Model = (*JiraForm)(nil)
 
 // Ensure JiraForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*JiraForm)(nil)
+
+// Ensure JiraForm implements tui.Flusher.
+var _ tui.Flusher = (*JiraForm)(nil)
+
+// Ensure JiraForm implements tui.Validator.
+var _ tui.Validator = (*JiraForm)(nil)

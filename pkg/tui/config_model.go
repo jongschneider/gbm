@@ -112,24 +112,27 @@ func WithFormFactory(factory FormFactory) ConfigModelOption {
 // It holds the in-memory config state that sections can modify.
 // Each pane uses a viewport for independent scrolling within terminal height.
 type ConfigModel struct {
-	sidebar          *Sidebar
-	theme            *Theme
-	state            *ConfigState
-	onSave           func(*ConfigState) error
-	onReset          func() (*ConfigState, error)
-	formFactory      FormFactory
-	helpOverlay      *HelpOverlay
-	saveConfirmField Field
-	currentForm      tea.Model
-	formCache        map[string]tea.Model
-	saveError        string // error message from last failed save, cleared on next keypress
-	sidebarViewport  viewport.Model
-	contentViewport  viewport.Model
-	paneFocus        PaneFocus
-	width            int
-	height           int
-	ready            bool // true after first WindowSizeMsg
-	showSaveConfirm  bool
+	sidebar            *Sidebar
+	theme              *Theme
+	state              *ConfigState
+	onSave             func(*ConfigState) error
+	onReset            func() (*ConfigState, error)
+	formFactory        FormFactory
+	helpOverlay        *HelpOverlay
+	validationOverlay  *validationOverlay
+	saveConfirmField   Field
+	currentForm        tea.Model
+	formCache          map[string]tea.Model
+	saveError          string // error message from last failed save, cleared on next keypress
+	sidebarViewport    viewport.Model
+	contentViewport    viewport.Model
+	saveConfirmContext SaveConfirmContext
+	saveConfirmReturn  PaneFocus // pane to return to after save confirm dismissal
+	paneFocus          PaneFocus
+	width              int
+	height             int
+	ready              bool // true after first WindowSizeMsg
+	showSaveConfirm    bool
 }
 
 // NewConfigModel creates a new ConfigModel with a Sidebar as the initial view.
@@ -180,6 +183,10 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+		// Handle validation overlay if showing (Esc/Enter only)
+		if m.validationOverlay != nil {
+			return m.handleValidationOverlay(msg)
+		}
 		// Handle save confirmation dialog if showing
 		if m.showSaveConfirm {
 			return m.handleSaveConfirmation(msg)
@@ -203,18 +210,15 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Content requested to go back - focus the sidebar
 		return m.focusSidebar()
 
-	case FormFlushCompleteMsg:
-		// Form validated and flushed data to state - show save confirmation
-		return m.showSaveConfirmDialog()
+	case ValidationOverlayDismissedMsg:
+		// Validation overlay dismissed - return to invoking pane
+		m.validationOverlay = nil
+		return m, m.restoreFocusAfterOverlay()
 	}
 
 	// Delegate to the appropriate pane based on focus
 	return m.delegateToFocusedPane(msg)
 }
-
-// FormFlushCompleteMsg signals that a form validated and flushed its data to state.
-// The config model responds by showing a save confirmation dialog.
-type FormFlushCompleteMsg struct{}
 
 // handleWindowSize updates dimensions on terminal resize.
 func (m *ConfigModel) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
@@ -259,7 +263,7 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Ctrl+S triggers save from either pane
 	if msg.String() == "ctrl+s" {
-		return m.showSaveConfirmDialog()
+		return m.triggerSaveFlow(SaveContextSave)
 	}
 
 	if m.paneFocus == SidebarFocused {
@@ -274,7 +278,9 @@ func (m *ConfigModel) handleSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q":
 		if m.IsDirty() {
-			return m.showSaveConfirmDialog()
+			m.saveConfirmContext = SaveContextQuit
+			m.saveConfirmReturn = SidebarFocused
+			return m.showSaveConfirmDialog(SaveContextQuit)
 		}
 		return m, tea.Quit
 	case "?":
@@ -320,10 +326,83 @@ func (m *ConfigModel) delegateToForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// triggerSaveFlow flushes all forms, validates all sections, and either shows
+// validation errors or the save confirmation dialog.
+func (m *ConfigModel) triggerSaveFlow(ctx SaveConfirmContext) (tea.Model, tea.Cmd) {
+	// Step 1: Flush all cached forms to ConfigState
+	m.flushAllForms()
+
+	// Step 2: Validate all sections
+	errs := m.validateAllSections()
+	if len(errs) > 0 {
+		// Show validation error overlay (S5)
+		return m.showValidationErrors(errs)
+	}
+
+	// Step 3: Show save confirmation with context
+	m.saveConfirmContext = ctx
+	m.saveConfirmReturn = m.paneFocus
+	return m.showSaveConfirmDialog(ctx)
+}
+
+// flushAllForms copies current field values from all cached forms into ConfigState.
+// Forms that have not been visited (not in cache) don't need flushing -- their
+// data in ConfigState is already the initial values.
+func (m *ConfigModel) flushAllForms() {
+	if m.state == nil {
+		return
+	}
+	for _, form := range m.formCache {
+		if flusher, ok := form.(Flusher); ok {
+			flusher.FlushToState(m.state)
+		}
+	}
+}
+
+// validateAllSections runs Validate() on all cached forms and aggregates errors.
+// Returns a slice of human-readable error strings.
+func (m *ConfigModel) validateAllSections() []string {
+	var errs []string
+	for _, form := range m.formCache {
+		if validator, ok := form.(Validator); ok {
+			errs = append(errs, validator.Validate()...)
+		}
+	}
+	return errs
+}
+
+// showValidationErrors displays the validation error overlay.
+func (m *ConfigModel) showValidationErrors(errs []string) (tea.Model, tea.Cmd) {
+	m.validationOverlay = newValidationOverlay(errs, m.theme, m.width)
+	return m, nil
+}
+
+// handleValidationOverlay processes input while the validation overlay is showing.
+func (m *ConfigModel) handleValidationOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	cmd := m.validationOverlay.Update(msg)
+	return m, cmd
+}
+
+// restoreFocusAfterOverlay returns a Cmd that restores focus to the appropriate
+// pane after an overlay (validation errors, save confirmation) is dismissed.
+func (m *ConfigModel) restoreFocusAfterOverlay() tea.Cmd {
+	if m.paneFocus == ContentFocused {
+		return m.refocusCurrentForm()
+	}
+	m.sidebar.Focus()
+	return nil
+}
+
 // showSaveConfirmDialog displays the save confirmation dialog.
-func (m *ConfigModel) showSaveConfirmDialog() (tea.Model, tea.Cmd) {
+func (m *ConfigModel) showSaveConfirmDialog(ctx SaveConfirmContext) (tea.Model, tea.Cmd) {
 	m.showSaveConfirm = true
-	m.saveConfirmField = newSaveConfirm(m.theme)
+
+	confirm := newSaveConfirm(m.theme)
+	if ctx == SaveContextQuit {
+		confirm.WithTitle("Save changes before quitting?")
+	}
+	m.saveConfirmField = confirm
+
 	return m, m.saveConfirmField.Focus()
 }
 
@@ -333,7 +412,7 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	case "esc":
 		m.showSaveConfirm = false
 		m.saveConfirmField = nil
-		return m, m.refocusCurrentForm()
+		return m, m.restoreFocusAfterOverlay()
 	}
 
 	newField, cmd := m.saveConfirmField.Update(msg)
@@ -343,20 +422,40 @@ func (m *ConfigModel) handleSaveConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, cmd
 	}
 
-	if val, ok := m.saveConfirmField.GetValue().(bool); ok && val {
-		// User confirmed save - write to disk and clear dirty
+	confirmed, _ := m.saveConfirmField.GetValue().(bool)
+	m.showSaveConfirm = false
+	m.saveConfirmField = nil
+
+	if m.saveConfirmContext == SaveContextQuit {
+		return m.handleSaveConfirmQuit(confirmed)
+	}
+
+	return m.handleSaveConfirmSave(confirmed)
+}
+
+// handleSaveConfirmSave handles the save confirmation result for SaveContextSave (Ctrl+S).
+func (m *ConfigModel) handleSaveConfirmSave(confirmed bool) (tea.Model, tea.Cmd) {
+	if confirmed {
 		if err := m.handleSave(); err != nil {
 			m.saveError = "Save failed: " + err.Error()
 		}
-		m.showSaveConfirm = false
-		m.saveConfirmField = nil
-		return m, m.refocusCurrentForm()
+	}
+	return m, m.restoreFocusAfterOverlay()
+}
+
+// handleSaveConfirmQuit handles the save confirmation result for SaveContextQuit (q while dirty).
+func (m *ConfigModel) handleSaveConfirmQuit(confirmed bool) (tea.Model, tea.Cmd) {
+	if !confirmed {
+		// "No" in quit context: discard changes and quit
+		return m, tea.Quit
 	}
 
-	// User cancelled - dismiss dialog, return to content pane
-	m.showSaveConfirm = false
-	m.saveConfirmField = nil
-	return m, m.refocusCurrentForm()
+	// "Yes" in quit context: save, then quit on success or stay with error on failure
+	if err := m.handleSave(); err != nil {
+		m.saveError = "Save failed: " + err.Error()
+		return m, m.restoreFocusAfterOverlay()
+	}
+	return m, tea.Quit
 }
 
 // delegateToFocusedPane passes messages to the currently focused pane.
@@ -555,6 +654,11 @@ func (m *ConfigModel) handleHelpOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m *ConfigModel) View() string {
+	// Show validation error overlay if active (full screen)
+	if m.validationOverlay != nil {
+		return m.validationOverlay.View()
+	}
+
 	// Show save confirmation dialog if active (full screen)
 	if m.showSaveConfirm && m.saveConfirmField != nil {
 		return m.saveConfirmField.View()
@@ -681,4 +785,14 @@ func (m *ConfigModel) ShowSaveConfirm() bool {
 // GetSaveError returns the current save error message, if any.
 func (m *ConfigModel) GetSaveError() string {
 	return m.saveError
+}
+
+// GetSaveConfirmContext returns the context that triggered the save confirmation.
+func (m *ConfigModel) GetSaveConfirmContext() SaveConfirmContext {
+	return m.saveConfirmContext
+}
+
+// GetValidationOverlay returns the current validation overlay, if any.
+func (m *ConfigModel) GetValidationOverlay() *validationOverlay {
+	return m.validationOverlay
 }

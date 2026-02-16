@@ -279,5 +279,18 @@ func (f *BasicsForm) FocusedYOffset() int {
 	return lineCount
 }
 
+// FlushToState copies current field values into the shared ConfigState.
+func (f *BasicsForm) FlushToState(state *tui.ConfigState) {
+	vals := f.GetValue()
+	state.DefaultBranch = vals["default_branch"]
+	state.WorktreesDir = vals["worktrees_dir"]
+}
+
 // Ensure BasicsForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*BasicsForm)(nil)
+
+// Ensure BasicsForm implements tui.Flusher.
+var _ tui.Flusher = (*BasicsForm)(nil)
+
+// Ensure BasicsForm implements tui.Validator.
+var _ tui.Validator = (*BasicsForm)(nil)

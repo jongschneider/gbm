@@ -7,6 +7,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// SaveConfirmContext indicates what triggered the save confirmation dialog.
+type SaveConfirmContext int
+
+const (
+	// SaveContextSave means the dialog was triggered by Ctrl+S.
+	SaveContextSave SaveConfirmContext = iota
+	// SaveContextQuit means the dialog was triggered by q while dirty.
+	SaveContextQuit
+)
+
 // saveConfirm is a minimal yes/no confirmation field used by ConfigModel
 // for the save-configuration dialog. It lives in the tui package
 // to avoid an import cycle with tui/fields.
@@ -29,6 +39,12 @@ func newSaveConfirm(theme *Theme) *saveConfirm {
 		title:    "Save configuration?",
 		selected: true, // Default to Yes
 	}
+}
+
+// WithTitle sets the title of the save confirmation dialog.
+func (c *saveConfirm) WithTitle(title string) *saveConfirm {
+	c.title = title
+	return c
 }
 
 func (c *saveConfirm) Init() tea.Cmd { return nil }

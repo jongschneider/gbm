@@ -42,6 +42,22 @@ type FocusReporter interface {
 	FocusedYOffset() int
 }
 
+// Validator is an optional interface that config forms implement to validate
+// their fields. Returns a list of human-readable error strings, one per failed
+// validation. An empty slice means the form is valid.
+// Defined in pkg/tui to avoid import cycles between pkg/tui and pkg/tui/config.
+type Validator interface {
+	Validate() []string
+}
+
+// Flusher is an optional interface that config forms implement to flush
+// current field values into the shared ConfigState. This copies in-progress
+// edits without triggering onSave callbacks.
+// Defined in pkg/tui to avoid import cycles between pkg/tui and pkg/tui/config.
+type Flusher interface {
+	FlushToState(state *ConfigState)
+}
+
 // NextStepMsg signals that the current field is complete and the wizard should advance.
 type NextStepMsg struct{}
 

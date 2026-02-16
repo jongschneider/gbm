@@ -568,8 +568,32 @@ func (f *FileCopyForm) FocusedYOffset() int {
 	return 2
 }
 
+// FlushToState copies current rules into the shared ConfigState.
+func (f *FileCopyForm) FlushToState(state *tui.ConfigState) {
+	rules := f.GetRules()
+	stateRules := make([]tui.FileCopyRuleState, len(rules))
+	for i, r := range rules {
+		stateRules[i] = tui.FileCopyRuleState{
+			SourceWorktree: r.SourceWorktree,
+			Files:          r.Files,
+		}
+	}
+	state.FileCopyRules = stateRules
+}
+
+// Validate returns an empty slice since FileCopy rules don't have field-level validation.
+func (f *FileCopyForm) Validate() []string {
+	return nil
+}
+
 // Ensure FileCopyForm implements tea.Model.
 var _ tea.Model = (*FileCopyForm)(nil)
 
 // Ensure FileCopyForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*FileCopyForm)(nil)
+
+// Ensure FileCopyForm implements tui.Flusher.
+var _ tui.Flusher = (*FileCopyForm)(nil)
+
+// Ensure FileCopyForm implements tui.Validator.
+var _ tui.Validator = (*FileCopyForm)(nil)

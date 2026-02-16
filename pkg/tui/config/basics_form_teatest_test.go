@@ -30,7 +30,7 @@ func (m *basicsFormModel) Init() tea.Cmd {
 
 func (m *basicsFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
-	case tui.BackBoundaryMsg, tui.FormFlushCompleteMsg:
+	case tui.BackBoundaryMsg:
 		return m, tea.Quit
 	}
 

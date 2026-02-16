@@ -477,7 +477,34 @@ func (f *WorktreesForm) FocusedYOffset() int {
 	return 2
 }
 
+// FlushToState copies current worktree entries into the shared ConfigState.
+func (f *WorktreesForm) FlushToState(state *tui.ConfigState) {
+	wts := f.GetWorktrees()
+	entries := make([]tui.WorktreeEntryState, len(wts))
+	for i, wt := range wts {
+		entries[i] = tui.WorktreeEntryState{
+			Name:        wt.Name,
+			Branch:      wt.Branch,
+			MergeInto:   wt.MergeInto,
+			Description: wt.Description,
+		}
+	}
+	state.Worktrees = entries
+}
+
+// Validate returns an empty slice since worktrees don't have field-level validation
+// beyond the per-entry validation done in the modal.
+func (f *WorktreesForm) Validate() []string {
+	return nil
+}
+
 var _ tea.Model = (*WorktreesForm)(nil)
 
 // Ensure WorktreesForm implements tui.FocusReporter.
 var _ tui.FocusReporter = (*WorktreesForm)(nil)
+
+// Ensure WorktreesForm implements tui.Flusher.
+var _ tui.Flusher = (*WorktreesForm)(nil)
+
+// Ensure WorktreesForm implements tui.Validator.
+var _ tui.Validator = (*WorktreesForm)(nil)

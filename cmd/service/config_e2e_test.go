@@ -92,8 +92,13 @@ func TestConfigTUI_E2E_HappyPath(t *testing.T) {
 	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
 	// === Step 2: Edit the state directly (simulating form edits) ===
-	// In a real TUI, the BasicsForm would update state via its OnSave callback
-	// We simulate this by directly modifying the state
+	// In a real TUI, the BasicsForm would update state via its fields.
+	// We simulate this by directly modifying the state. We also clear the
+	// form cache so the save flow's flushAllForms() doesn't overwrite our
+	// direct state changes with the forms' stale initial values.
+	for k := range model.GetFormCache() {
+		delete(model.GetFormCache(), k)
+	}
 	model.GetState().DefaultBranch = "develop"
 	model.GetState().WorktreesDir = "my-worktrees"
 
@@ -101,8 +106,8 @@ func TestConfigTUI_E2E_HappyPath(t *testing.T) {
 	model.GetState().MarkDirty()
 	assert.True(t, model.IsDirty())
 
-	// === Step 3: Save via FormFlushCompleteMsg + confirm ===
-	model.Update(tui.FormFlushCompleteMsg{})
+	// === Step 3: Save via Ctrl+S + confirm ===
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify save was called
@@ -173,7 +178,11 @@ func TestConfigTUI_E2E_EditJira(t *testing.T) {
 	model.Update(tui.SidebarSelectionMsg{Section: "JIRA"})
 	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
-	// Edit JIRA settings (simulating form edits)
+	// Edit JIRA settings (simulating form edits by setting state directly).
+	// Clear form cache so flushAllForms() doesn't overwrite direct state changes.
+	for k := range model.GetFormCache() {
+		delete(model.GetFormCache(), k)
+	}
 	state := model.GetState()
 	state.JiraEnabled = true
 	state.JiraUsername = "test@example.com"
@@ -184,8 +193,8 @@ func TestConfigTUI_E2E_EditJira(t *testing.T) {
 	state.JiraMarkdownIncludeComments = true
 	state.MarkDirty()
 
-	// Save via FormFlushCompleteMsg + confirm
-	model.Update(tui.FormFlushCompleteMsg{})
+	// Save via Ctrl+S + confirm
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
@@ -256,7 +265,11 @@ func TestConfigTUI_E2E_EditFileCopyRules(t *testing.T) {
 	model.Update(tui.SidebarSelectionMsg{Section: "FileCopy"})
 	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
-	// Add file copy rules (simulating form edits)
+	// Add file copy rules (simulating form edits by setting state directly).
+	// Clear form cache so flushAllForms() doesn't overwrite direct state changes.
+	for k := range model.GetFormCache() {
+		delete(model.GetFormCache(), k)
+	}
 	state := model.GetState()
 	state.FileCopyRules = []tui.FileCopyRuleState{
 		{
@@ -270,8 +283,8 @@ func TestConfigTUI_E2E_EditFileCopyRules(t *testing.T) {
 	}
 	state.MarkDirty()
 
-	// Save via FormFlushCompleteMsg + confirm
-	model.Update(tui.FormFlushCompleteMsg{})
+	// Save via Ctrl+S + confirm
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
@@ -336,7 +349,11 @@ func TestConfigTUI_E2E_EditWorktrees(t *testing.T) {
 	model.Update(tui.SidebarSelectionMsg{Section: "Worktrees"})
 	assert.Equal(t, tui.ContentFocused, model.GetPaneFocus())
 
-	// Add worktree entries (simulating form edits)
+	// Add worktree entries (simulating form edits by setting state directly).
+	// Clear form cache so flushAllForms() doesn't overwrite direct state changes.
+	for k := range model.GetFormCache() {
+		delete(model.GetFormCache(), k)
+	}
 	state := model.GetState()
 	state.Worktrees = []tui.WorktreeEntryState{
 		{
@@ -354,8 +371,8 @@ func TestConfigTUI_E2E_EditWorktrees(t *testing.T) {
 	}
 	state.MarkDirty()
 
-	// Save via FormFlushCompleteMsg + confirm
-	model.Update(tui.FormFlushCompleteMsg{})
+	// Save via Ctrl+S + confirm
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
@@ -505,13 +522,17 @@ func TestConfigTUI_E2E_PreservesOriginalFields(t *testing.T) {
 	)
 	model.Init()
 
-	// Only modify the basics
+	// Only modify the basics (simulating form edits by setting state directly).
+	// Clear form cache so flushAllForms() doesn't overwrite direct state changes.
+	for k := range model.GetFormCache() {
+		delete(model.GetFormCache(), k)
+	}
 	state := model.GetState()
 	state.DefaultBranch = "develop"
 	state.MarkDirty()
 
-	// Save via FormFlushCompleteMsg + confirm
-	model.Update(tui.FormFlushCompleteMsg{})
+	// Save via Ctrl+S + confirm
+	model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// Verify file was written correctly
