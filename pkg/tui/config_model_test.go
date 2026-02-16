@@ -1176,7 +1176,7 @@ func TestConfigModel_SaveConfirmation_RefocusesForm(t *testing.T) {
 			tc.action(m)
 
 			assert.False(t, m.ShowSaveConfirm(), "dialog should be dismissed")
-			assert.Greater(t, mockForm.focusCount, 0, "Focus() should be called after dismissing save dialog")
+			assert.Positive(t, mockForm.focusCount, "Focus() should be called after dismissing save dialog")
 		})
 	}
 }
