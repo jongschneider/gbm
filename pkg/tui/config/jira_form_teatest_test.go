@@ -410,3 +410,222 @@ func TestJiraForm_JKNavigation(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, 9, form.focusedFieldIdx, "j should navigate after exiting insert mode")
 }
+
+// TestJiraForm_ConfirmFieldKeys tests key delegation to Confirm fields.
+func TestJiraForm_ConfirmFieldKeys(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	testCases := []struct {
+		name   string
+		key    tea.KeyMsg
+		assert func(t *testing.T, form *JiraForm)
+	}{
+		{
+			name: "enter on confirm field sets value and advances",
+			key:  tea.KeyMsg{Type: tea.KeyEnter},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				// Enter confirms the current selection and moves to next field
+				confirm := form.attachmentsEnabledField.(*fields.Confirm)
+				assert.False(t, confirm.GetValue().(bool), "value should be set to false (default)")
+				assert.Equal(t, 8, form.focusedFieldIdx, "should advance to next field after enter")
+			},
+		},
+		{
+			name: "y on confirm field sets value to true and advances",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				confirm := form.attachmentsEnabledField.(*fields.Confirm)
+				assert.True(t, confirm.GetValue().(bool), "y should set value to true")
+				assert.Equal(t, 8, form.focusedFieldIdx, "should advance to next field after y")
+			},
+		},
+		{
+			name: "n on confirm field sets value to false and advances",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				confirm := form.attachmentsEnabledField.(*fields.Confirm)
+				assert.False(t, confirm.GetValue().(bool), "n should set value to false")
+				assert.Equal(t, 8, form.focusedFieldIdx, "should advance to next field after n")
+			},
+		},
+		{
+			name: "h on confirm field selects Yes without advancing",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				// h selects Yes (visual selection) but does not advance
+				assert.Equal(t, 7, form.focusedFieldIdx, "should stay on confirm field after h")
+			},
+		},
+		{
+			name: "l on confirm field selects No without advancing",
+			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				// l selects No (visual selection) but does not advance
+				assert.Equal(t, 7, form.focusedFieldIdx, "should stay on confirm field after l")
+			},
+		},
+		{
+			name: "left arrow on confirm field selects Yes without advancing",
+			key:  tea.KeyMsg{Type: tea.KeyLeft},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				assert.Equal(t, 7, form.focusedFieldIdx, "should stay on confirm field after left")
+			},
+		},
+		{
+			name: "right arrow on confirm field selects No without advancing",
+			key:  tea.KeyMsg{Type: tea.KeyRight},
+			assert: func(t *testing.T, form *JiraForm) {
+				t.Helper()
+				assert.Equal(t, 7, form.focusedFieldIdx, "should stay on confirm field after right")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			lipgloss.SetColorProfile(termenv.Ascii)
+
+			config := JiraFormConfig{
+				Enabled: true,
+				Theme:   tui.DefaultTheme(),
+			}
+
+			form := NewJiraForm(config)
+			model := newJiraFormModel(form)
+
+			tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+			t.Cleanup(func() {
+				//nolint:errcheck // Best-effort cleanup in test
+				tm.Quit()
+			})
+
+			// Wait for initial render
+			teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+				return len(bts) > 0
+			}, teatest.WithDuration(time.Second))
+
+			// Navigate to attachments enabled field (index 7)
+			for range 7 {
+				tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+				time.Sleep(10 * time.Millisecond)
+			}
+			assert.Equal(t, 7, form.focusedFieldIdx, "Should be on attachments enabled field")
+
+			// Send the test key
+			tm.Send(tc.key)
+			time.Sleep(20 * time.Millisecond)
+
+			tc.assert(t, form)
+		})
+	}
+}
+
+// TestJiraForm_ConfirmFieldFocused tests the ConfirmFieldFocused reporter.
+func TestJiraForm_ConfirmFieldFocused(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	testCases := []struct {
+		name   string
+		idx    int
+		assert func(t *testing.T, focused bool)
+	}{
+		{
+			name: "returns true for enable field (index 0)",
+			idx:  0,
+			assert: func(t *testing.T, focused bool) {
+				t.Helper()
+				assert.True(t, focused, "enable field is a Confirm")
+			},
+		},
+		{
+			name: "returns false for host field (index 1)",
+			idx:  1,
+			assert: func(t *testing.T, focused bool) {
+				t.Helper()
+				assert.False(t, focused, "host field is a TextInput")
+			},
+		},
+		{
+			name: "returns true for attachments enabled field (index 7)",
+			idx:  7,
+			assert: func(t *testing.T, focused bool) {
+				t.Helper()
+				assert.True(t, focused, "attachments enabled field is a Confirm")
+			},
+		},
+		{
+			name: "returns true for markdown include comments field (index 10)",
+			idx:  10,
+			assert: func(t *testing.T, focused bool) {
+				t.Helper()
+				assert.True(t, focused, "markdown include comments field is a Confirm")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			lipgloss.SetColorProfile(termenv.Ascii)
+
+			config := JiraFormConfig{
+				Enabled: true,
+				Theme:   tui.DefaultTheme(),
+			}
+
+			form := NewJiraForm(config)
+			form.focusedFieldIdx = tc.idx
+
+			tc.assert(t, form.ConfirmFieldFocused())
+		})
+	}
+}
+
+// TestJiraForm_EnableToggle_Enter tests toggling the enable field with Enter.
+func TestJiraForm_EnableToggle_Enter(t *testing.T) {
+	t.Parallel()
+	lipgloss.SetColorProfile(termenv.Ascii)
+
+	config := JiraFormConfig{
+		Enabled: true,
+		Theme:   tui.DefaultTheme(),
+	}
+
+	form := NewJiraForm(config)
+	model := newJiraFormModel(form)
+
+	tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		//nolint:errcheck // Best-effort cleanup in test
+		tm.Quit()
+	})
+
+	// Wait for initial render
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return len(bts) > 0
+	}, teatest.WithDuration(time.Second))
+
+	// Should start on enable field
+	assert.Equal(t, 0, form.focusedFieldIdx)
+	assert.True(t, form.enabled)
+
+	// Press l to select No, then Enter to confirm
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	time.Sleep(10 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	time.Sleep(20 * time.Millisecond)
+
+	// JIRA should now be disabled
+	assert.False(t, form.enabled, "JIRA should be disabled after selecting No + Enter")
+	// Should stay on enable field when disabled (no fields to navigate to)
+	assert.Equal(t, 0, form.focusedFieldIdx, "should stay on enable field when disabled")
+}

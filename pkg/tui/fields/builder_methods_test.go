@@ -197,6 +197,37 @@ func TestConfirm_BuilderMethods(t *testing.T) {
 		c := NewConfirm("my_key", "title")
 		assert.Equal(t, "my_key", c.GetKey())
 	})
+
+	t.Run("ResetCompletion clears complete and cancelled", func(t *testing.T) {
+		t.Parallel()
+		c := NewConfirm("key", "title")
+		c.Focus()
+
+		// Simulate completing the field via Enter
+		c.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		assert.True(t, c.IsComplete(), "should be complete after enter")
+
+		// Reset
+		c.ResetCompletion()
+		assert.False(t, c.IsComplete(), "should not be complete after reset")
+		assert.False(t, c.IsCancelled(), "should not be cancelled after reset")
+	})
+
+	t.Run("ResetCompletion clears cancelled from n key", func(t *testing.T) {
+		t.Parallel()
+		c := NewConfirm("key", "title")
+		c.Focus()
+
+		// Simulate cancelling via n key
+		c.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+		assert.True(t, c.IsComplete(), "should be complete after n")
+		assert.True(t, c.IsCancelled(), "should be cancelled after n")
+
+		// Reset
+		c.ResetCompletion()
+		assert.False(t, c.IsComplete(), "should not be complete after reset")
+		assert.False(t, c.IsCancelled(), "should not be cancelled after reset")
+	})
 }
 
 // TestSelector_BuilderMethods tests all builder/accessor methods on Selector.
