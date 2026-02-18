@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,50 +34,63 @@ type Worktree struct {
 	IsBare     bool
 }
 
-// parseWorktrees parses the output of 'git worktree list' into Worktree structs.
-func parseWorktrees(output string) []Worktree {
+// parseWorktreesPorcelain parses the output of 'git worktree list --porcelain'
+// into Worktree structs. The porcelain format is machine-readable and handles
+// paths with spaces correctly (unlike the default columnar format).
+//
+// Porcelain format example:
+//
+//	worktree /path/to/repo
+//	bare
+//
+//	worktree /path/to/repo/worktrees/main
+//	HEAD abc1234def5678...
+//	branch refs/heads/main
+//
+//	worktree /path/to/repo/worktrees/feature
+//	HEAD abc1234def5678...
+//	branch refs/heads/feature/foo
+func parseWorktreesPorcelain(output string) []Worktree {
 	var worktrees []Worktree
 
-	// Regex to parse:
-	//   /path/to/worktree  abcd1234 [branch-name]
-	//   /path/to/repo (bare)  <- Note: bare repos may not have commit hash
-	re := regexp.MustCompile(`^(\S+)\s+(?:([a-f0-9]+)\s+)?(?:\[(.*?)\]|\((.*?)\))`)
-
-	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
-	for line := range lines {
-		if line == "" {
+	// Porcelain format separates entries with blank lines
+	blocks := strings.Split(strings.TrimSpace(output), "\n\n")
+	for _, block := range blocks {
+		if block == "" {
 			continue
 		}
 
-		matches := re.FindStringSubmatch(line)
-		if len(matches) < 2 {
-			continue
+		var wt Worktree
+		hasPath := false
+
+		lines := strings.SplitSeq(block, "\n")
+		for line := range lines {
+			switch {
+			case strings.HasPrefix(line, "worktree "):
+				wt.Path = line[len("worktree "):]
+				wt.Name = filepath.Base(wt.Path)
+				hasPath = true
+			case line == "bare":
+				wt.IsBare = true
+			case strings.HasPrefix(line, "HEAD "):
+				commit := line[len("HEAD "):]
+				// Truncate to short hash (7 chars) to match previous behavior
+				if len(commit) > 7 {
+					commit = commit[:7]
+				}
+				wt.Commit = commit
+			case strings.HasPrefix(line, "branch "):
+				// Strip refs/heads/ prefix to get the branch name
+				ref := line[len("branch "):]
+				wt.Branch = strings.TrimPrefix(ref, "refs/heads/")
+			case strings.HasPrefix(line, "detached"):
+				// Detached HEAD — no branch to set
+			}
 		}
 
-		path := matches[1]
-		commit := ""
-		if len(matches) > 2 && matches[2] != "" {
-			commit = matches[2]
+		if hasPath {
+			worktrees = append(worktrees, wt)
 		}
-		branch := ""
-		isBare := false
-
-		// Check if it's a branch [branch-name] or (bare)/(detached)
-		if len(matches) > 3 && matches[3] != "" {
-			branch = matches[3]
-		} else if len(matches) > 4 && matches[4] == "bare" {
-			isBare = true
-		}
-
-		worktree := Worktree{
-			Name:   filepath.Base(path),
-			Path:   path,
-			Branch: branch,
-			Commit: commit,
-			IsBare: isBare,
-		}
-
-		worktrees = append(worktrees, worktree)
 	}
 
 	return worktrees
@@ -210,7 +222,7 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 //	    fmt.Printf("Worktree: %s on branch %s\n", wt.Name, wt.Branch)
 //	}
 func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
-	args := []string{"worktree", "list"}
+	args := []string{"worktree", "list", "--porcelain"}
 
 	cmd := exec.Command("git", args...)
 
@@ -224,7 +236,7 @@ func (s *Service) ListWorktrees(dryRun bool) ([]Worktree, error) {
 		return nil, ClassifyError("worktree list", err, string(output))
 	}
 
-	return parseWorktrees(string(output)), nil
+	return parseWorktreesPorcelain(string(output)), nil
 }
 
 // GetWorktreeBranch returns the branch name associated with a worktree.
