@@ -183,6 +183,8 @@ linters:
         - github.com/charmbracelet/*
 
   exclusions:
+    paths:
+      - deps
     rules:
       # Test files get some relaxed rules
       - path: _test\.go

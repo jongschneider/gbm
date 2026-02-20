@@ -17,6 +17,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "tab navigates to next section tab",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.NextTab.Enabled())
 				assert.Contains(t, keys.NextTab.Keys(), "tab")
 				assert.NotEmpty(t, keys.NextTab.Help().Desc)
@@ -25,6 +26,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "shift-tab navigates to prev section tab",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.PrevTab.Enabled())
 				assert.Contains(t, keys.PrevTab.Keys(), "shift+tab")
 				assert.NotEmpty(t, keys.PrevTab.Help().Desc)
@@ -33,6 +35,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "up/k navigates up",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Up.Enabled())
 				assert.Contains(t, keys.Up.Keys(), "up")
 				assert.Contains(t, keys.Up.Keys(), "k")
@@ -42,6 +45,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "down/j navigates down",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Down.Enabled())
 				assert.Contains(t, keys.Down.Keys(), "down")
 				assert.Contains(t, keys.Down.Keys(), "j")
@@ -51,6 +55,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "curly braces jump between groups",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.PrevGroup.Enabled())
 				assert.Contains(t, keys.PrevGroup.Keys(), "{")
 				assert.True(t, keys.NextGroup.Enabled())
@@ -60,6 +65,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "g/G jumps to first/last field",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.First.Enabled())
 				assert.Contains(t, keys.First.Keys(), "g")
 				assert.True(t, keys.Last.Enabled())
@@ -69,6 +75,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "e edits the focused field",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Edit.Enabled())
 				assert.Contains(t, keys.Edit.Keys(), "e")
 				assert.NotEmpty(t, keys.Edit.Help().Desc)
@@ -77,6 +84,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "enter triggers save and quit",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.SaveQuit.Enabled())
 				assert.Contains(t, keys.SaveQuit.Keys(), "enter")
 				assert.Contains(t, keys.SaveQuit.Help().Desc, "save")
@@ -85,6 +93,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "s saves config",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Save.Enabled())
 				assert.Contains(t, keys.Save.Keys(), "s")
 			},
@@ -92,6 +101,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "r resets field and R resets all",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Reset.Enabled())
 				assert.Contains(t, keys.Reset.Keys(), "r")
 				assert.True(t, keys.ResetAll.Enabled())
@@ -101,6 +111,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "slash opens search",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Search.Enabled())
 				assert.Contains(t, keys.Search.Keys(), "/")
 			},
@@ -108,6 +119,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "question mark opens help",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Help.Enabled())
 				assert.Contains(t, keys.Help.Keys(), "?")
 			},
@@ -115,6 +127,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "a adds entry and d deletes entry",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Add.Enabled())
 				assert.Contains(t, keys.Add.Keys(), "a")
 				assert.True(t, keys.Delete.Enabled())
@@ -124,6 +137,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "q and ctrl-c quit",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Quit.Enabled())
 				assert.Contains(t, keys.Quit.Keys(), "q")
 				assert.True(t, keys.ForceQuit.Enabled())
@@ -133,6 +147,7 @@ func TestNewBrowsingKeys(t *testing.T) {
 		{
 			name: "all bindings have help text for footer rendering",
 			assert: func(t *testing.T, keys BrowsingKeyMap) {
+				t.Helper()
 				bindings := []key.Binding{
 					keys.NextTab, keys.PrevTab, keys.Up, keys.Down,
 					keys.PrevGroup, keys.NextGroup, keys.First, keys.Last,
@@ -164,6 +179,7 @@ func TestNewEditingKeys(t *testing.T) {
 		{
 			name: "enter confirms edit",
 			assert: func(t *testing.T, keys EditingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Confirm.Enabled())
 				assert.Contains(t, keys.Confirm.Keys(), "enter")
 				assert.NotEmpty(t, keys.Confirm.Help().Desc)
@@ -172,6 +188,7 @@ func TestNewEditingKeys(t *testing.T) {
 		{
 			name: "esc cancels edit",
 			assert: func(t *testing.T, keys EditingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Cancel.Enabled())
 				assert.Contains(t, keys.Cancel.Keys(), "esc")
 			},
@@ -179,6 +196,7 @@ func TestNewEditingKeys(t *testing.T) {
 		{
 			name: "ctrl-c cancels edit",
 			assert: func(t *testing.T, keys EditingKeyMap) {
+				t.Helper()
 				assert.True(t, keys.ForceQuit.Enabled())
 				assert.Contains(t, keys.ForceQuit.Keys(), "ctrl+c")
 			},
@@ -186,12 +204,14 @@ func TestNewEditingKeys(t *testing.T) {
 		{
 			name: "tab is disabled during editing",
 			assert: func(t *testing.T, keys EditingKeyMap) {
+				t.Helper()
 				assert.False(t, keys.Tab.Enabled(), "tab must be disabled during editing")
 			},
 		},
 		{
 			name: "shift-tab is disabled during editing",
 			assert: func(t *testing.T, keys EditingKeyMap) {
+				t.Helper()
 				assert.False(t, keys.ShiftTab.Enabled(), "shift-tab must be disabled during editing")
 			},
 		},
@@ -214,6 +234,7 @@ func TestNewSearchKeys(t *testing.T) {
 		{
 			name: "esc closes search",
 			assert: func(t *testing.T, keys SearchKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Close.Enabled())
 				assert.Contains(t, keys.Close.Keys(), "esc")
 				assert.NotEmpty(t, keys.Close.Help().Desc)
@@ -238,6 +259,7 @@ func TestNewListOverlayKeys(t *testing.T) {
 		{
 			name: "up/down navigate items",
 			assert: func(t *testing.T, keys ListOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Up.Enabled())
 				assert.Contains(t, keys.Up.Keys(), "up")
 				assert.True(t, keys.Down.Enabled())
@@ -247,6 +269,7 @@ func TestNewListOverlayKeys(t *testing.T) {
 		{
 			name: "a adds and d deletes items",
 			assert: func(t *testing.T, keys ListOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Add.Enabled())
 				assert.Contains(t, keys.Add.Keys(), "a")
 				assert.True(t, keys.Delete.Enabled())
@@ -256,6 +279,7 @@ func TestNewListOverlayKeys(t *testing.T) {
 		{
 			name: "enter confirms and esc discards",
 			assert: func(t *testing.T, keys ListOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Confirm.Enabled())
 				assert.Contains(t, keys.Confirm.Keys(), "enter")
 				assert.True(t, keys.Cancel.Enabled())
@@ -265,6 +289,7 @@ func TestNewListOverlayKeys(t *testing.T) {
 		{
 			name: "all bindings have help text",
 			assert: func(t *testing.T, keys ListOverlayKeyMap) {
+				t.Helper()
 				bindings := []key.Binding{
 					keys.Up, keys.Down, keys.Add, keys.Delete,
 					keys.Confirm, keys.Cancel,
@@ -294,6 +319,7 @@ func TestNewEditorOverlayKeys(t *testing.T) {
 		{
 			name: "up/down navigate fields",
 			assert: func(t *testing.T, keys EditorOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Up.Enabled())
 				assert.Contains(t, keys.Up.Keys(), "up")
 				assert.True(t, keys.Down.Enabled())
@@ -303,6 +329,7 @@ func TestNewEditorOverlayKeys(t *testing.T) {
 		{
 			name: "e edits focused field",
 			assert: func(t *testing.T, keys EditorOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Edit.Enabled())
 				assert.Contains(t, keys.Edit.Keys(), "e")
 			},
@@ -310,6 +337,7 @@ func TestNewEditorOverlayKeys(t *testing.T) {
 		{
 			name: "r renames entry",
 			assert: func(t *testing.T, keys EditorOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Rename.Enabled())
 				assert.Contains(t, keys.Rename.Keys(), "r")
 			},
@@ -317,6 +345,7 @@ func TestNewEditorOverlayKeys(t *testing.T) {
 		{
 			name: "enter confirms and esc cancels",
 			assert: func(t *testing.T, keys EditorOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Confirm.Enabled())
 				assert.Contains(t, keys.Confirm.Keys(), "enter")
 				assert.True(t, keys.Cancel.Enabled())
@@ -342,6 +371,7 @@ func TestNewHelpOverlayKeys(t *testing.T) {
 		{
 			name: "esc closes help",
 			assert: func(t *testing.T, keys HelpOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Close.Enabled())
 				assert.Contains(t, keys.Close.Keys(), "esc")
 				assert.NotEmpty(t, keys.Close.Help().Desc)
@@ -350,6 +380,7 @@ func TestNewHelpOverlayKeys(t *testing.T) {
 		{
 			name: "question mark also closes help",
 			assert: func(t *testing.T, keys HelpOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.CloseHelp.Enabled())
 				assert.Contains(t, keys.CloseHelp.Keys(), "?")
 				assert.NotEmpty(t, keys.CloseHelp.Help().Desc)
@@ -374,6 +405,7 @@ func TestNewErrorsOverlayKeys(t *testing.T) {
 		{
 			name: "up/down navigate errors",
 			assert: func(t *testing.T, keys ErrorsOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Up.Enabled())
 				assert.Contains(t, keys.Up.Keys(), "up")
 				assert.True(t, keys.Down.Enabled())
@@ -383,6 +415,7 @@ func TestNewErrorsOverlayKeys(t *testing.T) {
 		{
 			name: "enter jumps to error field",
 			assert: func(t *testing.T, keys ErrorsOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Jump.Enabled())
 				assert.Contains(t, keys.Jump.Keys(), "enter")
 				assert.Contains(t, keys.Jump.Help().Desc, "jump")
@@ -391,6 +424,7 @@ func TestNewErrorsOverlayKeys(t *testing.T) {
 		{
 			name: "esc closes overlay",
 			assert: func(t *testing.T, keys ErrorsOverlayKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Cancel.Enabled())
 				assert.Contains(t, keys.Cancel.Keys(), "esc")
 			},
@@ -414,6 +448,7 @@ func TestNewConfirmationKeys(t *testing.T) {
 		{
 			name: "y confirms",
 			assert: func(t *testing.T, keys ConfirmationKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Confirm.Enabled())
 				assert.Contains(t, keys.Confirm.Keys(), "y")
 				assert.NotEmpty(t, keys.Confirm.Help().Desc)
@@ -422,6 +457,7 @@ func TestNewConfirmationKeys(t *testing.T) {
 		{
 			name: "n denies",
 			assert: func(t *testing.T, keys ConfirmationKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Deny.Enabled())
 				assert.Contains(t, keys.Deny.Keys(), "n")
 				assert.NotEmpty(t, keys.Deny.Help().Desc)
@@ -430,6 +466,7 @@ func TestNewConfirmationKeys(t *testing.T) {
 		{
 			name: "esc cancels",
 			assert: func(t *testing.T, keys ConfirmationKeyMap) {
+				t.Helper()
 				assert.True(t, keys.Cancel.Enabled())
 				assert.Contains(t, keys.Cancel.Keys(), "esc")
 				assert.NotEmpty(t, keys.Cancel.Help().Desc)
@@ -454,6 +491,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "string fields show edit",
 			fieldType: "string",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "edit", verb)
 			},
 		},
@@ -461,6 +499,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "sensitive_string fields show edit",
 			fieldType: "sensitive_string",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "edit", verb)
 			},
 		},
@@ -468,6 +507,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "int fields show edit",
 			fieldType: "int",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "edit", verb)
 			},
 		},
@@ -475,6 +515,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "bool fields show toggle",
 			fieldType: "bool",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "toggle", verb)
 			},
 		},
@@ -482,6 +523,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "string_list fields show open",
 			fieldType: "string_list",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "open", verb)
 			},
 		},
@@ -489,6 +531,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "object_list fields show open",
 			fieldType: "object_list",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "open", verb)
 			},
 		},
@@ -496,6 +539,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "unknown field type defaults to edit",
 			fieldType: "unknown",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "edit", verb)
 			},
 		},
@@ -503,6 +547,7 @@ func TestEditHelpVerb(t *testing.T) {
 			name:      "empty field type defaults to edit",
 			fieldType: "",
 			assert: func(t *testing.T, verb string) {
+				t.Helper()
 				assert.Equal(t, "edit", verb)
 			},
 		},
