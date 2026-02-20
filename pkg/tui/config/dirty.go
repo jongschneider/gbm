@@ -1,6 +1,9 @@
 package config
 
-import "sort"
+import (
+	"reflect"
+	"sort"
+)
 
 // DirtyTracker compares current field values against the last-saved baseline.
 // It is used by the Config TUI to show which fields have been modified and to
@@ -103,7 +106,8 @@ func (d *DirtyTracker) allKeys() map[string]struct{} {
 
 // valuesEqual compares two values for dirty-tracking purposes.
 // Strings, ints, and bools use ==. String slices use element-wise comparison
-// with nil and empty slice treated as equivalent.
+// with nil and empty slice treated as equivalent. Non-comparable types (slices
+// of structs, maps, etc.) fall back to reflect.DeepEqual.
 func valuesEqual(a, b any) bool {
 	// Fast path: both nil.
 	if a == nil && b == nil {
@@ -124,8 +128,22 @@ func valuesEqual(a, b any) bool {
 		return stringSlicesEqual(aSlice, bSlice)
 	}
 
+	// Use reflect.DeepEqual for non-comparable types (slices, maps, structs
+	// containing slices/maps) to avoid runtime panics.
+	if !isComparable(a) || !isComparable(b) {
+		return reflect.DeepEqual(a, b)
+	}
+
 	// Scalar comparison (string, int, bool, etc.).
 	return a == b
+}
+
+// isComparable reports whether a value can be safely compared with ==.
+func isComparable(v any) bool {
+	if v == nil {
+		return true
+	}
+	return reflect.TypeOf(v).Comparable()
 }
 
 // toStringSlice attempts to interpret v as a string slice.
@@ -164,12 +182,31 @@ func copyMap(m map[string]any) map[string]any {
 }
 
 // copyValue returns a deep copy of a value. String slices are cloned;
-// scalars are returned as-is (they are immutable).
+// scalars are returned as-is (they are immutable). Non-comparable types
+// (slices of structs, maps) are deep-copied via reflect to prevent
+// aliasing between original and current snapshots.
 func copyValue(v any) any {
+	if v == nil {
+		return nil
+	}
 	if s, ok := v.([]string); ok {
 		cp := make([]string, len(s))
 		copy(cp, s)
 		return cp
 	}
-	return v
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Slice:
+		cp := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
+		reflect.Copy(cp, rv)
+		return cp.Interface()
+	case reflect.Map:
+		cp := reflect.MakeMap(rv.Type())
+		for _, key := range rv.MapKeys() {
+			cp.SetMapIndex(key, rv.MapIndex(key))
+		}
+		return cp.Interface()
+	default:
+		return v
+	}
 }

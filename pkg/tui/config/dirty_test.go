@@ -587,6 +587,18 @@ func TestDirtyTracker_GetOriginal(t *testing.T) {
 	}
 }
 
+// testRule is a struct containing a slice, making it non-comparable.
+// This mirrors service.FileCopyRule for dirty-tracking tests.
+type testRule struct {
+	Source string
+	Files  []string
+}
+
+// testWorktree is a simple struct for map value tests.
+type testWorktree struct {
+	Branch string
+}
+
 func TestValuesEqual(t *testing.T) {
 	tests := []struct {
 		a      any
@@ -729,10 +741,170 @@ func TestValuesEqual(t *testing.T) {
 				assert.False(t, equal)
 			},
 		},
+		// Non-comparable types: struct slices (mirrors []FileCopyRule).
+		{
+			name: "equal struct slices",
+			a:    []testRule{{Source: "main", Files: []string{".env"}}},
+			b:    []testRule{{Source: "main", Files: []string{".env"}}},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.True(t, equal)
+			},
+		},
+		{
+			name: "different struct slices",
+			a:    []testRule{{Source: "main", Files: []string{".env"}}},
+			b:    []testRule{{Source: "dev", Files: []string{".env"}}},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.False(t, equal)
+			},
+		},
+		{
+			name: "nil vs empty struct slice",
+			a:    nil,
+			b:    []testRule{},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.False(t, equal, "nil vs typed empty slice is not equal via DeepEqual")
+			},
+		},
+		// Non-comparable types: maps (mirrors map[string]WorktreeConfig).
+		{
+			name: "equal maps",
+			a:    map[string]testWorktree{"feat": {Branch: "feature/x"}},
+			b:    map[string]testWorktree{"feat": {Branch: "feature/x"}},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.True(t, equal)
+			},
+		},
+		{
+			name: "different maps",
+			a:    map[string]testWorktree{"feat": {Branch: "feature/x"}},
+			b:    map[string]testWorktree{"feat": {Branch: "feature/y"}},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.False(t, equal)
+			},
+		},
+		{
+			name: "nil vs empty map",
+			a:    nil,
+			b:    map[string]testWorktree{},
+			assert: func(t *testing.T, equal bool) {
+				t.Helper()
+				assert.False(t, equal, "nil vs typed empty map is not equal via DeepEqual")
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.assert(t, valuesEqual(tc.a, tc.b))
+		})
+	}
+}
+
+func TestDirtyTracker_NonComparableTypes(t *testing.T) {
+	rules := []testRule{
+		{Source: "main", Files: []string{".env", ".config"}},
+		{Source: "dev", Files: []string{"Makefile"}},
+	}
+	worktrees := map[string]testWorktree{
+		"feat-x": {Branch: "feature/x"},
+		"feat-y": {Branch: "feature/y"},
+	}
+
+	tests := []struct {
+		setup  func(dt *DirtyTracker)
+		assert func(t *testing.T, dt *DirtyTracker)
+		name   string
+	}{
+		{
+			name:  "struct slice unchanged stays clean",
+			setup: func(_ *DirtyTracker) {},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.False(t, dt.IsKeyDirty("rules"))
+			},
+		},
+		{
+			name: "struct slice changed marks dirty",
+			setup: func(dt *DirtyTracker) {
+				dt.Set("rules", []testRule{{Source: "other", Files: []string{"x"}}})
+			},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.True(t, dt.IsKeyDirty("rules"))
+			},
+		},
+		{
+			name:  "map unchanged stays clean",
+			setup: func(_ *DirtyTracker) {},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.False(t, dt.IsKeyDirty("worktrees"))
+			},
+		},
+		{
+			name: "map changed marks dirty",
+			setup: func(dt *DirtyTracker) {
+				dt.Set("worktrees", map[string]testWorktree{
+					"feat-z": {Branch: "feature/z"},
+				})
+			},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.True(t, dt.IsKeyDirty("worktrees"))
+			},
+		},
+		{
+			name: "DirtyCount includes non-comparable types",
+			setup: func(dt *DirtyTracker) {
+				dt.Set("rules", []testRule{{Source: "changed", Files: nil}})
+				dt.Set("worktrees", map[string]testWorktree{
+					"new": {Branch: "new-branch"},
+				})
+			},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.Equal(t, 2, dt.DirtyCount())
+			},
+		},
+		{
+			name: "ResetKey restores non-comparable type",
+			setup: func(dt *DirtyTracker) {
+				dt.Set("rules", []testRule{{Source: "changed", Files: nil}})
+				dt.ResetKey("rules")
+			},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.False(t, dt.IsKeyDirty("rules"))
+			},
+		},
+		{
+			name: "MarkClean resets baseline for non-comparable types",
+			setup: func(dt *DirtyTracker) {
+				dt.Set("rules", []testRule{{Source: "new", Files: []string{"a"}}})
+				dt.MarkClean()
+			},
+			assert: func(t *testing.T, dt *DirtyTracker) {
+				t.Helper()
+				assert.False(t, dt.IsDirty())
+				assert.Equal(t, 0, dt.DirtyCount())
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originals := map[string]any{
+				"rules":     rules,
+				"worktrees": worktrees,
+			}
+			dt := NewDirtyTracker(originals)
+			tc.setup(dt)
+			tc.assert(t, dt)
 		})
 	}
 }

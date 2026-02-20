@@ -23,9 +23,24 @@ func (a *testConfigAccessor) SetValue(key string, value any) error {
 	return nil
 }
 
+// fileCopyRule mirrors service.FileCopyRule for integration tests.
+// It has a slice field (Files), making it non-comparable with ==.
+type fileCopyRule struct {
+	SourceWorktree string
+	Files          []string
+}
+
+// worktreeConfig mirrors service.WorktreeConfig for integration tests.
+type worktreeConfig struct {
+	Branch      string
+	MergeInto   string
+	Description string
+}
+
 // seedValues returns a realistic set of values for all config keys used
 // by the section field definitions. This provides a complete dataset for
-// integration tests.
+// integration tests, including non-comparable types (struct slices and maps)
+// that exercise the dirty tracker's reflect.DeepEqual fallback.
 func seedValues() map[string]any {
 	return map[string]any{
 		// General
@@ -64,12 +79,24 @@ func seedValues() map[string]any {
 		"jira.attachments.retry_attempts":           3,
 		"jira.attachments.retry_backoff_ms":         1000,
 
+		// File Copy > Rules (non-comparable: []fileCopyRule contains []string)
+		"file_copy.rules": []fileCopyRule{
+			{SourceWorktree: "main", Files: []string{".env", ".env.local"}},
+			{SourceWorktree: "dev", Files: []string{"Makefile"}},
+		},
+
 		// File Copy > Auto
 		"file_copy.auto.enabled":         true,
 		"file_copy.auto.source_worktree": "{default}",
 		"file_copy.auto.copy_ignored":    false,
 		"file_copy.auto.copy_untracked":  false,
 		"file_copy.auto.exclude":         []string{"*.log", "node_modules/"},
+
+		// Worktrees (non-comparable: map[string]worktreeConfig)
+		"worktrees": map[string]worktreeConfig{
+			"feature-x": {Branch: "feature/x", MergeInto: "main", Description: "Feature X"},
+			"hotfix-1":  {Branch: "hotfix/1", MergeInto: "main", Description: "Hotfix 1"},
+		},
 	}
 }
 
