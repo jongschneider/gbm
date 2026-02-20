@@ -25,6 +25,8 @@ const (
 	StateBrowsing ModelState = iota
 	// StateEditing is active when an inline text input is open.
 	StateEditing
+	// StateHelp is active when the help overlay is displayed.
+	StateHelp
 )
 
 // SectionTab identifies which tab is active.
@@ -57,6 +59,7 @@ type flashClearMsg struct{}
 type ConfigModel struct {
 	theme            *tui.Theme
 	dirty            *DirtyTracker
+	helpOverlay      *HelpOverlay
 	filePath         string
 	flashMessage     string
 	browsingKeys     BrowsingKeyMap
@@ -73,9 +76,11 @@ type ConfigModel struct {
 // NewConfigModel creates a new ConfigModel with the given options.
 // The model starts in browsing state on the General tab.
 func NewConfigModel(opts ...ConfigModelOption) *ConfigModel {
+	defaultTheme := tui.DefaultTheme()
 	m := &ConfigModel{
-		theme:        tui.DefaultTheme(),
+		theme:        defaultTheme,
 		dirty:        NewDirtyTracker(nil),
+		helpOverlay:  NewHelpOverlay(defaultTheme),
 		browsingKeys: NewBrowsingKeys(),
 		editingKeys:  NewEditingKeys(),
 		activeTab:    TabGeneral,
@@ -95,6 +100,7 @@ func WithTheme(theme *tui.Theme) ConfigModelOption {
 	return func(m *ConfigModel) {
 		if theme != nil {
 			m.theme = theme
+			m.helpOverlay = NewHelpOverlay(theme)
 		}
 	}
 }
@@ -154,6 +160,8 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleBrowsingKey(msg)
 	case StateEditing:
 		return m.handleEditingKey(msg)
+	case StateHelp:
+		return m.handleHelpKey(msg)
 	}
 	return m, nil
 }
@@ -169,6 +177,11 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.prevTab()
 		return m, nil
 
+	case key.Matches(msg, m.browsingKeys.Help):
+		m.helpOverlay.ResetScroll()
+		m.state = StateHelp
+		return m, nil
+
 	case key.Matches(msg, m.browsingKeys.Quit):
 		return m, tea.Quit
 
@@ -176,6 +189,17 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	return m, nil
+}
+
+// handleHelpKey processes key presses in help overlay state.
+// ? or esc closes the overlay. up/down/j/k scroll the content.
+func (m *ConfigModel) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	viewportHeight := max(m.height-6, 1) // account for overlay chrome
+	shouldClose := m.helpOverlay.HandleKey(msg, viewportHeight)
+	if shouldClose {
+		m.state = StateBrowsing
+	}
 	return m, nil
 }
 
@@ -215,6 +239,10 @@ func (m *ConfigModel) prevTab() {
 func (m *ConfigModel) View() string {
 	if m.width < MinTermWidth || m.height < MinTermHeight {
 		return m.viewTooSmall()
+	}
+
+	if m.state == StateHelp {
+		return m.helpOverlay.View(m.width, m.height)
 	}
 
 	var b strings.Builder
