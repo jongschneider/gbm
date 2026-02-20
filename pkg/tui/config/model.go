@@ -3,12 +3,15 @@ package config
 import (
 	"fmt"
 	"gbm/pkg/tui"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"gopkg.in/yaml.v3"
 )
 
 // Minimum terminal dimensions required by the Config TUI.
@@ -29,6 +32,13 @@ const (
 	StateHelp
 	// StateErrors is active when the validation errors overlay is displayed.
 	StateErrors
+	// StateSaving is active while a save operation is in progress.
+	StateSaving
+	// StateOverwriteConfirm is active when the overwrite confirmation overlay
+	// is displayed (external change detected).
+	StateOverwriteConfirm
+	// StateWriteError is active when a write error overlay is displayed.
+	StateWriteError
 )
 
 // SectionTab identifies which tab is active.
@@ -59,14 +69,19 @@ type flashClearMsg struct{}
 // It orchestrates tab navigation, state transitions, dirty tracking, and
 // delegates rendering/updates to per-section models (future ticket).
 type ConfigModel struct {
-	theme            *tui.Theme
+	modTime          time.Time
+	accessor         ConfigAccessor
 	dirty            *DirtyTracker
 	helpOverlay      *HelpOverlay
 	errorOverlay     *ErrorOverlay
+	root             *yaml.Node
+	theme            *tui.Theme
 	filePath         string
 	flashMessage     string
+	writeErrorMsg    string
 	browsingKeys     BrowsingKeyMap
 	editingKeys      EditingKeyMap
+	confirmKeys      ConfirmationKeyMap
 	activeTab        SectionTab
 	width            int
 	height           int
@@ -74,6 +89,7 @@ type ConfigModel struct {
 	focusedFieldType FieldType
 	tabBadges        [tabCount]bool
 	isNewFile        bool
+	quitAfterSave    bool
 }
 
 // NewConfigModel creates a new ConfigModel with the given options.
@@ -87,6 +103,7 @@ func NewConfigModel(opts ...ConfigModelOption) *ConfigModel {
 		errorOverlay: NewErrorOverlay(nil, defaultTheme),
 		browsingKeys: NewBrowsingKeys(),
 		editingKeys:  NewEditingKeys(),
+		confirmKeys:  NewConfirmationKeys(),
 		activeTab:    TabGeneral,
 		state:        StateBrowsing,
 	}
@@ -133,6 +150,27 @@ func WithNewFile(isNew bool) ConfigModelOption {
 	}
 }
 
+// WithAccessor sets the config accessor for reading field values during save.
+func WithAccessor(accessor ConfigAccessor) ConfigModelOption {
+	return func(m *ConfigModel) {
+		m.accessor = accessor
+	}
+}
+
+// WithYAMLRoot sets the YAML node root for comment-preserving writes.
+func WithYAMLRoot(root *yaml.Node) ConfigModelOption {
+	return func(m *ConfigModel) {
+		m.root = root
+	}
+}
+
+// WithModTime sets the file modification time for external change detection.
+func WithModTime(t time.Time) ConfigModelOption {
+	return func(m *ConfigModel) {
+		m.modTime = t
+	}
+}
+
 // Init implements tea.Model. It returns nil (no initial command).
 func (m *ConfigModel) Init() tea.Cmd {
 	return nil
@@ -150,6 +188,9 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flashClearMsg:
 		m.flashMessage = ""
 		return m, nil
+
+	case SaveResultMsg:
+		return m.handleSaveResult(msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -169,6 +210,13 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleHelpKey(msg)
 	case StateErrors:
 		return m.handleErrorsKey(msg)
+	case StateOverwriteConfirm:
+		return m.handleOverwriteConfirmKey(msg)
+	case StateWriteError:
+		return m.handleWriteErrorKey(msg)
+	case StateSaving:
+		// Ignore all keys while saving.
+		return m, nil
 	}
 	return m, nil
 }
@@ -188,6 +236,12 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.helpOverlay.ResetScroll()
 		m.state = StateHelp
 		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.Save):
+		return m.startSave(false)
+
+	case key.Matches(msg, m.browsingKeys.SaveQuit):
+		return m.startSave(true)
 
 	case key.Matches(msg, m.browsingKeys.Quit):
 		return m, tea.Quit
@@ -249,6 +303,93 @@ func (m *ConfigModel) handleErrorsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// startSave begins the save flow: validate, check external changes, then save.
+// If quit is true, the TUI will quit after a successful save.
+func (m *ConfigModel) startSave(quit bool) (tea.Model, tea.Cmd) {
+	m.quitAfterSave = quit
+
+	// Step 1: Validate.
+	if m.accessor != nil {
+		if errs := ValidateSave(m.accessor); len(errs) > 0 {
+			m.ShowErrorOverlay(errs)
+			return m, nil
+		}
+	}
+
+	// Step 2: Check external changes.
+	sf := NewSaveFlow(m.filePath, m.modTime, m.root, m.dirty, m.accessor, m.isNewFile)
+	needsConfirm, err := sf.NeedsOverwriteConfirmation()
+	if err != nil {
+		m.writeErrorMsg = err.Error()
+		m.state = StateWriteError
+		return m, nil
+	}
+	if needsConfirm {
+		m.state = StateOverwriteConfirm
+		return m, nil
+	}
+
+	// Step 3: Execute save.
+	m.state = StateSaving
+	return m, executeSaveCmd(sf)
+}
+
+// handleSaveResult processes the result of a save operation.
+func (m *ConfigModel) handleSaveResult(msg SaveResultMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.writeErrorMsg = msg.Err.Error()
+		m.state = StateWriteError
+		return m, nil
+	}
+
+	// Save succeeded.
+	m.isNewFile = false
+
+	// Update mod time from the written file.
+	if info, err := os.Stat(m.filePath); err == nil {
+		m.modTime = info.ModTime()
+	}
+
+	m.state = StateBrowsing
+
+	flashMsg := "ok saved " + filepath.Base(m.filePath)
+	cmd := m.SetFlash(flashMsg)
+
+	if m.quitAfterSave {
+		return m, tea.Batch(cmd, tea.Quit)
+	}
+	return m, cmd
+}
+
+// handleOverwriteConfirmKey processes key presses in the overwrite
+// confirmation overlay. y/enter overwrites, n/esc cancels.
+func (m *ConfigModel) handleOverwriteConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.confirmKeys.Confirm):
+		// User confirmed overwrite -- execute save.
+		sf := NewSaveFlow(m.filePath, m.modTime, m.root, m.dirty, m.accessor, m.isNewFile)
+		m.state = StateSaving
+		return m, executeSaveCmd(sf)
+
+	case key.Matches(msg, m.confirmKeys.Deny), key.Matches(msg, m.confirmKeys.Cancel):
+		m.quitAfterSave = false
+		m.state = StateBrowsing
+		return m, nil
+	}
+
+	return m, nil
+}
+
+// handleWriteErrorKey processes key presses in the write error overlay.
+// esc closes the overlay and returns to browsing.
+func (m *ConfigModel) handleWriteErrorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "esc" {
+		m.writeErrorMsg = ""
+		m.state = StateBrowsing
+	}
+	return m, nil
+}
+
 // ShowErrorOverlay populates the error overlay with the given errors and
 // switches to the errors state. If errors is empty, this is a no-op.
 func (m *ConfigModel) ShowErrorOverlay(errs []ValidationError) {
@@ -299,6 +440,14 @@ func (m *ConfigModel) View() string {
 
 	if m.state == StateErrors {
 		return m.errorOverlay.View(m.width, m.height)
+	}
+
+	if m.state == StateOverwriteConfirm {
+		return m.viewOverwriteConfirm()
+	}
+
+	if m.state == StateWriteError {
+		return m.viewWriteError()
 	}
 
 	var b strings.Builder
@@ -464,6 +613,72 @@ func (m *ConfigModel) statusKeyHints() string {
 	}
 }
 
+// viewOverwriteConfirm renders the overwrite confirmation overlay.
+func (m *ConfigModel) viewOverwriteConfirm() string {
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(m.theme.Highlight)
+
+	bodyStyle := lipgloss.NewStyle().
+		Foreground(m.theme.Muted)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(m.theme.Accent)
+
+	content := titleStyle.Render("File changed externally") + "\n\n" +
+		bodyStyle.Render("The config file has been modified outside the editor.\nOverwrite with your changes?") + "\n\n" +
+		hintStyle.Render("y") + bodyStyle.Render(" overwrite  ") +
+		hintStyle.Render("n") + bodyStyle.Render("/") +
+		hintStyle.Render("esc") + bodyStyle.Render(" cancel")
+
+	innerWidth := max(m.width-4, 30)
+	boxStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Highlight).
+		Padding(1, 2).
+		Width(innerWidth)
+
+	box := boxStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(box)
+}
+
+// viewWriteError renders the write error overlay.
+func (m *ConfigModel) viewWriteError() string {
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(m.theme.ErrorAccent)
+
+	bodyStyle := lipgloss.NewStyle().
+		Foreground(m.theme.Muted)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(m.theme.Accent)
+
+	content := titleStyle.Render("Write Error") + "\n\n" +
+		bodyStyle.Render(m.writeErrorMsg) + "\n\n" +
+		hintStyle.Render("esc") + bodyStyle.Render(" close")
+
+	innerWidth := max(m.width-4, 30)
+	boxStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.ErrorAccent).
+		Padding(1, 2).
+		Width(innerWidth)
+
+	box := boxStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(box)
+}
+
 // SetFlash sets a flash message on the status bar that auto-clears after 3s.
 func (m *ConfigModel) SetFlash(msg string) tea.Cmd {
 	m.flashMessage = msg
@@ -503,6 +718,26 @@ func (m *ConfigModel) Height() int {
 // This drives context-sensitive status bar rendering.
 func (m *ConfigModel) SetFocusedFieldType(ft FieldType) {
 	m.focusedFieldType = ft
+}
+
+// WriteErrorMsg returns the current write error message, if any.
+func (m *ConfigModel) WriteErrorMsg() string {
+	return m.writeErrorMsg
+}
+
+// IsNewFile reports whether the model is editing a new (not-yet-saved) file.
+func (m *ConfigModel) IsNewFile() bool {
+	return m.isNewFile
+}
+
+// ModTime returns the file modification time used for external change detection.
+func (m *ConfigModel) ModTime() time.Time {
+	return m.modTime
+}
+
+// SetModTime updates the file modification time.
+func (m *ConfigModel) SetModTime(t time.Time) {
+	m.modTime = t
 }
 
 // fieldTypeToString converts a FieldType to the string format expected by
