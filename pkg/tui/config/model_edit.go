@@ -15,8 +15,13 @@ func (m *ConfigModel) handleEdit() (tea.Model, tea.Cmd) {
 	}
 
 	row := s.FocusedRow()
+
+	// Handle entry rows: open the appropriate overlay.
+	if row.Kind == RowEntry && row.EntryIndex >= 0 {
+		return m.handleEditEntry(row.EntryIndex)
+	}
+
 	if row.Kind != RowField {
-		// RowEntry editing is handled by overlays (future task).
 		return m, nil
 	}
 
@@ -29,8 +34,9 @@ func (m *ConfigModel) handleEdit() (tea.Model, tea.Cmd) {
 	switch fr.Meta().Type {
 	case Bool:
 		return m.handleBoolToggle(fr, row.FieldIndex)
-	case StringList, ObjectList:
-		// List/object editing handled by overlays (future task).
+	case StringList:
+		return m.openListOverlay(fr)
+	case ObjectList:
 		return m, nil
 	default:
 		// String, Int, SensitiveString: enter inline editing.
@@ -40,6 +46,17 @@ func (m *ConfigModel) handleEdit() (tea.Model, tea.Cmd) {
 		m.state = StateEditing
 		return m, cmd
 	}
+}
+
+// handleEditEntry opens the appropriate overlay for editing an entry row.
+func (m *ConfigModel) handleEditEntry(entryIdx int) (tea.Model, tea.Cmd) {
+	switch m.activeTab { //nolint:exhaustive // only entry-list tabs support edit
+	case TabFileCopy:
+		return m.openRuleOverlay(entryIdx)
+	case TabWorktrees:
+		return m.openWorktreeOverlay(entryIdx)
+	}
+	return m, nil
 }
 
 // handleBoolToggle toggles a boolean field, writes the value back through

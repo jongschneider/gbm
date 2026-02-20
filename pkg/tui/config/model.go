@@ -48,8 +48,22 @@ const (
 	StateResetAllConfirm
 	// StateSearch is active when the search/filter bar is open.
 	StateSearch
+	// StateOverlay is active when a list, rule, or worktree overlay is open.
+	StateOverlay
+	// StateDeleteConfirm is active when an entry deletion confirmation is pending.
+	StateDeleteConfirm
 	// StateCorruptConfig is active when the config file has parse errors.
 	StateCorruptConfig
+)
+
+// overlayKind identifies which overlay is currently active.
+type overlayKind int
+
+const (
+	overlayNone overlayKind = iota
+	overlayList
+	overlayRule
+	overlayWorktree
 )
 
 // SectionTab identifies which tab is active.
@@ -95,14 +109,20 @@ type ConfigModel struct {
 	writeErrorMsg    string
 	resetKey         string
 	focusedFieldKey  string
+	listOverlay      *ListOverlay
+	ruleOverlay      *RuleOverlay
+	worktreeOverlay  *WorktreeOverlay
+	overlayFieldKey  string // dot-path key of the field being edited via overlay
 	browsingKeys     BrowsingKeyMap
 	editingKeys      EditingKeyMap
 	searchKeys       SearchKeyMap
 	confirmKeys      ConfirmationKeyMap
 	state            ModelState
+	activeOverlay    overlayKind
 	focusedFieldType FieldType
 	height           int
 	width            int
+	overlayEntryIdx  int // index of entry being edited (-1 for new)
 	activeTab        SectionTab
 	tabBadges        [tabCount]bool
 	isNewFile        bool
@@ -212,6 +232,16 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.SetWidth(m.width)
 			}
 		}
+		// Propagate size to active overlays.
+		if m.listOverlay != nil {
+			m.listOverlay.SetSize(m.width, m.height)
+		}
+		if m.ruleOverlay != nil {
+			m.ruleOverlay.SetWidth(m.overlayWidth())
+		}
+		if m.worktreeOverlay != nil {
+			m.worktreeOverlay.SetWidth(m.overlayWidth())
+		}
 		return m, nil
 
 	case flashClearMsg:
@@ -252,6 +282,10 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleResetConfirmKey(msg)
 	case StateResetAllConfirm:
 		return m.handleResetAllConfirmKey(msg)
+	case StateOverlay:
+		return m.handleOverlayKey(msg)
+	case StateDeleteConfirm:
+		return m.handleDeleteConfirmKey(msg)
 	case StateSearch:
 		return m.handleSearchKey(msg)
 	case StateCorruptConfig:
@@ -293,6 +327,12 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.browsingKeys.Edit):
 		return m.handleEdit()
+
+	case key.Matches(msg, m.browsingKeys.Add):
+		return m.handleAddEntry()
+
+	case key.Matches(msg, m.browsingKeys.Delete):
+		return m.handleDeleteEntry()
 
 	case key.Matches(msg, m.browsingKeys.Quit):
 		return m.handleQuit()
@@ -585,6 +625,14 @@ func (m *ConfigModel) View() string {
 
 	if m.state == StateResetAllConfirm {
 		return m.viewResetAllConfirm()
+	}
+
+	if m.state == StateOverlay {
+		return m.viewOverlay()
+	}
+
+	if m.state == StateDeleteConfirm {
+		return m.viewDeleteConfirm()
 	}
 
 	if m.state == StateCorruptConfig {
