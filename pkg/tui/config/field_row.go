@@ -254,7 +254,7 @@ func (f *FieldRow) viewBrowsing() string {
 			Foreground(f.theme.Accent).Bold(true)
 
 		// prefix already contains cursor ">" and dirty marker
-		return cursorStyle.Render(string(prefix[0:1])) +
+		return cursorStyle.Render(prefix[0:1]) +
 			f.styleDirtyMarker(prefix) + "  " +
 			labelStyle.Render(label) + "  " + value
 	}

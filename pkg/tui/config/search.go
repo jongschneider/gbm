@@ -56,7 +56,7 @@ func (sf *SearchFilter) HandleRune(r rune) {
 // HandleBackspace removes the last character from the search query.
 // If the query is already empty, this is a no-op.
 func (sf *SearchFilter) HandleBackspace() {
-	if len(sf.query) > 0 {
+	if sf.query != "" {
 		sf.query = sf.query[:len(sf.query)-1]
 	}
 }
