@@ -39,6 +39,17 @@ const (
 	StateOverwriteConfirm
 	// StateWriteError is active when a write error overlay is displayed.
 	StateWriteError
+	// StateQuitConfirm is active when the quit confirmation overlay is
+	// displayed (unsaved changes detected).
+	StateQuitConfirm
+	// StateResetConfirm is active when the inline single-field reset
+	// confirmation is pending (y/n prompt).
+	StateResetConfirm
+	// StateResetAllConfirm is active when the reset-all confirmation
+	// overlay is displayed.
+	StateResetAllConfirm
+	// StateCorruptConfig is active when the config file has parse errors.
+	StateCorruptConfig
 )
 
 // SectionTab identifies which tab is active.
@@ -90,6 +101,9 @@ type ConfigModel struct {
 	tabBadges        [tabCount]bool
 	isNewFile        bool
 	quitAfterSave    bool
+	corruptConfig    *CorruptConfigState
+	focusedFieldKey  string // dot-path key of the currently focused field
+	resetKey         string // dot-path key pending single-field reset confirmation
 }
 
 // NewConfigModel creates a new ConfigModel with the given options.
@@ -192,6 +206,9 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SaveResultMsg:
 		return m.handleSaveResult(msg)
 
+	case editorReloadMsg:
+		return m.handleEditorReload(msg)
+
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
 	}
@@ -214,6 +231,14 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleOverwriteConfirmKey(msg)
 	case StateWriteError:
 		return m.handleWriteErrorKey(msg)
+	case StateQuitConfirm:
+		return m.handleQuitConfirmKey(msg)
+	case StateResetConfirm:
+		return m.handleResetConfirmKey(msg)
+	case StateResetAllConfirm:
+		return m.handleResetAllConfirmKey(msg)
+	case StateCorruptConfig:
+		return m.handleCorruptConfigKey(msg)
 	case StateSaving:
 		// Ignore all keys while saving.
 		return m, nil
@@ -243,11 +268,17 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.browsingKeys.SaveQuit):
 		return m.startSave(true)
 
+	case key.Matches(msg, m.browsingKeys.Reset):
+		return m.handleResetField()
+
+	case key.Matches(msg, m.browsingKeys.ResetAll):
+		return m.handleResetAll()
+
 	case key.Matches(msg, m.browsingKeys.Quit):
-		return m, tea.Quit
+		return m.handleQuit()
 
 	case key.Matches(msg, m.browsingKeys.ForceQuit):
-		return m, tea.Quit
+		return m.handleQuit()
 	}
 
 	return m, nil
@@ -448,6 +479,18 @@ func (m *ConfigModel) View() string {
 
 	if m.state == StateWriteError {
 		return m.viewWriteError()
+	}
+
+	if m.state == StateQuitConfirm {
+		return m.viewQuitConfirm()
+	}
+
+	if m.state == StateResetAllConfirm {
+		return m.viewResetAllConfirm()
+	}
+
+	if m.state == StateCorruptConfig {
+		return m.viewCorruptConfig()
 	}
 
 	var b strings.Builder
@@ -718,6 +761,22 @@ func (m *ConfigModel) Height() int {
 // This drives context-sensitive status bar rendering.
 func (m *ConfigModel) SetFocusedFieldType(ft FieldType) {
 	m.focusedFieldType = ft
+}
+
+// SetFocusedFieldKey sets the dot-path key of the currently focused field.
+// This is used by the dirty guard to determine which field to reset.
+func (m *ConfigModel) SetFocusedFieldKey(key string) {
+	m.focusedFieldKey = key
+}
+
+// FocusedFieldKey returns the dot-path key of the currently focused field.
+func (m *ConfigModel) FocusedFieldKey() string {
+	return m.focusedFieldKey
+}
+
+// ResetKey returns the dot-path key pending single-field reset confirmation.
+func (m *ConfigModel) ResetKey() string {
+	return m.resetKey
 }
 
 // WriteErrorMsg returns the current write error message, if any.
