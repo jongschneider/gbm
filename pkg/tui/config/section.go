@@ -65,17 +65,15 @@ func (r Row) IsFocusable() bool {
 // filtered view. The full row list is preserved for restoration when search
 // is closed.
 type SectionModel struct {
-	theme        *tui.Theme
-	search       *SearchFilter
-	entryLabel   string
-	emptyMessage string
-	rows         []Row
-	filteredRows []Row
-	fields       []FieldMeta
-	entries      []string
-
-	emptyState *EmptyState
-
+	theme          *tui.Theme
+	search         *SearchFilter
+	emptyState     *EmptyState
+	entryLabel     string
+	emptyMessage   string
+	fields         []FieldMeta
+	filteredRows   []Row
+	entries        []string
+	rows           []Row
 	focusIndex     int
 	scrollOffset   int
 	viewportHeight int

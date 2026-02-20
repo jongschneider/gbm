@@ -10,8 +10,8 @@ import (
 
 func TestSearchFilter_NewSearchFilter(t *testing.T) {
 	testCases := []struct {
-		name   string
 		assert func(t *testing.T, sf *SearchFilter)
+		name   string
 	}{
 		{
 			name: "default state is inactive",
@@ -41,9 +41,9 @@ func TestSearchFilter_NewSearchFilter(t *testing.T) {
 
 func TestSearchFilter_OpenClose(t *testing.T) {
 	testCases := []struct {
-		name   string
 		action func(sf *SearchFilter)
 		assert func(t *testing.T, sf *SearchFilter)
+		name   string
 	}{
 		{
 			name: "open activates with empty query",
@@ -83,9 +83,9 @@ func TestSearchFilter_OpenClose(t *testing.T) {
 
 func TestSearchFilter_HandleRune(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, sf *SearchFilter)
 		name   string
 		runes  []rune
-		assert func(t *testing.T, sf *SearchFilter)
 	}{
 		{
 			name:  "appends characters",
@@ -119,9 +119,9 @@ func TestSearchFilter_HandleRune(t *testing.T) {
 
 func TestSearchFilter_HandleBackspace(t *testing.T) {
 	testCases := []struct {
-		name   string
 		setup  func(sf *SearchFilter)
 		assert func(t *testing.T, sf *SearchFilter)
+		name   string
 	}{
 		{
 			name: "removes last character",
@@ -183,11 +183,11 @@ func TestSearchFilter_FilterRows(t *testing.T) {
 	}
 
 	testCases := []struct {
+		assert func(t *testing.T, filtered []Row)
 		name   string
 		query  string
 		rows   []Row
 		active bool
-		assert func(t *testing.T, filtered []Row)
 	}{
 		{
 			name:   "inactive returns all rows",
@@ -320,9 +320,9 @@ func TestSearchFilter_FilterRows(t *testing.T) {
 
 func TestSearchFilter_View(t *testing.T) {
 	testCases := []struct {
-		name   string
 		setup  func(sf *SearchFilter)
 		assert func(t *testing.T, view string)
+		name   string
 	}{
 		{
 			name: "inactive returns empty",
@@ -427,7 +427,7 @@ func TestSectionModel_SearchPositionIndicator(t *testing.T) {
 	// Position indicator should reflect filtered count.
 	assert.Equal(t, 1, s.FocusPosition())
 	total := s.FieldCount()
-	assert.Greater(t, total, 0)
+	assert.Positive(t, total)
 
 	view := s.View()
 	// Should contain the position indicator with filtered count.

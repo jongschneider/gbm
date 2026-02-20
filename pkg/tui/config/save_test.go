@@ -31,9 +31,9 @@ func newTestYAMLRoot() *yaml.Node {
 
 func TestSaveFlow_Validate(t *testing.T) {
 	testCases := []struct {
-		name        string
 		accessor    ConfigAccessor
 		assertError func(t *testing.T, errs []ValidationError)
+		name        string
 	}{
 		{
 			name: "no errors with valid config",
@@ -68,10 +68,10 @@ func TestSaveFlow_Validate(t *testing.T) {
 
 func TestSaveFlow_NeedsOverwriteConfirmation(t *testing.T) {
 	testCases := []struct {
-		name        string
 		setup       func(t *testing.T) (string, time.Time, bool)
 		assert      func(t *testing.T, needs bool)
 		assertError func(t *testing.T, err error)
+		name        string
 	}{
 		{
 			name: "new file never needs confirmation",
@@ -163,10 +163,10 @@ func TestSaveFlow_NeedsOverwriteConfirmation(t *testing.T) {
 
 func TestSaveFlow_Execute(t *testing.T) {
 	testCases := []struct {
-		name        string
 		setup       func(t *testing.T) (*SaveFlow, string)
 		assert      func(t *testing.T, modTime time.Time, dir string)
 		assertError func(t *testing.T, err error)
+		name        string
 	}{
 		{
 			name: "saves to existing file with backup",
@@ -333,9 +333,9 @@ func TestSaveFlow_Execute_PreservesYAMLComments(t *testing.T) {
 
 func TestConfigModel_SaveKeyTriggersSaveFlow(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
 		name   string
 		key    tea.KeyMsg
-		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
 	}{
 		{
 			name: "s key triggers save without quit",
@@ -424,9 +424,9 @@ func TestConfigModel_SaveExternalChangeShowsOverwrite(t *testing.T) {
 
 func TestConfigModel_OverwriteConfirmKey(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
 		name   string
 		key    tea.KeyMsg
-		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
 	}{
 		{
 			name: "y confirms overwrite and starts save",
@@ -508,10 +508,10 @@ func TestConfigModel_OverwriteConfirmView(t *testing.T) {
 
 func TestConfigModel_HandleSaveResult(t *testing.T) {
 	testCases := []struct {
-		name   string
-		msg    SaveResultMsg
-		quit   bool
 		assert func(t *testing.T, m *ConfigModel, cmd tea.Cmd)
+		msg    SaveResultMsg
+		name   string
+		quit   bool
 	}{
 		{
 			name: "successful save shows flash and returns to browsing",

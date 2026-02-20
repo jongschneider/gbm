@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Quit guard tests ---
+// --- Quit guard tests ---.
 
 func TestHandleQuit_CleanExitsImmediately(t *testing.T) {
 	testCases := []struct {
@@ -191,7 +191,7 @@ func TestQuitConfirmView(t *testing.T) {
 	}
 }
 
-// --- Enter in browsing triggers save-and-quit ---
+// --- Enter in browsing triggers save-and-quit ---.
 
 func TestEnterInBrowsingTriggersSaveQuit(t *testing.T) {
 	m := NewConfigModel(
@@ -210,7 +210,7 @@ func TestEnterInBrowsingTriggersSaveQuit(t *testing.T) {
 	assert.NotNil(t, cmd)
 }
 
-// --- Ctrl-C during editing cancels edit first ---
+// --- Ctrl-C during editing cancels edit first ---.
 
 func TestCtrlCDuringEditingCancelsEdit(t *testing.T) {
 	dt := NewDirtyTracker(map[string]any{"default_branch": "main"})
@@ -234,7 +234,7 @@ func TestCtrlCDuringEditingCancelsEdit(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
-// --- Single-field reset tests ---
+// --- Single-field reset tests ---.
 
 func TestHandleResetField(t *testing.T) {
 	testCases := []struct {
@@ -375,7 +375,7 @@ func TestResetConfirmKey(t *testing.T) {
 	}
 }
 
-// --- Reset all tests ---
+// --- Reset all tests ---.
 
 func TestHandleResetAll(t *testing.T) {
 	testCases := []struct {
@@ -510,7 +510,7 @@ func TestResetAllConfirmView(t *testing.T) {
 	assert.Contains(t, view, "Cancel")
 }
 
-// --- dirtyKeysToLabels tests ---
+// --- dirtyKeysToLabels tests ---.
 
 func TestDirtyKeysToLabels(t *testing.T) {
 	testCases := []struct {
@@ -576,7 +576,7 @@ func TestDirtyKeysToLabels(t *testing.T) {
 	}
 }
 
-// --- SetFocusedFieldKey tests ---
+// --- SetFocusedFieldKey tests ---.
 
 func TestSetFocusedFieldKey(t *testing.T) {
 	m := NewConfigModel()
@@ -589,7 +589,7 @@ func TestSetFocusedFieldKey(t *testing.T) {
 	assert.Empty(t, m.FocusedFieldKey())
 }
 
-// --- Full flow integration tests ---
+// --- Full flow integration tests ---.
 
 func TestFullFlow_QuitSaveAndQuit(t *testing.T) {
 	// Start with dirty model, trigger quit, choose save & quit.

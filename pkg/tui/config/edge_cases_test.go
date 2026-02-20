@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- EmptyState tests ---
+// --- EmptyState tests ---.
 
 func TestNewEmptyState(t *testing.T) {
 	testCases := []struct {
@@ -81,7 +81,7 @@ func TestPlaceholderText(t *testing.T) {
 	assert.Contains(t, text, "press e to set up")
 }
 
-// --- SectionEnabled tests ---
+// --- SectionEnabled tests ---.
 
 func TestNewSectionEnabled(t *testing.T) {
 	testCases := []struct {
@@ -174,7 +174,7 @@ func TestSectionEnabled_VisibleFieldCount(t *testing.T) {
 	}
 }
 
-// --- CorruptConfigState tests ---
+// --- CorruptConfigState tests ---.
 
 func TestNewCorruptConfigState(t *testing.T) {
 	cs := NewCorruptConfigState("yaml: line 5: bad indentation", "/tmp/config.yaml")
@@ -226,7 +226,7 @@ func TestRenderCorruptConfig(t *testing.T) {
 	}
 }
 
-// --- ConfigModel corrupt config integration tests ---
+// --- ConfigModel corrupt config integration tests ---.
 
 func TestConfigModel_SetCorruptConfig(t *testing.T) {
 	m := NewConfigModel(WithFilePath("/tmp/config.yaml"))
@@ -376,7 +376,7 @@ func TestConfigModel_CorruptConfigEditorReload_EditorError(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
-// --- Terminal too small tests ---
+// --- Terminal too small tests ---.
 
 func TestConfigModel_TerminalTooSmall_Recovery(t *testing.T) {
 	testCases := []struct {
@@ -387,9 +387,9 @@ func TestConfigModel_TerminalTooSmall_Recovery(t *testing.T) {
 		{
 			name: "shrink then grow restores normal UI",
 			sequence: []tea.WindowSizeMsg{
-				{Width: 80, Height: 24},  // normal
-				{Width: 40, Height: 10},  // too small
-				{Width: 80, Height: 24},  // normal again
+				{Width: 80, Height: 24}, // normal
+				{Width: 40, Height: 10}, // too small
+				{Width: 80, Height: 24}, // normal again
 			},
 			assert: func(t *testing.T, m *ConfigModel, view string) {
 				t.Helper()
@@ -506,7 +506,7 @@ func TestTooSmallMessage(t *testing.T) {
 	assert.Contains(t, msg, "60x16")
 }
 
-// --- SectionModel empty state tests ---
+// --- SectionModel empty state tests ---.
 
 func TestSectionModel_EmptyState(t *testing.T) {
 	testCases := []struct {
@@ -640,11 +640,10 @@ func TestSectionModel_EmptyToPopulatedViewTransition(t *testing.T) {
 	assert.Contains(t, view2, "Default Branch")
 }
 
-// --- RenderEmptySection tests ---
+// --- RenderEmptySection tests ---.
 
 func TestRenderEmptySection(t *testing.T) {
 	output := RenderEmptySection(80, 20, nil)
 	assert.Contains(t, output, "not configured")
 	assert.Contains(t, output, "press e to set up")
 }
-

@@ -2,16 +2,15 @@ package config
 
 import (
 	"fmt"
-	"strings"
-
 	"gbm/pkg/tui"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// --- Quit guard ---
+// --- Quit guard ---.
 
 // handleQuit checks for unsaved changes before quitting. If the dirty tracker
 // reports no changes, the TUI exits immediately. Otherwise, it transitions to
@@ -65,7 +64,7 @@ func (m *ConfigModel) viewQuitConfirm() string {
 	)
 }
 
-// --- Single-field reset ---
+// --- Single-field reset ---.
 
 // handleResetField initiates a single-field reset. If the focused field is not
 // dirty, this is a no-op. Otherwise, it stores the key and transitions to the
@@ -111,7 +110,7 @@ func (m *ConfigModel) handleResetConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	return m, nil
 }
 
-// --- Reset all ---
+// --- Reset all ---.
 
 // handleResetAll opens the reset-all confirmation overlay. If nothing is dirty,
 // this is a no-op.
@@ -156,7 +155,7 @@ func (m *ConfigModel) viewResetAllConfirm() string {
 	)
 }
 
-// --- Shared overlay rendering ---
+// --- Shared overlay rendering ---.
 
 // overlayOption represents a key-label pair for overlay action hints.
 type overlayOption struct {
