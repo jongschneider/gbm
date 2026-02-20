@@ -28,6 +28,14 @@ func main() {
 	// Register Wizard story
 	registry.Register(wizardStory())
 
+	// Register Config TUI stories
+	registry.Register(configModelStory())
+	registry.Register(sectionModelStory())
+	registry.Register(fieldRowStory())
+	registry.Register(listOverlayStory())
+	registry.Register(helpOverlayStory())
+	registry.Register(errorOverlayStory())
+
 	// Run the storybook
 	sb := storybook.New(registry)
 	p := tea.NewProgram(sb, tea.WithAltScreen())
