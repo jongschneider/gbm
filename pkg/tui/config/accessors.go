@@ -14,13 +14,7 @@ var ErrUnknownKey = errors.New("unknown config key")
 // The TUI uses this interface to read and write config fields without
 // depending on the concrete Config struct (which lives in cmd/service/).
 type ConfigAccessor interface {
-	// GetValue returns the current value for a dot-path key.
-	// Returns nil for unknown keys.
 	GetValue(key string) any
-
-	// SetValue updates the config value for a dot-path key.
-	// Returns ErrUnknownKey for unrecognized keys.
-	// The value should already be coerced to the correct type via CoerceValue.
 	SetValue(key string, value any) error
 }
 
