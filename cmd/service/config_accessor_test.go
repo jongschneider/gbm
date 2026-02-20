@@ -16,6 +16,10 @@ func newTestConfig() *Config {
 	return &Config{
 		DefaultBranch: "develop",
 		WorktreesDir:  "wt",
+		Worktrees: map[string]WorktreeConfig{
+			"main":    {Branch: "main", Description: "primary worktree"},
+			"feature": {Branch: "feature/x", MergeInto: "main", Description: "feature work"},
+		},
 		Jira: JiraConfig{
 			Host: "https://jira.example.com",
 			Me:   "alice",
@@ -49,6 +53,10 @@ func newTestConfig() *Config {
 			},
 		},
 		FileCopy: FileCopyConfig{
+			Rules: []FileCopyRule{
+				{SourceWorktree: "main", Files: []string{".env", ".env.local"}},
+				{SourceWorktree: "develop", Files: []string{"config.json"}},
+			},
 			Auto: AutoFileCopyConfig{
 				Enabled:        true,
 				SourceWorktree: "{default}",
@@ -206,6 +214,26 @@ func TestConfigAdapter_GetValue(t *testing.T) {
 		{key: "file_copy.auto.exclude", assert: func(t *testing.T, got any) {
 			t.Helper()
 			assert.Equal(t, []string{"*.log", "node_modules/"}, got)
+		}},
+
+		// File Copy Rules
+		{key: "file_copy.rules", assert: func(t *testing.T, got any) {
+			t.Helper()
+			rules, ok := got.([]FileCopyRule)
+			require.True(t, ok, "expected []FileCopyRule, got %T", got)
+			assert.Len(t, rules, 2)
+			assert.Equal(t, "main", rules[0].SourceWorktree)
+			assert.Equal(t, []string{".env", ".env.local"}, rules[0].Files)
+		}},
+
+		// Worktrees
+		{key: "worktrees", assert: func(t *testing.T, got any) {
+			t.Helper()
+			wt, ok := got.(map[string]WorktreeConfig)
+			require.True(t, ok, "expected map[string]WorktreeConfig, got %T", got)
+			assert.Len(t, wt, 2)
+			assert.Equal(t, "main", wt["main"].Branch)
+			assert.Equal(t, "feature/x", wt["feature"].Branch)
 		}},
 
 		// Unknown key
@@ -496,6 +524,34 @@ func TestConfigAdapter_SetValue(t *testing.T) {
 			},
 			assertError: func(t *testing.T, err error) { t.Helper(); assert.NoError(t, err) },
 		},
+
+		// File Copy Rules
+		{
+			key: "file_copy.rules", value: []FileCopyRule{
+				{SourceWorktree: "staging", Files: []string{"db.conf"}},
+			},
+			assert: func(t *testing.T, cfg *Config) {
+				t.Helper()
+				require.Len(t, cfg.FileCopy.Rules, 1)
+				assert.Equal(t, "staging", cfg.FileCopy.Rules[0].SourceWorktree)
+				assert.Equal(t, []string{"db.conf"}, cfg.FileCopy.Rules[0].Files)
+			},
+			assertError: func(t *testing.T, err error) { t.Helper(); assert.NoError(t, err) },
+		},
+
+		// Worktrees
+		{
+			key: "worktrees", value: map[string]WorktreeConfig{
+				"prod": {Branch: "production", Description: "production worktree"},
+			},
+			assert: func(t *testing.T, cfg *Config) {
+				t.Helper()
+				require.Len(t, cfg.Worktrees, 1)
+				assert.Equal(t, "production", cfg.Worktrees["prod"].Branch)
+				assert.Equal(t, "production worktree", cfg.Worktrees["prod"].Description)
+			},
+			assertError: func(t *testing.T, err error) { t.Helper(); assert.NoError(t, err) },
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.key, func(t *testing.T) {
@@ -555,6 +611,22 @@ func TestConfigAdapter_SetValue_type_mismatch(t *testing.T) {
 				assert.ErrorContains(t, err, "expected []string")
 			},
 		},
+		{
+			name: "file_copy.rules given wrong type",
+			key:  "file_copy.rules", value: "wrong type",
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.ErrorContains(t, err, "expected []FileCopyRule")
+			},
+		},
+		{
+			name: "worktrees given wrong type",
+			key:  "worktrees", value: 42,
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.ErrorContains(t, err, "expected map[string]WorktreeConfig")
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -606,10 +678,14 @@ func TestConfigAdapter_GetValue_covers_all_section_keys(t *testing.T) {
 		"jira.attachments.enabled", "jira.attachments.max_size_mb",
 		"jira.attachments.directory", "jira.attachments.download_timeout_seconds",
 		"jira.attachments.retry_attempts", "jira.attachments.retry_backoff_ms",
+		// File Copy Rules
+		"file_copy.rules",
 		// File Copy Auto
 		"file_copy.auto.enabled", "file_copy.auto.source_worktree",
 		"file_copy.auto.copy_ignored", "file_copy.auto.copy_untracked",
 		"file_copy.auto.exclude",
+		// Worktrees
+		"worktrees",
 	}
 	for _, key := range allKeys {
 		t.Run(key, func(t *testing.T) {

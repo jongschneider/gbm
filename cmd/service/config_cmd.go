@@ -126,6 +126,9 @@ func buildConfigModel(svc *Service, configPath string) (*tuiconfig.ConfigModel, 
 		tuiconfig.WithModTime(modTime),
 	)
 
+	// Initialize section models with field values from the config.
+	model.InitSections()
+
 	return model, nil
 }
 
@@ -160,10 +163,14 @@ func allConfigKeys() []string {
 		"jira.attachments.enabled", "jira.attachments.max_size_mb",
 		"jira.attachments.directory", "jira.attachments.download_timeout_seconds",
 		"jira.attachments.retry_attempts", "jira.attachments.retry_backoff_ms",
+		// File Copy Rules
+		"file_copy.rules",
 		// File Copy Auto
 		"file_copy.auto.enabled", "file_copy.auto.source_worktree",
 		"file_copy.auto.copy_ignored", "file_copy.auto.copy_untracked",
 		"file_copy.auto.exclude",
+		// Worktrees
+		"worktrees",
 	}
 }
 

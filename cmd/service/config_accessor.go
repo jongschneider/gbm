@@ -30,6 +30,8 @@ func (a *ConfigAdapter) GetValue(key string) any {
 		return a.cfg.WorktreesDir
 	case "jira":
 		return a.getJiraValue(key)
+	case "worktrees":
+		return a.cfg.Worktrees
 	case "file_copy":
 		return a.getFileCopyValue(key)
 	default:
@@ -124,6 +126,8 @@ func (a *ConfigAdapter) getJiraAttachmentsValue(key string) any {
 
 func (a *ConfigAdapter) getFileCopyValue(key string) any {
 	switch key {
+	case "file_copy.rules":
+		return a.cfg.FileCopy.Rules
 	case "file_copy.auto.enabled":
 		return a.cfg.FileCopy.Auto.Enabled
 	case "file_copy.auto.source_worktree":
@@ -149,6 +153,8 @@ func (a *ConfigAdapter) SetValue(key string, value any) error {
 		return setString(&a.cfg.DefaultBranch, value)
 	case "worktrees_dir":
 		return setString(&a.cfg.WorktreesDir, value)
+	case "worktrees":
+		return setWorktreeMap(&a.cfg.Worktrees, value)
 	case "jira":
 		return a.setJiraValue(key, value)
 	case "file_copy":
@@ -244,6 +250,8 @@ func (a *ConfigAdapter) setJiraAttachmentsValue(key string, value any) error {
 
 func (a *ConfigAdapter) setFileCopyValue(key string, value any) error {
 	switch key {
+	case "file_copy.rules":
+		return setFileCopyRules(&a.cfg.FileCopy.Rules, value)
 	case "file_copy.auto.enabled":
 		return setBool(&a.cfg.FileCopy.Auto.Enabled, value)
 	case "file_copy.auto.source_worktree":
@@ -307,6 +315,25 @@ func setStringSlice(dst *[]string, value any) error {
 	v, ok := value.([]string)
 	if !ok {
 		return fmt.Errorf("expected []string, got %T", value)
+	}
+	*dst = v
+	return nil
+}
+
+func setFileCopyRules(dst *[]FileCopyRule, value any) error {
+	v, ok := value.([]FileCopyRule)
+	if !ok {
+		return fmt.Errorf("expected []FileCopyRule, got %T", value)
+	}
+	*dst = v
+	return nil
+}
+
+//nolint:gocritic // ptrToRefParam: pointer needed to replace the entire map in the struct field.
+func setWorktreeMap(dst *map[string]WorktreeConfig, value any) error {
+	v, ok := value.(map[string]WorktreeConfig)
+	if !ok {
+		return fmt.Errorf("expected map[string]WorktreeConfig, got %T", value)
 	}
 	*dst = v
 	return nil
