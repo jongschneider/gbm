@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// --- Empty section state ---
+// --- Empty section state ---.
 
 // EmptyState tracks whether a section is in its "not configured" state and
 // provides the placeholder message and default-population behavior.
@@ -72,7 +72,7 @@ func RenderEmptySection(width, height int, theme *lipgloss.Style) string {
 	return padding + style.Render(msg)
 }
 
-// --- SectionModel empty state methods ---
+// --- SectionModel empty state methods ---.
 
 // EmptyState returns the section's empty state, or nil if not configured.
 func (s *SectionModel) EmptyState() *EmptyState {
@@ -118,14 +118,16 @@ func (s *SectionModel) ViewEmpty() string {
 	lines := padding + style.Render(msg)
 	// Pad remaining lines to fill viewport.
 	current := strings.Count(lines, "\n") + 1
+	var linesSb121 strings.Builder
 	for current < vpHeight {
-		lines += "\n"
+		linesSb121.WriteString("\n")
 		current++
 	}
+	lines += linesSb121.String()
 	return lines
 }
 
-// --- Enabled toggle / section removal ---
+// --- Enabled toggle / section removal ---.
 
 // SectionEnabled tracks the enabled state for optional sections like JIRA.
 // When enabled is toggled off and the config is saved, the section is removed
@@ -167,7 +169,7 @@ func (se *SectionEnabled) VisibleFieldCount(fieldCount int) int {
 	return fieldCount
 }
 
-// --- Corrupt config state ---
+// --- Corrupt config state ---.
 
 // CorruptConfigState holds the error message from a YAML parse failure.
 // When active, the TUI shows an error banner with the parse error and
@@ -179,7 +181,7 @@ type CorruptConfigState struct {
 
 // NewCorruptConfigState creates a CorruptConfigState with the given parse
 // error and config file path.
-func NewCorruptConfigState(parseError string, filePath string) *CorruptConfigState {
+func NewCorruptConfigState(parseError, filePath string) *CorruptConfigState {
 	return &CorruptConfigState{
 		parseError: parseError,
 		filePath:   filePath,
@@ -265,7 +267,7 @@ type CorruptConfigTheme struct {
 	Accent      lipgloss.AdaptiveColor
 }
 
-// --- ConfigModel integration ---
+// --- ConfigModel integration ---.
 
 // handleCorruptConfigKey processes key presses in the corrupt config state.
 // `e` opens $EDITOR, `q`/esc quits.
@@ -338,7 +340,7 @@ func (m *ConfigModel) viewCorruptConfig() string {
 
 // SetCorruptConfig puts the model into corrupt config state with the given
 // parse error and file path.
-func (m *ConfigModel) SetCorruptConfig(parseError string, filePath string) {
+func (m *ConfigModel) SetCorruptConfig(parseError, filePath string) {
 	m.corruptConfig = NewCorruptConfigState(parseError, filePath)
 	m.state = StateCorruptConfig
 }
@@ -348,7 +350,7 @@ func (m *ConfigModel) CorruptConfig() *CorruptConfigState {
 	return m.corruptConfig
 }
 
-// --- Terminal too small (supplemental) ---
+// --- Terminal too small (supplemental) ---.
 
 // IsTerminalTooSmall reports whether the current terminal dimensions are
 // below the minimum required by the Config TUI.
