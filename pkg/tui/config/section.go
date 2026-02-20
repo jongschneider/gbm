@@ -59,11 +59,18 @@ func (r Row) IsFocusable() bool {
 // SectionModel is the scrollable field list for a single tab in the Config TUI.
 // It manages layout rows (fields + group headers + entry list), focus tracking,
 // viewport scrolling, and renders the visible portion of the section.
+//
+// When a search filter is active, the section operates on a filtered subset
+// of rows. Navigation, rendering, and position indicators all reflect the
+// filtered view. The full row list is preserved for restoration when search
+// is closed.
 type SectionModel struct {
 	theme        *tui.Theme
+	search       *SearchFilter
 	entryLabel   string
 	emptyMessage string
 	rows         []Row
+	filteredRows []Row
 	fields       []FieldMeta
 	entries      []string
 
@@ -85,6 +92,7 @@ func NewSectionModel(fields []FieldMeta, opts ...SectionOption) *SectionModel {
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.search = NewSearchFilter(s.theme)
 	s.buildRows()
 	s.focusFirst()
 	return s
@@ -198,10 +206,39 @@ func (s *SectionModel) buildRows() {
 	}
 }
 
+// visibleRows returns the row list currently in effect. When search is active
+// and has a non-empty query, this returns the filtered subset; otherwise
+// it returns the full row list.
+func (s *SectionModel) visibleRows() []Row {
+	if s.search != nil && s.search.IsActive() && s.search.Query() != "" {
+		return s.filteredRows
+	}
+	return s.rows
+}
+
+// applyFilter rebuilds the filtered row list from the current search query,
+// resets focus to the first matching focusable row, and resets scroll.
+func (s *SectionModel) applyFilter() {
+	if s.search == nil {
+		return
+	}
+	s.filteredRows = s.search.FilterRows(s.rows)
+	s.scrollOffset = 0
+	s.focusIndex = 0
+	rows := s.visibleRows()
+	for i, r := range rows {
+		if r.IsFocusable() {
+			s.focusIndex = i
+			return
+		}
+	}
+}
+
 // focusFirst sets focusIndex to the first focusable row.
 // If no focusable row exists, focusIndex is set to 0.
 func (s *SectionModel) focusFirst() {
-	for i, r := range s.rows {
+	rows := s.visibleRows()
+	for i, r := range rows {
 		if r.IsFocusable() {
 			s.focusIndex = i
 			return
@@ -220,24 +257,35 @@ func (s *SectionModel) ScrollOffset() int {
 	return s.scrollOffset
 }
 
-// Rows returns the flattened row list.
+// Rows returns the currently visible row list.
+// When search is active, this returns filtered rows; otherwise the full list.
 func (s *SectionModel) Rows() []Row {
+	return s.visibleRows()
+}
+
+// AllRows returns the full unfiltered row list regardless of search state.
+func (s *SectionModel) AllRows() []Row {
 	return s.rows
 }
 
 // FocusedRow returns the currently focused row.
 // Returns a zero-value Row if the section is empty.
 func (s *SectionModel) FocusedRow() Row {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+	if len(rows) == 0 {
 		return Row{FieldIndex: -1, EntryIndex: -1}
 	}
-	return s.rows[s.focusIndex]
+	if s.focusIndex >= len(rows) {
+		return Row{FieldIndex: -1, EntryIndex: -1}
+	}
+	return rows[s.focusIndex]
 }
 
-// FieldCount returns the number of focusable rows (fields + entries).
+// FieldCount returns the number of focusable rows (fields + entries)
+// in the currently visible row list.
 func (s *SectionModel) FieldCount() int {
 	count := 0
-	for _, r := range s.rows {
+	for _, r := range s.visibleRows() {
 		if r.IsFocusable() {
 			count++
 		}
@@ -246,10 +294,10 @@ func (s *SectionModel) FieldCount() int {
 }
 
 // FocusPosition returns the 1-based position of the focused field among
-// all focusable rows. Returns 0 if no focusable rows exist.
+// all focusable rows in the visible list. Returns 0 if no focusable rows exist.
 func (s *SectionModel) FocusPosition() int {
 	pos := 0
-	for i, r := range s.rows {
+	for i, r := range s.visibleRows() {
 		if r.IsFocusable() {
 			pos++
 		}
@@ -265,14 +313,15 @@ func (s *SectionModel) FocusPosition() int {
 // MoveFocusDown moves focus to the next focusable row, wrapping to the first
 // if at the end. Updates scroll offset to keep the focused row visible.
 func (s *SectionModel) MoveFocusDown() {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+	if len(rows) == 0 {
 		return
 	}
 
 	start := s.focusIndex
-	for i := 1; i < len(s.rows); i++ {
-		idx := (start + i) % len(s.rows)
-		if s.rows[idx].IsFocusable() {
+	for i := 1; i < len(rows); i++ {
+		idx := (start + i) % len(rows)
+		if rows[idx].IsFocusable() {
 			s.focusIndex = idx
 			s.ensureVisible()
 			return
@@ -283,15 +332,16 @@ func (s *SectionModel) MoveFocusDown() {
 // MoveFocusUp moves focus to the previous focusable row, wrapping to the last
 // if at the beginning. Updates scroll offset to keep the focused row visible.
 func (s *SectionModel) MoveFocusUp() {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+	if len(rows) == 0 {
 		return
 	}
 
 	start := s.focusIndex
-	n := len(s.rows)
+	n := len(rows)
 	for i := 1; i < n; i++ {
 		idx := (start - i + n) % n
-		if s.rows[idx].IsFocusable() {
+		if rows[idx].IsFocusable() {
 			s.focusIndex = idx
 			s.ensureVisible()
 			return
@@ -301,7 +351,7 @@ func (s *SectionModel) MoveFocusUp() {
 
 // JumpToFirst moves focus to the first focusable row and scrolls to the top.
 func (s *SectionModel) JumpToFirst() {
-	for i, r := range s.rows {
+	for i, r := range s.visibleRows() {
 		if r.IsFocusable() {
 			s.focusIndex = i
 			s.scrollOffset = 0
@@ -312,8 +362,9 @@ func (s *SectionModel) JumpToFirst() {
 
 // JumpToLast moves focus to the last focusable row.
 func (s *SectionModel) JumpToLast() {
-	for i := len(s.rows) - 1; i >= 0; i-- {
-		if s.rows[i].IsFocusable() {
+	rows := s.visibleRows()
+	for i := len(rows) - 1; i >= 0; i-- {
+		if rows[i].IsFocusable() {
 			s.focusIndex = i
 			s.ensureVisible()
 			return
@@ -324,26 +375,27 @@ func (s *SectionModel) JumpToLast() {
 // JumpToNextGroup moves focus to the first focusable row in the next group.
 // If already in the last group, wraps to the first group.
 func (s *SectionModel) JumpToNextGroup() {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+	if len(rows) == 0 {
 		return
 	}
 
-	currentGroup := s.rows[s.focusIndex].Group
-	n := len(s.rows)
+	currentGroup := rows[s.focusIndex].Group
+	n := len(rows)
 
 	for i := s.focusIndex + 1; i < s.focusIndex+n; i++ {
 		idx := i % n
-		r := s.rows[idx]
+		r := rows[idx]
 		if r.Group != currentGroup {
 			targetGroup := r.Group
 			for j := idx; j < idx+n; j++ {
 				jIdx := j % n
-				if s.rows[jIdx].Group == targetGroup && s.rows[jIdx].IsFocusable() {
+				if rows[jIdx].Group == targetGroup && rows[jIdx].IsFocusable() {
 					s.focusIndex = jIdx
 					s.ensureVisible()
 					return
 				}
-				if s.rows[jIdx].Group != targetGroup && jIdx != idx {
+				if rows[jIdx].Group != targetGroup && jIdx != idx {
 					break
 				}
 			}
@@ -355,16 +407,17 @@ func (s *SectionModel) JumpToNextGroup() {
 // JumpToPrevGroup moves focus to the first focusable row in the previous group.
 // If already in the first group, wraps to the last group.
 func (s *SectionModel) JumpToPrevGroup() {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+	if len(rows) == 0 {
 		return
 	}
 
-	currentGroup := s.rows[s.focusIndex].Group
-	n := len(s.rows)
+	currentGroup := rows[s.focusIndex].Group
+	n := len(rows)
 
 	for i := s.focusIndex - 1 + n; i > s.focusIndex; i-- {
 		idx := i % n
-		r := s.rows[idx]
+		r := rows[idx]
 		if r.Group != currentGroup {
 			targetGroup := r.Group
 
@@ -372,7 +425,7 @@ func (s *SectionModel) JumpToPrevGroup() {
 			groupStart := idx
 			for {
 				prev := (groupStart - 1 + n) % n
-				if s.rows[prev].Group != targetGroup {
+				if rows[prev].Group != targetGroup {
 					break
 				}
 				groupStart = prev
@@ -383,12 +436,12 @@ func (s *SectionModel) JumpToPrevGroup() {
 
 			// Find the first focusable row in the target group.
 			for j := groupStart; ; j = (j + 1) % n {
-				if s.rows[j].Group == targetGroup && s.rows[j].IsFocusable() {
+				if rows[j].Group == targetGroup && rows[j].IsFocusable() {
 					s.focusIndex = j
 					s.ensureVisible()
 					return
 				}
-				if s.rows[j].Group != targetGroup {
+				if rows[j].Group != targetGroup {
 					break
 				}
 			}
@@ -411,7 +464,7 @@ func (s *SectionModel) ensureVisible() {
 		s.scrollOffset = s.focusIndex - s.viewportHeight + 1
 	}
 
-	maxOffset := max(len(s.rows)-s.viewportHeight, 0)
+	maxOffset := max(len(s.visibleRows())-s.viewportHeight, 0)
 	if s.scrollOffset > maxOffset {
 		s.scrollOffset = maxOffset
 	}
@@ -436,12 +489,20 @@ func (s *SectionModel) SetWidth(w int) {
 }
 
 // SetFieldValue sets the display value for a field row. fieldIdx is the index
-// into the fields slice (not the rows slice).
+// into the fields slice (not the rows slice). Updates both the full row list
+// and the filtered row list if search is active.
 func (s *SectionModel) SetFieldValue(fieldIdx int, value string) {
 	for i, r := range s.rows {
 		if r.Kind == RowField && r.FieldIndex == fieldIdx {
 			s.rows[i].Value = value
-			return
+			break
+		}
+	}
+	// Also update in filtered rows to keep them in sync.
+	for i, r := range s.filteredRows {
+		if r.Kind == RowField && r.FieldIndex == fieldIdx {
+			s.filteredRows[i].Value = value
+			break
 		}
 	}
 }
@@ -450,28 +511,92 @@ func (s *SectionModel) SetFieldValue(fieldIdx int, value string) {
 func (s *SectionModel) UpdateEntries(entries []string) {
 	s.entries = entries
 	s.buildRows()
-	if s.focusIndex >= len(s.rows) {
+	if s.search != nil && s.search.IsActive() {
+		s.applyFilter()
+	}
+	if s.focusIndex >= len(s.visibleRows()) {
 		s.focusFirst()
 	}
 	s.ensureVisible()
 }
 
+// --- Search ---.
+
+// Search returns the section's search filter.
+func (s *SectionModel) Search() *SearchFilter {
+	return s.search
+}
+
+// OpenSearch activates the search bar and resets focus.
+func (s *SectionModel) OpenSearch() {
+	s.search.Open()
+	s.applyFilter()
+}
+
+// CloseSearch deactivates the search bar, restores the full row list,
+// and resets focus to the first focusable row.
+func (s *SectionModel) CloseSearch() {
+	s.search.Close()
+	s.filteredRows = nil
+	s.scrollOffset = 0
+	s.focusFirst()
+}
+
+// SearchHandleRune appends a rune to the search query and re-applies the filter.
+func (s *SectionModel) SearchHandleRune(r rune) {
+	s.search.HandleRune(r)
+	s.applyFilter()
+}
+
+// SearchHandleBackspace removes the last character from the query and
+// re-applies the filter.
+func (s *SectionModel) SearchHandleBackspace() {
+	s.search.HandleBackspace()
+	s.applyFilter()
+}
+
+// IsSearchActive reports whether the search filter is currently open.
+func (s *SectionModel) IsSearchActive() bool {
+	return s.search != nil && s.search.IsActive()
+}
+
 // --- Rendering ---.
 
 // View renders the visible portion of the section within the viewport.
+// When search is active, the search bar is rendered at the top and the
+// viewport is reduced by one line to accommodate it.
 func (s *SectionModel) View() string {
-	if len(s.rows) == 0 {
+	rows := s.visibleRows()
+
+	searchActive := s.search != nil && s.search.IsActive()
+	searchBar := ""
+	vpHeight := s.viewportHeight
+
+	if searchActive {
+		searchBar = s.search.View(s.effectiveWidth())
+		vpHeight = max(vpHeight-1, 1)
+	}
+
+	if len(rows) == 0 {
+		if searchBar != "" {
+			// Show search bar even with no results.
+			padding := make([]string, vpHeight)
+			for i := range padding {
+				padding[i] = ""
+			}
+			return searchBar + "\n" + strings.Join(padding, "\n")
+		}
 		return ""
 	}
 
-	end := min(s.scrollOffset+s.viewportHeight, len(s.rows))
+	end := min(s.scrollOffset+vpHeight, len(rows))
 
 	var lines []string
 	for i := s.scrollOffset; i < end; i++ {
-		lines = append(lines, s.renderRow(i))
+		lines = append(lines, s.renderVisibleRow(rows, i))
 	}
 
-	for len(lines) < s.viewportHeight {
+	for len(lines) < vpHeight {
 		lines = append(lines, "")
 	}
 
@@ -481,12 +606,15 @@ func (s *SectionModel) View() string {
 		lines[lastIdx] = s.overlayRight(lines[lastIdx], indicator)
 	}
 
+	if searchBar != "" {
+		return searchBar + "\n" + strings.Join(lines, "\n")
+	}
 	return strings.Join(lines, "\n")
 }
 
-// renderRow renders a single row by index.
-func (s *SectionModel) renderRow(idx int) string {
-	r := s.rows[idx]
+// renderVisibleRow renders a single row from the given row list by index.
+func (s *SectionModel) renderVisibleRow(rows []Row, idx int) string {
+	r := rows[idx]
 	focused := idx == s.focusIndex
 
 	switch r.Kind {
