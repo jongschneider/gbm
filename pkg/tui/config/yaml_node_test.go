@@ -894,6 +894,109 @@ func TestGetNodeValue(t *testing.T) {
 	}
 }
 
+// --- UpdateNodeValue edge cases ---.
+
+func TestUpdateNodeValue_root_not_mapping(t *testing.T) {
+	// A document node wrapping a scalar (not a mapping) should error.
+	root := &yaml.Node{
+		Kind: yaml.DocumentNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "just a string"},
+		},
+	}
+	err := UpdateNodeValue(root, "key", "value")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected mapping node at root")
+}
+
+func TestUpdateNodeValue_intermediate_not_mapping(t *testing.T) {
+	// "jira" is a scalar, not a mapping, so setting "jira.host" should fail.
+	root := parseYAML(t, "jira: not_a_mapping\n")
+	err := UpdateNodeValue(root, "jira.host", "https://example.com")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected mapping")
+}
+
+func TestUpdateNodeValue_deeply_nested_intermediate_not_mapping(t *testing.T) {
+	// "jira.attachments" exists as a scalar, so "jira.attachments.enabled" should fail.
+	root := parseYAML(t, "jira:\n  attachments: scalar_value\n")
+	err := UpdateNodeValue(root, "jira.attachments.enabled", true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected mapping")
+}
+
+func TestUpdateNodeValue_unsupported_type_on_missing_key(t *testing.T) {
+	// When the key is missing and the value type is unsupported,
+	// newValueNode should propagate the error.
+	root := parseYAML(t, "default_branch: main\n")
+	err := UpdateNodeValue(root, "new_key", struct{}{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported value type")
+}
+
+// --- GetNodeValue edge cases ---.
+
+func TestGetNodeValue_empty_document(t *testing.T) {
+	root := &yaml.Node{
+		Kind:    yaml.DocumentNode,
+		Content: []*yaml.Node{},
+	}
+	_, err := GetNodeValue(root, "key")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty document")
+}
+
+func TestGetNodeValue_root_not_mapping(t *testing.T) {
+	root := &yaml.Node{
+		Kind: yaml.DocumentNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "just a string"},
+		},
+	}
+	_, err := GetNodeValue(root, "key")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected mapping node at root")
+}
+
+func TestGetNodeValue_intermediate_not_mapping(t *testing.T) {
+	// "jira" is a scalar so "jira.host" should fail at the intermediate level.
+	root := parseYAML(t, "jira: not_a_mapping\n")
+	_, err := GetNodeValue(root, "jira.host")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected mapping")
+}
+
+func TestNodeToValue_unsupported_kind(t *testing.T) {
+	// Directly test an alias node which is an unsupported kind.
+	node := &yaml.Node{Kind: yaml.AliasNode}
+	_, err := nodeToValue(node)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported node kind")
+}
+
+// --- SaveConfigFile edge cases ---.
+
+func TestSaveConfigFile_invalid_path(t *testing.T) {
+	root := parseYAML(t, "key: value\n")
+	err := SaveConfigFile("/nonexistent/dir/config.yaml", root)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write temp config file")
+}
+
+// --- BackupConfigFile edge cases ---.
+
+func TestBackupConfigFile_unwritable_destination(t *testing.T) {
+	path := writeTestFile(t, "key: value\n")
+	// Make the directory read-only so the .bak file cannot be written.
+	dir := filepath.Dir(path)
+	require.NoError(t, os.Chmod(dir, 0o555))
+	t.Cleanup(func() { os.Chmod(dir, 0o755) }) //nolint:errcheck // best-effort cleanup in test
+
+	err := BackupConfigFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write backup file")
+}
+
 // --- test helpers ---.
 
 // writeTestFile writes content to a temp file and returns the path.
