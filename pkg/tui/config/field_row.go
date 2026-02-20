@@ -38,6 +38,7 @@ type FieldRow struct {
 	focused    bool
 	dirty      bool
 	sensitive  bool
+	hasError   bool // save-level validation error marker
 }
 
 // NewFieldRow creates a FieldRow for the given field metadata.
@@ -85,6 +86,16 @@ func (f *FieldRow) IsFocused() bool {
 	return f.focused
 }
 
+// HasError reports whether the field has a save-level validation error.
+func (f *FieldRow) HasError() bool {
+	return f.hasError
+}
+
+// EditError returns the current inline edit error message, or empty string.
+func (f *FieldRow) EditError() string {
+	return f.editErr
+}
+
 // --- Mutators ---.
 
 // SetValue updates the display value.
@@ -100,6 +111,11 @@ func (f *FieldRow) SetDirty(dirty bool) {
 // SetFocused marks or clears focus on this row.
 func (f *FieldRow) SetFocused(focused bool) {
 	f.focused = focused
+}
+
+// SetHasError marks or clears the save-level validation error indicator.
+func (f *FieldRow) SetHasError(hasErr bool) {
+	f.hasError = hasErr
 }
 
 // SetLabelWidth sets the column width for the label. This is typically the
@@ -229,7 +245,7 @@ func (f *FieldRow) viewBrowsing() string {
 	lw := f.effectiveLabelWidth()
 	ew := f.effectiveWidth()
 
-	// Build prefix: cursor + dirty marker.
+	// Build prefix: cursor + dirty/error marker.
 	prefix := f.browsingPrefix()
 
 	// Pad label to lw.
@@ -265,7 +281,7 @@ func (f *FieldRow) viewBrowsing() string {
 // browsingPrefix returns the 4-character prefix for a browsing row.
 // Position 0: '>' if focused, ' ' otherwise
 // Position 1: ' '
-// Position 2: '*' if dirty, ' ' otherwise
+// Position 2: '*' if dirty, '!' if error (dirty takes precedence), ' ' otherwise
 // Position 3: ' '.
 func (f *FieldRow) browsingPrefix() string {
 	var b [4]byte
@@ -275,9 +291,12 @@ func (f *FieldRow) browsingPrefix() string {
 		b[0] = ' '
 	}
 	b[1] = ' '
-	if f.dirty {
+	switch {
+	case f.dirty:
 		b[2] = '*'
-	} else {
+	case f.hasError:
+		b[2] = '!'
+	default:
 		b[2] = ' '
 	}
 	b[3] = ' '
@@ -285,19 +304,25 @@ func (f *FieldRow) browsingPrefix() string {
 }
 
 // styleDirtyMarker returns the styled portion of the prefix after the cursor char.
-// This handles the dirty marker with highlight color.
+// This handles the dirty marker with highlight color and error marker with error color.
 func (f *FieldRow) styleDirtyMarker(prefix string) string {
 	if len(prefix) < 4 {
 		return ""
 	}
-	// Characters 1-3: " * " or "   "
+	// Characters 1-3: " * " or " ! " or "   "
 	rest := prefix[1:4]
-	if f.dirty {
+	switch {
+	case f.dirty:
 		dirtyStyle := lipgloss.NewStyle().
 			Foreground(f.theme.Highlight).Bold(true)
 		return string(rest[0]) + dirtyStyle.Render(string(rest[1])) + string(rest[2])
+	case f.hasError:
+		errStyle := lipgloss.NewStyle().
+			Foreground(f.theme.ErrorAccent).Bold(true)
+		return string(rest[0]) + errStyle.Render(string(rest[1])) + string(rest[2])
+	default:
+		return rest
 	}
-	return rest
 }
 
 // formatDisplayValue returns the styled display string for the current value.

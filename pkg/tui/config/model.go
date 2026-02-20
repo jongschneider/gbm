@@ -27,6 +27,8 @@ const (
 	StateEditing
 	// StateHelp is active when the help overlay is displayed.
 	StateHelp
+	// StateErrors is active when the validation errors overlay is displayed.
+	StateErrors
 )
 
 // SectionTab identifies which tab is active.
@@ -60,6 +62,7 @@ type ConfigModel struct {
 	theme            *tui.Theme
 	dirty            *DirtyTracker
 	helpOverlay      *HelpOverlay
+	errorOverlay     *ErrorOverlay
 	filePath         string
 	flashMessage     string
 	browsingKeys     BrowsingKeyMap
@@ -81,6 +84,7 @@ func NewConfigModel(opts ...ConfigModelOption) *ConfigModel {
 		theme:        defaultTheme,
 		dirty:        NewDirtyTracker(nil),
 		helpOverlay:  NewHelpOverlay(defaultTheme),
+		errorOverlay: NewErrorOverlay(nil, defaultTheme),
 		browsingKeys: NewBrowsingKeys(),
 		editingKeys:  NewEditingKeys(),
 		activeTab:    TabGeneral,
@@ -101,6 +105,7 @@ func WithTheme(theme *tui.Theme) ConfigModelOption {
 		if theme != nil {
 			m.theme = theme
 			m.helpOverlay = NewHelpOverlay(theme)
+			m.errorOverlay = NewErrorOverlay(nil, theme)
 		}
 	}
 }
@@ -162,6 +167,8 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleEditingKey(msg)
 	case StateHelp:
 		return m.handleHelpKey(msg)
+	case StateErrors:
+		return m.handleErrorsKey(msg)
 	}
 	return m, nil
 }
@@ -224,6 +231,51 @@ func (m *ConfigModel) handleEditingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleErrorsKey processes key presses in the errors overlay state.
+// up/down navigate the error list. enter jumps to the error's field.
+// esc closes the overlay.
+func (m *ConfigModel) handleErrorsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	action := m.errorOverlay.HandleKey(msg)
+	switch action {
+	case ErrorActionNone:
+		// Navigation handled internally by the overlay.
+	case ErrorActionClose:
+		m.state = StateBrowsing
+	case ErrorActionJump:
+		selected := m.errorOverlay.SelectedError()
+		m.activeTab = selected.Tab
+		m.state = StateBrowsing
+	}
+	return m, nil
+}
+
+// ShowErrorOverlay populates the error overlay with the given errors and
+// switches to the errors state. If errors is empty, this is a no-op.
+func (m *ConfigModel) ShowErrorOverlay(errs []ValidationError) {
+	if len(errs) == 0 {
+		return
+	}
+	m.errorOverlay.SetErrors(errs)
+	m.state = StateErrors
+	m.tabBadges = TabsWithErrors(errs)
+}
+
+// ClearValidationErrors clears all validation errors and badges.
+func (m *ConfigModel) ClearValidationErrors() {
+	m.errorOverlay.SetErrors(nil)
+	m.tabBadges = [tabCount]bool{}
+}
+
+// UpdateTabBadges recalculates tab badges from the given errors.
+func (m *ConfigModel) UpdateTabBadges(errs []ValidationError) {
+	m.tabBadges = TabsWithErrors(errs)
+}
+
+// ErrorOverlay returns the error overlay for external inspection.
+func (m *ConfigModel) ErrorOverlay() *ErrorOverlay {
+	return m.errorOverlay
+}
+
 // nextTab advances to the next tab, wrapping around.
 func (m *ConfigModel) nextTab() {
 	m.activeTab = SectionTab((int(m.activeTab) + 1) % tabCount)
@@ -243,6 +295,10 @@ func (m *ConfigModel) View() string {
 
 	if m.state == StateHelp {
 		return m.helpOverlay.View(m.width, m.height)
+	}
+
+	if m.state == StateErrors {
+		return m.errorOverlay.View(m.width, m.height)
 	}
 
 	var b strings.Builder
