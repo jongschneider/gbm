@@ -624,6 +624,13 @@ func (s *SectionModel) View() string {
 	return strings.Join(lines, "\n")
 }
 
+// RenderRow renders a single row from the given row list by index.
+// This is used by external callers (e.g., viewContentEditing) to render
+// individual rows when substituting the editing view for a specific field.
+func (s *SectionModel) RenderRow(rows []Row, idx int) string {
+	return s.renderVisibleRow(rows, idx)
+}
+
 // renderVisibleRow renders a single row from the given row list by index.
 func (s *SectionModel) renderVisibleRow(rows []Row, idx int) string {
 	r := rows[idx]

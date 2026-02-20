@@ -65,6 +65,12 @@ func (m *ConfigModel) initEmptySections() {
 		emptyMsg: "(no worktrees configured)",
 	})
 
+	// Build field rows for each tab.
+	m.buildFieldRows(TabGeneral, generalFields)
+	m.buildFieldRows(TabJira, jiraFields)
+	m.buildFieldRows(TabFileCopy, fileCopyAutoFields)
+	m.buildFieldRows(TabWorktrees, nil)
+
 	m.syncFocusedField()
 }
 
@@ -84,6 +90,12 @@ func (m *ConfigModel) InitSections() {
 	m.sections[TabJira] = m.buildSection(jiraFields, contentHeight, w, nil)
 	m.sections[TabFileCopy] = m.buildFileCopySection(contentHeight, w)
 	m.sections[TabWorktrees] = m.buildWorktreesSection(contentHeight, w)
+
+	// Build field rows for each tab, populating from the accessor.
+	m.buildFieldRows(TabGeneral, generalFields)
+	m.buildFieldRows(TabJira, jiraFields)
+	m.buildFieldRows(TabFileCopy, fileCopyAutoFields)
+	m.buildFieldRows(TabWorktrees, nil)
 
 	// Sync focused field from the initial section.
 	m.syncFocusedField()
@@ -150,6 +162,24 @@ func (m *ConfigModel) buildWorktreesSection(vpHeight, width int) *SectionModel {
 		entries:  entries,
 		emptyMsg: "(no worktrees configured)",
 	})
+}
+
+// buildFieldRows creates FieldRow instances for the given tab's fields and
+// populates their values from the accessor. The field rows are stored in
+// m.fieldRows[tab] parallel to the section's field metadata.
+func (m *ConfigModel) buildFieldRows(tab SectionTab, fields []FieldMeta) {
+	rows := make([]*FieldRow, len(fields))
+	for i, f := range fields {
+		fr := NewFieldRow(f, m.theme)
+		if m.accessor != nil {
+			val := m.accessor.GetValue(f.Key)
+			fr.SetValue(val)
+		}
+		// Sync dirty flag from the tracker.
+		fr.SetDirty(m.dirty.IsKeyDirty(f.Key))
+		rows[i] = fr
+	}
+	m.fieldRows[tab] = rows
 }
 
 // --- Value formatting helpers ---.

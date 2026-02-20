@@ -71,6 +71,8 @@ func (m *ConfigModel) viewTabBar() string {
 // viewContent renders the main content area for the active tab.
 // Delegates to the active section's View() method, falling back to
 // blank lines when the section is not initialized.
+// When editing, the focused field's row is replaced with the FieldRow's
+// inline editing view (text input + description + error).
 func (m *ConfigModel) viewContent() string {
 	contentHeight := max(m.height-4, 1)
 	section := m.activeSection()
@@ -80,7 +82,48 @@ func (m *ConfigModel) viewContent() string {
 	}
 	section.SetViewportHeight(contentHeight)
 	section.SetWidth(m.width)
+
+	// During editing, render the FieldRow's editing view for the focused row.
+	if m.state == StateEditing {
+		fr := m.activeFieldRow()
+		if fr != nil {
+			return m.viewContentEditing(section, fr, contentHeight)
+		}
+	}
+
 	return section.View()
+}
+
+// viewContentEditing renders the section with the focused field replaced by
+// the FieldRow's editing view (inline text input with description and error).
+func (m *ConfigModel) viewContentEditing(
+	section *SectionModel, fr *FieldRow, vpHeight int,
+) string {
+	rows := section.Rows()
+	if len(rows) == 0 {
+		return section.View()
+	}
+
+	focusIdx := section.FocusIndex()
+	scrollOff := section.ScrollOffset()
+
+	end := min(scrollOff+vpHeight, len(rows))
+
+	var lines []string
+	for i := scrollOff; i < end; i++ {
+		if i == focusIdx {
+			// Replace the focused field's line with the FieldRow editing view.
+			lines = append(lines, fr.View())
+		} else {
+			lines = append(lines, section.RenderRow(rows, i))
+		}
+	}
+
+	for len(lines) < vpHeight {
+		lines = append(lines, "")
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // viewStatusBar renders the status bar with dirty count, file status,

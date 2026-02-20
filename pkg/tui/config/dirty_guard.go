@@ -95,7 +95,9 @@ func (m *ConfigModel) handleResetConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	switch {
 	case key.Matches(msg, m.confirmKeys.Confirm):
 		// y: reset the field.
-		m.dirty.ResetKey(m.resetKey)
+		resetKey := m.resetKey
+		m.dirty.ResetKey(resetKey)
+		m.resetFieldRows(resetKey)
 		m.resetKey = ""
 		m.state = StateBrowsing
 		return m, nil
@@ -130,6 +132,7 @@ func (m *ConfigModel) handleResetAllConfirmKey(msg tea.KeyMsg) (tea.Model, tea.C
 	switch {
 	case key.Matches(msg, m.confirmKeys.Confirm):
 		m.dirty.ResetAll()
+		m.resetAllFieldRows()
 		m.state = StateBrowsing
 		return m, nil
 

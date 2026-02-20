@@ -46,6 +46,8 @@ const (
 	// StateResetAllConfirm is active when the reset-all confirmation
 	// overlay is displayed.
 	StateResetAllConfirm
+	// StateSearch is active when the search/filter bar is open.
+	StateSearch
 	// StateCorruptConfig is active when the config file has parse errors.
 	StateCorruptConfig
 )
@@ -87,6 +89,7 @@ type ConfigModel struct {
 	corruptConfig    *CorruptConfigState
 	dirty            *DirtyTracker
 	sections         [tabCount]*SectionModel
+	fieldRows        [tabCount][]*FieldRow
 	filePath         string
 	flashMessage     string
 	writeErrorMsg    string
@@ -94,6 +97,7 @@ type ConfigModel struct {
 	focusedFieldKey  string
 	browsingKeys     BrowsingKeyMap
 	editingKeys      EditingKeyMap
+	searchKeys       SearchKeyMap
 	confirmKeys      ConfirmationKeyMap
 	state            ModelState
 	focusedFieldType FieldType
@@ -116,6 +120,7 @@ func NewConfigModel(opts ...ConfigModelOption) *ConfigModel {
 		errorOverlay: NewErrorOverlay(nil, defaultTheme),
 		browsingKeys: NewBrowsingKeys(),
 		editingKeys:  NewEditingKeys(),
+		searchKeys:   NewSearchKeys(),
 		confirmKeys:  NewConfirmationKeys(),
 		activeTab:    TabGeneral,
 		state:        StateBrowsing,
@@ -247,6 +252,8 @@ func (m *ConfigModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleResetConfirmKey(msg)
 	case StateResetAllConfirm:
 		return m.handleResetAllConfirmKey(msg)
+	case StateSearch:
+		return m.handleSearchKey(msg)
 	case StateCorruptConfig:
 		return m.handleCorruptConfigKey(msg)
 	case StateSaving:
@@ -283,6 +290,9 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.browsingKeys.ResetAll):
 		return m.handleResetAll()
+
+	case key.Matches(msg, m.browsingKeys.Edit):
+		return m.handleEdit()
 
 	case key.Matches(msg, m.browsingKeys.Quit):
 		return m.handleQuit()
@@ -344,7 +354,7 @@ func (m *ConfigModel) handleBrowsingNavigation(msg tea.KeyMsg) (tea.Model, tea.C
 	case key.Matches(msg, m.browsingKeys.Search):
 		if s := m.activeSection(); s != nil {
 			s.OpenSearch()
-			// TODO: search state routing in a later task
+			m.state = StateSearch
 		}
 		return m, nil
 	}
@@ -368,20 +378,38 @@ func (m *ConfigModel) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *ConfigModel) handleEditingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.editingKeys.Cancel):
+		m.cancelEdit()
 		m.state = StateBrowsing
 		return m, nil
 
 	case key.Matches(msg, m.editingKeys.Confirm):
-		m.state = StateBrowsing
+		fr := m.activeFieldRow()
+		if fr == nil || fr.State() != FieldEditing {
+			// No active field row or not actually editing -- bail to browsing.
+			m.state = StateBrowsing
+			return m, nil
+		}
+		if m.commitEdit() {
+			m.state = StateBrowsing
+		}
+		// If commit failed (validation), stay in editing.
 		return m, nil
 
 	case key.Matches(msg, m.editingKeys.ForceQuit):
 		// First ctrl-c during editing cancels the edit.
+		m.cancelEdit()
 		m.state = StateBrowsing
 		return m, nil
-	}
 
-	return m, nil
+	default:
+		// Forward to the text input so typing works.
+		fr := m.activeFieldRow()
+		if fr == nil {
+			return m, nil
+		}
+		cmd := fr.UpdateInput(msg)
+		return m, cmd
+	}
 }
 
 // handleErrorsKey processes key presses in the errors overlay state.
