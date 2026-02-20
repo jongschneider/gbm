@@ -33,31 +33,6 @@ type Field interface {
 	GetValue() any
 }
 
-// FocusReporter is an optional interface that forms can implement to report
-// the Y position of the currently focused field. This enables auto-scrolling
-// in viewport containers.
-type FocusReporter interface {
-	// FocusedYOffset returns the line number (0-indexed) where the focused
-	// field starts in the rendered View() output.
-	FocusedYOffset() int
-}
-
-// Validator is an optional interface that config forms implement to validate
-// their fields. Returns a list of human-readable error strings, one per failed
-// validation. An empty slice means the form is valid.
-// Defined in pkg/tui to avoid import cycles between pkg/tui and pkg/tui/config.
-type Validator interface {
-	Validate() []string
-}
-
-// Flusher is an optional interface that config forms implement to flush
-// current field values into the shared ConfigState. This copies in-progress
-// edits without triggering onSave callbacks.
-// Defined in pkg/tui to avoid import cycles between pkg/tui and pkg/tui/config.
-type Flusher interface {
-	FlushToState(state *ConfigState)
-}
-
 // NextStepMsg signals that the current field is complete and the wizard should advance.
 type NextStepMsg struct{}
 

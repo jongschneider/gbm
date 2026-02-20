@@ -43,7 +43,6 @@ notifications when configurations drift out of sync.`,
 	rootCmd.AddCommand(newCloneCommand(svc))
 	rootCmd.AddCommand(newWorktreeCommand(svc))
 	rootCmd.AddCommand(newSyncCommand(svc))
-	rootCmd.AddCommand(newConfigCommand(svc))
 	rootCmd.AddCommand(newShellIntegrationCommand())
 
 	// Add completion command for shell completions

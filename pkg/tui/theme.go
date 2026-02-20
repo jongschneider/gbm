@@ -25,9 +25,6 @@ type Theme struct {
 	Blurred FieldStyles
 	Table   TableStyles
 
-	// Style for selected sidebar item when sidebar doesn't have focus
-	SidebarSelectedBlurred lipgloss.Style
-
 	// Adaptive colors for use by overlays and other components
 	Accent        lipgloss.AdaptiveColor // Primary accent (e.g., titles)
 	Muted         lipgloss.AdaptiveColor // Muted text (e.g., descriptions)
@@ -73,10 +70,6 @@ func DefaultTheme() *Theme {
 		InputFg:       inputFg,
 		BlurredMuted:  blurredMuted,
 		Cursor:        cursor,
-
-		// Style for selected sidebar item when sidebar doesn't have focus
-		// Uses muted accent color to indicate selection without focus
-		SidebarSelectedBlurred: lipgloss.NewStyle().Foreground(muted).Bold(true),
 
 		Focused: FieldStyles{
 			// Bright, bold styles for focused fields

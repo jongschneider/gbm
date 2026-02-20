@@ -101,7 +101,10 @@ A **tabbed section view** where each tab shows a scrollable form for one config 
 ```
 
 The footer shows only the 3-4 most relevant keybindings for the current
-state. Press `?` to open a full keybinding reference overlay.
+state, with **field-type-aware verbs**: when a bool is focused the footer
+shows `e toggle`, when a string is focused it shows `e edit`, when a list
+is focused it shows `e open`. Press `?` to open a full keybinding
+reference overlay.
 
 ### JIRA Tab (with sub-groups)
 
@@ -112,18 +115,18 @@ state. Press `?` to open a full keybinding reference overlay.
 |                                                                        |
 |  -- Connection -----------------------------------------               |
 |  Host              https://jira.example.com                            |
-|  Me                user@example.com                                    |
+|  Username          user@example.com                                    |
 |                                                                        |
 |  -- Filters --------------------------------------------               |
 |  Priority          High                                                |
 |  Type              Bug                                                 |
 |  Component         Backend                                             |
-|  Reporter          (empty)                                             |
-|  Assignee          (empty)                                             |
+|  Reporter          --                                                  |
+|  Assignee          --                                                  |
 |  Order By          priority                                            |
 |  Status            In Dev., Open                                       |
 |  Labels            backend                                             |
-|  Custom Args       (empty)                                             |
+|  Custom Args       --                                                  |
 |  Reverse           no                                                  |
 |                                                                        |
 |  -- Markdown -------------------------------------------               |
@@ -143,7 +146,7 @@ state. Press `?` to open a full keybinding reference overlay.
 |  Retry Backoff     1000ms                                              |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  tab/S-tab section . up/dn navigate . ? help . s save                  |
+|  tab/S-tab section . {/} groups . up/dn navigate . ? help . s save     |
 +------------------------------------------------------------------------+
 ```
 
@@ -174,11 +177,11 @@ Groups within a tab are visual-only separators. `up`/`dn` skips over them
 |    2. develop -> .vscode/settings.json                                 |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  a add rule . d delete . enter edit . ? help                           |
+|  a add rule . d delete . e open . ? help                               |
 +------------------------------------------------------------------------+
 ```
 
-Rules are focusable rows. `enter` opens a rule editor overlay (see
+Rules are focusable rows. `e` opens a rule editor overlay (see
 example 9). `a` adds a new rule. `d` deletes the focused rule (with
 confirmation). If no rules exist, the section shows:
 
@@ -205,7 +208,7 @@ Long rule summaries are truncated with a count:
 |    3. bugfix/login -> branch: bugfix/login, merge: main               |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  a add . d delete . enter edit . ? help                                |
+|  a add . d delete . e open . ? help                                    |
 +------------------------------------------------------------------------+
 ```
 
@@ -213,7 +216,7 @@ Worktrees display as a list of entries, one per line. Each entry shows the
 worktree name, branch, and merge target. The map key (worktree name) is
 the primary identifier.
 
-Worktree entries are focusable rows. `enter` opens a worktree editor
+Worktree entries are focusable rows. `e` opens a worktree editor
 overlay (see example 17). `a` adds a new worktree entry. `d` deletes the
 focused entry (with `y/n` confirmation). If no worktrees exist, the
 section shows:
@@ -244,7 +247,7 @@ The `>` marker shows which field has focus.
 |                                                                        |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  tab/S-tab section . up/dn navigate . ? help . s save                  |
+|  tab/S-tab . up/dn navigate . e edit . ? help . enter save & quit      |
 +------------------------------------------------------------------------+
 ```
 
@@ -264,7 +267,7 @@ Nothing opens, nothing changes. Just the cursor moves.
 |                                                                        |
 ```
 
-### 3. Pressing `enter` on a string field -- inline editing
+### 3. Pressing `e` on a string field -- inline editing
 
 The value becomes an editable text input. The cursor blinks inside.
 A description hint appears below if the field has one.
@@ -296,7 +299,7 @@ to indicate it's been modified (dirty).
 |  > Worktrees Dir     * ../{gitroot}-wt                                 |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  [1 modified] tab/S-tab . up/dn navigate . ? help . s save            |
+|  [1 modified] tab/S-tab . up/dn . e edit . ? help . enter save & quit |
 +------------------------------------------------------------------------+
 ```
 
@@ -314,24 +317,25 @@ The input closes, the original value is restored, no dirty marker.
 |                                                                        |
 ```
 
-### 6. Pressing `enter` on a bool field -- immediate toggle
+### 6. Pressing `e` on a bool field -- immediate toggle
 
 No text input opens. The value flips instantly and the field stays focused.
-Boolean values are colored: green (`SuccessAccent`) for `yes`, red
-(`ErrorAccent`) for `no` when focused. Muted/gray when unfocused. This
-follows the Surge `fields/confirm.go` pattern.
+Boolean values display `yes` in **bold** and `no` in dim/faint. Color
+is applied as an additional signal (green for `yes`, red for `no`) but
+is not the sole differentiator -- this ensures readability for colorblind
+users and monochrome terminals.
 
 Before:
 ```
 |  > Enabled             yes                                             |
 ```
 
-After pressing `enter`:
+After pressing `e`:
 ```
 |  > Enabled           * no                                              |
 ```
 
-Press `enter` again to flip it back.
+Press `e` again to flip it back.
 
 ### 7. Pressing `tab` -- switch to the next section tab
 
@@ -353,7 +357,7 @@ After pressing `tab` (JIRA tab):
 |                                                                        |
 |  -- Connection -----------------------------------------               |
 |  > Host                https://jira.example.com                        |
-|    Me                  user@example.com                                |
+|    Username            user@example.com                                |
 |                                                                        |
 |  -- Filters --------------------------------------------               |
 |    Priority            High                                            |
@@ -362,11 +366,12 @@ After pressing `tab` (JIRA tab):
 |    ...                                                          3/24   |
 ```
 
-### 8. Pressing `enter` on a string list field -- list overlay
+### 8. Pressing `e` on a string list field -- list overlay
 
-The form dims behind and a centered overlay appears. The overlay title
-includes the breadcrumb path (e.g., `JIRA > Filters > Status`). The
-overlay has its own cursor for selecting items.
+The form dims behind and a centered overlay appears. Pressing `e` on a
+field that holds a list opens the overlay. The overlay title includes the
+breadcrumb path (e.g., `JIRA > Filters > Status`). The overlay has its
+own cursor for selecting items.
 
 ```
 +-- gbm config ----------------------------------------------------------+
@@ -394,9 +399,10 @@ Inside the overlay:
 - `a` opens a text input to add a new item (type value, press `enter` to confirm the add)
 - `d` deletes the selected item (with confirmation: `Delete "X"? y/n`)
 - `enter` commits all changes and closes the overlay
-- `esc` cancels and discards all changes made in this overlay session
+- `esc` prompts "Discard N changes? y/n" if changes were made, then closes.
+  If no changes were made, `esc` closes immediately.
 
-### 9. Pressing `enter` on a rule -- rule editor overlay
+### 9. Pressing `e` on a rule -- rule editor overlay
 
 Rules have a `source_worktree` and a `files` list. The rule editor
 is an overlay with two fields: a string field for the source worktree
@@ -516,6 +522,11 @@ a badge indicator (e.g., `General (!)`, `JIRA (!)`). Badges persist until
 the corresponding errors are fixed, then clear automatically. This gives
 persistent visual feedback about which sections need attention.
 
+Additionally, individual fields that failed validation show an inline
+error marker (red indicator + error text below the field label). These
+markers persist until the field value is corrected, providing field-level
+feedback alongside the tab-level badges.
+
 #### Write failure handling
 
 If validation passes but the file write fails (disk full, permission
@@ -618,11 +629,11 @@ Rules display as a summary list. Each rule is one focusable line showing
 |                                                                        |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  a add rule . d delete . enter edit . ? help                           |
+|  a add rule . d delete . e open . ? help                               |
 +------------------------------------------------------------------------+
 ```
 
-When the cursor is on a rule, `enter` opens the rule editor overlay
+When the cursor is on a rule, `e` opens the rule editor overlay
 (shown in example 9) with source worktree and files fields. `a` adds
 a blank new rule. `d` deletes the focused rule (with confirmation:
 `Delete rule "main"? y/n`).
@@ -640,24 +651,27 @@ placeholder instead of a wall of empty fields.
 |                                                                        |
 |         JIRA integration is not configured.                            |
 |                                                                        |
-|         Press enter to set up, or skip this tab.                       |
+|         Press e to set up, or skip this tab.                           |
 |                                                                        |
 |                                                                        |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  tab/S-tab section . enter set up . q quit                             |
+|  tab/S-tab section . e set up . q quit                                 |
 +------------------------------------------------------------------------+
 ```
 
-Pressing `enter` populates the section with all fields (empty/default)
+Pressing `e` populates the section with all fields (empty/default)
 and focuses the first one.
 
-Once configured, optional sections (JIRA, File Copy) have an "Enabled"
-toggle as a conceptual first field. When the "Enabled" toggle is set to
-`no`, the remaining fields in that section are hidden and the entire
-section is omitted from the saved YAML. When toggled back to `yes`, all
-fields reappear with their previous values. This provides a way to
-un-configure a section without deleting field values.
+Once configured, optional sections (JIRA) have an "Enabled" toggle as a
+conceptual first field. When the "Enabled" toggle is set to `no`, the
+remaining fields in that section are hidden and the entire section is
+omitted from the saved YAML. When toggled back to `yes` within the same
+session, fields reappear with their previous in-memory values.
+
+**Lifecycle across save/reload:** This is lossy. Toggling off + saving
+removes the section from YAML entirely. Reloading after save shows the
+empty placeholder again. Values are not preserved on disk when disabled.
 
 ### 16. Pressing `/` to search fields
 
@@ -673,7 +687,7 @@ Before (full JIRA tab):
 +------------------------------------------------------------------------+
 |  -- Connection -----------------------------------------               |
 |  > Host              https://jira.example.com                          |
-|    Me                user@example.com                                  |
+|    Username          user@example.com                                  |
 |  -- Filters --------------------------------------------               |
 |    Priority          High                                              |
 |    ...                                                                 |
@@ -693,7 +707,7 @@ After pressing `/` and typing `attach`:
 |    ...                                                          1/2    |
 |                                                                        |
 +------------------------------------------------------------------------+
-|  esc clear search . up/dn navigate . enter edit                        |
+|  esc clear search . up/dn navigate . e edit                            |
 +------------------------------------------------------------------------+
 ```
 
@@ -701,7 +715,7 @@ Only fields matching "attach" are shown. Groups without matches
 (Connection, Filters) are hidden. The position indicator reflects the
 filtered count.
 
-### 17. Pressing `enter` on a worktree entry -- worktree editor overlay
+### 17. Pressing `e` on a worktree entry -- worktree editor overlay
 
 Worktree entries are edited via an overlay, similar to the rule editor
 (example 9). The overlay has three fields: Branch (string), Merge Into
@@ -733,7 +747,39 @@ Worktree entries are edited via an overlay, similar to the rule editor
 
 When adding a new worktree (`a`), a text input first prompts for the
 worktree name (the map key), then opens the editor overlay with empty
-fields.
+fields. Worktree names are validated on add: duplicates and invalid
+characters (whitespace, null bytes -- anything git disallows in branch
+names) are rejected with an inline error.
+
+Worktree names can be renamed after creation via `r` in the worktree
+editor overlay, which opens a text input to change the map key.
+
+### 18. Corrupt or unparseable config file
+
+If `.gbm/config.yaml` exists but contains invalid YAML (syntax error,
+wrong types, truncated file), the TUI opens with an error banner and
+offers to open the raw file in `$EDITOR` for manual fixing.
+
+```
++-- gbm config ----------------------------------------------------------+
+|                                                                        |
+|                                                                        |
+|    Config file has errors:                                             |
+|                                                                        |
+|    .gbm/config.yaml:12: did not find expected key                     |
+|                                                                        |
+|    The file cannot be loaded into the editor.                          |
+|    Press e to open in $EDITOR, or q to quit.                          |
+|                                                                        |
+|                                                                        |
++------------------------------------------------------------------------+
+|  e open in $EDITOR . q quit                                            |
++------------------------------------------------------------------------+
+```
+
+After the user fixes the file in `$EDITOR` and exits, the TUI attempts
+to reload. If parsing succeeds, the normal editing view appears. If it
+still fails, the error banner is shown again with the updated error.
 
 ---
 
@@ -754,12 +800,14 @@ Two confirmation styles are used, chosen by the scope of the action:
 
 - **Inline `y/n` confirmation** -- for single-field or single-item actions: reset field (`r`),
   delete rule (`d`), delete worktree entry (`d`). A prompt appears directly below the focused
-  item. Press `y` to confirm, `n` or `esc` to cancel.
+  item. Press `y` to confirm, `n` or `esc` to cancel. When inside an overlay, the confirmation
+  appears within the overlay body, not on the main form beneath.
 
 - **Overlay confirmation** -- for multi-field or global actions: quit with unsaved changes (`q`),
-  reset all fields (`R`), external change overwrite (during save). A centered modal overlay
-  appears with buttons (e.g., `[Save & Quit]  Discard  Cancel`). Arrow keys or tab to
-  select, `enter` to confirm, `esc` to cancel.
+  reset all fields (`R`), external change overwrite (during save), discard list overlay changes
+  (`esc` with pending changes). A centered modal overlay appears with buttons (e.g.,
+  `[Save & Quit]  Discard  Cancel`). Arrow keys or tab to select, `enter` to confirm,
+  `esc` to cancel.
 
 ### Field Types
 
@@ -768,7 +816,7 @@ Two confirmation styles are used, chosen by the scope of the action:
 | `string` | value text | inline text input |
 | `sensitive_string` | `********` when unfocused, revealed on focus | inline text input |
 | `int` | numeric value | inline text input with numeric validation |
-| `bool` | colored `yes` / `no` (green/red) | toggle on enter (no text input needed) |
+| `bool` | **bold** `yes` / dim `no` (+ green/red color) | toggle on `e` (no text input needed) |
 | `string_list` | comma-separated preview | overlay for list editing |
 | `object_list` | summary line per item | overlay for item editing |
 
@@ -809,7 +857,7 @@ ConfigModel (root)
 |   |   |                                   +------------------+
 |   |   |
 |   |   |  EDITING state (bool):
-|   |   |  no text input -- toggles value on enter, colored yes/no
+|   |   |  no text input -- toggles value on `e`, bold yes / dim no + color
 |   |   |
 |   |   +-- ListOverlay   (string_list / object_list fields)
 |   |       renders:       centered modal over dimmed form
@@ -817,19 +865,21 @@ ConfigModel (root)
 |   |
 |   +-- EntryList        (Worktrees tab, File Copy rules)
 |       renders:          summary rows (name -> branch, merge)
-|       keys:             a add, d delete, enter edit overlay
+|       keys:             a add, d delete, e edit overlay
 |
 +-- SearchFilter        (activated by /, filters fields by label text)
 |   renders:            / search bar at top of section
 |   keys:              type to filter, esc to clear and close
 |
 +-- HelpOverlay         (activated by ?)
-|   renders:            full keybinding reference grouped by context
+|   renders:            full keybinding reference; primary keys in main section,
+|                       vim aliases (j/k, g/G, {/}) in separate "Shortcuts" section
 |   keys:              ? or esc to close
 |
 +-- StatusBar
-    renders:   [N modified] tab/S-tab . up/dn . ? help . s save
+    renders:   [N modified] tab/S-tab . up/dn . e edit . ? help . enter save & quit
     changes:   keybindings shown depend on current state (top 3-4 only)
+               footer verb changes by focused field type: e edit / e toggle / e open
     shows:     [new file] when no config exists on disk
 ```
 
@@ -843,8 +893,8 @@ The state determines which keys are active and what the view looks like.
                          |    +----------+    |
                          +--->| Browsing |<---+
                               +----+-----+
-                     enter on      |       enter on
-                     string/int    |       bool
+                       e on        |         e on
+                     string/int    |         bool
                          +---------+----------+
                          |                    |
                          v                    v
@@ -867,23 +917,23 @@ The state determines which keys are active and what the view looks like.
               +-->| Browsing |<------------------------+
               |   +-+-+-+-+-++                         |
               |    | | | | |                           |
-          esc |  s | |q | | ?           /              |
-              |    | |  | |                            |
-              |    v |  v v                            |
-              |+------+|+----------------+             |
-              ||Saving||| Quit Guard     |             |
-              |+--+---+|| (if dirty)     |             |
-              |   |    |+---+-------+----+             |
-              |   |    |    |       |                   |
-              |   v    |save+quit  discard              |
-              |validate|    |       |                   |
-              |   |    |    v       v                   |
-              |   +-ok-+-> write --> exit               |
-              |   |    |                                |
-              |   +-err-+-> errors overlay              |
-              |        |   up/dn select error           |
-              |        |   enter -> jump to field ------+
-              +--------+   esc -> close ----------------+
+          esc |  s | |q | | ?    /    enter             |
+              |    | |  | |            |               |
+              |    v |  v v            v               |
+              |+------+|+----------------+ +---------+ |
+              ||Saving||| Quit Guard     | |Save&Quit| |
+              |+--+---+|| (if dirty)     | |(guard)  | |
+              |   |    |+---+-------+----+ +----+----+ |
+              |   |    |    |       |           |      |
+              |   v    |save+quit  discard  validate   |
+              |validate|    |       |           |      |
+              |   |    |    v       v       +---+---+  |
+              |   +-ok-+-> write --> exit   |ok: w+q|  |
+              |   |    |                    |err:ovl|--+
+              |   +-err-+-> errors overlay  +-------+  |
+              |        |   up/dn select error          |
+              |        |   enter -> jump to field -----+
+              +--------+   esc -> close ---------------+
 
 
     Browsing --?--> +----------+ --?/esc--> Browsing
@@ -898,7 +948,7 @@ The state determines which keys are active and what the view looks like.
                     | filter   |
                     +----------+
 
-    enter on
+    e on
     string_list
          |
          v
@@ -913,7 +963,8 @@ The state determines which keys are active and what the view looks like.
          |
          +-- enter ---- (confirm, persist changes)
          |
-         +-- esc ------ (cancel, discard changes)
+         +-- esc ------ (if changes: "Discard N changes? y/n")
+         |               (if no changes: close immediately)
          |
          v
     +----------+
@@ -937,7 +988,6 @@ type FieldMeta struct {
     Type        FieldType     // String, SensitiveString, Int, Bool, StringList, ObjectList
     Group       string        // visual group: "Connection", "Filters", etc.
     Description string        // hint text shown below field when editing
-    Default     any           // default value for reset
     Validate    func(any) error // field-level validation (optional)
 }
 ```
@@ -958,7 +1008,7 @@ var generalFields = []FieldMeta{
 var jiraFields = []FieldMeta{
     // Connection
     {Key: "jira.host", Label: "Host", Type: String, Group: "Connection"},
-    {Key: "jira.me", Label: "Me", Type: String, Group: "Connection"},
+    {Key: "jira.me", Label: "Username", Type: String, Group: "Connection"},
     // Filters
     {Key: "jira.filters.priority", Label: "Priority", Type: String, Group: "Filters"},
     {Key: "jira.filters.type", Label: "Type", Type: String, Group: "Filters"},
@@ -1038,7 +1088,8 @@ Two levels:
 | Browsing | `up` / `dn` / `j` / `k` | navigate fields |
 | Browsing | `{` / `}` | jump to prev/next group header |
 | Browsing | `g` / `G` | jump to first/last field |
-| Browsing | `enter` | edit field (or toggle bool) |
+| Browsing | `e` | edit field (or toggle bool) |
+| Browsing | `enter` | save & quit (with validation + dirty guard) |
 | Browsing | `s` | save config |
 | Browsing | `r` | reset field to last-saved value (confirm if dirty) |
 | Browsing | `R` | reset all fields to last-saved values (confirm overlay) |
@@ -1046,20 +1097,23 @@ Two levels:
 | Browsing | `?` | open help overlay |
 | Browsing | `a` | add entry (File Copy rules / Worktrees context) |
 | Browsing | `d` | delete entry (File Copy rules / Worktrees context, with confirmation) |
-| Browsing | `q` / `ctrl-c` | quit (with dirty guard) |
+| Browsing | `q` | quit (with dirty guard) |
+| Browsing | `ctrl-c` | quit (with dirty guard; during editing, first cancels the edit) |
 | Editing | `enter` | commit edit |
 | Editing | `esc` | cancel edit |
+| Editing | `ctrl-c` | cancel edit (same as `esc`; second `ctrl-c` triggers quit guard) |
 | Editing | `tab` / `shift-tab` | (ignored -- no-op) |
 | Editing | `ctrl-z` | undo within text input (Bubble Tea native) |
 | Search | _(type)_ | filter fields by label text |
 | Search | `esc` | clear filter and close search |
 | List overlay | `up` / `dn` | select item |
 | List overlay | `a` | add new item (opens text input) |
-| List overlay | `d` | delete selected item (with confirmation) |
+| List overlay | `d` | delete selected item (with confirmation inside overlay) |
 | List overlay | `enter` | confirm and persist changes |
-| List overlay | `esc` | cancel and discard changes |
+| List overlay | `esc` | discard changes (confirms first if changes were made) |
 | Editor overlay | `up` / `dn` | navigate fields |
 | Editor overlay | `e` | edit focused field |
+| Editor overlay | `r` | rename entry (Worktrees overlay only) |
 | Editor overlay | `enter` | confirm and close overlay |
 | Editor overlay | `esc` | cancel and discard changes |
 | Help overlay | `?` / `esc` | close help |
@@ -1083,6 +1137,7 @@ Two levels:
 - **Grouped fields within tabs** -- visual separators for sub-sections (Surge uses separate tabs for everything)
 - **List/object editing overlays** -- Surge doesn't have array-typed config values
 - **Edit-in-place** -- field becomes editable inline rather than a separate input modal
+- **Consistent `e`/`enter` model** -- `e` always means "dive in / edit", `enter` always means "confirm / done at this level" across browsing, overlays, and editing. `enter` in browsing triggers save-and-quit (form submit)
 - **Dirty tracking with per-field count** -- Surge saves on close; we show `[N modified]` and list changed fields
 - **Validation at two levels** -- field-level on edit, cross-field on save (with jump-to-error navigation)
 - **YAML comment preservation** -- uses `go-yaml/yaml.v3` node API to read/write, keeping user comments intact
@@ -1118,7 +1173,7 @@ pkg/tui/config/
 
 ## Resolved Questions
 
-1. **Empty optional sections show a placeholder.** If JIRA isn't configured, show "JIRA integration is not configured. Press enter to set up." Pressing enter populates with all fields at defaults.
+1. **Empty optional sections show a placeholder.** If JIRA isn't configured, show "JIRA integration is not configured. Press e to set up." Pressing `e` populates with all fields at defaults.
 
 2. **Config file comments are preserved.** Use `go-yaml/yaml.v3` node-based API. Read into `yaml.Node` tree, modify values in-place, write back. User comments survive TUI edits.
 
@@ -1127,6 +1182,16 @@ pkg/tui/config/
 4. **Create mode on first run.** `gbm config` with no `.gbm/config.yaml` creates a default config in memory using detected values (`getDefaultBranch()`, `worktrees_dir: worktrees`). Saving creates the file. Status bar shows `[new file]`.
 
 5. **Unknown YAML keys are preserved on save.** Config keys not represented in the TUI (e.g., `remotes:`, future fields from newer versions) must survive a save round-trip. This constrains the implementation to node-level YAML manipulation -- never unmarshal into a struct and re-marshal, as that would drop unknown keys.
+
+6. **Corrupt config files show an error banner.** If `.gbm/config.yaml` exists but has invalid YAML, the TUI shows the parse error and offers to open the file in `$EDITOR`. The TUI does not silently discard the corrupt file or load defaults over it. See walkthrough example 18.
+
+7. **`e` is the universal edit key; `enter` means "confirm/done" at every level.** In browsing mode, `e` edits the focused field. `enter` triggers save-and-quit with full validation and dirty guard. In overlays, `e` edits a field and `enter` confirms/closes the overlay. This eliminates the `enter`/`e` inconsistency across nesting levels.
+
+8. **`ctrl-c` is two-step during editing.** First `ctrl-c` cancels the current edit (same as `esc`). Second `ctrl-c` triggers the quit guard. This prevents the surprising double-action of discarding an edit and prompting to quit simultaneously.
+
+9. **Enabled toggle is lossy across save/reload.** Toggling an optional section's Enabled to `no` + saving removes the section from YAML entirely. Reloading shows the empty placeholder. In-memory retention within a single session is fine, but values are not preserved on disk when disabled.
+
+10. **Empty/unset values display as `--` everywhere.** Consistent short representation for all empty fields and entry summaries.
 
 ## Out of Scope (v1)
 
