@@ -86,6 +86,7 @@ type ConfigModel struct {
 	root             *yaml.Node
 	corruptConfig    *CorruptConfigState
 	dirty            *DirtyTracker
+	sections         [tabCount]*SectionModel
 	filePath         string
 	flashMessage     string
 	writeErrorMsg    string
@@ -122,6 +123,10 @@ func NewConfigModel(opts ...ConfigModelOption) *ConfigModel {
 	for _, opt := range opts {
 		opt(m)
 	}
+	// Always initialize sections so the model has renderable content.
+	// InitSections() can be called again after construction to populate
+	// field values from an accessor.
+	m.initEmptySections()
 	return m
 }
 
@@ -195,6 +200,13 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		contentHeight := max(m.height-4, 1)
+		for _, s := range m.sections {
+			if s != nil {
+				s.SetViewportHeight(contentHeight)
+				s.SetWidth(m.width)
+			}
+		}
 		return m, nil
 
 	case flashClearMsg:
@@ -277,6 +289,64 @@ func (m *ConfigModel) handleBrowsingKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.browsingKeys.ForceQuit):
 		return m.handleQuit()
+	}
+
+	return m.handleBrowsingNavigation(msg)
+}
+
+// handleBrowsingNavigation handles navigation keys (up/down, groups, first/last,
+// search) in browsing state. Extracted from handleBrowsingKey to keep cyclomatic
+// complexity manageable.
+func (m *ConfigModel) handleBrowsingNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.browsingKeys.Down):
+		if s := m.activeSection(); s != nil {
+			s.MoveFocusDown()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.Up):
+		if s := m.activeSection(); s != nil {
+			s.MoveFocusUp()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.NextGroup):
+		if s := m.activeSection(); s != nil {
+			s.JumpToNextGroup()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.PrevGroup):
+		if s := m.activeSection(); s != nil {
+			s.JumpToPrevGroup()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.First):
+		if s := m.activeSection(); s != nil {
+			s.JumpToFirst()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.Last):
+		if s := m.activeSection(); s != nil {
+			s.JumpToLast()
+			m.syncFocusedField()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.browsingKeys.Search):
+		if s := m.activeSection(); s != nil {
+			s.OpenSearch()
+			// TODO: search state routing in a later task
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -449,11 +519,13 @@ func (m *ConfigModel) ErrorOverlay() *ErrorOverlay {
 // nextTab advances to the next tab, wrapping around.
 func (m *ConfigModel) nextTab() {
 	m.activeTab = SectionTab((int(m.activeTab) + 1) % tabCount)
+	m.syncFocusedField()
 }
 
 // prevTab moves to the previous tab, wrapping around.
 func (m *ConfigModel) prevTab() {
 	m.activeTab = SectionTab((int(m.activeTab) + tabCount - 1) % tabCount)
+	m.syncFocusedField()
 }
 
 // View implements tea.Model. It renders the tab bar, section content area,
@@ -576,3 +648,6 @@ func (m *ConfigModel) ModTime() time.Time {
 func (m *ConfigModel) SetModTime(t time.Time) {
 	m.modTime = t
 }
+
+// Section wiring, initialization, and formatting helpers are in
+// model_sections.go to keep this file under the line limit.

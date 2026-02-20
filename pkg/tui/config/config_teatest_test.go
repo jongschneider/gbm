@@ -431,18 +431,18 @@ func TestTeatest_ConfigModel_TabContentUpdatesOnSwitch(t *testing.T) {
 		tm.Quit()
 	})
 
-	// Wait for General tab content.
+	// Wait for General tab content (field labels from section).
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("General section content"))
+		return bytes.Contains(bts, []byte("Default Branch"))
 	}, teatest.WithDuration(time.Second))
 
 	// Switch to JIRA tab.
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	waitFor(t, func() bool { return m.ActiveTab() == TabJira }, time.Second)
 
-	// Wait for JIRA content to appear.
+	// Wait for JIRA content to appear (group headers from section).
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("JIRA section content"))
+		return bytes.Contains(bts, []byte("Connection"))
 	}, teatest.WithDuration(time.Second))
 
 	// Switch to File Copy tab.
@@ -450,7 +450,7 @@ func TestTeatest_ConfigModel_TabContentUpdatesOnSwitch(t *testing.T) {
 	waitFor(t, func() bool { return m.ActiveTab() == TabFileCopy }, time.Second)
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("File Copy section content"))
+		return bytes.Contains(bts, []byte("Auto Copy"))
 	}, teatest.WithDuration(time.Second))
 
 	// Switch to Worktrees tab.
@@ -458,7 +458,7 @@ func TestTeatest_ConfigModel_TabContentUpdatesOnSwitch(t *testing.T) {
 	waitFor(t, func() bool { return m.ActiveTab() == TabWorktrees }, time.Second)
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("Worktrees section content"))
+		return bytes.Contains(bts, []byte("Worktrees"))
 	}, teatest.WithDuration(time.Second))
 
 	// Quit

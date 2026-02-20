@@ -580,10 +580,12 @@ func TestDirtyKeysToLabels(t *testing.T) {
 
 func TestSetFocusedFieldKey(t *testing.T) {
 	m := NewConfigModel()
-	assert.Empty(t, m.FocusedFieldKey())
-
-	m.SetFocusedFieldKey("default_branch")
+	// After construction, sections are initialized and the first field is
+	// focused, so focusedFieldKey is "default_branch".
 	assert.Equal(t, "default_branch", m.FocusedFieldKey())
+
+	m.SetFocusedFieldKey("worktrees_dir")
+	assert.Equal(t, "worktrees_dir", m.FocusedFieldKey())
 
 	m.SetFocusedFieldKey("")
 	assert.Empty(t, m.FocusedFieldKey())

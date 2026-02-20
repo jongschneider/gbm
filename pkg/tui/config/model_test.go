@@ -530,10 +530,10 @@ func TestConfigModel_ContentShowsActiveTab(t *testing.T) {
 		expected string
 		tab      SectionTab
 	}{
-		{name: "general tab content", tab: TabGeneral, expected: "General section content"},
-		{name: "jira tab content", tab: TabJira, expected: "JIRA section content"},
-		{name: "file copy tab content", tab: TabFileCopy, expected: "File Copy section content"},
-		{name: "worktrees tab content", tab: TabWorktrees, expected: "Worktrees section content"},
+		{name: "general tab shows field labels", tab: TabGeneral, expected: "Default Branch"},
+		{name: "jira tab shows group headers", tab: TabJira, expected: "Connection"},
+		{name: "file copy tab shows auto-copy fields", tab: TabFileCopy, expected: "Auto Copy"},
+		{name: "worktrees tab shows entry list", tab: TabWorktrees, expected: "Worktrees"},
 	}
 
 	for _, tc := range testCases {

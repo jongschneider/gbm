@@ -69,23 +69,18 @@ func (m *ConfigModel) viewTabBar() string {
 }
 
 // viewContent renders the main content area for the active tab.
-// This is a placeholder that will be replaced by SectionModel rendering
-// in a future ticket.
+// Delegates to the active section's View() method, falling back to
+// blank lines when the section is not initialized.
 func (m *ConfigModel) viewContent() string {
-	// Calculate available height: total height minus tab bar (2 lines) minus
-	// status bar (2 lines: separator + content).
 	contentHeight := max(m.height-4, 1)
-
-	label := tabLabels[m.activeTab]
-	placeholder := fmt.Sprintf("  %s section content", label)
-
-	// Pad to fill the content area.
-	lines := make([]string, contentHeight)
-	lines[0] = placeholder
-	for i := 1; i < contentHeight; i++ {
-		lines[i] = ""
+	section := m.activeSection()
+	if section == nil {
+		// Fallback for uninitialized state.
+		return strings.Repeat("\n", contentHeight)
 	}
-	return strings.Join(lines, "\n")
+	section.SetViewportHeight(contentHeight)
+	section.SetWidth(m.width)
+	return section.View()
 }
 
 // viewStatusBar renders the status bar with dirty count, file status,
