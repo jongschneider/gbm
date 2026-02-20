@@ -74,6 +74,8 @@ type SectionModel struct {
 	fields       []FieldMeta
 	entries      []string
 
+	emptyState *EmptyState
+
 	focusIndex     int
 	scrollOffset   int
 	viewportHeight int
@@ -119,6 +121,13 @@ func WithEntryList(label string, entries []string, emptyMsg string) SectionOptio
 		s.entries = entries
 		s.emptyMessage = emptyMsg
 		s.hasEntryList = true
+	}
+}
+
+// WithEmptyState configures the section's empty state for "not configured" sections.
+func WithEmptyState(es *EmptyState) SectionOption {
+	return func(s *SectionModel) {
+		s.emptyState = es
 	}
 }
 
@@ -563,9 +572,14 @@ func (s *SectionModel) IsSearchActive() bool {
 // --- Rendering ---.
 
 // View renders the visible portion of the section within the viewport.
+// When the section is empty (not configured), it renders a placeholder.
 // When search is active, the search bar is rendered at the top and the
 // viewport is reduced by one line to accommodate it.
 func (s *SectionModel) View() string {
+	if s.IsEmpty() {
+		return s.ViewEmpty()
+	}
+
 	rows := s.visibleRows()
 
 	searchActive := s.search != nil && s.search.IsActive()
