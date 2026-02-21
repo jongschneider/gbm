@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -246,7 +247,26 @@ func updateValueNode(node *yaml.Node, value any) error {
 		return nil
 
 	default:
-		return fmt.Errorf("unsupported value type %T", value)
+		// Complex types (maps, struct slices) are serialised via
+		// yaml.Node.Encode, which honours struct yaml tags. This loses
+		// per-field comments but correctly round-trips structured data.
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Map && rv.Kind() != reflect.Slice {
+			return fmt.Errorf("unsupported value type %T", value)
+		}
+		var doc yaml.Node
+		if err := doc.Encode(value); err != nil {
+			return fmt.Errorf("encode complex value for %T: %w", value, err)
+		}
+		encoded := &doc
+		if encoded.Kind == yaml.DocumentNode && len(encoded.Content) > 0 {
+			encoded = encoded.Content[0]
+		}
+		node.Kind = encoded.Kind
+		node.Tag = encoded.Tag
+		node.Value = encoded.Value
+		node.Content = encoded.Content
+		return nil
 	}
 }
 

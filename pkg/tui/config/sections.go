@@ -54,12 +54,12 @@ var jiraFields = []FieldMeta{
 	{Key: "jira.attachments.enabled", Label: "Enabled", Type: Bool, Group: "Attachments"},
 	{
 		Key: "jira.attachments.max_size_mb", Label: "Max Size (MB)", Type: Int, Group: "Attachments",
-		Validate: ValidatePositiveInt,
+		Validate: ValidateNonNegativeInt,
 	},
 	{Key: "jira.attachments.directory", Label: "Directory", Type: String, Group: "Attachments"},
 	{
 		Key: "jira.attachments.download_timeout_seconds", Label: "Timeout (sec)", Type: Int, Group: "Attachments",
-		Validate: ValidatePositiveInt,
+		Validate: ValidateNonNegativeInt,
 	},
 	{
 		Key: "jira.attachments.retry_attempts", Label: "Retry Attempts", Type: Int, Group: "Attachments",

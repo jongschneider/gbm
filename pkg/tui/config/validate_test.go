@@ -191,10 +191,23 @@ func TestValidateSave(t *testing.T) {
 					if e.FieldKey == "jira.attachments.max_size_mb" {
 						found = true
 						assert.Equal(t, TabJira, e.Tab)
-						assert.Contains(t, e.Message, "positive integer")
+						assert.Contains(t, e.Message, "zero or a positive integer")
 					}
 				}
 				assert.True(t, found, "expected error for negative max_size_mb")
+			},
+		},
+		{
+			name: "zero int for optional attachment fields passes",
+			accessor: &stubAccessor{values: map[string]any{
+				"default_branch":                            "main",
+				"worktrees_dir":                             "worktrees",
+				"jira.attachments.max_size_mb":              0,
+				"jira.attachments.download_timeout_seconds": 0,
+			}},
+			assert: func(t *testing.T, errs []ValidationError) {
+				t.Helper()
+				assert.Empty(t, errs)
 			},
 		},
 		{

@@ -57,12 +57,12 @@ func (m *ConfigModel) initEmptySections() {
 	m.sections[TabFileCopy] = m.buildSection(fileCopyAutoFields, vpHeight, w, &entryListConfig{
 		label:    "Rules",
 		entries:  nil,
-		emptyMsg: "(no rules configured)",
+		emptyMsg: "(no rules configured — press a to add)",
 	})
 	m.sections[TabWorktrees] = m.buildSection(nil, vpHeight, w, &entryListConfig{
 		label:    "Worktrees",
 		entries:  nil,
-		emptyMsg: "(no worktrees configured)",
+		emptyMsg: "(no worktrees configured — press a to add)",
 	})
 
 	// Build field rows for each tab.
@@ -145,7 +145,7 @@ func (m *ConfigModel) buildFileCopySection(vpHeight, width int) *SectionModel {
 	return m.buildSection(fileCopyAutoFields, vpHeight, width, &entryListConfig{
 		label:    "Rules",
 		entries:  entries,
-		emptyMsg: "(no rules configured)",
+		emptyMsg: "(no rules configured — press a to add)",
 	})
 }
 
@@ -160,7 +160,7 @@ func (m *ConfigModel) buildWorktreesSection(vpHeight, width int) *SectionModel {
 	return m.buildSection(nil, vpHeight, width, &entryListConfig{
 		label:    "Worktrees",
 		entries:  entries,
-		emptyMsg: "(no worktrees configured)",
+		emptyMsg: "(no worktrees configured — press a to add)",
 	})
 }
 

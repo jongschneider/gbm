@@ -281,6 +281,81 @@ func TestUpdateNodeValue(t *testing.T) {
 			},
 		},
 		{
+			name:  "updates map of structs value",
+			input: "worktrees:\n  main:\n    branch: main\n",
+			key:   "worktrees",
+			value: map[string]struct {
+				Branch    string `yaml:"branch,omitempty"`
+				MergeInto string `yaml:"merge_into,omitempty"`
+			}{
+				"dev": {Branch: "dev", MergeInto: "main"},
+				"fix": {Branch: "fix/bug"},
+			},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				assert.Contains(t, content, "dev:")
+				assert.Contains(t, content, "branch: dev")
+				assert.Contains(t, content, "merge_into: main")
+				assert.Contains(t, content, "fix:")
+				assert.Contains(t, content, "branch: fix/bug")
+				// Old "main" entry should be replaced.
+				assert.NotContains(t, content, "main:")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:  "updates slice of structs value",
+			input: "rules:\n  - source: old\n",
+			key:   "rules",
+			value: []struct {
+				Source string `yaml:"source"`
+				Target string `yaml:"target"`
+			}{
+				{Source: "a", Target: "b"},
+			},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				assert.Contains(t, content, "source: a")
+				assert.Contains(t, content, "target: b")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:  "map with omitempty omits zero-value fields",
+			input: "worktrees:\n  old:\n    branch: old\n",
+			key:   "worktrees",
+			value: map[string]struct {
+				Branch      string `yaml:"branch,omitempty"`
+				Description string `yaml:"description,omitempty"`
+			}{
+				"dev": {Branch: "dev"},
+			},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				assert.Contains(t, content, "branch: dev")
+				assert.NotContains(t, content, "description")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
 			name:  "returns error for unsupported value type",
 			input: "default_branch: main\n",
 			key:   "default_branch",
