@@ -58,6 +58,7 @@ type FieldMeta struct {
 	Label       string
 	Group       string
 	Description string
+	Suggestions []string
 	Type        FieldType
 }
 

@@ -43,16 +43,17 @@ type RuleOverlayResultMsg struct {
 // The overlay follows the same visual pattern as WorktreeOverlay:
 // a bordered box with a title, field rows, and a hint line.
 type RuleOverlay struct {
-	theme       *tui.Theme
-	keys        EditorOverlayKeyMap
-	fields      []*FieldRow
-	listOverlay *ListOverlay
-	origSource  string
-	origFiles   []string
-	focusIndex  int
-	width       int
-	state       RuleOverlayState
-	isNew       bool
+	theme         *tui.Theme
+	keys          EditorOverlayKeyMap
+	fields        []*FieldRow
+	listOverlay   *ListOverlay
+	origSource    string
+	origFiles     []string
+	worktreeNames []string
+	focusIndex    int
+	width         int
+	state         RuleOverlayState
+	isNew         bool
 }
 
 // RuleOverlayOption configures a RuleOverlay during construction.
@@ -64,6 +65,14 @@ func WithRuleTheme(theme *tui.Theme) RuleOverlayOption {
 		if theme != nil {
 			o.theme = theme
 		}
+	}
+}
+
+// WithRuleWorktreeNames sets the list of worktree names for autocomplete
+// suggestions on the source_worktree field.
+func WithRuleWorktreeNames(names []string) RuleOverlayOption {
+	return func(o *RuleOverlay) {
+		o.worktreeNames = names
 	}
 }
 
@@ -133,6 +142,10 @@ func (o *RuleOverlay) initFields() {
 		fr.SetLabelWidth(lw)
 		fr.SetWidth(o.innerWidth())
 		o.fields[i] = fr
+	}
+	// Set dynamic suggestions on the source_worktree field (index 0).
+	if len(o.fields) > 0 && len(o.worktreeNames) > 0 {
+		o.fields[0].SetSuggestions(o.worktreeNames)
 	}
 	if len(o.fields) > 0 {
 		o.fields[0].SetFocused(true)

@@ -940,6 +940,55 @@ func TestFormatFileSummary(t *testing.T) {
 	}
 }
 
+func TestRuleOverlay_SourceWorktreeSuggestions(t *testing.T) {
+	testCases := []struct {
+		assert func(t *testing.T, o *RuleOverlay)
+		name   string
+		names  []string
+	}{
+		{
+			name:  "source_worktree field receives worktree names as suggestions",
+			names: []string{"main", "develop"},
+			assert: func(t *testing.T, o *RuleOverlay) {
+				t.Helper()
+				require.Len(t, o.Fields(), 2)
+				assert.Equal(t, []string{"main", "develop"}, o.Fields()[0].meta.Suggestions)
+			},
+		},
+		{
+			name:  "no suggestions when worktree names are empty",
+			names: nil,
+			assert: func(t *testing.T, o *RuleOverlay) {
+				t.Helper()
+				require.Len(t, o.Fields(), 2)
+				assert.Empty(t, o.Fields()[0].meta.Suggestions)
+			},
+		},
+		{
+			name:  "new rule overlay also receives suggestions",
+			names: []string{"staging"},
+			assert: func(t *testing.T, o *RuleOverlay) {
+				t.Helper()
+				require.Len(t, o.Fields(), 2)
+				assert.Equal(t, []string{"staging"}, o.Fields()[0].meta.Suggestions)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var o *RuleOverlay
+			if tc.name == "new rule overlay also receives suggestions" {
+				o = NewRuleOverlayForNew(WithRuleWorktreeNames(tc.names))
+			} else {
+				o = NewRuleOverlay("main", []string{".env"},
+					WithRuleWorktreeNames(tc.names))
+			}
+			tc.assert(t, o)
+		})
+	}
+}
+
 func TestRuleOverlay_UnhandledKeysInConfirmDiscard(t *testing.T) {
 	o := NewRuleOverlay("main", []string{".env"})
 

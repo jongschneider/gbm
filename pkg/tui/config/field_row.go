@@ -124,6 +124,12 @@ func (f *FieldRow) SetLabelWidth(w int) {
 	f.labelWidth = w
 }
 
+// SetSuggestions overrides the suggestions for the embedded text input.
+// This allows overlays to inject dynamic suggestions at runtime.
+func (f *FieldRow) SetSuggestions(suggestions []string) {
+	f.meta.Suggestions = suggestions
+}
+
 // SetWidth sets the total rendering width available.
 func (f *FieldRow) SetWidth(w int) {
 	f.width = w
@@ -154,6 +160,11 @@ func (f *FieldRow) EnterEditing() tea.Cmd {
 
 	if f.sensitive {
 		f.input.EchoMode = textinput.EchoNormal
+	}
+
+	if len(f.meta.Suggestions) > 0 {
+		f.input.SetSuggestions(f.meta.Suggestions)
+		f.input.ShowSuggestions = true
 	}
 
 	return textinput.Blink

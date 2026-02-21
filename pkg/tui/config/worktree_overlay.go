@@ -42,6 +42,7 @@ type WorktreeOverlay struct {
 	nameErr       string
 	keys          EditorOverlayKeyMap
 	existingNames []string
+	worktreeNames []string
 	fields        []*FieldRow
 	nameInput     textinput.Model
 	renameInput   textinput.Model
@@ -70,6 +71,14 @@ func WithWorktreeWidth(w int) WorktreeOverlayOption {
 		if w > 0 {
 			o.width = w
 		}
+	}
+}
+
+// WithWorktreeNames sets the list of worktree names for autocomplete suggestions
+// on the merge_into field.
+func WithWorktreeNames(names []string) WorktreeOverlayOption {
+	return func(o *WorktreeOverlay) {
+		o.worktreeNames = names
 	}
 }
 
@@ -141,6 +150,10 @@ func (o *WorktreeOverlay) initFields() {
 		fr.SetLabelWidth(lw)
 		fr.SetWidth(o.innerWidth())
 		o.fields[i] = fr
+	}
+	// Set dynamic suggestions on the merge_into field (index 1).
+	if len(o.fields) > 1 && len(o.worktreeNames) > 0 {
+		o.fields[1].SetSuggestions(o.worktreeNames)
 	}
 	if len(o.fields) > 0 {
 		o.fields[0].SetFocused(true)
