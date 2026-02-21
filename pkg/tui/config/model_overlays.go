@@ -115,7 +115,8 @@ func (m *ConfigModel) openRuleOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 	source, files := m.getFileCopyRule(entryIdx)
 
 	m.ruleOverlay = NewRuleOverlay(source, files,
-		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()))
+		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()),
+		WithRuleWorktreeNames(m.worktreeNames()))
 	m.activeOverlay = overlayRule
 	m.overlayEntryIdx = entryIdx
 	m.state = StateOverlay
@@ -125,7 +126,8 @@ func (m *ConfigModel) openRuleOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 // openNewRuleOverlay opens a RuleOverlay for creating a new file copy rule.
 func (m *ConfigModel) openNewRuleOverlay() (tea.Model, tea.Cmd) {
 	m.ruleOverlay = NewRuleOverlayForNew(
-		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()))
+		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()),
+		WithRuleWorktreeNames(m.worktreeNames()))
 	m.activeOverlay = overlayRule
 	m.overlayEntryIdx = -1
 	m.state = StateOverlay
@@ -139,7 +141,8 @@ func (m *ConfigModel) openWorktreeOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 
 	m.worktreeOverlay = NewWorktreeOverlay(name, values,
 		WithWorktreeTheme(m.theme), WithWorktreeWidth(m.overlayWidth()),
-		WithExistingNames(removeString(existingNames, name)))
+		WithExistingNames(removeString(existingNames, name)),
+		WithWorktreeNames(existingNames))
 	m.activeOverlay = overlayWorktree
 	m.overlayEntryIdx = entryIdx
 	m.state = StateOverlay
@@ -152,7 +155,8 @@ func (m *ConfigModel) openNewWorktreeOverlay() (tea.Model, tea.Cmd) {
 
 	m.worktreeOverlay = NewWorktreeOverlayForNew(
 		WithWorktreeTheme(m.theme), WithWorktreeWidth(m.overlayWidth()),
-		WithExistingNames(existingNames))
+		WithExistingNames(existingNames),
+		WithWorktreeNames(existingNames))
 	m.activeOverlay = overlayWorktree
 	m.overlayEntryIdx = -1
 	m.state = StateOverlay
@@ -450,25 +454,13 @@ func (m *ConfigModel) appendFileCopyRule(source string, files []string) {
 	val := m.accessor.GetValue("file_copy.rules")
 	rv := reflect.ValueOf(val)
 
-	// Build a new rule using the same type as existing elements.
-	var newRule reflect.Value
-	if rv.IsValid() && rv.Kind() == reflect.Slice && rv.Len() > 0 {
-		elemType := rv.Type().Elem()
-		newRule = reflect.New(elemType).Elem()
-	} else {
-		// Construct using a struct with SourceWorktree and Files fields.
-		newRule = buildRuleStruct(source, files)
-		if !newRule.IsValid() {
-			return
-		}
-		// Try setting directly if we can build it.
-		newSlice := reflect.MakeSlice(reflect.SliceOf(newRule.Type()), 0, 1)
-		newSlice = reflect.Append(newSlice, newRule)
-		//nolint:errcheck // TUI accessor writes are best-effort on validated keys
-		m.accessor.SetValue("file_copy.rules", newSlice.Interface())
+	if !rv.IsValid() || rv.Kind() != reflect.Slice {
 		return
 	}
 
+	// Derive the element type from the slice's type — works even on empty slices.
+	elemType := rv.Type().Elem()
+	newRule := reflect.New(elemType).Elem()
 	setReflectStringField(newRule, "SourceWorktree", source)
 	setReflectStringSliceField(newRule, "Files", files)
 
@@ -594,30 +586,11 @@ func (m *ConfigModel) addWorktreeEntry(name string, values [3]string) {
 	rv := reflect.ValueOf(val)
 
 	if !rv.IsValid() || rv.Kind() != reflect.Map {
-		// Create a new map with string keys.
-		newEntry := buildWorktreeStruct(values)
-		if !newEntry.IsValid() {
-			return
-		}
-		newMap := reflect.MakeMap(reflect.MapOf(
-			reflect.TypeFor[string](), newEntry.Type()))
-		newMap.SetMapIndex(reflect.ValueOf(name), newEntry)
-		//nolint:errcheck // TUI accessor writes are best-effort on validated keys
-		m.accessor.SetValue("worktrees", newMap.Interface())
 		return
 	}
 
-	// Get the value type from existing entries.
-	var entryType reflect.Type
-	for _, k := range rv.MapKeys() {
-		existing := rv.MapIndex(k)
-		entryType = existing.Type()
-		break
-	}
-	if entryType == nil {
-		return
-	}
-
+	// Derive the value type from the map's type — works even on empty maps.
+	entryType := rv.Type().Elem()
 	newEntry := reflect.New(entryType).Elem()
 	setReflectStringField(newEntry, "Branch", values[0])
 	setReflectStringField(newEntry, "MergeInto", values[1])
@@ -714,23 +687,6 @@ func setReflectStringSliceField(v reflect.Value, name string, value []string) {
 		return
 	}
 	f.Set(reflect.ValueOf(copyStrings(value)))
-}
-
-// buildRuleStruct creates a reflect.Value for a rule with the given fields.
-// This is a fallback for when no existing rules exist to derive the type.
-func buildRuleStruct(source string, files []string) reflect.Value {
-	// We cannot construct the concrete type without importing it.
-	// Return invalid -- the caller should handle this case.
-	_ = source
-	_ = files
-	return reflect.Value{}
-}
-
-// buildWorktreeStruct creates a reflect.Value for a worktree entry.
-// Same limitation as buildRuleStruct.
-func buildWorktreeStruct(values [3]string) reflect.Value {
-	_ = values
-	return reflect.Value{}
 }
 
 // removeString returns a copy of ss with the first occurrence of s removed.
