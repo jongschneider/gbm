@@ -235,6 +235,7 @@ func updateValueNode(node *yaml.Node, value any) error {
 		node.Kind = yaml.SequenceNode
 		node.Tag = "!!seq"
 		node.Value = ""
+		node.Style = 0
 		items := make([]*yaml.Node, 0, len(v))
 		for _, s := range v {
 			items = append(items, &yaml.Node{
@@ -265,6 +266,7 @@ func updateValueNode(node *yaml.Node, value any) error {
 		node.Kind = encoded.Kind
 		node.Tag = encoded.Tag
 		node.Value = encoded.Value
+		node.Style = encoded.Style
 		node.Content = encoded.Content
 		return nil
 	}

@@ -356,6 +356,70 @@ func TestUpdateNodeValue(t *testing.T) {
 			},
 		},
 		{
+			name:  "flow style empty sequence expands to block style",
+			input: "exclude: []\n",
+			key:   "exclude",
+			value: []string{"*.log", "node_modules/"},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				assert.Contains(t, content, "- '*.log'")
+				assert.Contains(t, content, "- node_modules/")
+				assert.NotContains(t, content, "[")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:  "flow style populated sequence expands to block style",
+			input: "status: [Open, Closed]\n",
+			key:   "status",
+			value: []string{"In Progress", "Done", "Blocked"},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				assert.Contains(t, content, "- In Progress")
+				assert.Contains(t, content, "- Done")
+				assert.Contains(t, content, "- Blocked")
+				assert.NotContains(t, content, "[")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:  "flow style map expands to block style",
+			input: "worktrees: {}\n",
+			key:   "worktrees",
+			value: map[string]struct {
+				Branch    string `yaml:"branch,omitempty"`
+				MergeInto string `yaml:"merge_into,omitempty"`
+			}{
+				"main": {Branch: "main", MergeInto: ""},
+			},
+			assert: func(t *testing.T, root *yaml.Node) {
+				t.Helper()
+				data, err := marshalNode(root)
+				require.NoError(t, err)
+				content := string(data)
+				// Must be block-style YAML, not flow-style {main: {branch: main}}.
+				assert.Contains(t, content, "main:\n")
+				assert.Contains(t, content, "branch: main")
+				assert.NotContains(t, content, "{main:")
+			},
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+		},
+		{
 			name:  "returns error for unsupported value type",
 			input: "default_branch: main\n",
 			key:   "default_branch",
