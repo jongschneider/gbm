@@ -706,7 +706,7 @@ func setReflectStringSliceField(v reflect.Value, name string, value []string) {
 	f.Set(reflect.ValueOf(copyStrings(value)))
 }
 
-// removeString returns a copy of ss with the first occurrence of s removed.
+// removeString returns a copy of ss with all occurrences of s removed.
 func removeString(ss []string, s string) []string {
 	result := make([]string, 0, len(ss))
 	for _, v := range ss {

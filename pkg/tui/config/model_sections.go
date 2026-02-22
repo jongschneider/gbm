@@ -82,13 +82,13 @@ func (m *ConfigModel) initEmptySections() {
 // InitSections creates and populates a SectionModel for each tab using
 // field metadata from sections.go and values from the accessor.
 func (m *ConfigModel) InitSections() {
-	contentHeight := max(m.height-5, 1)
-	if contentHeight <= 0 {
-		contentHeight = 20
+	contentHeight := 20
+	w := 80
+	if m.height > 0 {
+		contentHeight = max(m.height-5, 1)
 	}
-	w := m.width
-	if w <= 0 {
-		w = 80
+	if m.width > 0 {
+		w = m.width
 	}
 
 	m.sections[TabGeneral] = m.buildSection(generalFields, contentHeight, w, nil)
