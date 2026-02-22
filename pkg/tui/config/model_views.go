@@ -74,7 +74,7 @@ func (m *ConfigModel) viewTabBar() string {
 // When editing, the focused field's row is replaced with the FieldRow's
 // inline editing view (text input + description + error).
 func (m *ConfigModel) viewContent() string {
-	contentHeight := max(m.height-4, 1)
+	contentHeight := max(m.height-5, 1)
 	section := m.activeSection()
 	if section == nil {
 		// Fallback for uninitialized state.
@@ -159,11 +159,21 @@ func (m *ConfigModel) viewStatusBar() string {
 		parts = append(parts, m.statusKeyHints())
 	}
 
+	// Description line: always reserved to avoid layout jank.
+	descLine := ""
+	if m.state == StateBrowsing && m.focusedFieldDesc != "" {
+		descLine = lipgloss.NewStyle().
+			Foreground(m.theme.Muted).
+			Italic(true).
+			Width(m.width).
+			Render(m.focusedFieldDesc)
+	}
+
 	content := lipgloss.NewStyle().
 		Width(m.width).
 		Render(strings.Join(parts, "  "))
 
-	return separator + "\n" + content
+	return separator + "\n" + descLine + "\n" + content
 }
 
 // statusKeyHints returns the context-sensitive keybinding hints for the

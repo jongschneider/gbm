@@ -128,6 +128,7 @@ type ConfigModel struct {
 	ruleOverlay      *RuleOverlay
 	overlayFieldKey  string
 	focusedFieldKey  string
+	focusedFieldDesc string
 	writeErrorMsg    string
 	flashMessage     string
 	filePath         string
@@ -258,7 +259,7 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		contentHeight := max(m.height-4, 1)
+		contentHeight := max(m.height-5, 1)
 		for _, s := range m.sections {
 			if s != nil {
 				s.SetViewportHeight(contentHeight)

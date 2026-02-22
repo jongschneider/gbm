@@ -32,12 +32,15 @@ func (m *ConfigModel) syncFocusedField() {
 		f := s.fields[row.FieldIndex]
 		m.focusedFieldType = f.Type
 		m.focusedFieldKey = f.Key
+		m.focusedFieldDesc = f.Description
 	} else if row.Kind == RowEntry {
 		m.focusedFieldType = ObjectList
 		m.focusedFieldKey = ""
+		m.focusedFieldDesc = ""
 	} else {
 		m.focusedFieldType = String
 		m.focusedFieldKey = ""
+		m.focusedFieldDesc = ""
 	}
 }
 
@@ -48,7 +51,7 @@ func (m *ConfigModel) initEmptySections() {
 	vpHeight := 20
 	w := 80
 	if m.height > 0 {
-		vpHeight = max(m.height-4, 1)
+		vpHeight = max(m.height-5, 1)
 	}
 	if m.width > 0 {
 		w = m.width
@@ -79,7 +82,7 @@ func (m *ConfigModel) initEmptySections() {
 // InitSections creates and populates a SectionModel for each tab using
 // field metadata from sections.go and values from the accessor.
 func (m *ConfigModel) InitSections() {
-	contentHeight := max(m.height-4, 1)
+	contentHeight := max(m.height-5, 1)
 	if contentHeight <= 0 {
 		contentHeight = 20
 	}
