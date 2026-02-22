@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -150,6 +151,75 @@ func TestSearchFilter_HandleBackspace(t *testing.T) {
 			name: "removes all characters one by one",
 			setup: func(sf *SearchFilter) {
 				sf.HandleRune('x')
+				sf.HandleBackspace()
+			},
+			assert: func(t *testing.T, sf *SearchFilter) {
+				t.Helper()
+				assert.Empty(t, sf.Query())
+			},
+		},
+		{
+			name: "removes multi-byte rune (2-byte e-acute)",
+			setup: func(sf *SearchFilter) {
+				sf.HandleRune('c')
+				sf.HandleRune('a')
+				sf.HandleRune('f')
+				sf.HandleRune('\u00e9') // e-acute, 2 bytes in UTF-8
+				sf.HandleBackspace()
+			},
+			assert: func(t *testing.T, sf *SearchFilter) {
+				t.Helper()
+				assert.Equal(t, "caf", sf.Query())
+				assert.True(t, utf8.ValidString(sf.Query()))
+			},
+		},
+		{
+			name: "removes combining accent (cafe + combining acute)",
+			setup: func(sf *SearchFilter) {
+				sf.HandleRune('c')
+				sf.HandleRune('a')
+				sf.HandleRune('f')
+				sf.HandleRune('e')
+				sf.HandleRune('\u0301') // combining acute accent, 2 bytes
+				sf.HandleBackspace()
+			},
+			assert: func(t *testing.T, sf *SearchFilter) {
+				t.Helper()
+				// Removes the combining accent rune, leaving "cafe"
+				assert.Equal(t, "cafe", sf.Query())
+				assert.True(t, utf8.ValidString(sf.Query()))
+			},
+		},
+		{
+			name: "removes 3-byte CJK character",
+			setup: func(sf *SearchFilter) {
+				sf.HandleRune('a')
+				sf.HandleRune('\u4e16') // CJK character, 3 bytes
+				sf.HandleBackspace()
+			},
+			assert: func(t *testing.T, sf *SearchFilter) {
+				t.Helper()
+				assert.Equal(t, "a", sf.Query())
+				assert.True(t, utf8.ValidString(sf.Query()))
+			},
+		},
+		{
+			name: "removes 4-byte emoji",
+			setup: func(sf *SearchFilter) {
+				sf.HandleRune('x')
+				sf.HandleRune('\U0001F600') // grinning face emoji, 4 bytes
+				sf.HandleBackspace()
+			},
+			assert: func(t *testing.T, sf *SearchFilter) {
+				t.Helper()
+				assert.Equal(t, "x", sf.Query())
+				assert.True(t, utf8.ValidString(sf.Query()))
+			},
+		},
+		{
+			name: "removes only multi-byte character leaves empty",
+			setup: func(sf *SearchFilter) {
+				sf.HandleRune('\u00e9') // 2-byte character
 				sf.HandleBackspace()
 			},
 			assert: func(t *testing.T, sf *SearchFilter) {

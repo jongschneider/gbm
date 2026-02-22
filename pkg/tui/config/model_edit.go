@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -179,15 +182,15 @@ func (m *ConfigModel) resetAllFieldRows() {
 }
 
 // setAccessorValue writes a value through the accessor if available.
-// Errors are silently ignored since accessor writes during TUI interaction
-// always operate on valid, already-validated keys.
+// Errors indicate a programming bug (invalid key), not a user error, so they
+// are logged to stderr for developer visibility without disrupting the TUI.
 func (m *ConfigModel) setAccessorValue(fieldKey string, value any) {
 	if m.accessor == nil {
 		return
 	}
-	//nolint:errcheck // TUI accessor writes are best-effort; invalid keys
-	// would indicate a programming error, not a user error.
-	m.accessor.SetValue(fieldKey, value)
+	if err := m.accessor.SetValue(fieldKey, value); err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: setAccessorValue(%q): %v\n", fieldKey, err)
+	}
 }
 
 // handleSearchKey processes key presses in search state.

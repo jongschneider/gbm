@@ -3,6 +3,7 @@ package config
 import (
 	"gbm/pkg/tui"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -53,11 +54,12 @@ func (sf *SearchFilter) HandleRune(r rune) {
 	sf.query += string(r)
 }
 
-// HandleBackspace removes the last character from the search query.
+// HandleBackspace removes the last rune from the search query.
 // If the query is already empty, this is a no-op.
 func (sf *SearchFilter) HandleBackspace() {
 	if sf.query != "" {
-		sf.query = sf.query[:len(sf.query)-1]
+		_, size := utf8.DecodeLastRuneInString(sf.query)
+		sf.query = sf.query[:len(sf.query)-size]
 	}
 }
 
