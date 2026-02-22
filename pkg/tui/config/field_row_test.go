@@ -612,19 +612,19 @@ func TestFieldRow_SensitiveEditingReveals(t *testing.T) {
 func TestFieldRow_SuggestionsOnEnterEditing(t *testing.T) {
 	testCases := []struct {
 		assert      func(t *testing.T, fr *FieldRow)
+		suggestions func() []string
 		name        string
-		suggestions []string
 	}{
 		{
 			name:        "sets suggestions when meta has them",
-			suggestions: []string{"main", "master", "develop"},
+			suggestions: static("main", "master", "develop"),
 			assert: func(t *testing.T, fr *FieldRow) {
 				t.Helper()
 				assert.True(t, fr.input.ShowSuggestions)
 			},
 		},
 		{
-			name:        "no suggestions when meta is empty",
+			name:        "no suggestions when meta is nil",
 			suggestions: nil,
 			assert: func(t *testing.T, fr *FieldRow) {
 				t.Helper()
@@ -656,16 +656,17 @@ func TestFieldRow_SetSuggestionsOverridesMeta(t *testing.T) {
 		Key:         "test.field",
 		Label:       "Test Field",
 		Type:        String,
-		Suggestions: []string{"original"},
+		Suggestions: static("original"),
 	}
 	fr := NewFieldRow(meta, nil)
 	fr.SetWidth(72)
 	fr.SetLabelWidth(15)
 	fr.SetValue("")
 
-	fr.SetSuggestions([]string{"override1", "override2"})
+	fr.SetSuggestions(static("override1", "override2"))
 	fr.EnterEditing()
 
 	assert.True(t, fr.input.ShowSuggestions)
-	assert.Equal(t, []string{"override1", "override2"}, fr.meta.Suggestions)
+	require.NotNil(t, fr.meta.Suggestions)
+	assert.Equal(t, []string{"override1", "override2"}, fr.meta.Suggestions())
 }

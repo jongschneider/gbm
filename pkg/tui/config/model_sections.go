@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Sections returns the sections array for external inspection (e.g., tests).
@@ -177,9 +179,29 @@ func (m *ConfigModel) buildFieldRows(tab SectionTab, fields []FieldMeta) {
 		}
 		// Sync dirty flag from the tracker.
 		fr.SetDirty(m.dirty.IsKeyDirty(f.Key))
+		m.wireDynamicSuggestions(fr)
 		rows[i] = fr
 	}
 	m.fieldRows[tab] = rows
+}
+
+// wireDynamicSuggestions installs closure-based suggestions on fields that
+// benefit from async git data. The closures capture m and read the cache at
+// call time, so data arriving after buildFieldRows is still picked up.
+func (m *ConfigModel) wireDynamicSuggestions(fr *FieldRow) {
+	switch fr.Meta().Key {
+	case "default_branch":
+		fr.SetSuggestions(func() []string {
+			if len(m.gitBranches) > 0 {
+				return m.gitBranches
+			}
+			return []string{"main", "master", "develop", "development"}
+		})
+	case "file_copy.auto.source_worktree":
+		fr.SetSuggestions(func() []string {
+			return append([]string{"{default}"}, m.worktreeNamesForSuggestions()...)
+		})
+	}
 }
 
 // --- Value formatting helpers ---.
@@ -290,4 +312,40 @@ func reflectStringSliceField(v reflect.Value, name string) []string {
 		result[i] = f.Index(i).String()
 	}
 	return result
+}
+
+// --- Async git data fetch ---.
+
+// handleGitBranchesMsg stores fetched branch names in the cache.
+func (m *ConfigModel) handleGitBranchesMsg(msg gitBranchesMsg) (tea.Model, tea.Cmd) {
+	if msg.err == nil && len(msg.branches) > 0 {
+		m.gitBranches = msg.branches
+	}
+	return m, nil
+}
+
+// handleGitWorktreesMsg stores fetched worktree names in the cache.
+func (m *ConfigModel) handleGitWorktreesMsg(msg gitWorktreesMsg) (tea.Model, tea.Cmd) {
+	if msg.err == nil && len(msg.names) > 0 {
+		m.gitWorktreeNames = msg.names
+	}
+	return m, nil
+}
+
+// fetchGitBranches returns a tea.Cmd that fetches branch names asynchronously.
+func (m *ConfigModel) fetchGitBranches() tea.Cmd {
+	p := m.gitProvider
+	return func() tea.Msg {
+		branches, err := p.ListBranches()
+		return gitBranchesMsg{branches: branches, err: err}
+	}
+}
+
+// fetchGitWorktrees returns a tea.Cmd that fetches worktree names asynchronously.
+func (m *ConfigModel) fetchGitWorktrees() tea.Cmd {
+	p := m.gitProvider
+	return func() tea.Msg {
+		names, err := p.ListWorktreeNames()
+		return gitWorktreesMsg{names: names, err: err}
+	}
 }

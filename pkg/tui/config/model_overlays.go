@@ -116,7 +116,7 @@ func (m *ConfigModel) openRuleOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 
 	m.ruleOverlay = NewRuleOverlay(source, files,
 		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()),
-		WithRuleWorktreeNames(m.worktreeNames()))
+		WithRuleWorktreeNames(m.worktreeNamesForSuggestions()))
 	m.activeOverlay = overlayRule
 	m.overlayEntryIdx = entryIdx
 	m.state = StateOverlay
@@ -127,7 +127,7 @@ func (m *ConfigModel) openRuleOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 func (m *ConfigModel) openNewRuleOverlay() (tea.Model, tea.Cmd) {
 	m.ruleOverlay = NewRuleOverlayForNew(
 		WithRuleTheme(m.theme), WithRuleWidth(m.overlayWidth()),
-		WithRuleWorktreeNames(m.worktreeNames()))
+		WithRuleWorktreeNames(m.worktreeNamesForSuggestions()))
 	m.activeOverlay = overlayRule
 	m.overlayEntryIdx = -1
 	m.state = StateOverlay
@@ -142,7 +142,8 @@ func (m *ConfigModel) openWorktreeOverlay(entryIdx int) (tea.Model, tea.Cmd) {
 	m.worktreeOverlay = NewWorktreeOverlay(name, values,
 		WithWorktreeTheme(m.theme), WithWorktreeWidth(m.overlayWidth()),
 		WithExistingNames(removeString(existingNames, name)),
-		WithWorktreeNames(existingNames))
+		WithWorktreeNames(m.worktreeNamesForSuggestions()),
+		WithBranchNames(m.gitBranches))
 	m.activeOverlay = overlayWorktree
 	m.overlayEntryIdx = entryIdx
 	m.state = StateOverlay
@@ -156,7 +157,8 @@ func (m *ConfigModel) openNewWorktreeOverlay() (tea.Model, tea.Cmd) {
 	m.worktreeOverlay = NewWorktreeOverlayForNew(
 		WithWorktreeTheme(m.theme), WithWorktreeWidth(m.overlayWidth()),
 		WithExistingNames(existingNames),
-		WithWorktreeNames(existingNames))
+		WithWorktreeNames(m.worktreeNamesForSuggestions()),
+		WithBranchNames(m.gitBranches))
 	m.activeOverlay = overlayWorktree
 	m.overlayEntryIdx = -1
 	m.state = StateOverlay
@@ -554,6 +556,16 @@ func (m *ConfigModel) getWorktreeEntry(idx int) (string, [3]string) {
 		reflectStringField(entry, "MergeInto"),
 		reflectStringField(entry, "Description"),
 	}
+}
+
+// worktreeNamesForSuggestions returns worktree names for autocomplete.
+// Prefers git-fetched names (actual worktrees on disk), falls back to
+// config-defined worktree names if the git fetch hasn't completed.
+func (m *ConfigModel) worktreeNamesForSuggestions() []string {
+	if len(m.gitWorktreeNames) > 0 {
+		return m.gitWorktreeNames
+	}
+	return m.worktreeNames()
 }
 
 // worktreeNames returns sorted list of current worktree names.

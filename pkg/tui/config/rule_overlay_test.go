@@ -952,7 +952,8 @@ func TestRuleOverlay_SourceWorktreeSuggestions(t *testing.T) {
 			assert: func(t *testing.T, o *RuleOverlay) {
 				t.Helper()
 				require.Len(t, o.Fields(), 2)
-				assert.Equal(t, []string{"main", "develop"}, o.Fields()[0].meta.Suggestions)
+				require.NotNil(t, o.Fields()[0].meta.Suggestions)
+				assert.Equal(t, []string{"main", "develop"}, o.Fields()[0].meta.Suggestions())
 			},
 		},
 		{
@@ -961,7 +962,7 @@ func TestRuleOverlay_SourceWorktreeSuggestions(t *testing.T) {
 			assert: func(t *testing.T, o *RuleOverlay) {
 				t.Helper()
 				require.Len(t, o.Fields(), 2)
-				assert.Empty(t, o.Fields()[0].meta.Suggestions)
+				assert.Nil(t, o.Fields()[0].meta.Suggestions)
 			},
 		},
 		{
@@ -970,7 +971,8 @@ func TestRuleOverlay_SourceWorktreeSuggestions(t *testing.T) {
 			assert: func(t *testing.T, o *RuleOverlay) {
 				t.Helper()
 				require.Len(t, o.Fields(), 2)
-				assert.Equal(t, []string{"staging"}, o.Fields()[0].meta.Suggestions)
+				require.NotNil(t, o.Fields()[0].meta.Suggestions)
+				assert.Equal(t, []string{"staging"}, o.Fields()[0].meta.Suggestions())
 			},
 		},
 	}

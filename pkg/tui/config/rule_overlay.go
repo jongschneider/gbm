@@ -145,7 +145,8 @@ func (o *RuleOverlay) initFields() {
 	}
 	// Set dynamic suggestions on the source_worktree field (index 0).
 	if len(o.fields) > 0 && len(o.worktreeNames) > 0 {
-		o.fields[0].SetSuggestions(o.worktreeNames)
+		names := o.worktreeNames // capture for closure
+		o.fields[0].SetSuggestions(func() []string { return names })
 	}
 	if len(o.fields) > 0 {
 		o.fields[0].SetFocused(true)

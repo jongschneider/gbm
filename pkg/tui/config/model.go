@@ -87,42 +87,64 @@ var tabLabels = [tabCount]string{
 	"Worktrees",
 }
 
+// GitDataProvider abstracts git operations needed for config TUI suggestions.
+// It is implemented by an adapter in cmd/service that wraps *git.Service.
+type GitDataProvider interface {
+	ListBranches() ([]string, error)
+	ListWorktreeNames() ([]string, error)
+}
+
 // flashClearMsg is sent after a timer to clear the status bar flash message.
 type flashClearMsg struct{}
+
+// gitBranchesMsg carries the result of an async branch list fetch.
+type gitBranchesMsg struct {
+	err      error
+	branches []string
+}
+
+// gitWorktreesMsg carries the result of an async worktree name fetch.
+type gitWorktreesMsg struct {
+	err   error
+	names []string
+}
 
 // ConfigModel is the root Bubble Tea model for the Config TUI.
 // It orchestrates tab navigation, state transitions, dirty tracking, and
 // delegates rendering/updates to per-section models (future ticket).
 type ConfigModel struct {
+	sections         [tabCount]*SectionModel
 	modTime          time.Time
 	accessor         ConfigAccessor
-	theme            *tui.Theme
-	helpOverlay      *HelpOverlay
-	errorOverlay     *ErrorOverlay
+	gitProvider      GitDataProvider
+	worktreeOverlay  *WorktreeOverlay
+	listOverlay      *ListOverlay
 	root             *yaml.Node
 	corruptConfig    *CorruptConfigState
 	dirty            *DirtyTracker
-	sections         [tabCount]*SectionModel
-	fieldRows        [tabCount][]*FieldRow
-	filePath         string
-	flashMessage     string
-	writeErrorMsg    string
-	resetKey         string
-	focusedFieldKey  string
-	listOverlay      *ListOverlay
+	helpOverlay      *HelpOverlay
+	errorOverlay     *ErrorOverlay
+	theme            *tui.Theme
 	ruleOverlay      *RuleOverlay
-	worktreeOverlay  *WorktreeOverlay
-	overlayFieldKey  string // dot-path key of the field being edited via overlay
+	overlayFieldKey  string
+	focusedFieldKey  string
+	writeErrorMsg    string
+	flashMessage     string
+	filePath         string
+	resetKey         string
 	browsingKeys     BrowsingKeyMap
 	editingKeys      EditingKeyMap
-	searchKeys       SearchKeyMap
 	confirmKeys      ConfirmationKeyMap
+	fieldRows        [tabCount][]*FieldRow
+	searchKeys       SearchKeyMap
+	gitBranches      []string
+	gitWorktreeNames []string
 	state            ModelState
-	activeOverlay    overlayKind
-	focusedFieldType FieldType
 	height           int
 	width            int
-	overlayEntryIdx  int // index of entry being edited (-1 for new)
+	overlayEntryIdx  int
+	focusedFieldType FieldType
+	activeOverlay    overlayKind
 	activeTab        SectionTab
 	tabBadges        [tabCount]bool
 	isNewFile        bool
@@ -206,6 +228,13 @@ func WithYAMLRoot(root *yaml.Node) ConfigModelOption {
 	}
 }
 
+// WithGitProvider sets the git data provider for async suggestion fetching.
+func WithGitProvider(p GitDataProvider) ConfigModelOption {
+	return func(m *ConfigModel) {
+		m.gitProvider = p
+	}
+}
+
 // WithModTime sets the file modification time for external change detection.
 func WithModTime(t time.Time) ConfigModelOption {
 	return func(m *ConfigModel) {
@@ -213,9 +242,13 @@ func WithModTime(t time.Time) ConfigModelOption {
 	}
 }
 
-// Init implements tea.Model. It returns nil (no initial command).
+// Init implements tea.Model. When a git provider is configured, it fires
+// async commands to fetch branch and worktree names for suggestions.
 func (m *ConfigModel) Init() tea.Cmd {
-	return nil
+	if m.gitProvider == nil {
+		return nil
+	}
+	return tea.Batch(m.fetchGitBranches(), m.fetchGitWorktrees())
 }
 
 // Update implements tea.Model. It routes messages by type and delegates
@@ -253,6 +286,12 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case editorReloadMsg:
 		return m.handleEditorReload(msg)
+
+	case gitBranchesMsg:
+		return m.handleGitBranchesMsg(msg)
+
+	case gitWorktreesMsg:
+		return m.handleGitWorktreesMsg(msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -725,5 +764,5 @@ func (m *ConfigModel) SetModTime(t time.Time) {
 	m.modTime = t
 }
 
-// Section wiring, initialization, and formatting helpers are in
-// model_sections.go to keep this file under the line limit.
+// Section wiring, initialization, formatting helpers, and git data fetch
+// methods are in model_sections.go to keep this file under the line limit.

@@ -10,13 +10,13 @@ var generalFields = []FieldMeta{
 	{
 		Key: "default_branch", Label: "Default Branch", Type: String,
 		Validate:    ValidateRequired,
-		Suggestions: []string{"main", "master", "develop", "development"},
+		Suggestions: static("main", "master", "develop", "development"),
 	},
 	{
 		Key: "worktrees_dir", Label: "Worktrees Directory", Type: String,
 		Description: "Supports templates: {gitroot}, {branch}, {issue}",
 		Validate:    ValidateRequired,
-		Suggestions: []string{"worktrees", "../{gitroot}-wt", "~/dev/{gitroot}/wt"},
+		Suggestions: static("worktrees", "../{gitroot}-wt", "~/dev/{gitroot}/wt"),
 	},
 }
 
@@ -32,18 +32,18 @@ var jiraFields = []FieldMeta{
 	// -- Filters (10) --
 	{
 		Key: "jira.filters.priority", Label: "Priority", Type: String, Group: "Filters",
-		Suggestions: []string{"Highest", "High", "Medium", "Low", "Lowest"},
+		Suggestions: static("Highest", "High", "Medium", "Low", "Lowest"),
 	},
 	{
 		Key: "jira.filters.type", Label: "Type", Type: String, Group: "Filters",
-		Suggestions: []string{"Bug", "Story", "Task", "Epic", "Sub-task"},
+		Suggestions: static("Bug", "Story", "Task", "Epic", "Sub-task"),
 	},
 	{Key: "jira.filters.component", Label: "Component", Type: String, Group: "Filters"},
 	{Key: "jira.filters.reporter", Label: "Reporter", Type: String, Group: "Filters"},
 	{Key: "jira.filters.assignee", Label: "Assignee", Type: String, Group: "Filters"},
 	{
 		Key: "jira.filters.order_by", Label: "Order By", Type: String, Group: "Filters",
-		Suggestions: []string{"created", "updated", "priority", "status", "key"},
+		Suggestions: static("created", "updated", "priority", "status", "key"),
 	},
 	{Key: "jira.filters.status", Label: "Status", Type: StringList, Group: "Filters"},
 	{Key: "jira.filters.labels", Label: "Labels", Type: StringList, Group: "Filters"},
@@ -53,7 +53,7 @@ var jiraFields = []FieldMeta{
 	// -- Markdown (6) --
 	{
 		Key: "jira.markdown.filename_pattern", Label: "Filename Pattern", Type: String, Group: "Markdown",
-		Suggestions: []string{"{key}.md", "issues/{key}.md"},
+		Suggestions: static("{key}.md", "issues/{key}.md"),
 	},
 	{
 		Key: "jira.markdown.max_depth", Label: "Max Depth", Type: Int, Group: "Markdown",
@@ -92,7 +92,7 @@ var fileCopyAutoFields = []FieldMeta{
 	{
 		Key: "file_copy.auto.source_worktree", Label: "Source Worktree", Type: String, Group: "Auto Copy",
 		Description: "Supports template: {default}",
-		Suggestions: []string{"{default}"},
+		Suggestions: static("{default}"),
 	},
 	{Key: "file_copy.auto.copy_ignored", Label: "Copy Ignored", Type: Bool, Group: "Auto Copy"},
 	{Key: "file_copy.auto.copy_untracked", Label: "Copy Untracked", Type: Bool, Group: "Auto Copy"},

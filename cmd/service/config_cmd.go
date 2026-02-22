@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"gbm/internal/git"
 	"os"
 	"path/filepath"
 	"time"
@@ -117,14 +118,19 @@ func buildConfigModel(svc *Service, configPath string) (*tuiconfig.ConfigModel, 
 	originals := snapshotConfig(adapter)
 	dirty := tuiconfig.NewDirtyTracker(originals)
 
-	model := tuiconfig.NewConfigModel(
+	opts := []tuiconfig.ConfigModelOption{
 		tuiconfig.WithAccessor(adapter),
 		tuiconfig.WithFilePath(configPath),
 		tuiconfig.WithYAMLRoot(root),
 		tuiconfig.WithDirtyTracker(dirty),
 		tuiconfig.WithNewFile(isNew),
 		tuiconfig.WithModTime(modTime),
-	)
+	}
+	if svc.Git != nil {
+		opts = append(opts, tuiconfig.WithGitProvider(&gitDataAdapter{svc: svc.Git}))
+	}
+
+	model := tuiconfig.NewConfigModel(opts...)
 
 	// Initialize section models with field values from the config.
 	model.InitSections()
@@ -172,6 +178,31 @@ func allConfigKeys() []string {
 		// Worktrees
 		"worktrees",
 	}
+}
+
+// gitDataAdapter wraps *git.Service to implement tuiconfig.GitDataProvider.
+type gitDataAdapter struct {
+	svc *git.Service
+}
+
+var _ tuiconfig.GitDataProvider = (*gitDataAdapter)(nil)
+
+func (a *gitDataAdapter) ListBranches() ([]string, error) {
+	return a.svc.ListBranches(false)
+}
+
+func (a *gitDataAdapter) ListWorktreeNames() ([]string, error) {
+	wts, err := a.svc.ListWorktrees(false)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(wts))
+	for _, wt := range wts {
+		if !wt.IsBare {
+			names = append(names, wt.Name)
+		}
+	}
+	return names, nil
 }
 
 // newEmptyYAMLDoc creates an empty YAML document node with a mapping child.

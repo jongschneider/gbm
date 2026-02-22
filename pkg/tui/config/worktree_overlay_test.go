@@ -970,6 +970,42 @@ func TestWorktreeOverlay_RenameClearsErrorOnInput(t *testing.T) {
 	assert.Empty(t, o.NameError())
 }
 
+func TestWorktreeOverlay_BranchSuggestions(t *testing.T) {
+	testCases := []struct {
+		assert func(t *testing.T, o *WorktreeOverlay)
+		name   string
+		names  []string
+	}{
+		{
+			name:  "branch field receives branch names as suggestions",
+			names: []string{"main", "develop", "feature/auth"},
+			assert: func(t *testing.T, o *WorktreeOverlay) {
+				t.Helper()
+				require.Len(t, o.Fields(), 3)
+				require.NotNil(t, o.Fields()[0].meta.Suggestions)
+				assert.Equal(t, []string{"main", "develop", "feature/auth"}, o.Fields()[0].meta.Suggestions())
+			},
+		},
+		{
+			name:  "no suggestions when branch names are empty",
+			names: nil,
+			assert: func(t *testing.T, o *WorktreeOverlay) {
+				t.Helper()
+				require.Len(t, o.Fields(), 3)
+				assert.Nil(t, o.Fields()[0].meta.Suggestions)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := NewWorktreeOverlay("test", testWorktreeValues(),
+				WithBranchNames(tc.names))
+			tc.assert(t, o)
+		})
+	}
+}
+
 func TestWorktreeOverlay_MergeIntoSuggestions(t *testing.T) {
 	testCases := []struct {
 		assert func(t *testing.T, o *WorktreeOverlay)
@@ -982,7 +1018,8 @@ func TestWorktreeOverlay_MergeIntoSuggestions(t *testing.T) {
 			assert: func(t *testing.T, o *WorktreeOverlay) {
 				t.Helper()
 				require.Len(t, o.Fields(), 3)
-				assert.Equal(t, []string{"main", "develop", "staging"}, o.Fields()[1].meta.Suggestions)
+				require.NotNil(t, o.Fields()[1].meta.Suggestions)
+				assert.Equal(t, []string{"main", "develop", "staging"}, o.Fields()[1].meta.Suggestions())
 			},
 		},
 		{
@@ -991,7 +1028,7 @@ func TestWorktreeOverlay_MergeIntoSuggestions(t *testing.T) {
 			assert: func(t *testing.T, o *WorktreeOverlay) {
 				t.Helper()
 				require.Len(t, o.Fields(), 3)
-				assert.Empty(t, o.Fields()[1].meta.Suggestions)
+				assert.Nil(t, o.Fields()[1].meta.Suggestions)
 			},
 		},
 	}

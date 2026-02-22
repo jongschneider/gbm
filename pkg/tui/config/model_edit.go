@@ -40,10 +40,6 @@ func (m *ConfigModel) handleEdit() (tea.Model, tea.Cmd) {
 		return m, nil
 	default:
 		// String, Int, SensitiveString: enter inline editing.
-		// Inject dynamic suggestions for source_worktree field.
-		if fr.Meta().Key == "file_copy.auto.source_worktree" {
-			fr.SetSuggestions(append([]string{"{default}"}, m.worktreeNames()...))
-		}
 		cmd := fr.EnterEditing()
 		fr.SetWidth(m.width)
 		fr.SetLabelWidth(s.labelWidth())

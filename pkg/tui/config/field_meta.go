@@ -54,12 +54,17 @@ func (ft FieldType) String() string {
 // their parent object (e.g. "source_worktree", "branch").
 type FieldMeta struct {
 	Validate    func(any) error
+	Suggestions func() []string
 	Key         string
 	Label       string
 	Group       string
 	Description string
-	Suggestions []string
 	Type        FieldType
+}
+
+// static returns a Suggestions function that always returns the given values.
+func static(vals ...string) func() []string {
+	return func() []string { return vals }
 }
 
 // --- Reusable validation functions ---.
