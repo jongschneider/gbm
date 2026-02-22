@@ -13,11 +13,9 @@ type editTestAccessor struct {
 	values map[string]any
 }
 
-func (a *editTestAccessor) GetValue(key string) any { return a.values[key] }
-func (a *editTestAccessor) SetValue(key string, v any) error {
-	a.values[key] = v
-	return nil
-}
+func (a *editTestAccessor) GetValue(key string) any          { return a.values[key] }
+func (a *editTestAccessor) ReloadFromFile(_ string) error    { return nil }
+func (a *editTestAccessor) SetValue(key string, v any) error { a.values[key] = v; return nil }
 
 // newEditTestModel creates a ConfigModel with an accessor and dirty tracker
 // initialized from the given values. Suitable for edit lifecycle tests.

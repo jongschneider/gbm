@@ -12,11 +12,9 @@ type stubAccessor struct {
 	values map[string]any
 }
 
-func (s *stubAccessor) GetValue(key string) any { return s.values[key] }
-func (s *stubAccessor) SetValue(key string, value any) error {
-	s.values[key] = value
-	return nil
-}
+func (s *stubAccessor) GetValue(key string) any              { return s.values[key] }
+func (s *stubAccessor) ReloadFromFile(_ string) error        { return nil }
+func (s *stubAccessor) SetValue(key string, value any) error { s.values[key] = value; return nil }
 
 func TestValidateTemplateVars(t *testing.T) {
 	testCases := []struct {

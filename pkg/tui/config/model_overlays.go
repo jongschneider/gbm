@@ -614,6 +614,9 @@ func (m *ConfigModel) addWorktreeEntry(name string, values [3]string) {
 }
 
 // updateWorktreeEntry updates an existing worktree entry, handling renames.
+//
+// On rename (oldName != newName): deletes the old key and creates a new entry.
+// On same-name update: modifies the entry in place under the existing key.
 func (m *ConfigModel) updateWorktreeEntry(oldName, newName string, values [3]string) {
 	val := m.accessor.GetValue("worktrees")
 	rv := reflect.ValueOf(val)
@@ -621,19 +624,21 @@ func (m *ConfigModel) updateWorktreeEntry(oldName, newName string, values [3]str
 		return
 	}
 
-	// If renamed, delete old key.
+	// Rename: delete old key, add under new name.
 	if oldName != newName {
 		rv.SetMapIndex(reflect.ValueOf(oldName), reflect.Value{})
-	}
-
-	entry := rv.MapIndex(reflect.ValueOf(oldName))
-	if !entry.IsValid() {
-		// Old entry gone (renamed); create new.
+		//nolint:errcheck // TUI accessor writes are best-effort on validated keys
+		m.accessor.SetValue("worktrees", rv.Interface())
 		m.addWorktreeEntry(newName, values)
 		return
 	}
 
-	// Update existing entry in place.
+	// Same-name update: modify entry in place.
+	entry := rv.MapIndex(reflect.ValueOf(oldName))
+	if !entry.IsValid() {
+		m.addWorktreeEntry(newName, values)
+		return
+	}
 	if entry.Kind() == reflect.Ptr {
 		entry = entry.Elem()
 	}

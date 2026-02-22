@@ -14,14 +14,9 @@ type testConfigAccessor struct {
 	values map[string]any
 }
 
-func (a *testConfigAccessor) GetValue(key string) any {
-	return a.values[key]
-}
-
-func (a *testConfigAccessor) SetValue(key string, value any) error {
-	a.values[key] = value
-	return nil
-}
+func (a *testConfigAccessor) GetValue(key string) any              { return a.values[key] }
+func (a *testConfigAccessor) ReloadFromFile(_ string) error        { return nil }
+func (a *testConfigAccessor) SetValue(key string, value any) error { a.values[key] = value; return nil }
 
 // fileCopyRule mirrors service.FileCopyRule for integration tests.
 // It has a slice field (Files), making it non-comparable with ==.
