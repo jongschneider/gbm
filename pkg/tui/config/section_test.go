@@ -1,8 +1,10 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -854,6 +856,94 @@ func TestSectionModel_SetFocusByFieldIndex(t *testing.T) {
 			found := s.SetFocusByFieldIndex(tc.fieldIndex)
 			tc.assertFound(t, found)
 			tc.assert(t, s)
+		})
+	}
+}
+
+func TestSectionModel_OverlayRight(t *testing.T) {
+	testCases := []struct {
+		assert  func(t *testing.T, result string)
+		name    string
+		line    string
+		overlay string
+		width   int
+	}{
+		{
+			name:    "plain text truncated to make room for overlay",
+			line:    strings.Repeat("x", 40),
+			overlay: "1/7",
+			width:   40,
+			assert: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Contains(t, result, "1/7")
+				assert.Equal(t, 40, lipgloss.Width(result))
+			},
+		},
+		{
+			name:    "ANSI styled line preserves escape sequences",
+			line:    "\x1b[31m" + strings.Repeat("R", 30) + "\x1b[0m",
+			overlay: "3/5",
+			width:   40,
+			assert: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Contains(t, result, "3/5")
+				// The result must not contain broken escape sequences.
+				// A broken sequence would have \x1b followed by a truncation
+				// that cuts off the closing letter (e.g., \x1b[3 without the 'm').
+				assert.NotContains(t, result, "\x1b[3/", "should not slice through ANSI escape")
+				assert.Equal(t, 40, lipgloss.Width(result))
+			},
+		},
+		{
+			name:    "short line is padded before overlay",
+			line:    "short",
+			overlay: "2/4",
+			width:   40,
+			assert: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Contains(t, result, "2/4")
+				assert.Equal(t, 40, lipgloss.Width(result))
+			},
+		},
+		{
+			name:    "overlay wider than width returns overlay only",
+			line:    "some content",
+			overlay: strings.Repeat("O", 50),
+			width:   40,
+			assert: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Equal(t, strings.Repeat("O", 50), result)
+			},
+		},
+		{
+			name:    "ANSI with multiple style codes intact after truncation",
+			line:    "\x1b[1m\x1b[34mBold Blue Text Here\x1b[0m" + strings.Repeat(" ", 20),
+			overlay: "5/9",
+			width:   40,
+			assert: func(t *testing.T, result string) {
+				t.Helper()
+				assert.Contains(t, result, "5/9")
+				assert.Equal(t, 40, lipgloss.Width(result))
+				// Verify no partial escape sequences: every \x1b must be
+				// followed by [ and eventually a letter.
+				for i := range len(result) {
+					if result[i] == '\x1b' {
+						// Must have room for at least \x1b[Xm
+						require.Greater(t, len(result)-i, 2,
+							"escape sequence truncated at end of string")
+						assert.Equal(t, byte('['), result[i+1],
+							"escape sequence must have [ after ESC")
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewSectionModel(testFields(), WithWidth(tc.width))
+			result := s.overlayRight(tc.line, tc.overlay)
+			tc.assert(t, result)
 		})
 	}
 }

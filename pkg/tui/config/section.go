@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // RowKind distinguishes the different row types rendered inside a section.
@@ -758,7 +759,7 @@ func (s *SectionModel) overlayRight(line, overlay string) string {
 
 	padW := w - oLen
 	return lipgloss.NewStyle().Width(padW).Render(
-		lipgloss.NewStyle().Width(padW).Render(line[:min(len(line), padW)]),
+		ansi.Truncate(line, padW, ""),
 	) + overlay
 }
 
