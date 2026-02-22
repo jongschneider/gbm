@@ -908,3 +908,99 @@ func TestDirtyTracker_NonComparableTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestCopyValue_deep_copies_inner_slices(t *testing.T) {
+	tests := []struct {
+		input  any
+		mutate func(copied any)
+		assert func(t *testing.T, original, copied any)
+		name   string
+	}{
+		{
+			name: "struct slice with inner string slice",
+			input: []testRule{
+				{Source: "main", Files: []string{".env", ".config"}},
+				{Source: "dev", Files: []string{"Makefile"}},
+			},
+			mutate: func(copied any) {
+				rules := copied.([]testRule)
+				rules[0].Files[0] = "MUTATED"
+				rules[0].Files = append(rules[0].Files, "extra")
+				rules[1].Source = "CHANGED"
+			},
+			assert: func(t *testing.T, original, copied any) {
+				t.Helper()
+				origRules := original.([]testRule)
+				copiedRules := copied.([]testRule)
+				assert.Equal(t, ".env", origRules[0].Files[0],
+					"mutating copied inner slice must not affect original")
+				assert.Len(t, origRules[0].Files, 2,
+					"appending to copied inner slice must not affect original length")
+				assert.Equal(t, "main", origRules[0].Source,
+					"original struct fields must be unchanged")
+				assert.Equal(t, "MUTATED", copiedRules[0].Files[0],
+					"mutation should be visible on the copy")
+			},
+		},
+		{
+			name: "map with struct values containing slices",
+			input: map[string]testRule{
+				"rule1": {Source: "main", Files: []string{"a", "b"}},
+			},
+			mutate: func(copied any) {
+				m := copied.(map[string]testRule)
+				r := m["rule1"]
+				r.Files[0] = "MUTATED"
+				m["rule1"] = r
+			},
+			assert: func(t *testing.T, original, copied any) {
+				t.Helper()
+				origMap := original.(map[string]testRule)
+				assert.Equal(t, "a", origMap["rule1"].Files[0],
+					"mutating copied map value's inner slice must not affect original")
+			},
+		},
+		{
+			name:   "nil slice stays nil",
+			input:  []testRule(nil),
+			mutate: func(_ any) {},
+			assert: func(t *testing.T, original, copied any) {
+				t.Helper()
+				assert.Nil(t, copied)
+			},
+		},
+		{
+			name:   "empty slice stays empty",
+			input:  []testRule{},
+			mutate: func(_ any) {},
+			assert: func(t *testing.T, _, copied any) {
+				t.Helper()
+				rules := copied.([]testRule)
+				assert.Empty(t, rules)
+			},
+		},
+		{
+			name:  "string slice independence",
+			input: []string{"a", "b", "c"},
+			mutate: func(copied any) {
+				s := copied.([]string)
+				s[0] = "MUTATED"
+			},
+			assert: func(t *testing.T, original, _ any) {
+				t.Helper()
+				origSlice := original.([]string)
+				assert.Equal(t, "a", origSlice[0],
+					"mutating copied string slice must not affect original")
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := tc.input
+			copied := copyValue(original)
+			tc.mutate(copied)
+			tc.assert(t, original, copied)
+		})
+	}
+}

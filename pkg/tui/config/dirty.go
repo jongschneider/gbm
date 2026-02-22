@@ -181,10 +181,10 @@ func copyMap(m map[string]any) map[string]any {
 	return c
 }
 
-// copyValue returns a deep copy of a value. String slices are cloned;
-// scalars are returned as-is (they are immutable). Non-comparable types
-// (slices of structs, maps) are deep-copied via reflect to prevent
-// aliasing between original and current snapshots.
+// copyValue returns a recursive deep copy of a value. Scalars (string, int,
+// bool, etc.) are returned as-is since they are immutable. Slices, maps, and
+// structs containing slices or maps are recursively copied so that no backing
+// arrays or map internals are shared between original and copy.
 func copyValue(v any) any {
 	if v == nil {
 		return nil
@@ -194,19 +194,54 @@ func copyValue(v any) any {
 		copy(cp, s)
 		return cp
 	}
-	rv := reflect.ValueOf(v)
+	return deepCopyReflect(reflect.ValueOf(v)).Interface()
+}
+
+// deepCopyReflect recursively deep-copies a reflect.Value. It handles slices,
+// maps, structs, and pointers, ensuring no backing arrays or map internals are
+// shared between the original and the copy.
+func deepCopyReflect(rv reflect.Value) reflect.Value {
 	switch rv.Kind() {
 	case reflect.Slice:
+		if rv.IsNil() {
+			return reflect.Zero(rv.Type())
+		}
 		cp := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
-		reflect.Copy(cp, rv)
-		return cp.Interface()
+		for i := range rv.Len() {
+			cp.Index(i).Set(deepCopyReflect(rv.Index(i)))
+		}
+		return cp
+
 	case reflect.Map:
+		if rv.IsNil() {
+			return reflect.Zero(rv.Type())
+		}
 		cp := reflect.MakeMap(rv.Type())
 		for _, key := range rv.MapKeys() {
-			cp.SetMapIndex(key, rv.MapIndex(key))
+			cp.SetMapIndex(key, deepCopyReflect(rv.MapIndex(key)))
 		}
-		return cp.Interface()
+		return cp
+
+	case reflect.Struct:
+		cp := reflect.New(rv.Type()).Elem()
+		for i := range rv.NumField() {
+			field := rv.Field(i)
+			if !cp.Field(i).CanSet() {
+				continue // skip unexported fields
+			}
+			cp.Field(i).Set(deepCopyReflect(field))
+		}
+		return cp
+
+	case reflect.Ptr:
+		if rv.IsNil() {
+			return reflect.Zero(rv.Type())
+		}
+		cp := reflect.New(rv.Type().Elem())
+		cp.Elem().Set(deepCopyReflect(rv.Elem()))
+		return cp
+
 	default:
-		return v
+		return rv
 	}
 }
