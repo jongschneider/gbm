@@ -505,6 +505,10 @@ func (m *ConfigModel) handleErrorsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ErrorActionJump:
 		selected := m.errorOverlay.SelectedError()
 		m.activeTab = selected.Tab
+		if s := m.sections[selected.Tab]; s != nil {
+			s.SetFocusByFieldIndex(selected.FieldIndex)
+		}
+		m.syncFocusedField()
 		m.state = StateBrowsing
 	}
 	return m, nil

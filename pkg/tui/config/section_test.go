@@ -750,3 +750,110 @@ func TestSectionModel_ScrollOffsetClamps(t *testing.T) {
 	s.JumpToLast()
 	assert.Equal(t, 0, s.ScrollOffset(), "should not scroll when all rows fit in viewport")
 }
+
+func TestSectionModel_SetFocusByFieldIndex(t *testing.T) {
+	testCases := []struct {
+		setup       func(s *SectionModel)
+		assert      func(t *testing.T, s *SectionModel)
+		assertFound func(t *testing.T, found bool)
+		name        string
+		fields      []FieldMeta
+		fieldIndex  int
+	}{
+		{
+			name:       "focuses matching field in ungrouped section",
+			fields:     testFields(),
+			fieldIndex: 1,
+			setup:      func(_ *SectionModel) {},
+			assertFound: func(t *testing.T, found bool) {
+				t.Helper()
+				assert.True(t, found)
+			},
+			assert: func(t *testing.T, s *SectionModel) {
+				t.Helper()
+				assert.Equal(t, "Worktrees Dir", s.FocusedRow().Label)
+				assert.Equal(t, 1, s.FocusedRow().FieldIndex)
+			},
+		},
+		{
+			name:       "focuses matching field in grouped section skipping headers",
+			fields:     testGroupedFields(),
+			fieldIndex: 3,
+			setup:      func(_ *SectionModel) {},
+			assertFound: func(t *testing.T, found bool) {
+				t.Helper()
+				assert.True(t, found)
+			},
+			assert: func(t *testing.T, s *SectionModel) {
+				t.Helper()
+				assert.Equal(t, "Type", s.FocusedRow().Label)
+				assert.Equal(t, 3, s.FocusedRow().FieldIndex)
+			},
+		},
+		{
+			name:       "scrolls viewport when target is below visible area",
+			fields:     testGroupedFields(),
+			fieldIndex: 6,
+			setup:      func(_ *SectionModel) {},
+			assertFound: func(t *testing.T, found bool) {
+				t.Helper()
+				assert.True(t, found)
+			},
+			assert: func(t *testing.T, s *SectionModel) {
+				t.Helper()
+				fi := s.FocusIndex()
+				so := s.ScrollOffset()
+				assert.GreaterOrEqual(t, fi, so, "focused row should be at or after scroll offset")
+				assert.Less(t, fi, so+3, "focused row should be within viewport")
+				assert.Equal(t, "Include Comments", s.FocusedRow().Label)
+			},
+		},
+		{
+			name:       "returns false for nonexistent field index",
+			fields:     testGroupedFields(),
+			fieldIndex: 99,
+			setup:      func(_ *SectionModel) {},
+			assertFound: func(t *testing.T, found bool) {
+				t.Helper()
+				assert.False(t, found)
+			},
+			assert: func(t *testing.T, s *SectionModel) {
+				t.Helper()
+				// Focus should remain unchanged (first focusable row).
+				assert.Equal(t, "Host", s.FocusedRow().Label)
+			},
+		},
+		{
+			name:       "returns false when field is filtered out by search",
+			fields:     testGroupedFields(),
+			fieldIndex: 5, // "Max Depth" in Markdown group
+			setup: func(s *SectionModel) {
+				s.OpenSearch()
+				s.SearchHandleRune('H')
+				s.SearchHandleRune('o')
+				s.SearchHandleRune('s')
+				s.SearchHandleRune('t')
+				// Only "Host" should match the filter.
+			},
+			assertFound: func(t *testing.T, found bool) {
+				t.Helper()
+				assert.False(t, found, "field not in filtered results should return false")
+			},
+			assert: func(t *testing.T, s *SectionModel) {
+				t.Helper()
+				// Focus should remain on the search result.
+				assert.Equal(t, "Host", s.FocusedRow().Label)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewSectionModel(tc.fields, WithViewportHeight(3))
+			tc.setup(s)
+			found := s.SetFocusByFieldIndex(tc.fieldIndex)
+			tc.assertFound(t, found)
+			tc.assert(t, s)
+		})
+	}
+}

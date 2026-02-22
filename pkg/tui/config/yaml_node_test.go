@@ -548,6 +548,59 @@ func TestSaveConfigFile_nil_root(t *testing.T) {
 	assert.Contains(t, err.Error(), "nil root node")
 }
 
+func TestSaveConfigFile_preserves_permissions(t *testing.T) {
+	testCases := []struct {
+		name     string
+		filePerm os.FileMode
+	}{
+		{
+			name:     "preserves restrictive 0600 permissions",
+			filePerm: 0o600,
+		},
+		{
+			name:     "preserves standard 0644 permissions",
+			filePerm: 0o644,
+		},
+		{
+			name:     "preserves group-writable 0660 permissions",
+			filePerm: 0o660,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(path, []byte("key: old\n"), 0o644))
+			// Chmod explicitly to bypass umask effects from WriteFile.
+			require.NoError(t, os.Chmod(path, tc.filePerm))
+
+			root := parseYAML(t, "key: new\n")
+			err := SaveConfigFile(path, root)
+			require.NoError(t, err)
+
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, tc.filePerm, info.Mode().Perm(),
+				"saved file should preserve original permissions")
+		})
+	}
+}
+
+func TestSaveConfigFile_falls_back_to_0644_for_new_file(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "new_config.yaml")
+
+	root := parseYAML(t, "key: value\n")
+	err := SaveConfigFile(path, root)
+	require.NoError(t, err)
+
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(),
+		"new file should get default 0644 permissions")
+}
+
 func TestSaveConfigFile_atomicity(t *testing.T) {
 	// Verify no .tmp file is left behind after a successful save.
 	root := parseYAML(t, "key: value\n")
@@ -596,6 +649,40 @@ func TestBackupConfigFile(t *testing.T) {
 			if tc.assert != nil {
 				tc.assert(t, path, path+".bak")
 			}
+		})
+	}
+}
+
+func TestBackupConfigFile_preserves_permissions(t *testing.T) {
+	testCases := []struct {
+		name     string
+		filePerm os.FileMode
+	}{
+		{
+			name:     "preserves restrictive 0600 permissions",
+			filePerm: 0o600,
+		},
+		{
+			name:     "preserves standard 0644 permissions",
+			filePerm: 0o644,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(path, []byte("key: value\n"), 0o644))
+			// Chmod explicitly to bypass umask effects from WriteFile.
+			require.NoError(t, os.Chmod(path, tc.filePerm))
+
+			err := BackupConfigFile(path)
+			require.NoError(t, err)
+
+			bakInfo, err := os.Stat(path + ".bak")
+			require.NoError(t, err)
+			assert.Equal(t, tc.filePerm, bakInfo.Mode().Perm(),
+				"backup file should preserve original permissions")
 		})
 	}
 }

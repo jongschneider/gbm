@@ -676,3 +676,110 @@ func TestConfigModel_ViewContainsSeparators(t *testing.T) {
 	assert.Contains(t, view, "\u2500",
 		"view should contain horizontal line separator characters")
 }
+
+func TestConfigModel_HandleErrorsKey_JumpToField(t *testing.T) {
+	testCases := []struct {
+		setup  func(m *ConfigModel)
+		assert func(t *testing.T, m *ConfigModel)
+		name   string
+	}{
+		{
+			name: "jumps to correct tab and field on enter",
+			setup: func(m *ConfigModel) {
+				// Populate error overlay with an error on the JIRA tab,
+				// field index 2 (Priority, which is the 3rd field in jiraFields).
+				m.ShowErrorOverlay([]ValidationError{
+					{
+						Tab:        TabJira,
+						FieldIndex: 2,
+						FieldKey:   "jira.filters.priority",
+						FieldLabel: "Priority",
+						Message:    "invalid value",
+					},
+				})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Equal(t, TabJira, m.ActiveTab(), "should switch to JIRA tab")
+				assert.Equal(t, StateBrowsing, m.State(), "should return to browsing")
+
+				s := m.Sections()[TabJira]
+				require.NotNil(t, s)
+				row := s.FocusedRow()
+				assert.Equal(t, 2, row.FieldIndex,
+					"section should focus the field matching the error's FieldIndex")
+			},
+		},
+		{
+			name: "jumps to field on different tab than current",
+			setup: func(m *ConfigModel) {
+				// Start on General tab, error is on FileCopy tab.
+				m.activeTab = TabGeneral
+				m.ShowErrorOverlay([]ValidationError{
+					{
+						Tab:        TabFileCopy,
+						FieldIndex: 1,
+						FieldKey:   "file_copy.auto.copy_ignored",
+						FieldLabel: "Copy Ignored",
+						Message:    "required",
+					},
+				})
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Equal(t, TabFileCopy, m.ActiveTab(), "should switch to File Copy tab")
+				s := m.Sections()[TabFileCopy]
+				require.NotNil(t, s)
+				assert.Equal(t, 1, s.FocusedRow().FieldIndex,
+					"section should focus field index 1")
+			},
+		},
+		{
+			name: "jumps to second error when cursor is moved down",
+			setup: func(m *ConfigModel) {
+				m.ShowErrorOverlay([]ValidationError{
+					{
+						Tab:        TabGeneral,
+						FieldIndex: 0,
+						FieldKey:   "default_branch",
+						FieldLabel: "Default Branch",
+						Message:    "required",
+					},
+					{
+						Tab:        TabJira,
+						FieldIndex: 1,
+						FieldKey:   "jira.username",
+						FieldLabel: "Username",
+						Message:    "required",
+					},
+				})
+				// Move cursor down to the second error.
+				m.errorOverlay.HandleKey(runeKey('j'))
+			},
+			assert: func(t *testing.T, m *ConfigModel) {
+				t.Helper()
+				assert.Equal(t, TabJira, m.ActiveTab(), "should switch to JIRA tab")
+				s := m.Sections()[TabJira]
+				require.NotNil(t, s)
+				assert.Equal(t, 1, s.FocusedRow().FieldIndex,
+					"section should focus field index 1 (Username)")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewConfigModel()
+			m.width = 80
+			m.height = 24
+
+			tc.setup(m)
+			require.Equal(t, StateErrors, m.State(), "should be in errors state")
+
+			// Press enter to trigger ErrorActionJump.
+			result, _ := m.Update(enterKey())
+			updated := result.(*ConfigModel)
+			tc.assert(t, updated)
+		})
+	}
+}

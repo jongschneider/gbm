@@ -88,7 +88,8 @@ func UpdateNodeValue(root *yaml.Node, key string, value any) error {
 
 // SaveConfigFile writes the YAML node tree back to the given path, preserving
 // comments, key ordering, and unknown keys. The file is written atomically via
-// a temporary file + rename to avoid partial writes on crash.
+// a temporary file + rename to avoid partial writes on crash. The output file
+// preserves the original file's permissions; falls back to 0o644 for new files.
 func SaveConfigFile(path string, root *yaml.Node) error {
 	if root == nil {
 		return errors.New("nil root node")
@@ -99,10 +100,19 @@ func SaveConfigFile(path string, root *yaml.Node) error {
 		return fmt.Errorf("marshal config YAML: %w", err)
 	}
 
+	perm := filePermissions(path)
+
 	// Write to a temp file first, then rename for atomicity.
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, perm); err != nil {
 		return fmt.Errorf("write temp config file: %w", err)
+	}
+
+	// Explicitly set permissions to counteract umask, which may strip bits
+	// from the mode passed to WriteFile (e.g., group-write).
+	if err := os.Chmod(tmp, perm); err != nil {
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup on chmod failure
+		return fmt.Errorf("set temp config file permissions: %w", err)
 	}
 
 	if err := os.Rename(tmp, path); err != nil {
@@ -115,15 +125,23 @@ func SaveConfigFile(path string, root *yaml.Node) error {
 }
 
 // BackupConfigFile creates a backup copy of the config file at path + ".bak".
+// The backup file preserves the original file's permissions.
 func BackupConfigFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read config for backup: %w", err)
 	}
 
+	perm := filePermissions(path)
+
 	bakPath := path + ".bak"
-	if err := os.WriteFile(bakPath, data, 0o644); err != nil {
+	if err := os.WriteFile(bakPath, data, perm); err != nil {
 		return fmt.Errorf("write backup file: %w", err)
+	}
+
+	// Explicitly set permissions to counteract umask.
+	if err := os.Chmod(bakPath, perm); err != nil {
+		return fmt.Errorf("set backup file permissions: %w", err)
 	}
 
 	return nil
@@ -142,6 +160,16 @@ func CheckExternalChange(path string, modTime time.Time) (bool, error) {
 }
 
 // --- internal helpers ---.
+
+// filePermissions returns the permission bits of the file at path, or 0o644 if
+// the file does not exist or cannot be stat'd (e.g., creating a new file).
+func filePermissions(path string) os.FileMode {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0o644
+	}
+	return info.Mode().Perm()
+}
 
 // setNestedValue recursively navigates or creates mapping sections along
 // the key path, then sets the leaf value.

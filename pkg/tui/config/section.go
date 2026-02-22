@@ -480,6 +480,24 @@ func (s *SectionModel) ensureVisible() {
 	}
 }
 
+// SetFocusByFieldIndex sets focus to the visible row whose FieldIndex matches
+// the given field index, then scrolls to make it visible. This is used by the
+// error overlay jump to navigate directly to a specific field.
+//
+// When a search filter is active and the target field is not in the filtered
+// results, the method returns false and focus is unchanged.
+func (s *SectionModel) SetFocusByFieldIndex(fieldIndex int) bool {
+	rows := s.visibleRows()
+	for i, r := range rows {
+		if r.Kind == RowField && r.FieldIndex == fieldIndex {
+			s.focusIndex = i
+			s.ensureVisible()
+			return true
+		}
+	}
+	return false
+}
+
 // SetViewportHeight updates the viewport height and re-clamps the scroll offset.
 func (s *SectionModel) SetViewportHeight(h int) {
 	if h > 0 {
