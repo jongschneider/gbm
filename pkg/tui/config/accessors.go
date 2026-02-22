@@ -16,6 +16,12 @@ var ErrUnknownKey = errors.New("unknown config key")
 type ConfigAccessor interface {
 	GetValue(key string) any
 	SetValue(key string, value any) error
+
+	// ReloadFromFile re-reads the config file at the given path and
+	// re-unmarshals its contents into the underlying config struct.
+	// This is used after the external editor saves a fixed config so that
+	// the accessor reflects the new file contents.
+	ReloadFromFile(path string) error
 }
 
 // CoerceValue converts a raw value (typically a string from user input) to

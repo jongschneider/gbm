@@ -2,9 +2,12 @@ package service
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tuiconfig "gbm/pkg/tui/config"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ConfigAdapter wraps a *Config and implements tuiconfig.ConfigAccessor,
@@ -17,6 +20,24 @@ type ConfigAdapter struct {
 // NewConfigAdapter creates a ConfigAccessor backed by the given Config.
 func NewConfigAdapter(cfg *Config) *ConfigAdapter {
 	return &ConfigAdapter{cfg: cfg}
+}
+
+// ReloadFromFile re-reads the YAML config file at path and unmarshals it
+// into the adapter's Config struct. This replaces all field values in-place
+// so that subsequent GetValue calls return the reloaded data.
+func (a *ConfigAdapter) ReloadFromFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read config file for reload: %w", err)
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("unmarshal config for reload: %w", err)
+	}
+
+	*a.cfg = cfg
+	return nil
 }
 
 // GetValue returns the current value for a dot-path key.

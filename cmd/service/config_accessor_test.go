@@ -2,6 +2,7 @@ package service
 
 import (
 	"gbm/internal/jira"
+	"os"
 	"testing"
 
 	tuiconfig "gbm/pkg/tui/config"
@@ -651,6 +652,64 @@ func TestConfigAdapter_GetValue_SetValue_roundtrip(t *testing.T) {
 
 	// Verify updated value
 	assert.Equal(t, "develop", a.GetValue("default_branch"))
+}
+
+func TestConfigAdapter_ReloadFromFile(t *testing.T) {
+	testCases := []struct {
+		assert      func(t *testing.T, cfg *Config)
+		assertError func(t *testing.T, err error)
+		name        string
+		yamlContent string
+	}{
+		{
+			name:        "reload updates config fields",
+			yamlContent: "default_branch: develop\nworktrees_dir: wt\n",
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.NoError(t, err)
+			},
+			assert: func(t *testing.T, cfg *Config) {
+				t.Helper()
+				assert.Equal(t, "develop", cfg.DefaultBranch)
+				assert.Equal(t, "wt", cfg.WorktreesDir)
+			},
+		},
+		{
+			name:        "reload with invalid YAML returns error",
+			yamlContent: "{{bad yaml",
+			assertError: func(t *testing.T, err error) {
+				t.Helper()
+				assert.ErrorContains(t, err, "unmarshal config for reload")
+			},
+			assert: func(t *testing.T, cfg *Config) {
+				t.Helper()
+				// Config should remain unchanged on error.
+				assert.Equal(t, "main", cfg.DefaultBranch)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			path := tmpDir + "/config.yaml"
+			require.NoError(t, os.WriteFile(path, []byte(tc.yamlContent), 0o644))
+
+			cfg := &Config{DefaultBranch: "main", WorktreesDir: "worktrees"}
+			a := NewConfigAdapter(cfg)
+
+			err := a.ReloadFromFile(path)
+			tc.assertError(t, err)
+			tc.assert(t, cfg)
+		})
+	}
+}
+
+func TestConfigAdapter_ReloadFromFile_nonexistent(t *testing.T) {
+	cfg := &Config{}
+	a := NewConfigAdapter(cfg)
+	err := a.ReloadFromFile("/nonexistent/path/config.yaml")
+	assert.ErrorContains(t, err, "read config file for reload")
 }
 
 func TestConfigAdapter_GetValue_covers_all_section_keys(t *testing.T) {

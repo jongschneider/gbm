@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -317,6 +318,27 @@ func TestConfigModel_CorruptConfigKeyHandling(t *testing.T) {
 	}
 }
 
+// reloadableTestAccessor implements ConfigAccessor for editor-reload tests.
+// ReloadFromFile replaces the internal values with reloadValues, simulating
+// a real accessor re-reading from disk.
+type reloadableTestAccessor struct {
+	values       map[string]any
+	reloadValues map[string]any
+	reloadCalled bool
+}
+
+func (a *reloadableTestAccessor) GetValue(key string) any { return a.values[key] }
+func (a *reloadableTestAccessor) SetValue(key string, value any) error {
+	a.values[key] = value
+	return nil
+}
+
+func (a *reloadableTestAccessor) ReloadFromFile(_ string) error {
+	a.reloadCalled = true
+	maps.Copy(a.values, a.reloadValues)
+	return nil
+}
+
 func TestConfigModel_CorruptConfigEditorReload_Success(t *testing.T) {
 	// Create a valid YAML config file for the reload to parse.
 	tmpDir := t.TempDir()
@@ -337,6 +359,68 @@ func TestConfigModel_CorruptConfigEditorReload_Success(t *testing.T) {
 	assert.Nil(t, updated.CorruptConfig())
 	assert.NotNil(t, updated.root)
 	require.NotNil(t, cmd, "should return flash command")
+}
+
+func TestConfigModel_EditorReload_ReinitializesAccessorAndSections(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	err := os.WriteFile(configPath, []byte("default_branch: develop\nworktrees_dir: wt\n"), 0o644)
+	require.NoError(t, err)
+
+	// Accessor starts with "stale" values (simulating corrupt/pre-editor state).
+	staleValues := map[string]any{
+		"default_branch": "",
+		"worktrees_dir":  "",
+	}
+	// After reload, accessor returns "fresh" values.
+	freshValues := map[string]any{
+		"default_branch": "develop",
+		"worktrees_dir":  "wt",
+	}
+	accessor := &reloadableTestAccessor{
+		values:       staleValues,
+		reloadValues: freshValues,
+	}
+
+	dt := NewDirtyTracker(staleValues)
+	m := NewConfigModel(
+		WithAccessor(accessor),
+		WithDirtyTracker(dt),
+		WithFilePath(configPath),
+	)
+	m.width = 80
+	m.height = 24
+	m.InitSections()
+
+	// Put model into corrupt config state.
+	m.SetCorruptConfig("yaml: parse error", configPath)
+	require.Equal(t, StateCorruptConfig, m.State())
+
+	// Simulate successful editor close (editor fixed the file).
+	result, cmd := m.Update(editorReloadMsg{err: nil})
+	updated := result.(*ConfigModel)
+
+	// Verify state transition.
+	assert.Equal(t, StateBrowsing, updated.State())
+	assert.Nil(t, updated.CorruptConfig())
+	require.NotNil(t, cmd, "should return flash command")
+
+	// Verify accessor was reloaded.
+	assert.True(t, accessor.reloadCalled, "ReloadFromFile should have been called")
+	assert.Equal(t, "develop", accessor.GetValue("default_branch"))
+
+	// Verify dirty tracker was rebuilt (all clean).
+	assert.Equal(t, 0, updated.dirty.DirtyCount(),
+		"dirty tracker should be clean after reload")
+
+	// Verify sections were rebuilt with fresh values.
+	sections := updated.Sections()
+	require.NotNil(t, sections[TabGeneral])
+	generalSection := sections[TabGeneral]
+	// The first field in the general section should show the reloaded value.
+	focusedRow := generalSection.FocusedRow()
+	assert.Equal(t, "develop", focusedRow.Value,
+		"section field should show reloaded value, not stale value")
 }
 
 func TestConfigModel_CorruptConfigEditorReload_StillCorrupt(t *testing.T) {

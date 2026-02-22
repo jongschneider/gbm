@@ -352,3 +352,32 @@ func (m *ConfigModel) fetchGitWorktrees() tea.Cmd {
 		return gitWorktreesMsg{names: names, err: err}
 	}
 }
+
+// allFieldKeys returns all dot-path keys managed by the TUI, derived from
+// field metadata slices and entry list keys. This is used to snapshot
+// accessor values for dirty tracking without duplicating a hardcoded key list.
+func allFieldKeys() []string {
+	fieldSets := [][]FieldMeta{generalFields, jiraFields, fileCopyAutoFields}
+	// Entry list keys are not in field metadata but are managed by the TUI.
+	entryListKeys := []string{"file_copy.rules", "worktrees"}
+
+	var keys []string
+	for _, fs := range fieldSets {
+		for _, f := range fs {
+			keys = append(keys, f.Key)
+		}
+	}
+	keys = append(keys, entryListKeys...)
+	return keys
+}
+
+// snapshotAccessor reads all managed config keys from the accessor and returns
+// a map suitable for seeding a DirtyTracker baseline.
+func snapshotAccessor(accessor ConfigAccessor) map[string]any {
+	keys := allFieldKeys()
+	snapshot := make(map[string]any, len(keys))
+	for _, key := range keys {
+		snapshot[key] = accessor.GetValue(key)
+	}
+	return snapshot
+}

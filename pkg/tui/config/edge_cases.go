@@ -315,12 +315,29 @@ func (m *ConfigModel) handleEditorReload(msg editorReloadMsg) (tea.Model, tea.Cm
 		return m, nil
 	}
 
-	// Config is now valid. Clear corrupt state and transition to browsing.
+	// Config is now valid. Capture path before clearing corrupt state.
+	configPath := m.corruptConfig.FilePath()
 	m.root = cf.Root
 	m.modTime = cf.ModTime
 	m.corruptConfig = nil
-	m.state = StateBrowsing
 
+	// Re-unmarshal the config file into the accessor's underlying struct
+	// so that GetValue calls return the updated data.
+	if m.accessor != nil {
+		if err := m.accessor.ReloadFromFile(configPath); err != nil {
+			m.corruptConfig = NewCorruptConfigState(err.Error(), configPath)
+			return m, nil
+		}
+
+		// Rebuild the dirty tracker baseline from the reloaded accessor
+		// so all fields show as clean.
+		m.dirty = NewDirtyTracker(snapshotAccessor(m.accessor))
+
+		// Rebuild sections and field rows from the refreshed accessor.
+		m.InitSections()
+	}
+
+	m.state = StateBrowsing
 	return m, m.SetFlash("config reloaded")
 }
 
