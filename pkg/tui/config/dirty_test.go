@@ -909,6 +909,97 @@ func TestDirtyTracker_NonComparableTypes(t *testing.T) {
 	}
 }
 
+func TestDeepCopyReflect_interface_values(t *testing.T) {
+	tests := []struct {
+		input  any
+		mutate func(copied any)
+		assert func(t *testing.T, original, copied any)
+		name   string
+	}{
+		{
+			name:  "map[string]any with nested slice",
+			input: map[string]any{"tags": []string{"alpha", "beta"}},
+			mutate: func(copied any) {
+				m := copied.(map[string]any)
+				m["tags"].([]string)[0] = "MUTATED"
+			},
+			assert: func(t *testing.T, original, _ any) {
+				t.Helper()
+				m := original.(map[string]any)
+				assert.Equal(t, []string{"alpha", "beta"}, m["tags"],
+					"mutating copied interface-wrapped slice must not affect original")
+			},
+		},
+		{
+			name:  "map[string]any with nested map",
+			input: map[string]any{"nested": map[string]any{"key": "value"}},
+			mutate: func(copied any) {
+				m := copied.(map[string]any)
+				m["nested"].(map[string]any)["key"] = "MUTATED"
+			},
+			assert: func(t *testing.T, original, _ any) {
+				t.Helper()
+				m := original.(map[string]any)
+				inner := m["nested"].(map[string]any)
+				assert.Equal(t, "value", inner["key"],
+					"mutating copied interface-wrapped map must not affect original")
+			},
+		},
+		{
+			name:   "map[string]any with nil interface value",
+			input:  map[string]any{"nothing": nil},
+			mutate: func(_ any) {},
+			assert: func(t *testing.T, _, copied any) {
+				t.Helper()
+				m := copied.(map[string]any)
+				assert.Nil(t, m["nothing"])
+			},
+		},
+		{
+			name:  "map[string]any with scalar interface value",
+			input: map[string]any{"count": 42},
+			mutate: func(copied any) {
+				m := copied.(map[string]any)
+				m["count"] = 99
+			},
+			assert: func(t *testing.T, original, _ any) {
+				t.Helper()
+				m := original.(map[string]any)
+				assert.Equal(t, 42, m["count"],
+					"overwriting copied scalar must not affect original")
+			},
+		},
+		{
+			name: "deeply nested any values",
+			input: map[string]any{
+				"level1": map[string]any{
+					"level2": []string{"deep"},
+				},
+			},
+			mutate: func(copied any) {
+				m := copied.(map[string]any)
+				m["level1"].(map[string]any)["level2"].([]string)[0] = "MUTATED"
+			},
+			assert: func(t *testing.T, original, _ any) {
+				t.Helper()
+				m := original.(map[string]any)
+				inner := m["level1"].(map[string]any)
+				assert.Equal(t, []string{"deep"}, inner["level2"],
+					"mutating deeply nested interface-wrapped value must not affect original")
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := tc.input
+			copied := copyValue(original)
+			tc.mutate(copied)
+			tc.assert(t, original, copied)
+		})
+	}
+}
+
 func TestCopyValue_deep_copies_inner_slices(t *testing.T) {
 	tests := []struct {
 		input  any

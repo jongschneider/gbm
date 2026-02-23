@@ -241,6 +241,15 @@ func deepCopyReflect(rv reflect.Value) reflect.Value {
 		cp.Elem().Set(deepCopyReflect(rv.Elem()))
 		return cp
 
+	case reflect.Interface:
+		if rv.IsNil() {
+			return reflect.Zero(rv.Type())
+		}
+		inner := deepCopyReflect(rv.Elem())
+		cp := reflect.New(rv.Type()).Elem()
+		cp.Set(inner)
+		return cp
+
 	default:
 		return rv
 	}
