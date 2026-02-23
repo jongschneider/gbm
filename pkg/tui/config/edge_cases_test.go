@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"maps"
 	"os"
 	"path/filepath"
@@ -324,6 +325,7 @@ func TestConfigModel_CorruptConfigKeyHandling(t *testing.T) {
 type reloadableTestAccessor struct {
 	values       map[string]any
 	reloadValues map[string]any
+	reloadErr    error
 	reloadCalled bool
 }
 
@@ -335,6 +337,9 @@ func (a *reloadableTestAccessor) SetValue(key string, value any) error {
 
 func (a *reloadableTestAccessor) ReloadFromFile(_ string) error {
 	a.reloadCalled = true
+	if a.reloadErr != nil {
+		return a.reloadErr
+	}
 	maps.Copy(a.values, a.reloadValues)
 	return nil
 }
@@ -421,6 +426,41 @@ func TestConfigModel_EditorReload_ReinitializesAccessorAndSections(t *testing.T)
 	focusedRow := generalSection.FocusedRow()
 	assert.Equal(t, "develop", focusedRow.Value,
 		"section field should show reloaded value, not stale value")
+}
+
+func TestConfigModel_EditorReload_ReloadFromFileFailure(t *testing.T) {
+	// Create a valid YAML file so the YAML parse succeeds, but the accessor
+	// reload itself fails (e.g. struct unmarshalling error).
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	err := os.WriteFile(configPath, []byte("default_branch: main\n"), 0o644)
+	require.NoError(t, err)
+
+	reloadErr := errors.New("failed to unmarshal config into struct")
+	accessor := &reloadableTestAccessor{
+		values:    map[string]any{"default_branch": ""},
+		reloadErr: reloadErr,
+	}
+
+	m := NewConfigModel(
+		WithAccessor(accessor),
+		WithFilePath(configPath),
+	)
+	m.width = 80
+	m.height = 24
+	m.SetCorruptConfig("yaml: original parse error", configPath)
+	require.Equal(t, StateCorruptConfig, m.State())
+
+	// Simulate successful editor close -- YAML parses fine, but
+	// ReloadFromFile returns an error.
+	result, cmd := m.Update(editorReloadMsg{err: nil})
+	updated := result.(*ConfigModel)
+
+	assert.Equal(t, StateCorruptConfig, updated.State())
+	require.NotNil(t, updated.CorruptConfig())
+	assert.Contains(t, updated.CorruptConfig().ParseError(), "failed to unmarshal config into struct")
+	assert.Nil(t, cmd, "should return nil command on ReloadFromFile failure")
+	assert.True(t, accessor.reloadCalled, "ReloadFromFile should have been called")
 }
 
 func TestConfigModel_CorruptConfigEditorReload_StillCorrupt(t *testing.T) {
