@@ -468,7 +468,7 @@ func (m *worktreeListModel) handleConfirmingBranchDeleteKeyMsg(msg tea.KeyMsg) (
 	case "y", "Y":
 		// Delete the branch
 		branchName := m.deletedBranchName
-		err := m.gitOps.DeleteBranch(branchName, false, false)
+		err := m.gitOps.DeleteBranch(branchName, true, false)
 		if err != nil {
 			m.message = fmt.Sprintf("Error deleting branch '%s': %v", branchName, err)
 		} else {
