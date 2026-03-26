@@ -128,6 +128,32 @@ func (a *addNavigatorAdapter) Context() *tui.Context {
 	return a.ctx
 }
 
+// gitServiceAdapter adapts *git.Service to tui.GitService interface,
+// converting git.Worktree to tui.WorktreeInfo.
+type gitServiceAdapter struct {
+	svc *git.Service
+}
+
+func (a *gitServiceAdapter) BranchExists(branch string) (bool, error) {
+	return a.svc.BranchExists(branch)
+}
+
+func (a *gitServiceAdapter) ListBranches(dryRun bool) ([]string, error) {
+	return a.svc.ListBranches(dryRun)
+}
+
+func (a *gitServiceAdapter) ListWorktrees(dryRun bool) ([]tui.WorktreeInfo, error) {
+	wts, err := a.svc.ListWorktrees(dryRun)
+	if err != nil {
+		return nil, err
+	}
+	infos := make([]tui.WorktreeInfo, len(wts))
+	for i, wt := range wts {
+		infos[i] = tui.WorktreeInfo{Name: wt.Name, Branch: wt.Branch}
+	}
+	return infos, nil
+}
+
 // jiraServiceAdapter adapts *jira.Service to tui.JiraService interface.
 type jiraServiceAdapter struct {
 	jiraService jiraService
@@ -183,13 +209,20 @@ func runWorktreeAddWizardTUI(svc *Service) error {
 	)
 	lipgloss.SetDefaultRenderer(renderer)
 
+	// Resolve worktrees directory for display in review screen
+	worktreesDir, err := svc.GetWorktreesPath()
+	if err != nil {
+		worktreesDir = "" // Non-fatal: review screen will just omit the path
+	}
+
 	// Build context with services (after renderer is set up)
 	ctx := tui.NewContext().
 		WithDimensions(100, 30).
 		WithTheme(tui.DefaultTheme()).
-		WithGitService(svc.Git).
+		WithGitService(&gitServiceAdapter{svc: svc.Git}).
 		WithJiraService(newJiraServiceAdapter(svc.Jira)).
-		WithConfig(svc.GetConfig())
+		WithConfig(svc.GetConfig()).
+		WithWorktreesDir(worktreesDir)
 
 	// Build stepsMap for all workflow types
 	stepsMap, err := buildStepsMap(ctx)

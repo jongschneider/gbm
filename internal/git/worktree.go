@@ -54,8 +54,8 @@ func parseWorktreesPorcelain(output string) []Worktree {
 	var worktrees []Worktree
 
 	// Porcelain format separates entries with blank lines
-	blocks := strings.Split(strings.TrimSpace(output), "\n\n")
-	for _, block := range blocks {
+	blocks := strings.SplitSeq(strings.TrimSpace(output), "\n\n")
+	for block := range blocks {
 		if block == "" {
 			continue
 		}

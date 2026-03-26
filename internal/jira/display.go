@@ -31,10 +31,10 @@ func (j *JiraIssue) String() string {
 // Display returns a multi-line formatted display of the JIRA issue.
 func (j *JiraIssue) Display() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Key:     %s\n", j.Key))
-	sb.WriteString(fmt.Sprintf("Type:    %s\n", j.Type))
-	sb.WriteString(fmt.Sprintf("Status:  %s\n", j.Status))
-	sb.WriteString(fmt.Sprintf("Summary: %s\n", j.Summary))
+	fmt.Fprintf(&sb, "Key:     %s\n", j.Key)
+	fmt.Fprintf(&sb, "Type:    %s\n", j.Type)
+	fmt.Fprintf(&sb, "Status:  %s\n", j.Status)
+	fmt.Fprintf(&sb, "Summary: %s\n", j.Summary)
 	return sb.String()
 }
 
@@ -48,53 +48,53 @@ func (j *JiraTicketDetails) Display() string {
 	var sb strings.Builder
 
 	// Header
-	sb.WriteString(fmt.Sprintf("=== %s ===\n", j.Key))
-	sb.WriteString(fmt.Sprintf("Summary:  %s\n", j.Summary))
-	sb.WriteString(fmt.Sprintf("Status:   %s\n", j.Status))
+	fmt.Fprintf(&sb, "=== %s ===\n", j.Key)
+	fmt.Fprintf(&sb, "Summary:  %s\n", j.Summary)
+	fmt.Fprintf(&sb, "Status:   %s\n", j.Status)
 
 	// URL
 	if j.URL != "" {
-		sb.WriteString(fmt.Sprintf("URL:      %s\n", j.URL))
+		fmt.Fprintf(&sb, "URL:      %s\n", j.URL)
 	}
 
 	// Priority
 	if j.Priority != "" {
-		sb.WriteString(fmt.Sprintf("Priority: %s\n", j.Priority))
+		fmt.Fprintf(&sb, "Priority: %s\n", j.Priority)
 	}
 
 	// Reporter
 	if j.Reporter != "" {
-		sb.WriteString(fmt.Sprintf("Reporter: %s\n", j.Reporter))
+		fmt.Fprintf(&sb, "Reporter: %s\n", j.Reporter)
 	}
 
 	// Assignee
 	if j.Assignee != "" {
-		sb.WriteString(fmt.Sprintf("Assignee: %s\n", j.Assignee))
+		fmt.Fprintf(&sb, "Assignee: %s\n", j.Assignee)
 	}
 
 	// Created date
 	if !j.Created.IsZero() {
-		sb.WriteString(fmt.Sprintf("Created:  %s\n", j.Created.Format("2006-01-02 15:04:05")))
+		fmt.Fprintf(&sb, "Created:  %s\n", j.Created.Format("2006-01-02 15:04:05"))
 	}
 
 	// Due date
 	if j.DueDate != nil {
-		sb.WriteString(fmt.Sprintf("Due Date: %s\n", j.DueDate.Format("2006-01-02")))
+		fmt.Fprintf(&sb, "Due Date: %s\n", j.DueDate.Format("2006-01-02"))
 	}
 
 	// Epic
 	if j.Epic != "" {
-		sb.WriteString(fmt.Sprintf("Epic:     %s\n", j.Epic))
+		fmt.Fprintf(&sb, "Epic:     %s\n", j.Epic)
 	}
 
 	// Latest comment
 	if j.LatestComment != nil {
 		sb.WriteString("\nLatest Comment:\n")
-		sb.WriteString(fmt.Sprintf("  Author:  %s\n", j.LatestComment.Author))
+		fmt.Fprintf(&sb, "  Author:  %s\n", j.LatestComment.Author)
 		if !j.LatestComment.Timestamp.IsZero() {
-			sb.WriteString(fmt.Sprintf("  Date:    %s\n", j.LatestComment.Timestamp.Format("2006-01-02 15:04:05")))
+			fmt.Fprintf(&sb, "  Date:    %s\n", j.LatestComment.Timestamp.Format("2006-01-02 15:04:05"))
 		}
-		sb.WriteString(fmt.Sprintf("  Content: %s\n", j.LatestComment.Content))
+		fmt.Fprintf(&sb, "  Content: %s\n", j.LatestComment.Content)
 	}
 
 	return sb.String()

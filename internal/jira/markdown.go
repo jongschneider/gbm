@@ -36,7 +36,7 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 	var builder strings.Builder
 
 	// Header with ticket key and summary
-	builder.WriteString(fmt.Sprintf("# [%s] %s\n\n", details.Key, details.Summary))
+	fmt.Fprintf(&builder, "# [%s] %s\n\n", details.Key, details.Summary)
 
 	// Metadata section
 	g.writeMetadata(&builder, details)
@@ -51,14 +51,14 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 	// Epic section (if applicable)
 	if details.Epic != "" {
 		builder.WriteString("## Epic\n\n")
-		builder.WriteString(fmt.Sprintf("**%s**\n\n", details.Epic))
+		fmt.Fprintf(&builder, "**%s**\n\n", details.Epic)
 	}
 
 	// Labels section
 	if len(details.Labels) > 0 {
 		builder.WriteString("## Labels\n\n")
 		for _, label := range details.Labels {
-			builder.WriteString(fmt.Sprintf("- `%s`\n", label))
+			fmt.Fprintf(&builder, "- `%s`\n", label)
 		}
 		builder.WriteString("\n")
 	}
@@ -83,7 +83,7 @@ func (g *MarkdownGenerator) GenerateIssueMarkdown(
 
 	// Footer with JIRA link
 	builder.WriteString("---\n\n")
-	builder.WriteString(fmt.Sprintf("**JIRA Link**: [%s](%s)\n", details.Key, details.URL))
+	fmt.Fprintf(&builder, "**JIRA Link**: [%s](%s)\n", details.Key, details.URL)
 
 	return builder.String(), nil
 }

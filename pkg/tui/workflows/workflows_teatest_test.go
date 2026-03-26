@@ -28,6 +28,7 @@ type teatestGitService struct {
 	err          error
 	branchExists map[string]bool
 	branches     []string
+	worktrees    []tui.WorktreeInfo
 }
 
 func (m *teatestGitService) ListBranches(_ bool) ([]string, error) {
@@ -45,6 +46,13 @@ func (m *teatestGitService) BranchExists(branch string) (bool, error) {
 		return false, nil
 	}
 	return m.branchExists[branch], nil
+}
+
+func (m *teatestGitService) ListWorktrees(_ bool) ([]tui.WorktreeInfo, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.worktrees, nil
 }
 
 // =============================================================================

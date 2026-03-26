@@ -1,9 +1,16 @@
 package tui
 
+// WorktreeInfo holds minimal worktree metadata for TUI validation.
+type WorktreeInfo struct {
+	Name   string
+	Branch string
+}
+
 // GitService defines the interface for git operations needed by the TUI.
 type GitService interface {
 	BranchExists(branch string) (bool, error)
 	ListBranches(dryRun bool) ([]string, error)
+	ListWorktrees(dryRun bool) ([]WorktreeInfo, error)
 }
 
 // JiraService defines the interface for JIRA operations needed by the TUI.
@@ -62,13 +69,14 @@ func (ws *WorkflowState) GetField(key string) any {
 
 // Context provides shared state accessible to all TUI components.
 type Context struct {
-	GitService  GitService
-	JiraService JiraService
-	Config      RepoConfig
-	Theme       *Theme
-	State       *WorkflowState
-	Width       int
-	Height      int
+	GitService   GitService
+	JiraService  JiraService
+	Config       RepoConfig
+	Theme        *Theme
+	State        *WorkflowState
+	WorktreesDir string // Resolved worktrees directory path for display
+	Width        int
+	Height       int
 }
 
 // NewContext creates a new Context with default values.
@@ -107,5 +115,11 @@ func (c *Context) WithJiraService(svc JiraService) *Context {
 // WithConfig sets the repository configuration and returns the Context.
 func (c *Context) WithConfig(cfg RepoConfig) *Context {
 	c.Config = cfg
+	return c
+}
+
+// WithWorktreesDir sets the resolved worktrees directory path and returns the Context.
+func (c *Context) WithWorktreesDir(dir string) *Context {
+	c.WorktreesDir = dir
 	return c
 }

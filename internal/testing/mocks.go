@@ -24,6 +24,7 @@ func applyJitter(baseDuration time.Duration) time.Duration {
 type MockGitService struct {
 	existsFunc func(string) bool
 	branches   []string
+	worktrees  []tui.WorktreeInfo
 	delay      time.Duration
 }
 
@@ -77,6 +78,17 @@ func (m *MockGitService) ListBranches(dryrun bool) ([]string, error) {
 // BranchExists is called synchronously during UI transitions and must not block.
 func (m *MockGitService) BranchExists(name string) (bool, error) {
 	return m.existsFunc(name), nil
+}
+
+// WithWorktrees sets the list of worktrees returned by ListWorktrees.
+func (m *MockGitService) WithWorktrees(wts []tui.WorktreeInfo) *MockGitService {
+	m.worktrees = wts
+	return m
+}
+
+// ListWorktrees returns the configured worktrees.
+func (m *MockGitService) ListWorktrees(_ bool) ([]tui.WorktreeInfo, error) {
+	return m.worktrees, nil
 }
 
 // MockJiraService implements tui.JiraService for testing.
@@ -165,6 +177,11 @@ func (m *ErrorMockGitService) ListBranches(dryrun bool) ([]string, error) {
 // BranchExists returns an error.
 func (m *ErrorMockGitService) BranchExists(name string) (bool, error) {
 	return false, m.err
+}
+
+// ListWorktrees returns an error.
+func (m *ErrorMockGitService) ListWorktrees(_ bool) ([]tui.WorktreeInfo, error) {
+	return nil, m.err
 }
 
 // ErrorMockJiraService always returns an error.

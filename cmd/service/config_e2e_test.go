@@ -621,7 +621,7 @@ func TestConfigTUI_E2E_FlushToState_BasicsForm(t *testing.T) {
 	// delete the existing text character by character and then type new text.
 
 	// First, clear the existing "main" text (4 chars) by pressing backspace
-	for i := 0; i < 10; i++ { // extra backspaces to be safe
+	for range 10 { // extra backspaces to be safe
 		model.Update(tea.KeyMsg{Type: tea.KeyBackspace})
 	}
 

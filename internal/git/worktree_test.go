@@ -8,9 +8,9 @@ import (
 
 func TestParseWorktreesPorcelain(t *testing.T) {
 	testCases := []struct {
+		assert func(t *testing.T, got []Worktree)
 		name   string
 		input  string
-		assert func(t *testing.T, got []Worktree)
 	}{
 		{
 			name:  "empty input",

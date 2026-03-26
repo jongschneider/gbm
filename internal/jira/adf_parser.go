@@ -265,7 +265,7 @@ func (p *ADFParser) parseOrderedList(node ADFNode, depth int, mediaIDs *[]string
 		if child.Type == "listItem" {
 			indent := strings.Repeat("  ", depth)
 			markdown := p.parseListItem(child, depth, mediaIDs)
-			builder.WriteString(fmt.Sprintf("%s%d. %s", indent, start+i, markdown))
+			fmt.Fprintf(&builder, "%s%d. %s", indent, start+i, markdown)
 			if i < len(node.Content)-1 {
 				builder.WriteString("\n")
 			}
@@ -283,7 +283,7 @@ func (p *ADFParser) parseBulletList(node ADFNode, depth int, mediaIDs *[]string)
 		if child.Type == "listItem" {
 			indent := strings.Repeat("  ", depth)
 			markdown := p.parseListItem(child, depth, mediaIDs)
-			builder.WriteString(fmt.Sprintf("%s- %s", indent, markdown))
+			fmt.Fprintf(&builder, "%s- %s", indent, markdown)
 			if i < len(node.Content)-1 {
 				builder.WriteString("\n")
 			}

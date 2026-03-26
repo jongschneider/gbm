@@ -104,10 +104,16 @@ func getFeatureSteps(ctx *tui.Context) []tui.Step {
 			},
 		},
 
-		// Step 4: Confirmation
+		// Step 4: Review & Confirm
 		{
-			Name:  fieldKeyConfirm,
-			Field: fields.NewConfirm(fieldKeyConfirm, "Create Feature Branch?"),
+			Name: fieldKeyConfirm,
+			Field: fields.NewReviewConfirm(fieldKeyConfirm, "Review & Create Feature Branch", ctx.State,
+				[]fields.ReviewAttribute{
+					{Label: "Worktree Name", Key: tui.FieldKeyWorktreeName, Editable: true, Validator: validateWorktreeName(ctx.GitService)},
+					{Label: "Branch Name", Key: tui.FieldKeyBranchName, Editable: true, Validator: validateBranchNameOnReview(ctx.GitService)},
+					{Label: "Base Branch", Key: tui.FieldKeyBaseBranch, Editable: true},
+				}, ctx.WorktreesDir,
+			),
 		},
 	}
 }
@@ -188,10 +194,16 @@ func getBugSteps(ctx *tui.Context) []tui.Step {
 			},
 		},
 
-		// Step 4: Confirmation
+		// Step 4: Review & Confirm
 		{
-			Name:  fieldKeyConfirm,
-			Field: fields.NewConfirm(fieldKeyConfirm, "Create Bug Fix Branch?"),
+			Name: fieldKeyConfirm,
+			Field: fields.NewReviewConfirm(fieldKeyConfirm, "Review & Create Bug Fix Branch", ctx.State,
+				[]fields.ReviewAttribute{
+					{Label: "Worktree Name", Key: tui.FieldKeyWorktreeName, Editable: true, Validator: validateWorktreeName(ctx.GitService)},
+					{Label: "Branch Name", Key: tui.FieldKeyBranchName, Editable: true, Validator: validateBranchNameOnReview(ctx.GitService)},
+					{Label: "Base Branch", Key: tui.FieldKeyBaseBranch, Editable: true},
+				}, ctx.WorktreesDir,
+			),
 		},
 	}
 }
@@ -262,10 +274,16 @@ func getHotfixSteps(ctx *tui.Context) []tui.Step {
 				WithValidator(validateBranchName),
 		},
 
-		// Step 4: Confirmation
+		// Step 4: Review & Confirm
 		{
-			Name:  fieldKeyConfirm,
-			Field: fields.NewConfirm(fieldKeyConfirm, "Create Hotfix Branch?"),
+			Name: fieldKeyConfirm,
+			Field: fields.NewReviewConfirm(fieldKeyConfirm, "Review & Create Hotfix Branch", ctx.State,
+				[]fields.ReviewAttribute{
+					{Label: "Worktree Name", Key: tui.FieldKeyWorktreeName, Editable: true, Validator: validateWorktreeName(ctx.GitService)},
+					{Label: "Branch Name", Key: tui.FieldKeyBranchName, Editable: true, Validator: validateBranchNameOnReview(ctx.GitService)},
+					{Label: "Base Branch", Key: tui.FieldKeyBaseBranch, Editable: true},
+				}, ctx.WorktreesDir,
+			),
 		},
 	}
 }
@@ -327,10 +345,15 @@ func getMergeSteps(ctx *tui.Context) []tui.Step {
 			}),
 		},
 
-		// Step 3: Confirmation (worktree and branch names auto-generated)
+		// Step 3: Review & Confirm (worktree and branch names auto-generated)
 		{
-			Name:  "confirm",
-			Field: fields.NewConfirm("confirm", "Create Merge?"),
+			Name: "confirm",
+			Field: fields.NewReviewConfirm("confirm", "Review & Create Merge", ctx.State,
+				[]fields.ReviewAttribute{
+					{Label: "Source Branch", Key: "source_branch", Editable: true},
+					{Label: "Target Branch", Key: "target_branch", Editable: true},
+				}, ctx.WorktreesDir,
+			),
 		},
 	}
 }
@@ -350,5 +373,50 @@ func GetWorkflowSteps(workflowType string, ctx *tui.Context) ([]tui.Step, error)
 		return getMergeSteps(ctx), nil
 	default:
 		return nil, fmt.Errorf("unknown workflow type: %s", workflowType)
+	}
+}
+
+// validateWorktreeName returns a validator that rejects names already used by
+// an existing worktree.
+func validateWorktreeName(gitSvc tui.GitService) func(string) error {
+	return func(name string) error {
+		if gitSvc == nil {
+			return nil
+		}
+		wts, err := gitSvc.ListWorktrees(false)
+		if err != nil {
+			return nil // don't block on service errors
+		}
+		for _, wt := range wts {
+			if wt.Name == name {
+				return fmt.Errorf("worktree %q already exists", name)
+			}
+		}
+		return nil
+	}
+}
+
+// validateBranchNameOnReview returns a validator that rejects a branch name if
+// it already exists AND is already checked out in an existing worktree.
+func validateBranchNameOnReview(gitSvc tui.GitService) func(string) error {
+	return func(name string) error {
+		if gitSvc == nil {
+			return nil
+		}
+		exists, err := gitSvc.BranchExists(name)
+		if err != nil || !exists {
+			return nil // new branch — fine
+		}
+		// Branch exists — check if it's mapped to a worktree
+		wts, err := gitSvc.ListWorktrees(false)
+		if err != nil {
+			return nil
+		}
+		for _, wt := range wts {
+			if wt.Branch == name {
+				return fmt.Errorf("branch %q is already checked out in worktree %q", name, wt.Name)
+			}
+		}
+		return nil
 	}
 }
