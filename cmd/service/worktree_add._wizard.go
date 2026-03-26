@@ -368,14 +368,33 @@ func performMergeWorkflow(svc *Service, wt *git.Worktree, state *tui.WorkflowSta
 		return nil
 	}
 
+	// Resolve to origin/ remote ref when available to ensure we merge the latest remote state,
+	// not a potentially stale local branch.
+	mergeRef := resolveToRemoteRef(svc, wt.Path, sourceBranch)
+
 	targetBranch := getCustomField(state, "target_branch")
 	commitMsg := fmt.Sprintf("Merge %s into %s", sourceBranch, targetBranch)
-	err := svc.Git.MergeBranchWithCommit(wt.Path, sourceBranch, commitMsg, false)
+	err := svc.Git.MergeBranchWithCommit(wt.Path, mergeRef, commitMsg, false)
 	if err != nil {
 		return fmt.Errorf("failed to merge %s into worktree: %w", sourceBranch, err)
 	}
 	PrintSuccess(fmt.Sprintf("Merged '%s' into '%s'", sourceBranch, targetBranch))
 	return nil
+}
+
+// resolveToRemoteRef returns "origin/<branch>" if the remote ref exists, otherwise the original branch name.
+func resolveToRemoteRef(svc *Service, worktreePath, branch string) string {
+	// Don't double-prefix if already a remote ref
+	if strings.HasPrefix(branch, "origin/") || strings.HasPrefix(branch, "remotes/") {
+		return branch
+	}
+
+	originRef := "origin/" + branch
+	exists, err := svc.Git.BranchExistsInPath(worktreePath, originRef)
+	if err == nil && exists {
+		return originRef
+	}
+	return branch
 }
 
 // processMergeState populates WorktreeName, BranchName, and BaseBranch from merge custom fields.

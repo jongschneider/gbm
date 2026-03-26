@@ -90,9 +90,9 @@ func (s *Service) ListBranches(dryRun bool) ([]string, error) {
 	return branches, nil
 }
 
-// MergeBranchWithCommit merges a branch and creates a commit with the specified message.
+// MergeBranchWithCommit merges a branch into the worktree with --no-ff to always create a merge commit.
 func (s *Service) MergeBranchWithCommit(worktreePath, sourceBranch, commitMessage string, dryRun bool) error {
-	cmd := exec.Command("git", "-C", worktreePath, "merge", "-m", commitMessage, sourceBranch)
+	cmd := exec.Command("git", "-C", worktreePath, "merge", "--no-ff", "-m", commitMessage, sourceBranch)
 
 	if dryRun {
 		printDryRun(cmd)
