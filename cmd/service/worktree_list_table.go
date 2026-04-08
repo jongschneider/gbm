@@ -6,6 +6,7 @@ import (
 	"gbm/pkg/tui"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -165,6 +166,7 @@ const (
 	stateConfirming
 	stateOperating
 	stateConfirmingBranchDelete
+	stateCopying
 )
 
 // operationResultMsg is sent when an async git operation completes.
@@ -386,6 +388,8 @@ func (m *worktreeListModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleConfirmingKeyMsg(msg)
 	case stateConfirmingBranchDelete:
 		return m.handleConfirmingBranchDeleteKeyMsg(msg)
+	case stateCopying:
+		return m.handleCopyingKeyMsg(msg)
 	case stateOperating:
 		// Only allow quit during operation
 		switch msg.String() {
@@ -418,6 +422,9 @@ func (m *worktreeListModel) handleIdleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m.handlePush()
 	case "d":
 		return m.handleDeleteInit()
+	case "c":
+		m.state = stateCopying
+		return m, nil
 	}
 	_, cmd := m.table.Update(msg)
 	return m, cmd
@@ -446,6 +453,35 @@ func (m *worktreeListModel) handleDeleteInit() (tea.Model, tea.Cmd) {
 		m.state = stateConfirming
 	}
 	return m, nil
+}
+
+// handleCopyingKeyMsg handles keys in copy mode (after pressing "c").
+func (m *worktreeListModel) handleCopyingKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.state = stateIdle
+	idx := m.table.OriginalIndex()
+	if idx < 0 || idx >= len(m.worktrees) {
+		return m, nil
+	}
+	wt := m.worktrees[idx]
+
+	var value, label string
+	switch msg.String() {
+	case "n":
+		value, label = wt.Name, "name"
+	case "b":
+		value, label = wt.Branch, "branch"
+	case "f":
+		value, label = wt.Path, "path"
+	default:
+		return m, nil
+	}
+
+	if err := clipboard.WriteAll(value); err != nil {
+		m.message = fmt.Sprintf("Failed to copy %s: %v", label, err)
+	} else {
+		m.message = fmt.Sprintf("Copied %s to clipboard", label)
+	}
+	return m, m.scheduleClearMessage()
 }
 
 // handleConfirmingKeyMsg handles keys in confirmation state.
@@ -765,7 +801,11 @@ func (m *worktreeListModel) View() string {
 		if showPush {
 			help += " • p: push"
 		}
-		help += " • d: delete • q/esc: quit\n"
+		help += " • d: delete • c: copy (n/b/f) • q/esc: quit\n"
+
+		if m.state == stateCopying {
+			help = "\nCopy: n: name • b: branch • f: path • esc: cancel\n"
+		}
 
 		if m.state == stateOperating {
 			help = "\n" + m.spinner.View() + " Operation in progress... (q to quit)\n"
