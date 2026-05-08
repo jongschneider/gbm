@@ -36,3 +36,8 @@ coverage.html
 tmp/
 deps/
 test-results/
+
+# Local gbm state and scratch configs
+.gbm/state.yaml
+.gbm/config.toml
+*.bak
