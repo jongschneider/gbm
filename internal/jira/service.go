@@ -3,10 +3,10 @@ package jira
 import (
 	"errors"
 	"fmt"
-	"gbm/internal/utils"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // ErrJiraCliNotFound is returned when the JIRA CLI is not available.
@@ -48,6 +48,23 @@ func NewService(debug bool, store CacheStore) *Service {
 
 // printDryRun prints a dry-run message to stderr for visibility.
 func printDryRun(cmd *exec.Cmd) {
-	cmdStr := utils.FormatCommand(cmd)
-	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", cmdStr)
+	fmt.Fprintf(os.Stderr, "[DRY RUN] %s\n", formatCommand(cmd))
+}
+
+// formatCommand renders an *exec.Cmd as a shell-like string for logging.
+func formatCommand(cmd *exec.Cmd) string {
+	parts := []string{cmd.Path}
+	parts = append(parts, cmd.Args[1:]...)
+
+	if cmd.Dir != "" {
+		return fmt.Sprintf("(cd %s && %s)", cmd.Dir, strings.Join(parts, " "))
+	}
+
+	for _, env := range cmd.Env {
+		if after, ok := strings.CutPrefix(env, "GIT_DIR="); ok {
+			return fmt.Sprintf("GIT_DIR=%s %s", after, strings.Join(parts, " "))
+		}
+	}
+
+	return strings.Join(parts, " ")
 }
