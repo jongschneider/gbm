@@ -281,6 +281,10 @@ func createMissingWorktrees(svc *Service, missing []string, worktreesDir string,
 		}
 
 		PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", name, configEntry.Branch))
+
+		if err := svc.CopyFilesToWorktree(name); err != nil {
+			PrintWarning(fmt.Sprintf("File copy failed for worktree '%s': %v", name, err))
+		}
 	}
 	return nil
 }
@@ -318,6 +322,10 @@ func handleBranchChanges(svc *Service, changes map[string]BranchChange, worktree
 		}
 
 		PrintSuccess(fmt.Sprintf("Updated worktree '%s' to branch '%s'", name, configEntry.Branch))
+
+		if err := svc.CopyFilesToWorktree(name); err != nil {
+			PrintWarning(fmt.Sprintf("File copy failed for worktree '%s': %v", name, err))
+		}
 	}
 	return nil
 }
