@@ -513,10 +513,11 @@ func (s *Service) GetState() *State {
 
 // CreateJiraMarkdownFile creates a markdown file with JIRA ticket information
 // in the .jira/ directory of the worktree. Only creates the file if worktreeName
-// is a valid JIRA key. All errors return nil to avoid failing worktree creation.
+// contains a valid JIRA key. All errors return nil to avoid failing worktree creation.
 func (s *Service) CreateJiraMarkdownFile(worktreeName string) error {
-	// Check if worktree name is a JIRA key
-	if !jira.IsJiraKey(worktreeName) {
+	// Extract JIRA key from worktree name (supports prefixed/suffixed names like "INGSVC-6835_msteams")
+	jiraKey := jira.ExtractJiraKey(worktreeName)
+	if jiraKey == "" {
 		return nil // Silently skip non-JIRA worktrees
 	}
 
@@ -541,23 +542,23 @@ func (s *Service) CreateJiraMarkdownFile(worktreeName string) error {
 	attachmentConfig := s.GetJiraAttachmentConfig()
 	includeComments, includeAttachments, includeLinkedIssues, maxDepth := s.GetJiraMarkdownConfig()
 
-	// Use the enhanced markdown generation with configuration
+	// Use the enhanced markdown generation with configuration. The bundle is
+	// written under <worktreePath>/.jira/<jiraKey>/.
 	opts := jira.DefaultIssueMarkdownOptions(worktreePath)
 	opts.AttachmentConfig = attachmentConfig
 	opts.DownloadAttachments = includeAttachments
 	opts.IncludeComments = includeComments
 	opts.IncludeLinkedIssues = includeLinkedIssues
 	opts.MaxDepth = maxDepth
-	opts.Filename = fmt.Sprintf(".jira/%s.md", worktreeName) // Place in .jira directory
 
 	// Generate markdown with attachments
 	result, err := s.Jira.GenerateIssueMarkdownFile(
-		worktreeName,
+		jiraKey,
 		opts,
 		false, // not dry-run
 	)
 	if err != nil {
-		fmt.Printf("Warning: failed to generate JIRA markdown for %s: %v\n", worktreeName, err)
+		fmt.Printf("Warning: failed to generate JIRA markdown for %s: %v\n", jiraKey, err)
 		return nil
 	}
 

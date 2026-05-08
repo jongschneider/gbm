@@ -157,7 +157,7 @@ func TestMarkdownWithLinkedIssues(t *testing.T) {
 	assert.Contains(t, markdown, "## Linked Issues", "markdown should contain Linked Issues section")
 	assert.Contains(t, markdown, "EPIC-3089", "markdown should contain linked issue key")
 	assert.Contains(t, markdown, "is connected to", "markdown should contain relationship")
-	assert.Contains(t, markdown, "./EPIC-3089.md", "markdown should contain link to linked issue")
+	assert.Contains(t, markdown, "./linked/EPIC-3089/EPIC-3089.md", "markdown should contain link to linked issue")
 
 	t.Log("Markdown generation with linked issues test completed successfully")
 	t.Logf("Generated markdown:\n%s", markdown)

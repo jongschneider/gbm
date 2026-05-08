@@ -132,9 +132,10 @@ func (g *MarkdownGenerator) writeLinkedIssues(builder *strings.Builder, links []
 			continue
 		}
 
-		// Write the linked issue with relationship
-		fmt.Fprintf(builder, "### %s [%s](./%s.md)\n\n",
+		// Linked tickets are recursed into <ticketDir>/linked/<KEY>/<KEY>.md.
+		fmt.Fprintf(builder, "### %s [%s](./linked/%s/%s.md)\n\n",
 			relationship,
+			linkedIssue.Key,
 			linkedIssue.Key,
 			linkedIssue.Key,
 		)
@@ -301,8 +302,15 @@ func formatDate(dateStr string) string {
 	return dateStr
 }
 
-// GenerateAttachmentPath generates a path for an attachment
-// Returns the directory path where attachments should be stored.
+// RootTicketDir returns the directory holding a ticket's bundle (markdown +
+// attachments + linked subfolder) for a top-level issue:
+// <worktreeRoot>/.jira/<ticketKey>.
+func RootTicketDir(worktreeRoot, ticketKey string) string {
+	return filepath.Join(worktreeRoot, ".jira", ticketKey)
+}
+
+// GenerateAttachmentPath returns the attachments directory for a top-level
+// ticket: <worktreeRoot>/.jira/<ticketKey>/attachments.
 func GenerateAttachmentPath(worktreeRoot, ticketKey string) string {
-	return filepath.Join(worktreeRoot, ".jira", "attachments", ticketKey)
+	return filepath.Join(RootTicketDir(worktreeRoot, ticketKey), "attachments")
 }
