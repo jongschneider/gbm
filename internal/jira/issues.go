@@ -10,14 +10,28 @@ import (
 )
 
 const (
-	// issuesCacheTTL is how long we cache JIRA issues (5 minutes).
-	issuesCacheTTL = 5 * time.Minute
+	// issuesCacheTTL is how long we cache JIRA issues. Kept short so freshly
+	// created/updated tickets show up promptly.
+	issuesCacheTTL = 30 * time.Second
 )
 
-// IssuesCache represents cached JIRA issues with timestamp.
+// IssuesCache represents cached JIRA issues with timestamp and the filter
+// signature the issues were fetched with. The signature must match the current
+// call's filters for the cache to be a hit.
 type IssuesCache struct {
-	Timestamp time.Time   `json:"timestamp"`
-	Issues    []JiraIssue `json:"issues"`
+	Timestamp  time.Time   `json:"timestamp"`
+	FiltersKey string      `json:"filters_key"`
+	Issues     []JiraIssue `json:"issues"`
+}
+
+// filtersKey returns a stable signature for a filter set, used as the cache
+// key. Two calls with the same effective JIRA query produce the same key.
+func filtersKey(filters JiraFilters) string {
+	data, err := json.Marshal(filters)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 // buildIssueListArgs constructs jira issue list command arguments from filters.
@@ -83,7 +97,8 @@ func buildIssueListArgs(filters JiraFilters, username string) []string {
 
 // GetJiraIssues fetches JIRA issues using configured filters
 // Returns slice of typed JiraIssue structs
-// Results are cached for 5 minutes to improve performance.
+// Results are cached briefly (issuesCacheTTL) and keyed by filter signature, so
+// a different filter set always re-fetches.
 func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, error) {
 	// Load cache and user from store
 	var cache *IssuesCache
@@ -92,8 +107,12 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 		cache, cachedUser, _ = s.store.Load() //nolint:errcheck // Cache miss is expected
 	}
 
-	// Try to use cache first if valid
-	if cache != nil && len(cache.Issues) > 0 && time.Since(cache.Timestamp) < issuesCacheTTL {
+	key := filtersKey(filters)
+
+	// Try to use cache first if fresh AND for the same filter set.
+	if cache != nil && len(cache.Issues) > 0 &&
+		cache.FiltersKey == key &&
+		time.Since(cache.Timestamp) < issuesCacheTTL {
 		return cache.Issues, nil
 	}
 
@@ -144,8 +163,9 @@ func (s *Service) GetJiraIssues(filters JiraFilters, dryRun bool) ([]JiraIssue, 
 
 	// Create fresh cache with new data
 	freshCache := &IssuesCache{
-		Issues:    issues,
-		Timestamp: time.Now(),
+		Issues:     issues,
+		Timestamp:  time.Now(),
+		FiltersKey: key,
 	}
 
 	// Persist the cache through the store
