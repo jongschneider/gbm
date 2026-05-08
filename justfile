@@ -24,6 +24,23 @@ build:
     go build -o gbm ./cmd || exit 1
     echo "✓ Build successful: ./gbm"
 
+# Build the standalone gbm-jira binary
+build-jira:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building gbm-jira binary..."
+    go build -o gbm-jira ./cmd/jira || exit 1
+    echo "✓ Build successful: ./gbm-jira"
+
+# Install gbm-jira globally
+install-jira:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building and installing gbm-jira..."
+    go build -o gbm-jira ./cmd/jira || exit 1
+    sudo mv gbm-jira /usr/local/bin/gbm-jira
+    echo "✓ Installation successful: /usr/local/bin/gbm-jira"
+
 # Install the CLI globally as gbm2
 install:
     #!/usr/bin/env bash
