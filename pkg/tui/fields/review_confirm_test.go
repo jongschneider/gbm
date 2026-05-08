@@ -380,7 +380,7 @@ func TestReviewConfirm_Validation(t *testing.T) {
 			assert: func(t *testing.T, rc *ReviewConfirm, state *tui.WorkflowState) {
 				t.Helper()
 				assert.True(t, rc.editing, "should still be editing after validation failure")
-				assert.NotNil(t, rc.attrErrors[0], "should have a validation error")
+				require.Error(t, rc.attrErrors[0], "should have a validation error")
 				assert.Contains(t, rc.attrErrors[0].Error(), "already exists")
 				assert.Equal(t, "my-feature", state.WorktreeName, "state should not be updated on validation failure")
 			},
@@ -404,7 +404,7 @@ func TestReviewConfirm_Validation(t *testing.T) {
 			assert: func(t *testing.T, rc *ReviewConfirm, state *tui.WorkflowState) {
 				t.Helper()
 				assert.False(t, rc.editing, "should exit editing after validation passes")
-				assert.Nil(t, rc.attrErrors[0], "should have no validation error")
+				require.NoError(t, rc.attrErrors[0], "should have no validation error")
 				assert.Equal(t, "new-name", state.WorktreeName)
 			},
 		},
@@ -429,7 +429,7 @@ func TestReviewConfirm_Validation(t *testing.T) {
 			assert: func(t *testing.T, rc *ReviewConfirm, _ *tui.WorkflowState) {
 				t.Helper()
 				assert.True(t, rc.editing)
-				assert.Nil(t, rc.attrErrors[0], "error should clear when typing")
+				assert.NoError(t, rc.attrErrors[0], "error should clear when typing")
 			},
 		},
 		{
@@ -452,7 +452,7 @@ func TestReviewConfirm_Validation(t *testing.T) {
 			assert: func(t *testing.T, rc *ReviewConfirm, state *tui.WorkflowState) {
 				t.Helper()
 				assert.False(t, rc.editing)
-				assert.Nil(t, rc.attrErrors[0])
+				require.NoError(t, rc.attrErrors[0])
 				assert.Equal(t, "my-feature", state.WorktreeName, "state unchanged after cancelled edit")
 			},
 		},
@@ -530,7 +530,7 @@ func TestReviewConfirm_OnFocusValidation(t *testing.T) {
 			wtName: "taken-wt",
 			assert: func(t *testing.T, rc *ReviewConfirm) {
 				t.Helper()
-				assert.NotNil(t, rc.attrErrors[0], "should have error on worktree name")
+				require.Error(t, rc.attrErrors[0], "should have error on worktree name")
 				assert.Contains(t, rc.attrErrors[0].Error(), "already exists")
 				assert.Equal(t, 0, rc.cursor, "cursor should move to first errored attribute")
 				assert.True(t, rc.hasValidationErrors())
@@ -541,7 +541,7 @@ func TestReviewConfirm_OnFocusValidation(t *testing.T) {
 			wtName: "brand-new",
 			assert: func(t *testing.T, rc *ReviewConfirm) {
 				t.Helper()
-				assert.Nil(t, rc.attrErrors[0])
+				require.NoError(t, rc.attrErrors[0])
 				assert.Equal(t, 1, rc.cursor, "cursor should stay on Create button")
 				assert.False(t, rc.hasValidationErrors())
 			},

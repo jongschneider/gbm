@@ -83,8 +83,6 @@ func parseWorktreesPorcelain(output string) []Worktree {
 				// Strip refs/heads/ prefix to get the branch name
 				ref := line[len("branch "):]
 				wt.Branch = strings.TrimPrefix(ref, "refs/heads/")
-			case strings.HasPrefix(line, "detached"):
-				// Detached HEAD — no branch to set
 			}
 		}
 

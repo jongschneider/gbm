@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockValidatorGitService implements tui.GitService for validator tests.
@@ -108,7 +109,7 @@ func TestValidateBranchNameOnReview(t *testing.T) {
 			input: "feature/existing",
 			assertError: func(t *testing.T, err error) {
 				t.Helper()
-				assert.ErrorContains(t, err, "already checked out")
+				require.ErrorContains(t, err, "already checked out")
 				assert.ErrorContains(t, err, "existing-wt")
 			},
 		},

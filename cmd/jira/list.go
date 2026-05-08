@@ -64,9 +64,13 @@ func newListCmd() *cobra.Command {
 			}
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(tw, "KEY\tTYPE\tSTATUS\tSUMMARY")
+			if _, err := fmt.Fprintln(tw, "KEY\tTYPE\tSTATUS\tSUMMARY"); err != nil {
+				return err
+			}
 			for _, i := range issues {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", i.Key, i.Type, i.Status, truncate(i.Summary, 80))
+				if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", i.Key, i.Type, i.Status, truncate(i.Summary, 80)); err != nil {
+					return err
+				}
 			}
 			return tw.Flush()
 		},

@@ -16,6 +16,7 @@ func TestParseWorktreesPorcelain(t *testing.T) {
 			name:  "empty input",
 			input: "",
 			assert: func(t *testing.T, got []Worktree) {
+				t.Helper()
 				assert.Empty(t, got)
 			},
 		},
@@ -33,6 +34,7 @@ HEAD abc1234def5678901234567890abcdef12345678
 branch refs/heads/feature/foo
 `,
 			assert: func(t *testing.T, got []Worktree) {
+				t.Helper()
 				assert.Len(t, got, 3)
 
 				assert.Equal(t, "repo", got[0].Name)
@@ -64,6 +66,7 @@ HEAD 96a59d5208c63b492becd200405b27f1682d0ec1
 branch refs/heads/main
 `,
 			assert: func(t *testing.T, got []Worktree) {
+				t.Helper()
 				assert.Len(t, got, 2)
 
 				assert.Equal(t, "gbm", got[0].Name)
@@ -83,6 +86,7 @@ HEAD abc1234def5678901234567890abcdef12345678
 detached
 `,
 			assert: func(t *testing.T, got []Worktree) {
+				t.Helper()
 				assert.Len(t, got, 1)
 				assert.Equal(t, "detached", got[0].Name)
 				assert.Equal(t, "abc1234", got[0].Commit)
@@ -96,6 +100,7 @@ detached
 HEAD 1234567890abcdef1234567890abcdef12345678
 branch refs/heads/main`,
 			assert: func(t *testing.T, got []Worktree) {
+				t.Helper()
 				assert.Len(t, got, 1)
 				assert.Equal(t, "main", got[0].Name)
 				assert.Equal(t, "main", got[0].Branch)
