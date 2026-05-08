@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+// String renders a User as "Display Name (email)", falling back to the display
+// name alone when no email is set.
+func (u User) String() string {
+	if u.Email != "" {
+		return u.DisplayName + " (" + u.Email + ")"
+	}
+	return u.DisplayName
+}
+
 // IsJiraKey checks if a string matches the JIRA key pattern (PROJECT-NUMBER).
 func IsJiraKey(s string) bool {
 	matched, err := regexp.MatchString(`^[A-Z]+-\d+$`, s)
@@ -94,8 +103,35 @@ func (j *JiraTicketDetails) Display() string {
 		if !j.LatestComment.Timestamp.IsZero() {
 			fmt.Fprintf(&sb, "  Date:    %s\n", j.LatestComment.Timestamp.Format("2006-01-02 15:04:05"))
 		}
-		fmt.Fprintf(&sb, "  Content: %s\n", j.LatestComment.Content)
+		sb.WriteString("  Content:\n")
+		sb.WriteString(indent(renderCommentBody(j.LatestComment), "    "))
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
+}
+
+// renderCommentBody renders a comment body to markdown via the ADF parser,
+// falling back to the flat Content field when the body is empty or unparseable.
+func renderCommentBody(c *Comment) string {
+	if len(c.Body.Content) > 0 {
+		parser := NewADFParser()
+		md, _, err := parser.ParseToMarkdown(c.Body)
+		if err == nil && strings.TrimSpace(md) != "" {
+			return md
+		}
+	}
+	return c.Content
+}
+
+// indent prefixes every line of s with prefix.
+func indent(s, prefix string) string {
+	if s == "" {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = prefix + line
+	}
+	return strings.Join(lines, "\n")
 }
