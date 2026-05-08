@@ -70,10 +70,10 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 	enableFieldPtr := fields.NewConfirm("jira_enabled", "Enable JIRA Integration?")
 	enableField := enableFieldPtr.WithTheme(config.Theme)
 
-	// URL validator for JIRA host
+	// URL validator for JIRA host — only validates format when non-empty
 	hostValidator := func(value string) error {
 		if value == "" {
-			return errors.New("JIRA host is required")
+			return nil
 		}
 		// Check if it looks like a URL
 		if !strings.HasPrefix(value, "http://") && !strings.HasPrefix(value, "https://") {
@@ -81,22 +81,6 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 		}
 		if _, err := url.Parse(value); err != nil {
 			return errors.New("invalid URL format")
-		}
-		return nil
-	}
-
-	// Username validator
-	userValidator := func(value string) error {
-		if value == "" {
-			return errors.New("username is required")
-		}
-		return nil
-	}
-
-	// Token validator
-	tokenValidator := func(value string) error {
-		if value == "" {
-			return errors.New("API token is required")
 		}
 		return nil
 	}
@@ -116,7 +100,6 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 		"Username",
 		"JIRA username or email",
 	)
-	serverUserFieldPtr.WithValidator(userValidator)
 	serverUserField := serverUserFieldPtr.
 		WithDefault(config.Username).
 		WithTheme(config.Theme)
@@ -126,7 +109,6 @@ func NewJiraForm(config JiraFormConfig) *JiraForm {
 		"API Token",
 		"JIRA API token (masked input)",
 	)
-	serverTokenFieldPtr.WithValidator(tokenValidator)
 	serverTokenFieldPtr.SetMasked(true) // Mask the token display
 	serverTokenField := serverTokenFieldPtr.
 		WithDefault(config.APIToken).
@@ -471,36 +453,19 @@ func (f *JiraForm) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) 
 
 // Validate runs validators on all fields and returns a list of error messages.
 // It also sets the error state on fields that fail validation so they are highlighted.
-// Only validates required server fields when JIRA is enabled.
+// Only validates format (not presence) when JIRA is enabled.
 func (f *JiraForm) Validate() []string {
 	var errs []string
 
-	// Only validate server fields if JIRA is enabled
 	if !f.enabled {
 		return errs
 	}
 
-	// Validate server host field
+	// Only validate host URL format (non-empty values)
 	if textField, ok := f.serverHostField.(*fields.TextInput); ok {
 		err := textField.RunValidator()
 		if err != nil {
 			errs = append(errs, "JIRA Host: "+err.Error())
-		}
-	}
-
-	// Validate username field
-	if textField, ok := f.serverUserField.(*fields.TextInput); ok {
-		err := textField.RunValidator()
-		if err != nil {
-			errs = append(errs, "Username: "+err.Error())
-		}
-	}
-
-	// Validate API token field
-	if textField, ok := f.serverTokenField.(*fields.TextInput); ok {
-		err := textField.RunValidator()
-		if err != nil {
-			errs = append(errs, "API Token: "+err.Error())
 		}
 	}
 

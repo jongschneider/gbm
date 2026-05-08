@@ -142,14 +142,22 @@ func TestJiraForm_Validate(t *testing.T) {
 			expectErrs: 0,
 		},
 		{
-			name: "enabled form with empty fields fails",
+			name: "enabled form with empty fields passes (all optional)",
 			config: JiraFormConfig{
 				Enabled:  true,
 				Host:     "",
 				Username: "",
 				APIToken: "",
 			},
-			expectErrs: 3,
+			expectErrs: 0,
+		},
+		{
+			name: "enabled form with invalid host URL fails",
+			config: JiraFormConfig{
+				Enabled: true,
+				Host:    "not-a-url",
+			},
+			expectErrs: 1,
 		},
 	}
 
