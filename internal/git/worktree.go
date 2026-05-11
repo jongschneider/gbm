@@ -189,6 +189,13 @@ func (s *Service) AddWorktree(worktreesDir, worktreeName, branchName string, cre
 		if wtCanonicalPath == canonicalPath {
 			// Set the base branch since git worktree list doesn't include it
 			wt.BaseBranch = baseBranch
+			// Record base in git config for later (`gbm wt info`, manual rebase).
+			// Only meaningful when we created the branch from a known base.
+			if createBranch && baseBranch != "" {
+				if err := s.SetGbmBase(wt.Path, branchName, baseBranch, false); err != nil {
+					return &wt, fmt.Errorf("worktree created but failed to record base branch: %w", err)
+				}
+			}
 			return &wt, nil
 		}
 	}
@@ -403,6 +410,14 @@ func (s *Service) RemoveWorktree(worktreeName string, force, dryRun bool) (*Work
 		return nil, fmt.Errorf("worktree '%s' not found", worktreeName)
 	}
 
+	// Clean up the gbmBase config entry while the worktree path is still valid.
+	// Best-effort: a stale config value is harmless, so don't block removal on it.
+	if targetWorktree.Branch != "" {
+		if err := s.UnsetGbmBase(targetWorktree.Path, targetWorktree.Branch, dryRun); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to clear gbmBase config for '%s': %v\n", targetWorktree.Branch, err)
+		}
+	}
+
 	// Move to Trash before git worktree remove (safety mechanism)
 	timestamp := time.Now().Format("20060102-150405")
 	baseName := filepath.Base(targetWorktree.Path)
@@ -605,22 +620,12 @@ func (s *Service) PushWorktree(worktreePath string, dryRun bool) error {
 		return err
 	}
 
-	// Check if upstream is set
-	upstream, err := s.GetUpstreamBranch(worktreePath)
-	if err != nil {
-		return fmt.Errorf("failed to check upstream branch: %w", err)
-	}
-
-	var args []string
-	if upstream == "" {
-		// No upstream set, push with -u flag to set it
-		args = []string{"-C", worktreePath, "push", "-u", "origin", currentBranch}
-	} else {
-		// Upstream already set, just push
-		args = []string{"-C", worktreePath, "push"}
-	}
-
-	cmd := exec.Command("git", args...)
+	// Always push to origin/<currentBranch> with -u and --force-with-lease.
+	// -u resets upstream to the same-named remote branch, so this branch never
+	// pushes back to a base branch (e.g. a hotfix worktree pushing to production)
+	// via stale upstream config. --force-with-lease makes rebased/amended pushes
+	// safe without allowing blind overwrites.
+	cmd := exec.Command("git", "-C", worktreePath, "push", "-u", "--force-with-lease", "origin", currentBranch)
 
 	if dryRun {
 		printDryRun(cmd)

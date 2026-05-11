@@ -65,3 +65,29 @@ type CloneResponse struct {
 	Remote         string `json:"remote"`
 	Created        bool   `json:"created"`
 }
+
+// Divergence reports how many commits one ref is ahead/behind another.
+type Divergence struct {
+	Ahead  int `json:"ahead"`
+	Behind int `json:"behind"`
+}
+
+// WorktreeInfoResponse represents detailed info about a single worktree.
+//
+// Base is the branch the worktree was created from (recorded at `wt add` time
+// in `branch.<name>.gbmBase`). It is independent of Upstream — once a branch
+// is pushed, Upstream typically points at the same-named remote branch while
+// Base still records where to rebase from.
+type WorktreeInfoResponse struct {
+	Name           string      `json:"name"`
+	Path           string      `json:"path"`
+	Branch         string      `json:"branch"`
+	Head           string      `json:"head"`
+	Base           string      `json:"base,omitempty"`
+	BaseStatus     *Divergence `json:"base_status,omitempty"`
+	Upstream       string      `json:"upstream,omitempty"`
+	UpstreamStatus *Divergence `json:"upstream_status,omitempty"`
+	RemoteBranch   string      `json:"remote_branch,omitempty"`
+	Clean          bool        `json:"clean"`
+	Current        bool        `json:"current"`
+}

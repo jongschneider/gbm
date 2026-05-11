@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -121,4 +122,134 @@ func (s *Service) GetUpstreamBranch(worktreePath string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(output)), nil
+}
+
+// SetGbmBase records the base branch a worktree was created from, in the
+// worktree's git config under `branch.<branchName>.gbmBase`. This survives
+// upstream changes (e.g. `git push -u`), so `gbm wt info` can still report
+// the original base after the branch is published.
+func (s *Service) SetGbmBase(worktreePath, branchName, baseRef string, dryRun bool) error {
+	if worktreePath == "" {
+		return ErrWorktreePathEmpty
+	}
+	if branchName == "" {
+		return ErrBranchNameEmpty
+	}
+
+	key := "branch." + branchName + ".gbmBase"
+	cmd := exec.Command("git", "-C", worktreePath, "config", "--local", key, baseRef)
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ClassifyError("config set gbmBase", err, string(output))
+	}
+	return nil
+}
+
+// UnsetGbmBase removes the recorded base branch config for the given branch.
+// Idempotent: missing keys are treated as success.
+func (s *Service) UnsetGbmBase(worktreePath, branchName string, dryRun bool) error {
+	if worktreePath == "" {
+		return ErrWorktreePathEmpty
+	}
+	if branchName == "" {
+		return ErrBranchNameEmpty
+	}
+
+	key := "branch." + branchName + ".gbmBase"
+	cmd := exec.Command("git", "-C", worktreePath, "config", "--local", "--unset", key)
+
+	if dryRun {
+		printDryRun(cmd)
+		return nil
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	// `git config --unset` exits 5 when the key/section does not exist; treat as success.
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 5 {
+		return nil
+	}
+	return ClassifyError("config unset gbmBase", err, string(output))
+}
+
+// GetGbmBase returns the recorded base branch for the given worktree's current
+// branch. Returns empty string if no base was recorded (not an error).
+func (s *Service) GetGbmBase(worktreePath, branchName string) (string, error) {
+	if worktreePath == "" {
+		return "", ErrWorktreePathEmpty
+	}
+	if branchName == "" {
+		return "", ErrBranchNameEmpty
+	}
+
+	key := "branch." + branchName + ".gbmBase"
+	cmd := exec.Command("git", "-C", worktreePath, "config", "--local", "--get", key)
+	output, err := cmd.Output()
+	if err != nil {
+		// `git config --get` exits 1 when the key is missing; treat as "no base recorded".
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// CountAheadBehind returns how many commits HEAD is ahead/behind of ref.
+// ref must be a resolvable revision (branch, tag, SHA, etc.).
+func (s *Service) CountAheadBehind(worktreePath, ref string) (ahead, behind int, err error) {
+	if worktreePath == "" {
+		return 0, 0, ErrWorktreePathEmpty
+	}
+
+	cmd := exec.Command("git", "-C", worktreePath, "rev-list", "--left-right", "--count", ref+"...HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, 0, ClassifyError("rev-list count", err, "")
+	}
+
+	counts := strings.Fields(strings.TrimSpace(string(output)))
+	if len(counts) != 2 {
+		return 0, 0, nil
+	}
+	if _, err := fmt.Sscanf(counts[0], "%d", &behind); err != nil {
+		behind = 0
+	}
+	if _, err := fmt.Sscanf(counts[1], "%d", &ahead); err != nil {
+		ahead = 0
+	}
+	return ahead, behind, nil
+}
+
+// GetHeadCommit returns the short SHA of HEAD in the given worktree.
+func (s *Service) GetHeadCommit(worktreePath string) (string, error) {
+	if worktreePath == "" {
+		return "", ErrWorktreePathEmpty
+	}
+	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--short", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", ClassifyError("rev-parse HEAD", err, "")
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// IsWorktreeClean reports whether the worktree has no uncommitted changes
+// (no staged, unstaged, or untracked changes per `git status --porcelain`).
+func (s *Service) IsWorktreeClean(worktreePath string) (bool, error) {
+	if worktreePath == "" {
+		return false, ErrWorktreePathEmpty
+	}
+	cmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, ClassifyError("status porcelain", err, "")
+	}
+	return strings.TrimSpace(string(output)) == "", nil
 }
