@@ -292,7 +292,7 @@ func TestE2E_ShellIntegration_Command(t *testing.T) {
 	require.NoError(t, err, "shell-integration command should succeed")
 
 	// Validate script content - use assert (want to see all issues)
-	assert.Contains(t, stdout, "gbm2()", "script should define gbm2 function")
+	assert.Contains(t, stdout, "gbm()", "script should define gbm function")
 	assert.Contains(t, stdout, "worktree", "script should handle worktree commands")
 	assert.Contains(t, stdout, "switch", "script should handle switch command")
 	assert.Contains(t, stdout, "cd \"$result\"", "script should cd to result")

@@ -35,7 +35,7 @@ After setup, 'gbm worktree switch <name>' will automatically cd to the worktree 
 
 const shellIntegrationScript = `# gbm shell integration
 
-gbm2() {
+gbm() {
     # All worktree commands that output a path to stdout
     # Handles: switch, sw, s, add, a, list, ls, l (and their worktree/wt forms)
     if [[ ("$1" = "worktree" || "$1" = "wt") && \
@@ -45,7 +45,7 @@ gbm2() {
 
         # Capture stdout (path) while letting stderr through for messages
         local result
-        result=$(command gbm2 "$@" 2>/dev/stderr)
+        result=$(command gbm "$@" 2>/dev/stderr)
         local exit_code=$?
 
         # If successful and result is a directory, cd to it
@@ -57,7 +57,7 @@ gbm2() {
 
     # All other commands - pass through unchanged
     else
-        command gbm2 "$@"
+        command gbm "$@"
     fi
 }
 `

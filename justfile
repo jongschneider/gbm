@@ -41,15 +41,15 @@ install-jira:
     sudo mv gbm-jira /usr/local/bin/gbm-jira
     echo "✓ Installation successful: /usr/local/bin/gbm-jira"
 
-# Install the CLI globally as gbm2
+# Install the CLI globally as gbm
 install:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Building and installing gbm2..."
-    go build -o gbm2 ./cmd || exit 1
-    sudo mv gbm2 /usr/local/bin/gbm2
-    echo "✓ Installation successful: /usr/local/bin/gbm2"
-    echo "✓ You can now run 'gbm2' from anywhere"
+    echo "Building and installing gbm..."
+    go build -o gbm ./cmd || exit 1
+    sudo mv gbm /usr/local/bin/gbm
+    echo "✓ Installation successful: /usr/local/bin/gbm"
+    echo "✓ You can now run 'gbm' from anywhere"
 
 # Copy zsh completion setup commands to clipboard
 completions:
@@ -57,9 +57,9 @@ completions:
     set -euo pipefail
     echo "Generating zsh completion setup commands..."
     # Create the commands to paste in a new shell and copy to clipboard
-    printf "# Source gbm2 completions (paste this in your shell)\nsource <(gbm2 completion zsh)\n\n# Or to make it permanent, add this to your ~/.zshrc:\n# source <(gbm2 completion zsh)\n" | pbcopy
+    printf "# Source gbm completions (paste this in your shell)\nsource <(gbm completion zsh)\n\n# Or to make it permanent, add this to your ~/.zshrc:\n# source <(gbm completion zsh)\n" | pbcopy
     echo "✓ Completion setup commands copied to clipboard"
-    echo "✓ Paste into a new shell session to enable completions for 'gbm2'"
+    echo "✓ Paste into a new shell session to enable completions for 'gbm'"
 
 # Copy shell integration setup commands to clipboard
 shell-integration:
@@ -67,16 +67,16 @@ shell-integration:
     set -euo pipefail
     echo "Generating shell integration setup commands..."
     # Create the commands to paste in a new shell and copy to clipboard
-    printf "# Enable gbm2 shell integration (paste this in your shell)\neval \"\$(gbm2 shell-integration)\"\n\n# Or to make it permanent, add this to your ~/.zshrc or ~/.bashrc:\n# eval \"\$(gbm2 shell-integration)\"\n\n# This enables auto-cd for worktree commands:\n#   gbm2 wt switch <name>  - switch and cd to worktree\n#   gbm2 wt add <name>     - create and cd to worktree\n#   gbm2 wt list           - TUI to select and cd to worktree\n" | pbcopy
+    printf "# Enable gbm shell integration (paste this in your shell)\neval \"\$(gbm shell-integration)\"\n\n# Or to make it permanent, add this to your ~/.zshrc or ~/.bashrc:\n# eval \"\$(gbm shell-integration)\"\n\n# This enables auto-cd for worktree commands:\n#   gbm wt switch <name>  - switch and cd to worktree\n#   gbm wt add <name>     - create and cd to worktree\n#   gbm wt list           - TUI to select and cd to worktree\n" | pbcopy
     echo "✓ Shell integration setup commands copied to clipboard"
     echo "✓ Paste into a new shell session to enable auto-cd for worktree commands"
 
-# Uninstall gbm2 from system
+# Uninstall gbm from system
 uninstall:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Uninstalling gbm2..."
-    sudo rm -f /usr/local/bin/gbm2
+    echo "Uninstalling gbm..."
+    sudo rm -f /usr/local/bin/gbm
     echo "✓ Uninstall complete"
 
 # Compile all packages to ensure they build

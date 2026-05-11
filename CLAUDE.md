@@ -50,7 +50,7 @@ Use `just` (see `justfile`):
 | `just check` | test + lint + file-length (continues on failure) |
 | `just fmt` | Format code |
 | `just compile` | Compile all packages |
-| `just install` | Build + install as `gbm2` to `/usr/local/bin` |
+| `just install` | Build + install as `gbm` to `/usr/local/bin` |
 
 Or use Go directly:
 ```bash
