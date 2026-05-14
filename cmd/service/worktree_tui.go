@@ -12,4 +12,5 @@ var (
 
 	// Validation errors.
 	ErrBranchCreationCancelled = errors.New("branch creation cancelled")
+	ErrUserCancelled           = errors.New("cancelled by user")
 )

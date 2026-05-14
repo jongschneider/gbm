@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"gbm/internal/git"
@@ -270,39 +269,33 @@ func handleFinalState(finalModel tea.Model, svc *Service) error {
 		return nil
 	}
 
-	// Process merge workflow to populate names from custom fields
 	if state.WorkflowType == tui.WorkflowTypeMerge {
-		err := processMergeState(state)
-		if err != nil {
+		if err := processMergeState(state); err != nil {
 			return fmt.Errorf("failed to process merge workflow: %w", err)
 		}
 	}
 
-	// Handle existing worktree replacement
-	if err := handleExistingWorktree(svc, state.WorktreeName); err != nil {
-		return err
-	}
-
-	// Create the worktree
-	wt, err := createWorktreeFromState(svc, state)
+	wt, err := addWorktree(svc, AddOptions{
+		Name:            state.WorktreeName,
+		Branch:          state.BranchName,
+		BaseBranch:      state.BaseBranch,
+		CreateBranch:    true,
+		DryRun:          false,
+		OnExisting:      PromptToReplace,
+		OnMissingBranch: ErrorIfBranchMissing,
+	})
 	if err != nil {
 		return err
 	}
+	if wt == nil {
+		// Replace declined
+		return nil
+	}
 
-	// Handle merge workflow post-creation steps
 	if state.WorkflowType == tui.WorkflowTypeMerge {
-		err := performMergeWorkflow(svc, wt, state)
-		if err != nil {
+		if err := performMergeWorkflow(svc, wt, state); err != nil {
 			return err
 		}
-	}
-
-	// Post-creation tasks (non-fatal)
-	if err := svc.CopyFilesToWorktree(state.WorktreeName); err != nil {
-		PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
-	}
-	if err := svc.CreateJiraMarkdownFile(state.WorktreeName); err != nil {
-		PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
 	}
 
 	return nil
@@ -332,66 +325,6 @@ func extractWizardState(finalModel tea.Model) (*tui.WorkflowState, error) {
 	}
 
 	return w.State(), nil
-}
-
-// handleExistingWorktree checks if worktree exists and prompts for replacement.
-// Returns nil if worktree doesn't exist or was successfully removed.
-func handleExistingWorktree(svc *Service, worktreeName string) error {
-	existingWorktrees, err := svc.Git.ListWorktrees(false)
-	if err != nil {
-		return fmt.Errorf("failed to list worktrees: %w", err)
-	}
-
-	var exists bool
-	for _, wt := range existingWorktrees {
-		if wt.Name == worktreeName {
-			exists = true
-			break
-		}
-	}
-
-	if !exists {
-		return nil
-	}
-
-	if !ShouldAllowInput() {
-		return fmt.Errorf("worktree '%s' already exists", worktreeName)
-	}
-
-	fmt.Fprintf(os.Stderr, "Worktree '%s' already exists. Replace it? (y/N): ", worktreeName)
-	reader := bufio.NewReader(os.Stdin)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read user input: %w", err)
-	}
-	response = strings.TrimSpace(strings.ToLower(response))
-	if response != "y" && response != "yes" {
-		fmt.Fprintf(os.Stderr, "Cancelled\n")
-		return nil
-	}
-
-	if _, err := svc.Git.RemoveWorktree(worktreeName, false, false); err != nil {
-		return fmt.Errorf("failed to remove existing worktree: %w", err)
-	}
-	PrintSuccess(fmt.Sprintf("Removed existing worktree '%s'", worktreeName))
-	return nil
-}
-
-// createWorktreeFromState creates a new worktree using the wizard state.
-func createWorktreeFromState(svc *Service, state *tui.WorkflowState) (*git.Worktree, error) {
-	worktreesDir, err := svc.GetWorktreesPath()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get worktrees directory: %w", err)
-	}
-
-	wt, err := svc.Git.AddWorktree(worktreesDir, state.WorktreeName, state.BranchName, true, state.BaseBranch, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create worktree: %w", err)
-	}
-
-	fmt.Println(wt.Path)
-	PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", wt.Name, wt.Branch))
-	return wt, nil
 }
 
 // performMergeWorkflow handles the merge operation for merge workflows.

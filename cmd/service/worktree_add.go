@@ -24,28 +24,126 @@ func runTUIMode(svc *Service) error {
 	return runWorktreeAddWizardTUI(svc)
 }
 
-// runCLIMode runs the command-line worktree add workflow.
-func runCLIMode(svc *Service, worktreeName, branchName string, createBranch bool, baseBranch string) error {
+// ExistingPolicy controls behavior when a worktree with the target name already exists.
+type ExistingPolicy int
+
+const (
+	ErrorIfExists ExistingPolicy = iota
+	PromptToReplace
+)
+
+// MissingBranchPolicy controls behavior when the target branch does not exist.
+type MissingBranchPolicy int
+
+const (
+	ErrorIfBranchMissing MissingBranchPolicy = iota
+	PromptToCreateBranch
+)
+
+// AddOptions controls the worktree-add flow.
+type AddOptions struct {
+	Name            string
+	Branch          string
+	BaseBranch      string
+	CreateBranch    bool
+	DryRun          bool
+	OnExisting      ExistingPolicy
+	OnMissingBranch MissingBranchPolicy
+}
+
+// addWorktree is the single entry point both CLI and TUI use to create a worktree.
+// It applies the existing/missing-branch policies, creates the worktree, emits
+// output (respecting --json/--dry-run globals), and runs post-create hooks
+// (file copy + JIRA markdown).
+//
+// Returns (nil, nil) when the user cancels at an interactive prompt.
+func addWorktree(svc *Service, opts AddOptions) (*git.Worktree, error) {
 	worktreesDir, err := svc.GetWorktreesPath()
 	if err != nil {
-		return handleAddError(fmt.Sprintf("failed to get worktrees directory: %v", err), err)
+		return nil, handleAddError(fmt.Sprintf("failed to get worktrees directory: %v", err), err)
 	}
 
-	if err := utils.MkdirAll(worktreesDir, ShouldUseDryRun()); err != nil {
-		return handleAddError(err.Error(), err)
+	if err := handleExistingWorktreeForPolicy(svc, opts.Name, opts.OnExisting); err != nil {
+		if errors.Is(err, ErrUserCancelled) {
+			return nil, nil
+		}
+		return nil, handleAddError(err.Error(), err)
 	}
 
-	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, createBranch, baseBranch, ShouldUseDryRun())
-	if err == nil {
-		return outputWorktreeCreated(wt)
+	if err := utils.MkdirAll(worktreesDir, opts.DryRun); err != nil {
+		return nil, handleAddError(err.Error(), err)
 	}
 
-	// Check if branch doesn't exist and we can prompt to create it
-	if shouldPromptForBranchCreation(err, createBranch) {
-		return promptAndCreateBranch(svc, worktreesDir, worktreeName, branchName, baseBranch)
+	wt, err := svc.Git.AddWorktree(worktreesDir, opts.Name, opts.Branch, opts.CreateBranch, opts.BaseBranch, opts.DryRun)
+	if err != nil && shouldPromptForBranchCreation(err, opts.CreateBranch) && opts.OnMissingBranch == PromptToCreateBranch {
+		wt, err = promptAndCreateBranch(svc, worktreesDir, opts.Name, opts.Branch, opts.BaseBranch, opts.DryRun)
+		if errors.Is(err, ErrBranchCreationCancelled) {
+			return nil, err
+		}
+	}
+	if err != nil {
+		return nil, handleAddError(err.Error(), err)
 	}
 
-	return handleAddError(err.Error(), err)
+	if err := outputWorktreeCreated(wt); err != nil {
+		return nil, err
+	}
+
+	if opts.DryRun {
+		return wt, nil
+	}
+
+	if err := svc.CopyFilesToWorktree(opts.Name); err != nil {
+		PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
+	}
+	if err := svc.CreateJiraMarkdownFile(opts.Name); err != nil {
+		PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
+	}
+
+	return wt, nil
+}
+
+// handleExistingWorktreeForPolicy checks whether a worktree named worktreeName
+// already exists and applies the configured policy. Returns ErrUserCancelled if
+// the user declines an interactive replace prompt.
+func handleExistingWorktreeForPolicy(svc *Service, worktreeName string, policy ExistingPolicy) error {
+	existing, err := svc.Git.ListWorktrees(false)
+	if err != nil {
+		return fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	var exists bool
+	for _, wt := range existing {
+		if wt.Name == worktreeName {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		return nil
+	}
+
+	if policy == ErrorIfExists || !ShouldAllowInput() {
+		return fmt.Errorf("worktree '%s' already exists", worktreeName)
+	}
+
+	fmt.Fprintf(os.Stderr, "Worktree '%s' already exists. Replace it? (y/N): ", worktreeName)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read user input: %w", err)
+	}
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "y" && response != "yes" {
+		fmt.Fprintln(os.Stderr, "Cancelled")
+		return ErrUserCancelled
+	}
+
+	if _, err := svc.Git.RemoveWorktree(worktreeName, false, false); err != nil {
+		return fmt.Errorf("failed to remove existing worktree: %w", err)
+	}
+	PrintSuccess(fmt.Sprintf("Removed existing worktree '%s'", worktreeName))
+	return nil
 }
 
 // shouldPromptForBranchCreation checks if we should offer to create a missing branch.
@@ -57,32 +155,30 @@ func shouldPromptForBranchCreation(err error, alreadyCreating bool) bool {
 	return strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "invalid reference")
 }
 
-// promptAndCreateBranch prompts the user to create a missing branch and retries.
-func promptAndCreateBranch(svc *Service, worktreesDir, worktreeName, branchName, baseBranch string) error {
+// promptAndCreateBranch prompts the user to create a missing branch and retries
+// the worktree creation with createBranch=true. Returns ErrBranchCreationCancelled
+// if the user declines.
+func promptAndCreateBranch(svc *Service, worktreesDir, worktreeName, branchName, baseBranch string, dryRun bool) (*git.Worktree, error) {
 	if !ShouldAllowInput() {
 		if ShouldUseJSON() {
-			return HandleError(fmt.Sprintf("Branch '%s' does not exist and --no-input mode prevents prompting", branchName))
+			return nil, HandleError(fmt.Sprintf("Branch '%s' does not exist and --no-input mode prevents prompting", branchName))
 		}
-		return fmt.Errorf("branch '%s' does not exist. Use -b to create it", branchName)
+		return nil, fmt.Errorf("branch '%s' does not exist. Use -b to create it", branchName)
 	}
 
 	fmt.Fprintf(os.Stderr, "Branch '%s' does not exist. Create it as a new branch? (y/N): ", branchName)
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		return handleAddError(fmt.Sprintf("failed to read user input: %v", err), err)
+		return nil, fmt.Errorf("failed to read user input: %w", err)
 	}
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response != "y" && response != "yes" {
-		return ErrBranchCreationCancelled
+		return nil, ErrBranchCreationCancelled
 	}
 
-	wt, err := svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, ShouldUseDryRun())
-	if err != nil {
-		return handleAddError(err.Error(), err)
-	}
-	return outputWorktreeCreated(wt)
+	return svc.Git.AddWorktree(worktreesDir, worktreeName, branchName, true, baseBranch, dryRun)
 }
 
 // outputWorktreeCreated handles the output after successfully creating a worktree.
@@ -155,38 +251,30 @@ Examples:
 			return fmt.Errorf("accepts 0 or 2 arg(s), received %d", len(args))
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// If no args provided, launch TUI mode
 			if len(args) == 0 {
 				return runTUIMode(svc)
 			}
 
-			// CLI mode
 			baseBranch = utils.GetStringFlagOrConfig(cmd, "base", svc.GetConfig().DefaultBranch)
 			if baseBranch == "" {
 				baseBranch = "master"
 			}
-			return runCLIMode(svc, args[0], args[1], createBranch, baseBranch)
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			// Skip PostRunE in TUI mode (no args) - TUI already handles file copying
-			if len(args) == 0 {
-				return nil
+
+			onMissingBranch := ErrorIfBranchMissing
+			if !createBranch {
+				onMissingBranch = PromptToCreateBranch
 			}
-			if ShouldUseDryRun() {
-				return nil
-			}
-			worktreeName := args[0]
-			// Copy files from source worktrees based on config rules
-			err := svc.CopyFilesToWorktree(worktreeName)
-			if err != nil {
-				PrintWarning(fmt.Sprintf("failed to copy files to worktree: %v", err))
-			}
-			// Create JIRA markdown if applicable
-			err = svc.CreateJiraMarkdownFile(worktreeName)
-			if err != nil {
-				PrintWarning(fmt.Sprintf("failed to create JIRA markdown: %v", err))
-			}
-			return nil
+
+			_, err := addWorktree(svc, AddOptions{
+				Name:            args[0],
+				Branch:          args[1],
+				BaseBranch:      baseBranch,
+				CreateBranch:    createBranch,
+				DryRun:          ShouldUseDryRun(),
+				OnExisting:      ErrorIfExists,
+				OnMissingBranch: onMissingBranch,
+			})
+			return err
 		},
 	}
 
