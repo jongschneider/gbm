@@ -58,7 +58,7 @@ type clearMessageMsg struct{}
 // worktreeListModel is the Bubble Tea model for the worktree table TUI.
 type worktreeListModel struct {
 	gitOps            WorktreeTableGitOps
-	trackedBranches   map[string]bool
+	trackedNames      map[string]bool
 	branchStatuses    map[string]*git.BranchStatus
 	loadingStatuses   map[string]bool
 	table             *tui.Table
@@ -78,7 +78,7 @@ type worktreeListModel struct {
 // newWorktreeListModel creates a new testlsModel with pre-fetched data.
 func newWorktreeListModel(
 	worktrees []git.Worktree,
-	trackedBranches map[string]bool,
+	trackedNames map[string]bool,
 	branchStatuses map[string]*git.BranchStatus,
 	currentWorktree *git.Worktree,
 	gitOps WorktreeTableGitOps,
@@ -89,7 +89,7 @@ func newWorktreeListModel(
 	rows := make([]table.Row, 0, len(worktrees))
 	for _, wt := range worktrees {
 		status := branchStatuses[wt.Name]
-		rows = append(rows, BuildWorktreeRow(wt, currentWorktree, trackedBranches, status))
+		rows = append(rows, BuildWorktreeRow(wt, currentWorktree, trackedNames, status))
 	}
 
 	// Default columns (will be resized on WindowSizeMsg)
@@ -114,7 +114,7 @@ func newWorktreeListModel(
 		row := table.Row{
 			FormatWorktreeName(wt, currentWorktree),
 			wt.Branch,
-			FormatWorktreeKind(wt, trackedBranches),
+			FormatWorktreeKind(wt, trackedNames),
 			"", // Loading spinner placeholder
 		}
 		initialRows = append(initialRows, row)
@@ -138,7 +138,7 @@ func newWorktreeListModel(
 		ctx:             ctx,
 		table:           tbl,
 		worktrees:       worktrees,
-		trackedBranches: trackedBranches,
+		trackedNames:    trackedNames,
 		branchStatuses:  branchStatuses,
 		loadingStatuses: loadingStatuses,
 		gitOps:          gitOps,
@@ -244,7 +244,7 @@ func (m *worktreeListModel) handleBranchStatusLoaded(msg statusFetchMsg) (tea.Mo
 	// Find the worktree index and update its row
 	for i, wt := range m.worktrees {
 		if wt.Name == msg.worktreeName {
-			newRow := BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, msg.status)
+			newRow := BuildWorktreeRow(wt, m.currentWorktree, m.trackedNames, msg.status)
 			m.updateRow(i, newRow)
 			break
 		}
@@ -313,7 +313,7 @@ func (m *worktreeListModel) handleSelectWorktree() (tea.Model, tea.Cmd) {
 }
 
 func (m *worktreeListModel) handlePush() (tea.Model, tea.Cmd) {
-	if idx := m.table.OriginalIndex(); idx >= 0 && idx < len(m.worktrees) && m.trackedBranches[m.worktrees[idx].Branch] {
+	if idx := m.table.OriginalIndex(); idx >= 0 && idx < len(m.worktrees) && m.trackedNames[m.worktrees[idx].Name] {
 		m.message = fmt.Sprintf("Cannot push tracked branch '%s'", m.worktrees[idx].Branch)
 		return m, m.scheduleClearMessage()
 	}
@@ -464,7 +464,7 @@ func (m *worktreeListModel) handleOperationResult(msg operationResultMsg) (tea.M
 		if m.operationIndex < len(m.worktrees) {
 			wt := m.worktrees[m.operationIndex]
 			status := m.branchStatuses[wt.Name]
-			m.updateRow(m.operationIndex, BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, status))
+			m.updateRow(m.operationIndex, BuildWorktreeRow(wt, m.currentWorktree, m.trackedNames, status))
 		}
 	} else {
 		switch msg.opType {
@@ -489,7 +489,7 @@ func (m *worktreeListModel) handleOperationResult(msg operationResultMsg) (tea.M
 			if msg.newStatus != nil && m.operationIndex < len(m.worktrees) {
 				wt := m.worktrees[m.operationIndex]
 				m.branchStatuses[wt.Name] = msg.newStatus
-				m.updateRow(m.operationIndex, BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, msg.newStatus))
+				m.updateRow(m.operationIndex, BuildWorktreeRow(wt, m.currentWorktree, m.trackedNames, msg.newStatus))
 			}
 		}
 	}
@@ -515,13 +515,13 @@ func (m *worktreeListModel) refreshAfterDelete() (tea.Model, tea.Cmd) {
 			filtered = append(filtered, wt)
 		}
 	}
-	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedBranches)
+	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedNames)
 
 	// Rebuild rows
 	rows := make([]table.Row, 0, len(m.worktrees))
 	for _, wt := range m.worktrees {
 		status := m.branchStatuses[wt.Name]
-		rows = append(rows, BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, status))
+		rows = append(rows, BuildWorktreeRow(wt, m.currentWorktree, m.trackedNames, status))
 	}
 	m.table.SetRows(rows)
 
@@ -551,13 +551,13 @@ func (m *worktreeListModel) refreshWorktreeList() {
 			filtered = append(filtered, wt)
 		}
 	}
-	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedBranches)
+	m.worktrees = SortWorktrees(filtered, m.currentWorktree, m.trackedNames)
 
 	// Rebuild rows
 	rows := make([]table.Row, 0, len(m.worktrees))
 	for _, wt := range m.worktrees {
 		status := m.branchStatuses[wt.Name]
-		rows = append(rows, BuildWorktreeRow(wt, m.currentWorktree, m.trackedBranches, status))
+		rows = append(rows, BuildWorktreeRow(wt, m.currentWorktree, m.trackedNames, status))
 	}
 	m.table.SetRows(rows)
 
@@ -586,7 +586,7 @@ func (m *worktreeListModel) updateOperatingRow() {
 	row := table.Row{
 		FormatWorktreeName(wt, m.currentWorktree),
 		wt.Branch,
-		FormatWorktreeKind(wt, m.trackedBranches),
+		FormatWorktreeKind(wt, m.trackedNames),
 		m.spinner.View() + " " + opLabel,
 	}
 	m.updateRow(m.operationIndex, row)
@@ -599,7 +599,7 @@ func (m *worktreeListModel) updateLoadingRows() {
 			row := table.Row{
 				FormatWorktreeName(wt, m.currentWorktree),
 				wt.Branch,
-				FormatWorktreeKind(wt, m.trackedBranches),
+				FormatWorktreeKind(wt, m.trackedNames),
 				m.spinner.View(),
 			}
 			m.updateRow(i, row)
@@ -666,7 +666,7 @@ func (m *worktreeListModel) View() string {
 		idx := m.table.OriginalIndex()
 		showPush := true
 		if idx >= 0 && idx < len(m.worktrees) {
-			if m.trackedBranches[m.worktrees[idx].Branch] {
+			if m.trackedNames[m.worktrees[idx].Name] {
 				showPush = false
 			}
 		}

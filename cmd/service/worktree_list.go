@@ -50,10 +50,12 @@ Examples:
 			// Get config to identify tracked worktrees
 			config := svc.GetConfig()
 
-			// Create a map of tracked branches for quick lookup
-			trackedBranches := make(map[string]bool)
-			for _, wtConfig := range config.Worktrees {
-				trackedBranches[wtConfig.Branch] = true
+			// Track by NAME (matches sync's identity model): a worktree is
+			// gbm-managed when its directory name is a configured slot,
+			// regardless of which branch it currently has checked out.
+			trackedNames := make(map[string]bool)
+			for name := range config.Worktrees {
+				trackedNames[name] = true
 			}
 
 			// Initialize sorted list and categorization lists
@@ -73,7 +75,7 @@ Examples:
 					continue
 				}
 
-				if trackedBranches[wt.Branch] {
+				if trackedNames[wt.Name] {
 					trackedWorktrees = append(trackedWorktrees, wt)
 					continue
 				}
@@ -90,7 +92,7 @@ Examples:
 				wtList := make([]WorktreeListItemResponse, len(sortedWorktrees))
 				for i, wt := range sortedWorktrees {
 					isCurrent := currentWorktree != nil && wt.Name == currentWorktree.Name
-					isTracked := trackedBranches[wt.Branch]
+					isTracked := trackedNames[wt.Name]
 					wtList[i] = WorktreeListItemResponse{
 						Name:    wt.Name,
 						Path:    wt.Path,
@@ -112,7 +114,7 @@ Examples:
 			}
 
 			// Display using bubbletea table
-			// return runWorktreeTable(sortedWorktrees, trackedBranches, currentWorktree, svc)
+			// return runWorktreeTable(sortedWorktrees, trackedNames, currentWorktree, svc)
 
 			// Run TUI and handle output
 			return handleWorktreeTableTUI(svc, svc.Git)
@@ -133,21 +135,21 @@ func newWorktreeTableTUI(
 		return nil, fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
-	// Get tracked branches from config
+	// Track by NAME (matches sync's identity model).
 	config := cfgSvc.GetConfig()
-	trackedBranches := make(map[string]bool)
-	for _, wtConfig := range config.Worktrees {
-		trackedBranches[wtConfig.Branch] = true
+	trackedNames := make(map[string]bool)
+	for name := range config.Worktrees {
+		trackedNames[name] = true
 	}
 
 	// Get current worktree (ignore error - may not be in a worktree)
 	currentWorktree, _ := gitOps.GetCurrentWorktree() //nolint:errcheck // May not be in a worktree
 
 	// Sort worktrees: current first, then tracked, then ad hoc (excludes bare)
-	sorted := SortWorktrees(worktrees, currentWorktree, trackedBranches)
+	sorted := SortWorktrees(worktrees, currentWorktree, trackedNames)
 
 	// Create model with lazy-loaded branch statuses
-	return newWorktreeListModel(sorted, trackedBranches, make(map[string]*git.BranchStatus), currentWorktree, gitOps), nil
+	return newWorktreeListModel(sorted, trackedNames, make(map[string]*git.BranchStatus), currentWorktree, gitOps), nil
 }
 
 // handleWorktreeTableTUI runs the TUI and handles the final output.

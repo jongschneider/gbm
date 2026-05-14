@@ -40,20 +40,24 @@ func FormatWorktreeName(wt git.Worktree, currentWorktree *git.Worktree) string {
 	return wt.Name
 }
 
-// FormatWorktreeKind returns "tracked" or "ad hoc" based on whether the branch is tracked.
-func FormatWorktreeKind(wt git.Worktree, trackedBranches map[string]bool) string {
-	if trackedBranches[wt.Branch] {
+// FormatWorktreeKind returns "tracked" or "ad hoc" based on whether the
+// worktree's name is a configured slot. Matches sync's identity model:
+// a worktree is gbm-managed when its directory name is a key in
+// config.Worktrees, regardless of which branch it currently has checked
+// out (the branch can drift between syncs).
+func FormatWorktreeKind(wt git.Worktree, trackedNames map[string]bool) string {
+	if trackedNames[wt.Name] {
 		return "tracked"
 	}
 	return "ad hoc"
 }
 
 // BuildWorktreeRow creates a table row for a worktree using the shared formatting helpers.
-func BuildWorktreeRow(wt git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool, status *git.BranchStatus) table.Row {
+func BuildWorktreeRow(wt git.Worktree, currentWorktree *git.Worktree, trackedNames map[string]bool, status *git.BranchStatus) table.Row {
 	return table.Row{
 		FormatWorktreeName(wt, currentWorktree),
 		wt.Branch,
-		FormatWorktreeKind(wt, trackedBranches),
+		FormatWorktreeKind(wt, trackedNames),
 		FormatGitStatus(status),
 	}
 }
@@ -89,7 +93,7 @@ func CalculateTableHeight(terminalHeight, rowCount int) int {
 
 // SortWorktrees sorts worktrees by priority: current first, then tracked, then ad hoc.
 // Bare worktrees are excluded from the result.
-func SortWorktrees(worktrees []git.Worktree, currentWorktree *git.Worktree, trackedBranches map[string]bool) []git.Worktree {
+func SortWorktrees(worktrees []git.Worktree, currentWorktree *git.Worktree, trackedNames map[string]bool) []git.Worktree {
 	var sorted []git.Worktree
 	var tracked []git.Worktree
 	var adHoc []git.Worktree
@@ -102,7 +106,7 @@ func SortWorktrees(worktrees []git.Worktree, currentWorktree *git.Worktree, trac
 			sorted = append(sorted, wt)
 			continue
 		}
-		if trackedBranches[wt.Branch] {
+		if trackedNames[wt.Name] {
 			tracked = append(tracked, wt)
 			continue
 		}
