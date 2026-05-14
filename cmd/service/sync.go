@@ -6,6 +6,7 @@ import (
 	"gbm/internal/git"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -317,13 +318,18 @@ func singleLiveOrphan(candidates []string, orphanedMap map[string]string) (strin
 
 // performSync synchronizes actual worktrees with configured worktrees.
 //
-// Order is intentional: cheapest/safest operations first, destructive last.
-//  1. Moves      — orphan renamed into missing slot (lossless)
-//  2. Swaps      — two tracked worktrees exchange branches via temp (lossless)
-//  3. Adoptions  — orphan adopted to satisfy a branch change (orphan lossless,
+// Order is intentional: lossless passes first, then destructive ones.
+// Branch changes run before Missings because a branch change can RELEASE
+// a branch that a missing worktree needs to take. (See orderBranchChanges
+// for the intra-BC ordering — chains like A releases X that B needs.)
+//  1. Moves          — orphan renamed into missing slot (lossless)
+//  2. Swaps          — two tracked worktrees exchange branches via temp (lossless)
+//  3. Adoptions      — orphan adopted to satisfy a branch change (orphan lossless,
 //     old tracked worktree's dirty work trashed)
-//  4. Missing    — fresh worktrees created from config
-//  5. Branch changes — destructive remove-and-recreate fallback
+//  4. Branch changes — destructive remove-and-recreate, ordered so releasers run
+//     before takers
+//  5. Missing        — fresh worktrees created from config (now safe to take
+//     branches released by step 4)
 func performSync(
 	svc *Service,
 	status *SyncStatus,
@@ -347,11 +353,11 @@ func performSync(
 		return err
 	}
 
-	if err := createMissingWorktrees(svc, status.MissingWorktrees, worktreesDir, dryRun); err != nil {
+	if err := handleBranchChanges(svc, status.BranchChanges, worktreesDir, dryRun, confirmFunc); err != nil {
 		return err
 	}
 
-	if err := handleBranchChanges(svc, status.BranchChanges, worktreesDir, dryRun, confirmFunc); err != nil {
+	if err := createMissingWorktrees(svc, status.MissingWorktrees, worktreesDir, dryRun); err != nil {
 		return err
 	}
 
@@ -584,11 +590,95 @@ func createMissingWorktrees(svc *Service, missing []string, worktreesDir string,
 	return nil
 }
 
+// orderBranchChanges returns BC names in topological order so that any BC
+// releasing a branch needed by another BC runs first.
+//
+// Dependency: bc_a -> bc_b when bc_b.DesiredBranch == bc_a.CurrentBranch
+// (bc_a releases the branch bc_b takes, so bc_a must come first).
+//
+// 2-cycles are detected upstream as swaps; a cycle of length >=3 means
+// every involved BC is sitting on a branch some other BC wants, and we
+// can't break it via destructive recreate alone. We surface that as an
+// error rather than triggering misleading "branch already used by worktree"
+// failures mid-run.
+func orderBranchChanges(bcs map[string]BranchChange) ([]string, error) {
+	indeg := make(map[string]int, len(bcs))
+	out := make(map[string][]string, len(bcs))
+	for name := range bcs {
+		indeg[name] = 0
+	}
+	for name, bc := range bcs {
+		for otherName, otherBC := range bcs {
+			if otherName == name {
+				continue
+			}
+			if otherBC.CurrentBranch == bc.DesiredBranch {
+				out[otherName] = append(out[otherName], name)
+				indeg[name]++
+			}
+		}
+	}
+
+	var ready []string
+	for name, d := range indeg {
+		if d == 0 {
+			ready = append(ready, name)
+		}
+	}
+	sort.Strings(ready)
+
+	order := make([]string, 0, len(bcs))
+	for len(ready) > 0 {
+		next := ready[0]
+		ready = ready[1:]
+		order = append(order, next)
+
+		dependents := out[next]
+		sort.Strings(dependents)
+		var newlyReady []string
+		for _, dep := range dependents {
+			indeg[dep]--
+			if indeg[dep] == 0 {
+				newlyReady = append(newlyReady, dep)
+			}
+		}
+		sort.Strings(newlyReady)
+		ready = append(ready, newlyReady...)
+	}
+
+	if len(order) < len(bcs) {
+		seen := make(map[string]bool, len(order))
+		for _, n := range order {
+			seen[n] = true
+		}
+		stuck := make([]string, 0, len(bcs)-len(order))
+		for name := range bcs {
+			if !seen[name] {
+				stuck = append(stuck, name)
+			}
+		}
+		sort.Strings(stuck)
+		return nil, fmt.Errorf(
+			"branch dependency cycle among worktrees [%s]; "+
+				"manually move one off its current branch and re-run sync",
+			strings.Join(stuck, ", "),
+		)
+	}
+
+	return order, nil
+}
+
 // handleBranchChanges handles worktrees that need to be recreated with a different branch.
 func handleBranchChanges(svc *Service, changes map[string]BranchChange, worktreesDir string, dryRun bool, confirmFunc func(string) bool) error {
 	config := svc.GetConfig()
 
-	for name, change := range changes {
+	order, err := orderBranchChanges(changes)
+	if err != nil {
+		return err
+	}
+
+	for _, name := range order {
+		change := changes[name]
 		message := fmt.Sprintf("Worktree '%s' is on branch '%s' but config specifies '%s'. Remove and recreate?",
 			name, change.CurrentBranch, change.DesiredBranch)
 
