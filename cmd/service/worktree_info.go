@@ -131,30 +131,32 @@ func buildWorktreeInfo(svc *Service, wt *git.Worktree, currentName string) (*Wor
 		Current:  wt.Name == currentName,
 	}
 
-	if base != "" {
-		if exists, _ := svc.Git.BranchExistsInPath(wt.Path, base); exists {
-			ahead, behind, err := svc.Git.CountAheadBehind(wt.Path, base)
-			if err == nil {
-				info.BaseStatus = &Divergence{Ahead: ahead, Behind: behind}
-			}
-		}
-	}
-
-	if upstream != "" {
-		if exists, _ := svc.Git.BranchExistsInPath(wt.Path, upstream); exists {
-			ahead, behind, err := svc.Git.CountAheadBehind(wt.Path, upstream)
-			if err == nil {
-				info.UpstreamStatus = &Divergence{Ahead: ahead, Behind: behind}
-			}
-		}
-	}
+	info.BaseStatus = divergenceAgainst(svc, wt.Path, base)
+	info.UpstreamStatus = divergenceAgainst(svc, wt.Path, upstream)
 
 	remoteCandidate := "origin/" + branch
-	if exists, _ := svc.Git.BranchExistsInPath(wt.Path, remoteCandidate); exists {
+	if exists, err := svc.Git.BranchExistsInPath(wt.Path, remoteCandidate); err == nil && exists {
 		info.RemoteBranch = remoteCandidate
 	}
 
 	return info, nil
+}
+
+// divergenceAgainst returns ahead/behind counts of HEAD vs `against`, or nil if
+// `against` is empty, doesn't exist, or git can't be queried (best-effort).
+func divergenceAgainst(svc *Service, worktreePath, against string) *Divergence {
+	if against == "" {
+		return nil
+	}
+	exists, err := svc.Git.BranchExistsInPath(worktreePath, against)
+	if err != nil || !exists {
+		return nil
+	}
+	ahead, behind, err := svc.Git.CountAheadBehind(worktreePath, against)
+	if err != nil {
+		return nil
+	}
+	return &Divergence{Ahead: ahead, Behind: behind}
 }
 
 func printWorktreeInfo(info *WorktreeInfoResponse) {

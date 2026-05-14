@@ -309,6 +309,10 @@ func (s *Service) Fetch(dryRun bool) error {
 }
 
 // MoveWorktree moves a git worktree to a new location.
+//
+// Resolves the worktree by name and moves it to a sibling directory with the
+// given new name. Preserves dirty/untracked files (git worktree move does an
+// in-place rename of the directory).
 func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 	if oldName == "" {
 		return ErrOldWorktreeNameEmpty
@@ -317,7 +321,6 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 		return ErrNewWorktreeNameEmpty
 	}
 
-	// List all worktrees to find the source
 	worktrees, err := s.ListWorktrees(false)
 	if err != nil {
 		return fmt.Errorf("failed to list worktrees: %w", err)
@@ -335,14 +338,26 @@ func (s *Service) MoveWorktree(oldName, newName string, dryRun bool) error {
 		return fmt.Errorf("worktree '%s' not found", oldName)
 	}
 
-	// Calculate new path (same parent directory, different name)
-	oldPath := oldWorktree.Path
-	parentDir := filepath.Dir(oldPath)
+	parentDir := filepath.Dir(oldWorktree.Path)
 	newPath := filepath.Join(parentDir, newName)
 
-	args := []string{"worktree", "move", oldPath, newPath}
+	return s.MoveWorktreeByPath(oldWorktree.Path, newPath, dryRun)
+}
 
-	cmd := exec.Command("git", args...)
+// MoveWorktreeByPath moves a git worktree from oldPath to newPath.
+//
+// Lower-level than MoveWorktree: takes absolute paths directly so callers can
+// move worktrees to arbitrary destinations (e.g. a temp slot used by the
+// swap-detection path in sync). Preserves dirty/untracked files.
+func (s *Service) MoveWorktreeByPath(oldPath, newPath string, dryRun bool) error {
+	if oldPath == "" {
+		return ErrWorktreePathEmpty
+	}
+	if newPath == "" {
+		return ErrWorktreePathEmpty
+	}
+
+	cmd := exec.Command("git", "worktree", "move", oldPath, newPath)
 
 	if dryRun {
 		printDryRun(cmd)

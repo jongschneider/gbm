@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -174,7 +175,8 @@ func (s *Service) UnsetGbmBase(worktreePath, branchName string, dryRun bool) err
 		return nil
 	}
 	// `git config --unset` exits 5 when the key/section does not exist; treat as success.
-	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 5 {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 5 {
 		return nil
 	}
 	return ClassifyError("config unset gbmBase", err, string(output))
