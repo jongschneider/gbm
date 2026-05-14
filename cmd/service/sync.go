@@ -6,7 +6,6 @@ import (
 	"gbm/internal/git"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +20,7 @@ type SyncStatus struct {
 	WorktreeMoves     []WorktreeMove          // Orphans adopted to satisfy a missing config entry
 	WorktreeSwaps     []WorktreeSwap          // Two tracked worktrees swapping branches
 	WorktreeAdoptions []WorktreeAdoption      // Branch change satisfied by adopting an orphan on the desired branch
+	WorktreeRedirects []WorktreeRedirect      // Tracked BC worktree renamed into a missing slot whose branch it already holds
 	InSync            bool                    // True if everything matches
 }
 
@@ -58,6 +58,22 @@ type WorktreeAdoption struct {
 	OrphanName    string // ad-hoc worktree to adopt
 	OrphanPath    string
 	DesiredBranch string // == orphan's branch
+}
+
+// WorktreeRedirect represents a tracked worktree (with a pending BranchChange)
+// whose CurrentBranch happens to match the DesiredBranch of a missing config
+// slot. Resolved losslessly by renaming the worktree into the missing slot
+// via git worktree move (preserves dirty/untracked files), then creating a
+// fresh worktree at the original slot on its config-desired branch.
+//
+// Without this pass, sync would destructively trash the worktree's WIP and
+// then create both slots from scratch.
+type WorktreeRedirect struct {
+	FromName    string // current slot name (will end up empty + then recreated fresh)
+	ToName      string // missing slot name being filled by the rename
+	HeldBranch  string // branch being preserved (BC.CurrentBranch == Missing's desired)
+	FreshBranch string // branch the fresh worktree at FromName will check out (BC.DesiredBranch)
+	FromPath    string // current path of the worktree to move
 }
 
 func newSyncCommand(svc *Service) *cobra.Command {
@@ -152,6 +168,7 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 		WorktreeMoves:     []WorktreeMove{},
 		WorktreeSwaps:     []WorktreeSwap{},
 		WorktreeAdoptions: []WorktreeAdoption{},
+		WorktreeRedirects: []WorktreeRedirect{},
 		InSync:            true,
 	}
 
@@ -199,6 +216,7 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 	detectMoves(status, missingMap, orphanedMap, orphanedByBranch)
 	detectSwaps(status, actualMap)
 	detectAdoptions(status, actualMap, orphanedMap, orphanedByBranch)
+	detectRedirects(status, actualMap, missingMap)
 
 	for name := range missingMap {
 		status.MissingWorktrees = append(status.MissingWorktrees, name)
@@ -206,114 +224,6 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 	status.OrphanedWorktrees = orphanedMap
 
 	return status, nil
-}
-
-// detectMoves finds orphans whose branch matches a missing config entry (1:1).
-// Lossless: orphan keeps its working tree, just renamed to fill the missing slot.
-func detectMoves(status *SyncStatus, missingMap, orphanedMap map[string]string, orphanedByBranch map[string][]string) {
-	for missingName, missingBranch := range missingMap {
-		orphanedNames := orphanedByBranch[missingBranch]
-
-		// Only create a move if there's exactly one orphaned worktree with this branch
-		// (avoids ambiguity about which one to move)
-		if len(orphanedNames) != 1 {
-			continue
-		}
-		orphanedName := orphanedNames[0]
-
-		status.WorktreeMoves = append(status.WorktreeMoves, WorktreeMove{
-			OldName: orphanedName,
-			NewName: missingName,
-			Branch:  missingBranch,
-		})
-
-		delete(missingMap, missingName)
-		delete(orphanedMap, orphanedName)
-	}
-}
-
-// detectSwaps finds pairs of BranchChanges where each holds what the other wants.
-// Lossless: both worktrees preserve dirty/untracked files via three git worktree
-// moves through a temp path. Only 2-cycles are detected; N-cycles fall through.
-func detectSwaps(status *SyncStatus, actualMap map[string]git.Worktree) {
-	claimed := make(map[string]bool)
-	names := make([]string, 0, len(status.BranchChanges))
-	for name := range status.BranchChanges {
-		names = append(names, name)
-	}
-	for _, nameA := range names {
-		if claimed[nameA] {
-			continue
-		}
-		changeA, ok := status.BranchChanges[nameA]
-		if !ok {
-			continue
-		}
-		partner := findSwapPartner(nameA, changeA, names, claimed, status.BranchChanges)
-		if partner == "" {
-			continue
-		}
-		changeB := status.BranchChanges[partner]
-		status.WorktreeSwaps = append(status.WorktreeSwaps, WorktreeSwap{
-			NameA: nameA, BranchA: changeA.CurrentBranch, PathA: actualMap[nameA].Path,
-			NameB: partner, BranchB: changeB.CurrentBranch, PathB: actualMap[partner].Path,
-		})
-		claimed[nameA] = true
-		claimed[partner] = true
-		delete(status.BranchChanges, nameA)
-		delete(status.BranchChanges, partner)
-	}
-}
-
-func findSwapPartner(nameA string, changeA BranchChange, names []string, claimed map[string]bool, changes map[string]BranchChange) string {
-	for _, nameB := range names {
-		if nameB == nameA || claimed[nameB] {
-			continue
-		}
-		changeB, ok := changes[nameB]
-		if !ok {
-			continue
-		}
-		if changeA.DesiredBranch == changeB.CurrentBranch &&
-			changeB.DesiredBranch == changeA.CurrentBranch {
-			return nameB
-		}
-	}
-	return ""
-}
-
-// detectAdoptions finds BranchChanges whose desired branch is held by exactly
-// one live orphan. Lossy for the tracked worktree being repointed (its dirty
-// work goes to Trash), but lossless for the orphan (renamed via worktree move).
-func detectAdoptions(status *SyncStatus, actualMap map[string]git.Worktree, orphanedMap map[string]string, orphanedByBranch map[string][]string) {
-	for name, change := range status.BranchChanges {
-		liveOrphan, matched := singleLiveOrphan(orphanedByBranch[change.DesiredBranch], orphanedMap)
-		if !matched {
-			continue
-		}
-
-		status.WorktreeAdoptions = append(status.WorktreeAdoptions, WorktreeAdoption{
-			Name:          name,
-			CurrentBranch: change.CurrentBranch,
-			OrphanName:    liveOrphan,
-			OrphanPath:    actualMap[liveOrphan].Path,
-			DesiredBranch: change.DesiredBranch,
-		})
-		delete(status.BranchChanges, name)
-		delete(orphanedMap, liveOrphan)
-	}
-}
-
-func singleLiveOrphan(candidates []string, orphanedMap map[string]string) (string, bool) {
-	var found string
-	matches := 0
-	for _, candidate := range candidates {
-		if _, stillOrphan := orphanedMap[candidate]; stillOrphan {
-			found = candidate
-			matches++
-		}
-	}
-	return found, matches == 1
 }
 
 // performSync synchronizes actual worktrees with configured worktrees.
@@ -326,10 +236,12 @@ func singleLiveOrphan(candidates []string, orphanedMap map[string]string) (strin
 //  2. Swaps          — two tracked worktrees exchange branches via temp (lossless)
 //  3. Adoptions      — orphan adopted to satisfy a branch change (orphan lossless,
 //     old tracked worktree's dirty work trashed)
-//  4. Branch changes — destructive remove-and-recreate, ordered so releasers run
+//  4. Redirects      — tracked BC worktree renamed into a missing slot whose
+//     branch it already holds (lossless; on decline, falls through to step 5+6)
+//  5. Branch changes — destructive remove-and-recreate, ordered so releasers run
 //     before takers
-//  5. Missing        — fresh worktrees created from config (now safe to take
-//     branches released by step 4)
+//  6. Missing        — fresh worktrees created from config (now safe to take
+//     branches released by step 4 or 5)
 func performSync(
 	svc *Service,
 	status *SyncStatus,
@@ -350,6 +262,10 @@ func performSync(
 	}
 
 	if err := performWorktreeAdoptions(svc, status.WorktreeAdoptions, worktreesDir, dryRun, confirmFunc); err != nil {
+		return err
+	}
+
+	if err := performWorktreeRedirects(svc, status, worktreesDir, dryRun, confirmFunc); err != nil {
 		return err
 	}
 
@@ -558,6 +474,62 @@ func rollbackAdoption(svc *Service, orphanPath, oldPath, tmpPath string) error {
 	return nil
 }
 
+// performWorktreeRedirects renames a tracked worktree (sitting on a branch a
+// missing slot wants) into that missing slot via git worktree move. This
+// preserves dirty/untracked files. The original slot is then queued as a
+// fresh Missing so createMissingWorktrees creates a clean worktree on the
+// BC's originally desired branch.
+//
+// On user decline, leaves the BC and Missing entries in place so the
+// downstream destructive recreate path can handle them instead (which still
+// works thanks to the topo-sorted BC ordering and BC-before-Missing flow).
+func performWorktreeRedirects(svc *Service, status *SyncStatus, worktreesDir string, dryRun bool, confirmFunc func(string) bool) error {
+	for _, r := range status.WorktreeRedirects {
+		message := fmt.Sprintf(
+			"Rename worktree '%s' (on '%s', preserves any WIP) -> '%s' to satisfy the missing config slot, then create a fresh '%s' on '%s'?",
+			r.FromName, r.HeldBranch, r.ToName, r.FromName, r.FreshBranch,
+		)
+
+		if !dryRun && confirmFunc != nil && !confirmFunc(message) {
+			PrintMessage("Skipped redirect '%s' -> '%s' (will fall back to destructive recreate)\n", r.FromName, r.ToName)
+			continue
+		}
+
+		newPath := filepath.Join(worktreesDir, r.ToName)
+		if dryRun {
+			fmt.Printf("[DRY RUN] git worktree move %s %s   # preserve WIP on '%s'\n", r.FromPath, newPath, r.HeldBranch)
+			fmt.Printf("[DRY RUN] create fresh worktree '%s' on '%s'\n", r.FromName, r.FreshBranch)
+			continue
+		}
+
+		if err := svc.Git.MoveWorktreeByPath(r.FromPath, newPath, false); err != nil {
+			return fmt.Errorf("redirect: failed to move '%s' to '%s': %w", r.FromName, r.ToName, err)
+		}
+
+		PrintSuccess(fmt.Sprintf("Redirected '%s' -> '%s' (preserved work on '%s')", r.FromName, r.ToName, r.HeldBranch))
+
+		if err := svc.CopyFilesToWorktree(r.ToName); err != nil {
+			PrintWarning(fmt.Sprintf("File copy failed for worktree '%s': %v", r.ToName, err))
+		}
+
+		// Consume the underlying BC + Missing now that the move succeeded,
+		// and queue a fresh Missing for the now-empty original slot.
+		delete(status.BranchChanges, r.FromName)
+		status.MissingWorktrees = removeStringFromSlice(status.MissingWorktrees, r.ToName)
+		status.MissingWorktrees = append(status.MissingWorktrees, r.FromName)
+	}
+	return nil
+}
+
+func removeStringFromSlice(s []string, v string) []string {
+	for i, x := range s {
+		if x == v {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
 // createMissingWorktrees creates worktrees that are defined in config but don't exist on disk.
 func createMissingWorktrees(svc *Service, missing []string, worktreesDir string, dryRun bool) error {
 	config := svc.GetConfig()
@@ -588,84 +560,6 @@ func createMissingWorktrees(svc *Service, missing []string, worktreesDir string,
 		}
 	}
 	return nil
-}
-
-// orderBranchChanges returns BC names in topological order so that any BC
-// releasing a branch needed by another BC runs first.
-//
-// Dependency: bc_a -> bc_b when bc_b.DesiredBranch == bc_a.CurrentBranch
-// (bc_a releases the branch bc_b takes, so bc_a must come first).
-//
-// 2-cycles are detected upstream as swaps; a cycle of length >=3 means
-// every involved BC is sitting on a branch some other BC wants, and we
-// can't break it via destructive recreate alone. We surface that as an
-// error rather than triggering misleading "branch already used by worktree"
-// failures mid-run.
-func orderBranchChanges(bcs map[string]BranchChange) ([]string, error) {
-	indeg := make(map[string]int, len(bcs))
-	out := make(map[string][]string, len(bcs))
-	for name := range bcs {
-		indeg[name] = 0
-	}
-	for name, bc := range bcs {
-		for otherName, otherBC := range bcs {
-			if otherName == name {
-				continue
-			}
-			if otherBC.CurrentBranch == bc.DesiredBranch {
-				out[otherName] = append(out[otherName], name)
-				indeg[name]++
-			}
-		}
-	}
-
-	var ready []string
-	for name, d := range indeg {
-		if d == 0 {
-			ready = append(ready, name)
-		}
-	}
-	sort.Strings(ready)
-
-	order := make([]string, 0, len(bcs))
-	for len(ready) > 0 {
-		next := ready[0]
-		ready = ready[1:]
-		order = append(order, next)
-
-		dependents := out[next]
-		sort.Strings(dependents)
-		var newlyReady []string
-		for _, dep := range dependents {
-			indeg[dep]--
-			if indeg[dep] == 0 {
-				newlyReady = append(newlyReady, dep)
-			}
-		}
-		sort.Strings(newlyReady)
-		ready = append(ready, newlyReady...)
-	}
-
-	if len(order) < len(bcs) {
-		seen := make(map[string]bool, len(order))
-		for _, n := range order {
-			seen[n] = true
-		}
-		stuck := make([]string, 0, len(bcs)-len(order))
-		for name := range bcs {
-			if !seen[name] {
-				stuck = append(stuck, name)
-			}
-		}
-		sort.Strings(stuck)
-		return nil, fmt.Errorf(
-			"branch dependency cycle among worktrees [%s]; "+
-				"manually move one off its current branch and re-run sync",
-			strings.Join(stuck, ", "),
-		)
-	}
-
-	return order, nil
 }
 
 // handleBranchChanges handles worktrees that need to be recreated with a different branch.
@@ -727,63 +621,56 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 
 	config := svc.GetConfig()
 
-	if len(status.WorktreeMoves) > 0 {
-		PrintInfo("Worktree renames/moves (will prompt for confirmation):")
+	printSyncSection(len(status.WorktreeMoves), "Worktree renames/moves (will prompt for confirmation):", func() {
 		for _, move := range status.WorktreeMoves {
 			fmt.Printf("  → %s → %s (branch: %s)\n", move.OldName, move.NewName, move.Branch)
 		}
-		fmt.Println()
-	}
-
-	if len(status.WorktreeSwaps) > 0 {
-		PrintInfo("Worktree swaps (will prompt for confirmation):")
+	})
+	printSyncSection(len(status.WorktreeSwaps), "Worktree swaps (will prompt for confirmation):", func() {
 		for _, swap := range status.WorktreeSwaps {
 			fmt.Printf("  ↔ %s (%s) ↔ %s (%s) — dirty files preserved in both\n",
 				swap.NameA, swap.BranchA, swap.NameB, swap.BranchB)
 		}
-		fmt.Println()
-	}
-
-	if len(status.WorktreeAdoptions) > 0 {
-		PrintInfo("Orphan adoptions (will prompt for confirmation):")
+	})
+	printSyncSection(len(status.WorktreeAdoptions), "Orphan adoptions (will prompt for confirmation):", func() {
 		for _, adopt := range status.WorktreeAdoptions {
 			fmt.Printf("  ⇐ %s ← orphan %s (branch: %s → %s); '%s' work goes to Trash\n",
 				adopt.Name, adopt.OrphanName, adopt.CurrentBranch, adopt.DesiredBranch, adopt.Name)
 		}
-		fmt.Println()
-	}
-
-	if len(status.MissingWorktrees) > 0 {
-		PrintInfo("Missing worktrees (will be created):")
-		for _, name := range status.MissingWorktrees {
-			branch := config.Worktrees[name].Branch
-			fmt.Printf("  + %s (branch: %s)\n", name, branch)
+	})
+	printSyncSection(len(status.WorktreeRedirects), "Worktree redirects (lossless rename; will prompt for confirmation):", func() {
+		for _, r := range status.WorktreeRedirects {
+			fmt.Printf("  → %s (on %s) renames to %s; fresh %s created on %s\n",
+				r.FromName, r.HeldBranch, r.ToName, r.FromName, r.FreshBranch)
 		}
-		fmt.Println()
-	}
-
-	if len(status.BranchChanges) > 0 {
-		PrintInfo("Branch changes needed (will remove and recreate):")
+	})
+	printSyncSection(len(status.MissingWorktrees), "Missing worktrees (will be created):", func() {
+		for _, name := range status.MissingWorktrees {
+			fmt.Printf("  + %s (branch: %s)\n", name, config.Worktrees[name].Branch)
+		}
+	})
+	printSyncSection(len(status.BranchChanges), "Branch changes needed (will remove and recreate):", func() {
 		for name, change := range status.BranchChanges {
 			fmt.Printf("  ~ %s: %s → %s\n", name, change.CurrentBranch, change.DesiredBranch)
 		}
-		fmt.Println()
-	}
-
-	// Always show ad-hoc worktrees if present (informational only)
-	if len(status.OrphanedWorktrees) > 0 {
-		PrintInfo("Ad-hoc worktrees (not tracked in config):")
+	})
+	printSyncSection(len(status.OrphanedWorktrees), "Ad-hoc worktrees (not tracked in config):", func() {
 		for name, branch := range status.OrphanedWorktrees {
 			fmt.Printf("  • %s (branch: %s)\n", name, branch)
 		}
-		fmt.Println()
-	}
+	})
 
-	// Check if config-tracked worktrees are in sync
 	if status.InSync {
 		PrintSuccess("All tracked worktrees are in sync with config")
-		return nil
 	}
-
 	return nil
+}
+
+func printSyncSection(count int, header string, body func()) {
+	if count == 0 {
+		return
+	}
+	PrintInfo(header)
+	body()
+	fmt.Println()
 }
