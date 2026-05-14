@@ -603,17 +603,24 @@ func handleBranchChanges(svc *Service, changes map[string]BranchChange, worktree
 			continue
 		}
 
+		configEntry := config.Worktrees[name]
+
+		branchExists, err := svc.Git.BranchExists(configEntry.Branch)
+		if err != nil {
+			return fmt.Errorf("failed to check if branch '%s' exists: %w", configEntry.Branch, err)
+		}
+
 		if _, err := svc.Git.RemoveWorktree(name, true, dryRun); err != nil {
 			return fmt.Errorf("failed to remove worktree '%s': %w", name, err)
 		}
 
-		configEntry := config.Worktrees[name]
-		_, err := svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, false, "", dryRun)
-		if err != nil {
-			baseBranch := config.DefaultBranch
-			if _, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, true, baseBranch, dryRun); err != nil {
-				return fmt.Errorf("failed to recreate worktree '%s': %w", name, err)
-			}
+		createBranch := !branchExists
+		baseBranch := ""
+		if createBranch {
+			baseBranch = config.DefaultBranch
+		}
+		if _, err := svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, baseBranch, dryRun); err != nil {
+			return fmt.Errorf("failed to recreate worktree '%s': %w", name, err)
 		}
 
 		PrintSuccess(fmt.Sprintf("Updated worktree '%s' to branch '%s'", name, configEntry.Branch))
