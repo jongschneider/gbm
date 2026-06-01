@@ -620,11 +620,30 @@ func removeStringFromSlice(s []string, v string) []string {
 func createMissingWorktrees(svc *Service, missing []string, worktreesDir string, dryRun bool) error {
 	config := svc.GetConfig()
 
+	// A branch can be checked out in at most one worktree. If a desired branch is
+	// already held by another worktree (e.g. the user declined the redirect/shift/
+	// branch-change that would have freed it), creating here would fail with a
+	// confusing "branch already used by worktree" git error. Detect that up front
+	// and skip with a clear message instead.
+	branchHolder, err := checkedOutBranches(svc)
+	if err != nil {
+		return err
+	}
+
 	for _, name := range missing {
 		configEntry := config.Worktrees[name]
 
 		if dryRun {
 			fmt.Printf("[DRY RUN] Would create worktree '%s' for branch '%s'\n", name, configEntry.Branch)
+			continue
+		}
+
+		if holder, taken := branchHolder[configEntry.Branch]; taken && holder != name {
+			PrintWarning(fmt.Sprintf(
+				"Skipped creating '%s': branch '%s' is already checked out in worktree '%s' "+
+					"(an earlier branch change/redirect was likely declined). "+
+					"Free that branch and re-run sync.",
+				name, configEntry.Branch, holder))
 			continue
 		}
 
@@ -638,6 +657,7 @@ func createMissingWorktrees(svc *Service, missing []string, worktreesDir string,
 		if _, err = svc.Git.AddWorktree(worktreesDir, name, configEntry.Branch, createBranch, baseBranch, dryRun); err != nil {
 			return fmt.Errorf("failed to create worktree '%s': %w", name, err)
 		}
+		branchHolder[configEntry.Branch] = name
 
 		PrintSuccess(fmt.Sprintf("Created worktree '%s' for branch '%s'", name, configEntry.Branch))
 
@@ -646,6 +666,24 @@ func createMissingWorktrees(svc *Service, missing []string, worktreesDir string,
 		}
 	}
 	return nil
+}
+
+// checkedOutBranches maps each branch currently checked out in a worktree to the
+// name of the worktree holding it. Used to avoid attempting to create a worktree
+// on a branch git already considers occupied.
+func checkedOutBranches(svc *Service) (map[string]string, error) {
+	worktrees, err := svc.Git.ListWorktrees(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+	}
+	holder := make(map[string]string, len(worktrees))
+	for _, wt := range worktrees {
+		if wt.IsBare || wt.Branch == "" {
+			continue
+		}
+		holder[wt.Branch] = wt.Name
+	}
+	return holder, nil
 }
 
 // handleBranchChanges handles worktrees that need to be recreated with a different branch.
