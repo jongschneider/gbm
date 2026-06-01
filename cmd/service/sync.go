@@ -21,6 +21,7 @@ type SyncStatus struct {
 	WorktreeSwaps     []WorktreeSwap          // Two tracked worktrees swapping branches
 	WorktreeAdoptions []WorktreeAdoption      // Branch change satisfied by adopting an orphan on the desired branch
 	WorktreeRedirects []WorktreeRedirect      // Tracked BC worktree renamed into a missing slot whose branch it already holds
+	WorktreeShifts    []WorktreeShift         // Lossless rotation: BC worktree fills a missing slot, orphan fills the BC's vacated slot
 	InSync            bool                    // True if everything matches
 }
 
@@ -74,6 +75,27 @@ type WorktreeRedirect struct {
 	HeldBranch  string // branch being preserved (BC.CurrentBranch == Missing's desired)
 	FreshBranch string // branch the fresh worktree at FromName will check out (BC.DesiredBranch)
 	FromPath    string // current path of the worktree to move
+}
+
+// WorktreeShift represents a fully lossless rotation: a tracked worktree (with a
+// pending BranchChange) whose CURRENT branch fills a missing config slot, and
+// whose DESIRED branch is already held by an orphan (ad-hoc) worktree. Resolved
+// with two git worktree moves and zero data loss:
+//
+//  1. FromName (on HeldBranch, + WIP) → ToName   — fills the missing slot
+//  2. OrphanName (on DesiredBranch)   → FromName — fills the now-vacated slot
+//
+// This strictly dominates the alternatives: adoption would trash FromName's WIP,
+// and a redirect would try to create FromName fresh on DesiredBranch and fail
+// because the orphan already has that branch checked out.
+type WorktreeShift struct {
+	FromName      string // BC slot: vacated by step 1, refilled by the orphan in step 2
+	ToName        string // missing slot filled by FromName's dir (preserves its WIP)
+	HeldBranch    string // branch preserved by moving FromName → ToName (BC.CurrentBranch)
+	OrphanName    string // orphan moved into FromName's vacated slot
+	OrphanPath    string // current path of the orphan
+	DesiredBranch string // branch the orphan holds (== BC.DesiredBranch)
+	FromPath      string // current path of the worktree being moved into ToName
 }
 
 func newSyncCommand(svc *Service) *cobra.Command {
@@ -169,6 +191,7 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 		WorktreeSwaps:     []WorktreeSwap{},
 		WorktreeAdoptions: []WorktreeAdoption{},
 		WorktreeRedirects: []WorktreeRedirect{},
+		WorktreeShifts:    []WorktreeShift{},
 		InSync:            true,
 	}
 
@@ -215,6 +238,7 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 
 	detectMoves(status, missingMap, orphanedMap, orphanedByBranch)
 	detectSwaps(status, actualMap)
+	detectShifts(status, actualMap, missingMap, orphanedMap, orphanedByBranch)
 	detectAdoptions(status, actualMap, orphanedMap, orphanedByBranch)
 	detectRedirects(status, actualMap, missingMap)
 
@@ -234,14 +258,17 @@ func getSyncStatus(svc *Service, _ bool) (*SyncStatus, error) {
 // for the intra-BC ordering — chains like A releases X that B needs.)
 //  1. Moves          — orphan renamed into missing slot (lossless)
 //  2. Swaps          — two tracked worktrees exchange branches via temp (lossless)
-//  3. Adoptions      — orphan adopted to satisfy a branch change (orphan lossless,
+//  3. Shifts         — BC worktree fills a missing slot, orphan fills the BC's
+//     vacated slot (two moves, fully lossless; runs before Adoptions so the
+//     no-trash rotation wins over the lossy adoption for the same BC)
+//  4. Adoptions      — orphan adopted to satisfy a branch change (orphan lossless,
 //     old tracked worktree's dirty work trashed)
-//  4. Redirects      — tracked BC worktree renamed into a missing slot whose
-//     branch it already holds (lossless; on decline, falls through to step 5+6)
-//  5. Branch changes — destructive remove-and-recreate, ordered so releasers run
+//  5. Redirects      — tracked BC worktree renamed into a missing slot whose
+//     branch it already holds (lossless; on decline, falls through to step 6+7)
+//  6. Branch changes — destructive remove-and-recreate, ordered so releasers run
 //     before takers
-//  6. Missing        — fresh worktrees created from config (now safe to take
-//     branches released by step 4 or 5)
+//  7. Missing        — fresh worktrees created from config (now safe to take
+//     branches released by step 5 or 6)
 func performSync(
 	svc *Service,
 	status *SyncStatus,
@@ -258,6 +285,10 @@ func performSync(
 	}
 
 	if err := performWorktreeSwaps(svc, status.WorktreeSwaps, worktreesDir, dryRun, confirmFunc); err != nil {
+		return err
+	}
+
+	if err := performWorktreeShifts(svc, status.WorktreeShifts, worktreesDir, dryRun, confirmFunc); err != nil {
 		return err
 	}
 
@@ -369,6 +400,61 @@ func performWorktreeSwaps(svc *Service, swaps []WorktreeSwap, worktreesDir strin
 
 		PrintSuccess(fmt.Sprintf("Swapped '%s' ↔ '%s' (branches: %s ↔ %s, dirty files preserved)",
 			swap.NameA, swap.NameB, swap.BranchA, swap.BranchB))
+	}
+	return nil
+}
+
+// performWorktreeShifts performs the lossless rotation: move the tracked worktree
+// (with its WIP) into the missing slot, then move the orphan into the slot the
+// tracked worktree just vacated. Two git worktree moves, nothing trashed.
+//
+// Rollback-safe: if step 2 fails, step 1 is reversed so the user is left with the
+// original layout.
+func performWorktreeShifts(svc *Service, shifts []WorktreeShift, worktreesDir string, dryRun bool, confirmFunc func(string) bool) error {
+	for _, s := range shifts {
+		message := fmt.Sprintf(
+			"Rotate losslessly: move '%s' (on '%s', preserves WIP) -> '%s', then move orphan '%s' (on '%s') -> '%s'? Nothing is trashed.",
+			s.FromName, s.HeldBranch, s.ToName, s.OrphanName, s.DesiredBranch, s.FromName,
+		)
+
+		if !dryRun && confirmFunc != nil && !confirmFunc(message) {
+			PrintMessage("Skipped shift '%s' -> '%s' / '%s' -> '%s'\n", s.FromName, s.ToName, s.OrphanName, s.FromName)
+			continue
+		}
+
+		toPath := filepath.Join(worktreesDir, s.ToName)
+		fromPath := filepath.Join(worktreesDir, s.FromName)
+
+		if dryRun {
+			fmt.Printf("[DRY RUN] git worktree move %s %s   # preserve WIP on '%s'\n", s.FromPath, toPath, s.HeldBranch)
+			fmt.Printf("[DRY RUN] git worktree move %s %s   # move orphan on '%s' into vacated slot\n", s.OrphanPath, fromPath, s.DesiredBranch)
+			continue
+		}
+
+		// Step 1: move the tracked worktree into the missing slot (keeps its WIP).
+		if err := svc.Git.MoveWorktreeByPath(s.FromPath, toPath, false); err != nil {
+			return fmt.Errorf("shift: failed to move '%s' -> '%s': %w", s.FromName, s.ToName, err)
+		}
+
+		// Step 2: move the orphan into the now-vacated original slot.
+		if err := svc.Git.MoveWorktreeByPath(s.OrphanPath, fromPath, false); err != nil {
+			// Roll back step 1 so the user keeps the original layout.
+			if rbErr := svc.Git.MoveWorktreeByPath(toPath, s.FromPath, false); rbErr != nil {
+				return fmt.Errorf("shift: move orphan '%s' -> '%s' failed: %w; rollback also failed: %w",
+					s.OrphanName, s.FromName, err, rbErr)
+			}
+			return fmt.Errorf("shift: move orphan '%s' -> '%s' failed: %w (rolled back)", s.OrphanName, s.FromName, err)
+		}
+
+		PrintSuccess(fmt.Sprintf("Shifted '%s' -> '%s' (preserved WIP on '%s'), '%s' -> '%s' (on '%s')",
+			s.FromName, s.ToName, s.HeldBranch, s.OrphanName, s.FromName, s.DesiredBranch))
+
+		if err := svc.CopyFilesToWorktree(s.ToName); err != nil {
+			PrintWarning(fmt.Sprintf("File copy failed for worktree '%s': %v", s.ToName, err))
+		}
+		if err := svc.CopyFilesToWorktree(s.FromName); err != nil {
+			PrintWarning(fmt.Sprintf("File copy failed for worktree '%s': %v", s.FromName, err))
+		}
 	}
 	return nil
 }
@@ -630,6 +716,12 @@ func showSyncStatus(svc *Service, status *SyncStatus) error {
 		for _, swap := range status.WorktreeSwaps {
 			fmt.Printf("  ↔ %s (%s) ↔ %s (%s) — dirty files preserved in both\n",
 				swap.NameA, swap.BranchA, swap.NameB, swap.BranchB)
+		}
+	})
+	printSyncSection(len(status.WorktreeShifts), "Lossless rotations (two moves, nothing trashed; will prompt for confirmation):", func() {
+		for _, s := range status.WorktreeShifts {
+			fmt.Printf("  ⮌ %s (on %s) → %s; orphan %s (on %s) → %s\n",
+				s.FromName, s.HeldBranch, s.ToName, s.OrphanName, s.DesiredBranch, s.FromName)
 		}
 	})
 	printSyncSection(len(status.WorktreeAdoptions), "Orphan adoptions (will prompt for confirmation):", func() {

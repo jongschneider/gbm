@@ -81,6 +81,59 @@ func findSwapPartner(nameA string, changeA BranchChange, names []string, claimed
 	return ""
 }
 
+// detectShifts finds the fully lossless rotation: a tracked worktree X with a
+// pending BranchChange whose CURRENT branch fills a missing slot M, AND whose
+// DESIRED branch is already held by a single live orphan O. Resolved with two
+// git worktree moves and zero data loss:
+//
+//	X (on its current branch, + WIP) → M   — fills the missing slot
+//	O (on X's desired branch)        → X   — fills X's now-vacated slot
+//
+// This must be detected BEFORE adoptions and redirects because it strictly
+// dominates both: adoption would trash X's WIP, and a redirect would try to
+// create X fresh on its desired branch and fail (the orphan already holds it).
+//
+// Only unambiguous 1:1 matches are taken: exactly one missing wants X's current
+// branch, X is the only BC on that current branch, and exactly one live orphan
+// holds X's desired branch. Anything ambiguous falls through to the later passes.
+func detectShifts(status *SyncStatus, actualMap map[string]git.Worktree, missingMap, orphanedMap map[string]string, orphanedByBranch map[string][]string) {
+	missingsByBranch := make(map[string][]string)
+	for name, branch := range missingMap {
+		missingsByBranch[branch] = append(missingsByBranch[branch], name)
+	}
+	bcsByCurrentBranch := make(map[string][]string)
+	for name, bc := range status.BranchChanges {
+		bcsByCurrentBranch[bc.CurrentBranch] = append(bcsByCurrentBranch[bc.CurrentBranch], name)
+	}
+
+	for bcName, bc := range status.BranchChanges {
+		missings := missingsByBranch[bc.CurrentBranch]
+		bcs := bcsByCurrentBranch[bc.CurrentBranch]
+		if len(missings) != 1 || len(bcs) != 1 {
+			continue
+		}
+		orphan, matched := singleLiveOrphan(orphanedByBranch[bc.DesiredBranch], orphanedMap)
+		if !matched {
+			continue
+		}
+
+		missingName := missings[0]
+		status.WorktreeShifts = append(status.WorktreeShifts, WorktreeShift{
+			FromName:      bcName,
+			ToName:        missingName,
+			HeldBranch:    bc.CurrentBranch,
+			OrphanName:    orphan,
+			OrphanPath:    actualMap[orphan].Path,
+			DesiredBranch: bc.DesiredBranch,
+			FromPath:      actualMap[bcName].Path,
+		})
+
+		delete(status.BranchChanges, bcName)
+		delete(missingMap, missingName)
+		delete(orphanedMap, orphan)
+	}
+}
+
 // detectAdoptions finds BranchChanges whose desired branch is held by exactly
 // one live orphan. Lossy for the tracked worktree being repointed (its dirty
 // work goes to Trash), but lossless for the orphan (renamed via worktree move).
