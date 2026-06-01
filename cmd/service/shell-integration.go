@@ -1,7 +1,7 @@
 package service
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -24,9 +24,11 @@ Setup:
 After setup, 'gbm worktree switch <name>' will automatically cd to the worktree directory.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Output the shell wrapper function
-			fmt.Print(shellIntegrationScript)
-			return nil
+			// Output the shell wrapper function. Use a raw write rather than
+			// fmt.Print so the %s in the script body isn't treated as a
+			// formatting directive.
+			_, err := os.Stdout.WriteString(shellIntegrationScript)
+			return err
 		},
 	}
 
@@ -48,9 +50,14 @@ gbm() {
         result=$(command gbm "$@" 2>/dev/stderr)
         local exit_code=$?
 
-        # If successful and result is a directory, cd to it
+        # If successful and result is a directory, cd to it. Otherwise pass the
+        # output through to stdout unchanged -- e.g. '--json' output, which is not
+        # a path, must still reach the caller (agents, pipes) instead of being
+        # swallowed by this capture.
         if [ $exit_code -eq 0 ] && [ -n "$result" ] && [ -d "$result" ]; then
             cd "$result"
+        elif [ -n "$result" ]; then
+            printf '%s\n' "$result"
         fi
 
         return $exit_code

@@ -296,6 +296,8 @@ func TestE2E_ShellIntegration_Command(t *testing.T) {
 	assert.Contains(t, stdout, "worktree", "script should handle worktree commands")
 	assert.Contains(t, stdout, "switch", "script should handle switch command")
 	assert.Contains(t, stdout, "cd \"$result\"", "script should cd to result")
+	assert.Contains(t, stdout, "printf '%s\\n' \"$result\"",
+		"script should pass non-path output (e.g. --json) through to stdout instead of swallowing it")
 	assert.Empty(t, stderr, "shell-integration should not output to stderr")
 
 	// Verify script contains all supported command forms
